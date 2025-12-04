@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Modal from "react-native-modal";
+import WheelColorPicker from "react-native-wheel-color-picker";
 import { colors } from "../theme/theme";
-import EmojiModal from "react-native-emoji-modal";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 
@@ -44,22 +44,27 @@ export default function EditCategoryModal({
   const [name, setName] = useState("");
   const [color, setColor] = useState(colors.primary);
   const [type, setType] = useState<"expense" | "income">("expense");
-  const [showPalette, setShowPalette] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Color picker avanzado
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [tempColor, setTempColor] = useState(colors.primary);
 
   // 🔁 Sincronizar los valores al abrir el modal o cambiar de item
   useEffect(() => {
     if (editingItem) {
+      const initialColor = editingItem.color || colors.primary;
       setEmoji(editingItem.emoji || "💸");
       setName(editingItem.name || "");
-      setColor(editingItem.color || colors.primary);
+      setColor(initialColor);
       setType(editingItem.type || "expense");
+      setTempColor(initialColor);
     } else {
       setEmoji("💸");
       setName("");
       setColor(colors.primary);
       setType("expense");
+      setTempColor(colors.primary);
     }
   }, [editingItem, visible]);
 
@@ -70,7 +75,7 @@ export default function EditCategoryModal({
     }
 
     const payloadCategory = {
-      name,
+      name: name.trim(),
       type,
       emoji,
       color,
@@ -78,7 +83,7 @@ export default function EditCategoryModal({
     };
 
     const payloadSub = {
-      name,
+      name: name.trim(),
       emoji,
       color,
       categoryId: editingItem?.categoryId,
@@ -116,7 +121,10 @@ export default function EditCategoryModal({
       });
       onClose();
     } catch (error: any) {
-      console.error("❌ Error al guardar categoría:", error.response?.data || error.message);
+      console.error(
+        "❌ Error al guardar categoría:",
+        error.response?.data || error.message
+      );
       Alert.alert(
         "Error",
         error.response?.data?.message || "No se pudo guardar la categoría"
@@ -130,81 +138,84 @@ export default function EditCategoryModal({
   const handleDelete = () => {
     if (!editingItem?.id) return;
 
-    Alert.alert(
-  "Eliminar categoría",
-  "¿Qué deseas hacer?",
-  [
-    {
-      text: "Cancelar",
-      style: "cancel",
-    },
-
-    // 🟥 SOLO ELIMINAR LA CATEGORÍA (manteniendo transacciones)
-    {
-      text: "Eliminar solo la categoría",
-      style: "destructive",
-      onPress: async () => {
-        try {
-          setLoading(true);
-
-          if (editingItem.isSub) {
-            // Subcategoría
-            await api.delete(
-              `/categories/${editingItem.categoryId}/subcategories/${editingItem.id}?deleteTransactions=false`
-            );
-          } else {
-            // Categoría
-            await api.delete(
-              `/categories/${editingItem.id}?deleteTransactions=false`
-            );
-          }
-
-          onSave({ deleted: true });
-          onClose();
-        } catch (error: any) {
-          console.error("❌ Error:", error.response?.data || error.message);
-          Alert.alert("Error", "No se pudo eliminar solo la categoría");
-        } finally {
-          setLoading(false);
-        }
+    Alert.alert("Eliminar categoría", "¿Qué deseas hacer?", [
+      {
+        text: "Cancelar",
+        style: "cancel",
       },
-    },
 
-    // 🔥 ELIMINAR TODO: categoría + transacciones asociadas
-    {
-      text: "Eliminar categoría y transacciones",
-      style: "destructive",
-      onPress: async () => {
-        try {
-          setLoading(true);
+      {
+        text: "Eliminar solo la categoría",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
 
-          if (editingItem.isSub) {
-            await api.delete(
-              `/categories/${editingItem.categoryId}/subcategories/${editingItem.id}?deleteTransactions=true`
+            if (editingItem.isSub) {
+              await api.delete(
+                `/categories/${editingItem.categoryId}/subcategories/${editingItem.id}?deleteTransactions=false`
+              );
+            } else {
+              await api.delete(
+                `/categories/${editingItem.id}?deleteTransactions=false`
+              );
+            }
+
+            onSave({ deleted: true });
+            onClose();
+          } catch (error: any) {
+            console.error(
+              "❌ Error:",
+              error.response?.data || error.message
             );
-          } else {
-            await api.delete(
-              `/categories/${editingItem.id}?deleteTransactions=true`
+            Alert.alert(
+              "Error",
+              "No se pudo eliminar solo la categoría"
             );
+          } finally {
+            setLoading(false);
           }
-
-          onSave({ deleted: true });
-          onClose();
-        } catch (error: any) {
-          console.error("❌ Error:", error.response?.data || error.message);
-          Alert.alert("Error", "No se pudo eliminar la categoría y sus transacciones");
-        } finally {
-          setLoading(false);
-        }
+        },
       },
-    },
-  ]
-);
 
+      {
+        text: "Eliminar categoría y transacciones",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
 
+            if (editingItem.isSub) {
+              await api.delete(
+                `/categories/${editingItem.categoryId}/subcategories/${editingItem.id}?deleteTransactions=true`
+              );
+            } else {
+              await api.delete(
+                `/categories/${editingItem.id}?deleteTransactions=true`
+              );
+            }
+
+            onSave({ deleted: true });
+            onClose();
+          } catch (error: any) {
+            console.error(
+              "❌ Error:",
+              error.response?.data || error.message
+            );
+            Alert.alert(
+              "Error",
+              "No se pudo eliminar la categoría y sus transacciones"
+            );
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
   };
 
-  const openColorPicker = () => setShowPalette((v) => !v);
+  const typeLabel =
+    editingItem?.isSub ? "Subcategoría" : type === "expense" ? "Gasto" : "Ingreso";
 
   return (
     <Modal
@@ -217,9 +228,9 @@ export default function EditCategoryModal({
       style={{ justifyContent: "flex-end", margin: 0 }}
     >
       <View
-        className="bg-white rounded-t-3xl p-5"
+        className="bg-white rounded-t-3xl px-5 pt-4 pb-2"
         style={{
-          minHeight: screenHeight * 0.55,
+          minHeight: screenHeight * 0.6,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
@@ -227,9 +238,11 @@ export default function EditCategoryModal({
         }}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center mb-5">
+        <View className="flex-row justify-between items-center mb-3">
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text className="text-[14px] text-gray-500 font-medium">Cancelar</Text>
+            <Text className="text-[14px] text-gray-500 font-medium">
+              Cancelar
+            </Text>
           </TouchableOpacity>
 
           <Text className="text-[16px] font-semibold text-text">
@@ -242,8 +255,11 @@ export default function EditCategoryModal({
               : "Nueva categoría"}
           </Text>
 
-          {/* Guardar / Actualizar */}
-          <TouchableOpacity onPress={handleSave} activeOpacity={0.8} disabled={loading}>
+          <TouchableOpacity
+            onPress={handleSave}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -262,42 +278,74 @@ export default function EditCategoryModal({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          {/* Emoji + Nombre */}
-          <View className="items-center mb-5">
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setShowEmojiPicker(true)}
-              className="w-16 h-16 bg-gray-100 rounded-2xl items-center justify-center mb-3"
+          {/* PREVIEW CARD */}
+          <View className="mb-6">
+            <View
+              className="rounded-3xl px-4 py-4 flex-row items-center shadow-md shadow-black/5"
+              style={{ backgroundColor: color }}
             >
-              <Text className="text-[30px]">{emoji}</Text>
-            </TouchableOpacity>
+              <View className="w-12 h-12 rounded-2xl bg-white/15 items-center justify-center mr-3">
+                <Text className="text-[28px]">{emoji || "💸"}</Text>
+              </View>
 
-            <View className="flex-row items-center w-full justify-center">
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Nombre"
-                placeholderTextColor="#9CA3AF"
-                className="flex-1 bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text"
-              />
-              <View
-                style={{
-                  backgroundColor: color,
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  marginLeft: 8,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                }}
-              />
+              <View className="flex-1">
+                <Text
+                  className="text-white text-[14px] font-semibold"
+                  numberOfLines={1}
+                >
+                  {name ||
+                    (editingItem?.isSub
+                      ? "Nueva subcategoría"
+                      : "Nueva categoría")}
+                </Text>
+                <Text className="text-white/80 text-[11px] mt-1">
+                  {typeLabel}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Tipo de categoría */}
+          {/* INFO BÁSICA */}
+          <View className="mb-5">
+            <Text className="text-[13px] text-gray-400 mb-2">
+              Información básica
+            </Text>
+
+            <Text className="text-[11px] text-gray-500 mb-1">Nombre</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder={
+                editingItem?.isSub
+                  ? "Nombre de la subcategoría"
+                  : "Nombre de la categoría"
+              }
+              placeholderTextColor="#9CA3AF"
+              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
+            />
+
+            <Text className="text-[11px] text-gray-500 mb-1 mt-3">
+              Emoji (opcional)
+            </Text>
+            <View className="flex-row items-center">
+              <TextInput
+                value={emoji}
+                onChangeText={setEmoji}
+                maxLength={2}
+                className="border border-slate-200 rounded-xl px-3 py-2 w-16 text-center mr-2 text-[18px] bg-gray-50"
+              />
+              <Text className="text-[11px] text-gray-500 flex-1">
+                Se mostrará en listas, tarjetas y gráficos.
+              </Text>
+            </View>
+          </View>
+
+          {/* TIPO */}
           {!editingItem?.isSub && (
             <View className="mb-5">
-              <Text className="text-[13px] text-gray-500 mb-2">Tipo de categoría</Text>
+              <Text className="text-[13px] text-gray-400 mb-2">
+                Tipo de categoría
+              </Text>
               <View className="flex-row bg-gray-100 rounded-full p-1">
                 <TouchableOpacity
                   onPress={() => setType("expense")}
@@ -333,69 +381,43 @@ export default function EditCategoryModal({
             </View>
           )}
 
-          {/* Selector de color */}
-          <View>
-            <Text className="text-[13px] text-gray-500 mb-2">Color</Text>
-            <View className="flex-row items-center">
+          {/* SELECTOR DE COLOR AVANZADO */}
+          <View className="mb-4">
+            <Text className="text-[13px] text-gray-400 mb-2">Color</Text>
+
+            <View className="flex-row items-center mb-2">
               <View
                 style={{
                   backgroundColor: color,
-                  width: 30,
-                  height: 30,
-                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 12,
                   borderWidth: 1,
                   borderColor: "#E5E7EB",
                   marginRight: 10,
                 }}
               />
               <TouchableOpacity
-                onPress={openColorPicker}
+                onPress={() => {
+                  setTempColor(color);
+                  setShowColorPicker(true);
+                }}
                 className="bg-gray-100 px-3 py-1.5 rounded-full"
                 activeOpacity={0.8}
               >
-                <Text className="text-[13px] font-medium text-text">Elegir color</Text>
+                <Text className="text-[13px] font-medium text-text">
+                  Elegir color
+                </Text>
               </TouchableOpacity>
             </View>
 
-            {showPalette && (
-              <View className="flex-row flex-wrap mt-4 justify-center">
-                {[
-                  "#6366F1",
-                  "#34D399",
-                  "#F87171",
-                  "#F59E0B",
-                  "#A855F7",
-                  "#3B82F6",
-                  "#10B981",
-                  "#EC4899",
-                  "#14B8A6",
-                  "#EAB308",
-                  "#22D3EE",
-                  "#9CA3AF",
-                ].map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => {
-                      setColor(c);
-                      setShowPalette(false);
-                    }}
-                    style={{
-                      backgroundColor: c,
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
-                      margin: 6,
-                      borderWidth: color === c ? 2 : 0,
-                      borderColor: color === c ? colors.text : "transparent",
-                    }}
-                  />
-                ))}
-              </View>
-            )}
+            <Text className="text-[10px] text-gray-400">
+              Puedes escoger cualquier color con el selector avanzado.
+            </Text>
           </View>
         </ScrollView>
 
-        {/* Botón ELIMINAR abajo, estilo iOS */}
+        {/* Botón ELIMINAR */}
         {editingItem?.id && (
           <TouchableOpacity
             onPress={handleDelete}
@@ -405,7 +427,7 @@ export default function EditCategoryModal({
             style={{
               borderRadius: 14,
               backgroundColor: "#FEE2E2",
-              marginBottom:20
+              marginBottom: 20,
             }}
           >
             <Text
@@ -416,36 +438,65 @@ export default function EditCategoryModal({
             </Text>
           </TouchableOpacity>
         )}
+      </View>
 
-        {/* === Selector de emoji === */}
-        <Modal
-          isVisible={showEmojiPicker}
-          backdropOpacity={0.4}
+      {/* SUB-MODAL COLOR PICKER */}
+      <Modal
+        isVisible={showColorPicker}
+        onBackdropPress={() => setShowColorPicker(false)}
+        backdropOpacity={0.4}
+        style={{ justifyContent: "flex-end", margin: 0 }}
+      >
+        <View
           style={{
-            justifyContent: "flex-end",
-            margin: 0,
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 20,
+            height: screenHeight * 0.6,
           }}
-          onBackdropPress={() => setShowEmojiPicker(false)}
         >
-          <View
-            style={{
-              height: screenHeight * 0.55,
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              overflow: "hidden",
-            }}
-          >
-            <EmojiModal
-              onEmojiSelected={(emoji: string) => {
-                setEmoji(emoji);
-                setShowEmojiPicker(false);
-              }}
-              onPressOutside={() => setShowEmojiPicker(false)}
+          <Text className="text-[15px] font-semibold text-text mb-2">
+            Elige un color
+          </Text>
+          <Text className="text-[11px] text-gray-500 mb-4">
+            Arrastra por la rueda de color y ajusta la luminosidad.
+          </Text>
+
+          <View style={{ flex: 1 }}>
+            <WheelColorPicker
+              color={tempColor}
+              onColorChangeComplete={(c: string) => setTempColor(c)}
+              thumbSize={30}
+              sliderSize={25}
+              noSnap={true}
+              row={false}
             />
           </View>
-        </Modal>
-      </View>
+
+          <View className="flex-row justify-end mt-3">
+            <TouchableOpacity
+              onPress={() => setShowColorPicker(false)}
+              className="px-3 py-2 mr-2"
+            >
+              <Text className="text-[13px] text-gray-500">Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setColor(tempColor);
+                setShowColorPicker(false);
+              }}
+              className="px-4 py-2 rounded-full"
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Text className="text-[13px] text-white font-semibold">
+                Usar este color
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
