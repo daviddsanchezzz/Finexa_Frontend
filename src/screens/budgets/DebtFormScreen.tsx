@@ -20,11 +20,13 @@ import api from "../../api/api";
 
 type DebtType = "loan" | "personal";
 type DirectionType = "i_ow" | "they_owe";
+type DebtStatus = "active" | "paid" | "closed";
 
 export interface DebtFromApi {
   id: number;
   type: DebtType;
   direction: DirectionType;
+  status: DebtStatus;
   name: string;
   entity: string;
   emoji?: string;
@@ -37,7 +39,6 @@ export interface DebtFromApi {
   startDate?: string | null;
   nextDueDate?: string | null;
   installmentsPaid?: number | null;
-  // status, subcategory, etc. si quieres añadirlos
 }
 
 interface DebtFormData {
@@ -54,6 +55,7 @@ interface DebtFormData {
   nextDueDate: string; // ISO string o ""
   installmentsPaid: string;
   direction: DirectionType;
+  status: DebtStatus;
 }
 
 const parseNumber = (value: string) => {
@@ -61,6 +63,32 @@ const parseNumber = (value: string) => {
   const normalized = value.replace(",", ".");
   const num = Number(normalized);
   return isNaN(num) ? null : num;
+};
+
+const getStatusLabel = (status: DebtStatus) => {
+  switch (status) {
+    case "active":
+      return "Activa";
+    case "paid":
+      return "Pagada";
+    case "closed":
+      return "Cerrada";
+    default:
+      return "Activa";
+  }
+};
+
+const getStatusColor = (status: DebtStatus) => {
+  switch (status) {
+    case "active":
+      return { bg: "#dcfce7", text: "#166534" };
+    case "paid":
+      return { bg: "#dbeafe", text: "#1d4ed8" };
+    case "closed":
+      return { bg: "#e5e7eb", text: "#4b5563" };
+    default:
+      return { bg: "#dcfce7", text: "#166534" };
+  }
 };
 
 export default function DebtFormScreen({ navigation, route }: any) {
@@ -71,6 +99,9 @@ export default function DebtFormScreen({ navigation, route }: any) {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
 
+  // 👉 marcar para cerrar al guardar (solo edición)
+  const [markAsClosed, setMarkAsClosed] = useState(false);
+
   const [form, setForm] = useState<DebtFormData>({
     id: editDebt?.id,
     type: editDebt?.type ?? "loan",
@@ -79,8 +110,7 @@ export default function DebtFormScreen({ navigation, route }: any) {
     emoji: editDebt?.emoji ?? "💸",
     totalAmount:
       editDebt?.totalAmount != null ? String(editDebt.totalAmount) : "",
-    payed:
-      editDebt?.payed != null ? String(editDebt.payed) : "",
+    payed: editDebt?.payed != null ? String(editDebt.payed) : "",
     interestRate:
       editDebt?.interestRate != null ? String(editDebt.interestRate) : "",
     monthlyPayment:
@@ -92,6 +122,7 @@ export default function DebtFormScreen({ navigation, route }: any) {
         ? String(editDebt.installmentsPaid)
         : "",
     direction: editDebt?.direction ?? "i_ow",
+    status: editDebt?.status ?? "active",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -108,7 +139,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
 
     if (!form.name.trim()) e.name = "Introduce un nombre.";
     if (!form.entity.trim()) e.entity = "Introduce la persona o entidad.";
-
     if (!form.totalAmount.trim()) e.totalAmount = "Introduce el importe total.";
 
     if (!isPersonal) {
@@ -137,13 +167,20 @@ export default function DebtFormScreen({ navigation, route }: any) {
 
   const percentage =
     total > 0
-      ? Math.max(0, Math.min(100, Math.round(((total - remaining) / total) * 100)))
+      ? Math.max(
+          0,
+          Math.min(100, Math.round(((total - remaining) / total) * 100))
+        )
       : 0;
 
   const handleSave = async () => {
     if (!validate()) return;
 
     const parsedTotal = parseNumber(form.totalAmount) ?? 0;
+
+    // Estado a enviar: si marcamos cerrar y estamos editando → "closed"
+    const statusToSend: DebtStatus =
+      isEditMode && markAsClosed ? "closed" : form.status;
 
     const payload: any = {
       type: form.type,
@@ -153,11 +190,16 @@ export default function DebtFormScreen({ navigation, route }: any) {
       emoji: form.emoji || "💸",
       totalAmount: parsedTotal,
       payed: parseNumber(form.payed) ?? 0,
-      interestRate: isPersonal ? undefined : parseNumber(form.interestRate) ?? undefined,
-      monthlyPayment: isPersonal ? undefined : parseNumber(form.monthlyPayment) ?? undefined,
+      interestRate: isPersonal
+        ? undefined
+        : parseNumber(form.interestRate) ?? undefined,
+      monthlyPayment: isPersonal
+        ? undefined
+        : parseNumber(form.monthlyPayment) ?? undefined,
       startDate: form.startDate || undefined,
       nextDueDate: form.nextDueDate || undefined,
       installmentsPaid: parseNumber(form.installmentsPaid) ?? undefined,
+      status: statusToSend,
     };
 
     try {
@@ -289,7 +331,7 @@ export default function DebtFormScreen({ navigation, route }: any) {
             })}
           </View>
 
-          {/* INPUT CANTIDAD PRINCIPAL → TOTAL */}
+          {/* IMPORTE TOTAL */}
           <View className="items-center mb-8 mt-2">
             <Text className="text-[12px] text-gray-400 mb-1">
               Importe total de la deuda
@@ -416,7 +458,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
               Información básica
             </Text>
 
-            {/* Nombre */}
             <Text className="text-[11px] text-gray-500 mb-1">Nombre</Text>
             <TextInput
               value={form.name}
@@ -434,7 +475,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
               </Text>
             )}
 
-            {/* Entidad / persona */}
             <Text className="text-[11px] text-gray-500 mb-1 mt-3">
               Entidad o persona
             </Text>
@@ -452,7 +492,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
               </Text>
             )}
 
-            {/* Emoji */}
             <Text className="text-[11px] text-gray-500 mb-1 mt-3">
               Emoji (opcional)
             </Text>
@@ -475,7 +514,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
               Importe y condiciones
             </Text>
 
-            {/* Importe ya pagado */}
             <Text className="text-[11px] text-gray-500 mb-1">
               Importe ya pagado (opcional)
             </Text>
@@ -492,7 +530,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
 
             {!isPersonal && (
               <>
-                {/* Interés + cuota */}
                 <View className="flex-row mt-3">
                   <View style={{ flex: 1, marginRight: 10 }}>
                     <Text className="text-[11px] text-gray-500 mb-1">
@@ -532,7 +569,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
                   </View>
                 </View>
 
-                {/* Cuotas pagadas históricas */}
                 <View className="mt-3">
                   <Text className="text-[11px] text-gray-500 mb-1">
                     Cuotas pagadas históricas
@@ -560,7 +596,6 @@ export default function DebtFormScreen({ navigation, route }: any) {
               Fechas y recordatorios
             </Text>
 
-            {/* Inicio de la deuda */}
             <Text className="text-[11px] text-gray-500 mb-1">
               Inicio de la deuda
             </Text>
@@ -576,6 +611,98 @@ export default function DebtFormScreen({ navigation, route }: any) {
               <Ionicons name="calendar-outline" size={18} color="black" />
             </TouchableOpacity>
           </View>
+
+          {/* ESTADO Y CERRAR DEUDA (solo edición) */}
+          {isEditMode && (
+            <View className="mb-10">
+              <Text className="text-[13px] text-gray-400 mb-2">
+                Estado de la deuda
+              </Text>
+
+              {/* Estado actual */}
+              <View className="flex-row items-center mb-3">
+                <Text className="text-[12px] text-gray-500 mr-2">
+                  Estado actual:
+                </Text>
+                {(() => {
+                  const { bg, text } = getStatusColor(form.status);
+                  return (
+                    <View
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 999,
+                        backgroundColor: bg,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "600",
+                          color: text,
+                        }}
+                      >
+                        {getStatusLabel(form.status)}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {form.status === "closed" ? (
+                <Text className="text-[11px] text-gray-500">
+                  Esta deuda ya está marcada como cerrada. Si modificas los
+                  importes, el estado se mantendrá cerrado salvo que lo cambies
+                  desde el backend.
+                </Text>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setMarkAsClosed((prev) => !prev)}
+                    style={{
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: markAsClosed ? "#f97316" : "#e5e7eb",
+                      backgroundColor: markAsClosed ? "#fff7ed" : "#f8fafc",
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={
+                        markAsClosed
+                          ? "checkbox-outline"
+                          : "square-outline"
+                      }
+                      size={18}
+                      color={markAsClosed ? "#f97316" : "#9ca3af"}
+                    />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text className="text-[13px] text-gray-800 font-medium">
+                        Marcar esta deuda como cerrada
+                      </Text>
+                      <Text className="text-[11px] text-gray-500 mt-1">
+                        Al guardar, la deuda pasará a estado{" "}
+                        <Text style={{ fontWeight: "600" }}>cerrada</Text> y la
+                        subcategoría asociada podrá dejar de usarse para nuevos
+                        movimientos.
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {markAsClosed && (
+                    <Text className="text-[11px] text-amber-700 mt-2">
+                      Asegúrate de que los importes pagados y pendientes son
+                      correctos antes de cerrar la deuda.
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
           {/* DATE PICKERS */}
           <DateTimePickerModal
             isVisible={showStartDatePicker}

@@ -1,5 +1,5 @@
 // src/screens/Debts/DebtDetailScreen.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -39,8 +39,8 @@ interface Debt {
   remainingAmount: number;
   interestRate?: number | null;
   monthlyPayment?: number | null;
-  nextDueDate?: string | null; // ISO
-  startDate?: string | null; // ISO
+  nextDueDate?: string | null;
+  startDate?: string | null;
   subcategoryId?: number | null;
   subcategory?: DebtSubcategory | null;
   installmentsPaid?: number | null;
@@ -122,6 +122,52 @@ const getStatusPillStyles = (status: DebtStatus) => {
   }
 };
 
+type AmortizationResult = {
+  months: number;
+  years: number;
+  totalInterest: number;
+} | null;
+
+const simulateAmortization = (
+  principal: number,
+  annualRatePercent: number,
+  baseMonthlyPayment: number,
+  extra: number
+): AmortizationResult => {
+  const monthlyRate = (annualRatePercent / 100) / 12;
+  const monthlyPayment = baseMonthlyPayment + extra;
+
+  if (monthlyPayment <= 0 || principal <= 0 || monthlyRate < 0) return null;
+
+  let balance = principal;
+  let months = 0;
+  let interestAcc = 0;
+
+  const MAX_MONTHS = 1200;
+
+  while (balance > 0 && months < MAX_MONTHS) {
+    const interest = balance * monthlyRate;
+    const principalPaid = monthlyPayment - interest;
+
+    if (principalPaid <= 0) {
+      return null;
+    }
+
+    interestAcc += interest;
+    balance -= principalPaid;
+    months++;
+  }
+
+  if (months >= MAX_MONTHS) return null;
+
+  const years = months / 12;
+  return {
+    months,
+    years,
+    totalInterest: interestAcc,
+  };
+};
+
 export default function DebtDetailScreen({ route, navigation }: any) {
   const { debtId } = route.params || {};
 
@@ -162,7 +208,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
       };
       const res = await api.get("/transactions", { params });
 
-      // Ordenar de más nueva a más antigua
       const sorted = (res.data || []).sort(
         (a: Tx, b: Tx) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -175,12 +220,10 @@ export default function DebtDetailScreen({ route, navigation }: any) {
     }
   };
 
-  // Cargar deuda al montar
   useEffect(() => {
     fetchDebt();
   }, [debtId]);
 
-  // Cuando tengamos deuda y subcategoryId, cargamos transacciones
   useEffect(() => {
     if (debt?.subcategoryId) {
       fetchTransactions(debt.subcategoryId);
@@ -237,7 +280,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
   const total = debt.totalAmount || 0;
   const remaining = Math.max(debt.remainingAmount || 0, 0);
 
-  // Si viene payed del backend, lo usamos; si no, calculamos por diferencia
   const paid =
     debt.payed != null
       ? Math.max(debt.payed, 0)
@@ -255,79 +297,37 @@ export default function DebtDetailScreen({ route, navigation }: any) {
   const canSimulate =
     !!debt.interestRate && !!debt.monthlyPayment && remaining > 0;
 
-  type AmortizationResult = {
-    months: number;
-    years: number;
-    totalInterest: number;
-  } | null;
-
-  const simulateAmortization = (
-    principal: number,
-    annualRatePercent: number,
-    baseMonthlyPayment: number,
-    extra: number
-  ): AmortizationResult => {
-    const monthlyRate = (annualRatePercent / 100) / 12;
-    const monthlyPayment = baseMonthlyPayment + extra;
-
-    if (monthlyPayment <= 0 || principal <= 0 || monthlyRate < 0) return null;
-
-    let balance = principal;
-    let months = 0;
-    let interestAcc = 0;
-
-    const MAX_MONTHS = 1200;
-
-    while (balance > 0 && months < MAX_MONTHS) {
-      const interest = balance * monthlyRate;
-      const principalPaid = monthlyPayment - interest;
-
-      if (principalPaid <= 0) {
-        return null;
-      }
-
-      interestAcc += interest;
-      balance -= principalPaid;
-      months++;
-    }
-
-    if (months >= MAX_MONTHS) return null;
-
-    const years = months / 12;
-    return {
-      months,
-      years,
-      totalInterest: interestAcc,
-    };
-  };
-
-  const baseScenario = useMemo(() => {
-    if (!canSimulate || !debt.interestRate || !debt.monthlyPayment) return null;
-    return simulateAmortization(
-      remaining,
-      debt.interestRate,
-      debt.monthlyPayment,
-      0
-    );
-  }, [canSimulate, remaining, debt.interestRate, debt.monthlyPayment]);
-
   const extraPerMonth = Number(extraPerMonthText.replace(",", ".")) || 0;
 
-  const extraScenario = useMemo(() => {
-    if (!canSimulate || !debt.interestRate || !debt.monthlyPayment) return null;
-    return simulateAmortization(
-      remaining,
-      debt.interestRate,
-      debt.monthlyPayment,
-      extraPerMonth
-    );
-  }, [canSimulate, remaining, debt.interestRate, debt.monthlyPayment, extraPerMonth]);
+  const baseScenario: AmortizationResult =
+    canSimulate && debt.interestRate && debt.monthlyPayment
+      ? simulateAmortization(
+          remaining,
+          debt.interestRate,
+          debt.monthlyPayment,
+          0
+        )
+      : null;
+
+  const extraScenario: AmortizationResult =
+    canSimulate && debt.interestRate && debt.monthlyPayment
+      ? simulateAmortization(
+          remaining,
+          debt.interestRate,
+          debt.monthlyPayment,
+          extraPerMonth
+        )
+      : null;
 
   const approxInstallmentsLeft =
-    baseScenario?.months !== undefined ? baseScenario.months : null;
+    baseScenario && baseScenario.months !== undefined
+      ? baseScenario.months
+      : null;
 
   const approxYearsLeft =
-    baseScenario?.years !== undefined ? baseScenario.years.toFixed(1) : null;
+    baseScenario && baseScenario.years !== undefined
+      ? baseScenario.years.toFixed(1)
+      : null;
 
   const interestSaved =
     baseScenario && extraScenario
@@ -347,12 +347,11 @@ export default function DebtDetailScreen({ route, navigation }: any) {
 
   const nextDueDateFormatted = formatDate(debt.nextDueDate);
   const startDateFormatted = formatDate(debt.startDate);
-
   const statusStyles = getStatusPillStyles(debt.status);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* HEADER: flecha + texto izquierda, botón "Editar" derecha */}
+      {/* HEADER */}
       <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center">
           <TouchableOpacity
@@ -385,7 +384,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* HERO CARD (PRIMARY) */}
+        {/* HERO CARD */}
         <View
           style={{
             borderRadius: 24,
@@ -399,7 +398,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
             elevation: 4,
           }}
         >
-          {/* ENTIDAD + NOMBRE */}
           <View className="flex-row justify-between items-start mb-4">
             <View className="flex-row items-center flex-1 pr-4">
               <View
@@ -442,7 +440,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
               </View>
             </View>
 
-            {/* TIPO + ESTADO */}
             <View className="items-end">
               <View
                 style={{
@@ -521,7 +518,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
             </Text>
           </View>
 
-          {/* BARRA DE PROGRESO */}
+          {/* PROGRESO */}
           <View style={{ marginBottom: 12 }}>
             <View className="flex-row justify-between mb-1">
               <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
@@ -561,7 +558,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
             }}
           >
             <View className="flex-row">
-              {/* Inicio */}
               <View className="flex-1">
                 <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
                   Inicio
@@ -578,7 +574,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                 </Text>
               </View>
 
-              {/* Próxima cuota */}
               <View className="flex-1 items-center">
                 <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
                   Próximo pago
@@ -606,7 +601,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                 )}
               </View>
 
-              {/* Cuotas */}
               <View className="flex-1 items-end">
                 <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
                   Cuotas
@@ -637,7 +631,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
             </View>
           </View>
 
-          {/* FRASE RESUMEN */}
           {approxInstallmentsLeft !== null && approxYearsLeft && (
             <View
               style={{
@@ -664,7 +657,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
           )}
         </View>
 
-        {/* RESUMEN NUMÉRICO EN GRID */}
+        {/* RESUMEN NUMÉRICO */}
         <View
           style={{
             borderRadius: 20,
@@ -692,7 +685,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
           </View>
 
           <View className="flex-row flex-wrap -mx-1">
-            {/* Total financiado */}
             <View className="w-1/2 px-1 mb-2">
               <View className="rounded-2xl bg-slate-50 px-3 py-3">
                 <Text className="text-[11px] text-gray-500">
@@ -704,7 +696,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
               </View>
             </View>
 
-            {/* Cuota mensual */}
             {debt.monthlyPayment != null && (
               <View className="w-1/2 px-1 mb-2">
                 <View className="rounded-2xl bg-slate-50 px-3 py-3">
@@ -718,7 +709,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
               </View>
             )}
 
-            {/* Pagado */}
             <View className="w-1/2 px-1 mb-2">
               <View className="rounded-2xl bg-emerald-50 px-3 py-3">
                 <Text className="text-[11px] text-emerald-700">
@@ -730,7 +720,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
               </View>
             </View>
 
-            {/* Pendiente actual */}
             <View className="w-1/2 px-1 mb-2">
               <View className="rounded-2xl bg-rose-50 px-3 py-3">
                 <Text className="text-[11px] text-rose-600">
@@ -742,7 +731,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
               </View>
             </View>
 
-            {/* Interés */}
             {debt.interestRate != null && (
               <View className="w-1/2 px-1 mb-1">
                 <View className="rounded-2xl bg-indigo-50 px-3 py-3">
@@ -754,7 +742,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
               </View>
             )}
 
-            {/* Intereses futuros estimados */}
             {baseScenario && (
               <View className="w-1/2 px-1 mb-2">
                 <View className="rounded-2xl bg-amber-50 px-3 py-3">
@@ -773,7 +760,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
           </View>
         </View>
 
-        {/* CALCULADORA DE AMORTIZACIÓN (PLEGABLE) */}
+        {/* CALCULADORA (PLEGABLE) */}
         <View
           style={{
             borderRadius: 20,
@@ -835,7 +822,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                     cada mes sobre la cuota actual.
                   </Text>
 
-                  {/* Input de pago extra */}
                   <View className="flex-row items-center mt-1 mb-4">
                     <Text className="text-[13px] text-gray-700 mr-8">
                       Pago extra mensual
@@ -858,7 +844,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
 
                   {baseScenario && extraScenario ? (
                     <>
-                      {/* Escenario actual */}
                       <View className="mb-3 rounded-xl border border-slate-100 px-3 py-2.5">
                         <Text className="text-[11px] text-gray-500 mb-1">
                           Escenario actual
@@ -880,7 +865,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                         </Text>
                       </View>
 
-                      {/* Escenario con extra */}
                       <View className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-3 py-2.5">
                         <Text className="text-[11px] text-emerald-700 mb-1">
                           Con pago extra de {extraPerMonth.toFixed(0)} €/mes
@@ -901,7 +885,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                         </Text>
                       </View>
 
-                      {/* Ahorro */}
                       {interestSaved !== null && interestSaved > 0 && (
                         <View className="mt-1 rounded-xl bg-emerald-600 px-3 py-2">
                           <Text className="text-[12px] text-emerald-50 font-medium">
@@ -930,7 +913,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
           )}
         </View>
 
-        {/* TRANSACCIONES DE ESTA DEUDA (PLEGABLE) */}
+        {/* TRANSACCIONES (PLEGABLE) */}
         <View
           style={{
             borderRadius: 20,

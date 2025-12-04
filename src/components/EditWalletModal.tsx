@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import Modal from "react-native-modal";
 import { colors } from "../theme/theme";
-import EmojiModal from "react-native-emoji-modal";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 
@@ -45,7 +44,6 @@ export default function EditWalletModal({
   const [balance, setBalance] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [loading, setLoading] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const formatEuro = (n: number) =>
     n.toLocaleString("es-ES", {
@@ -54,7 +52,6 @@ export default function EditWalletModal({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-
 
   // 🔁 Sincronizar datos al abrir
   useEffect(() => {
@@ -92,10 +89,10 @@ export default function EditWalletModal({
     }
 
     const payload = {
-      name,
+      name: name.trim(),
       emoji,
       balance: parseFloat(balance.replace(",", ".")),
-      description,
+      description: description.trim(),
       currency: currency.toUpperCase(),
       userId: user?.id,
     };
@@ -109,12 +106,23 @@ export default function EditWalletModal({
       onSave(res.data);
       onClose();
     } catch (error: any) {
-      console.error("❌ Error al guardar wallet:", error.response?.data || error.message);
-      Alert.alert("Error", error.response?.data?.message || "No se pudo guardar la wallet");
+      console.error(
+        "❌ Error al guardar wallet:",
+        error.response?.data || error.message
+      );
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "No se pudo guardar la wallet"
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const parsedBalance =
+    balance && !isNaN(Number(balance.replace(",", ".")))
+      ? parseFloat(balance.replace(",", "."))
+      : 0;
 
   return (
     <Modal
@@ -127,7 +135,7 @@ export default function EditWalletModal({
       style={{ justifyContent: "flex-end", margin: 0 }}
     >
       <View
-        className="bg-white rounded-t-3xl p-5"
+        className="bg-white rounded-t-3xl px-5 pt-4 pb-2"
         style={{
           minHeight: screenHeight * 0.55,
           shadowColor: "#000",
@@ -137,20 +145,29 @@ export default function EditWalletModal({
         }}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center mb-5">
+        <View className="flex-row justify-between items-center mb-3">
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text className="text-[14px] text-gray-500 font-medium">Cancelar</Text>
+            <Text className="text-[14px] text-gray-500 font-medium">
+              Cancelar
+            </Text>
           </TouchableOpacity>
 
           <Text className="text-[16px] font-semibold text-text">
             {editingWallet?.id ? "Editar wallet" : "Nueva wallet"}
           </Text>
 
-          <TouchableOpacity onPress={handleSave} activeOpacity={0.8} disabled={loading}>
+          <TouchableOpacity
+            onPress={handleSave}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text className="text-[14px] font-semibold" style={{ color: colors.primary }}>
+              <Text
+                className="text-[14px] font-semibold"
+                style={{ color: colors.primary }}
+              >
                 Guardar
               </Text>
             )}
@@ -158,97 +175,130 @@ export default function EditWalletModal({
         </View>
 
         {/* Contenido */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 50 }}>
-          {/* Emoji + Nombre */}
-          <View className="items-center mb-5">
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setShowEmojiPicker(true)}
-              className="w-16 h-16 bg-gray-100 rounded-2xl items-center justify-center mb-3"
-            >
-              <Text className="text-[30px]">{emoji}</Text>
-            </TouchableOpacity>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          {/* PREVIEW CARD BONITA */}
+          <View className="mb-6">
+            <View className="bg-primary rounded-3xl px-4 py-4 flex-row items-center shadow-md shadow-black/5">
+              <View className="w-14 h-14 rounded-2xl bg-white/15 items-center justify-center mr-3">
+                <Text className="text-[30px]">{emoji || "💰"}</Text>
+              </View>
 
+              <View className="flex-1">
+                <Text
+                  className="text-white text-[14px] font-semibold"
+                  numberOfLines={1}
+                >
+                  {name || "Nueva wallet"}
+                </Text>
+                <Text className="text-white/80 text-[11px] mt-0.5">
+                  {currency.toUpperCase() || "EUR"}
+                </Text>
+                <Text className="text-white text-[18px] font-bold mt-1">
+                  {parsedBalance > 0
+                    ? formatEuro(parsedBalance)
+                    : formatEuro(0)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* BLOQUE INFO BÁSICA */}
+          <View className="mb-5">
+            <Text className="text-[13px] text-gray-400 mb-2">
+              Información básica
+            </Text>
+
+            {/* Nombre */}
+            <Text className="text-[11px] text-gray-500 mb-1">Nombre</Text>
             <TextInput
               value={name}
               onChangeText={setName}
               placeholder="Nombre de la wallet"
               placeholderTextColor="#9CA3AF"
-              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text"
+              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
             />
+
+            {/* Emoji como string (igual estilo que DebtFormScreen) */}
+            <Text className="text-[11px] text-gray-500 mb-1 mt-3">
+              Emoji (opcional)
+            </Text>
+            <View className="flex-row items-center">
+              <TextInput
+                value={emoji}
+                onChangeText={setEmoji}
+                maxLength={2}
+                className="border border-slate-200 rounded-xl px-3 py-2 w-16 text-center mr-2 text-[18px] bg-gray-50"
+              />
+              <Text className="text-[11px] text-gray-500 flex-1">
+                Se mostrará como icono principal de la wallet.
+              </Text>
+            </View>
           </View>
 
-          {/* Saldo */}
+          {/* BLOQUE DINERO */}
           <View className="mb-5">
-            <Text className="text-[13px] text-gray-500 mb-2">Saldo inicial</Text>
-            <TextInput
-              value={balance}
-              onChangeText={(t) => setBalance(t.replace(".", ","))}
-              placeholder="Ej: 120,50"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-              className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text"
-            />
+            <Text className="text-[13px] text-gray-400 mb-2">
+              Dinero y divisa
+            </Text>
+
+            <View className="flex-row">
+              {/* Saldo */}
+              <View className="flex-1 mr-3">
+                <Text className="text-[11px] text-gray-500 mb-1">
+                  Saldo inicial
+                </Text>
+                <TextInput
+                  value={balance}
+                  onChangeText={(t) => setBalance(t.replace(".", ","))}
+                  placeholder="Ej: 120,50"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                  className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
+                />
+              </View>
+
+              {/* Moneda */}
+              <View style={{ width: 90 }}>
+                <Text className="text-[11px] text-gray-500 mb-1">Divisa</Text>
+                <TextInput
+                  value={currency}
+                  onChangeText={(text) => setCurrency(text.toUpperCase())}
+                  placeholder="EUR"
+                  placeholderTextColor="#9CA3AF"
+                  maxLength={3}
+                  autoCapitalize="characters"
+                  className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100 text-center"
+                />
+              </View>
+            </View>
+            <Text className="text-[10px] text-gray-400 mt-1">
+              Puedes cambiar el saldo inicial más adelante con movimientos.
+            </Text>
           </View>
 
-          {/* Moneda */}
-          <View className="mb-5">
-            <Text className="text-[13px] text-gray-500 mb-2">Divisa</Text>
-            <TextInput
-              value={currency}
-              onChangeText={(text) => setCurrency(text.toUpperCase())}
-              placeholder="Ej: EUR, USD, PLN"
-              placeholderTextColor="#9CA3AF"
-              maxLength={3}
-              autoCapitalize="characters"
-              className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text uppercase"
-            />
-          </View>
-
-          {/* Descripción */}
-          <View className="mb-5">
-            <Text className="text-[13px] text-gray-500 mb-2">Descripción</Text>
+          {/* DESCRIPCIÓN */}
+          <View className="mb-2">
+            <Text className="text-[13px] text-gray-400 mb-2">
+              Detalles adicionales
+            </Text>
+            <Text className="text-[11px] text-gray-500 mb-1">
+              Descripción (opcional)
+            </Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="Ej: Wallet para ahorros o viajes"
+              placeholder="Ej: Wallet para ahorros, viajes, efectivo..."
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={3}
-              className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text"
+              className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
               style={{ textAlignVertical: "top" }}
             />
           </View>
         </ScrollView>
-
-        {/* === Selector de emoji === */}
-        <Modal
-          isVisible={showEmojiPicker}
-          backdropOpacity={0.4}
-          style={{
-            justifyContent: "flex-end",
-            margin: 0,
-          }}
-          onBackdropPress={() => setShowEmojiPicker(false)}
-        >
-          <View
-            style={{
-              height: screenHeight * 0.55,
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              overflow: "hidden",
-            }}
-          >
-            <EmojiModal
-              onEmojiSelected={(emoji: string) => {
-                setEmoji(emoji);
-                setShowEmojiPicker(false);
-              }}
-              onPressOutside={() => setShowEmojiPicker(false)}
-            />
-          </View>
-        </Modal>
       </View>
     </Modal>
   );
