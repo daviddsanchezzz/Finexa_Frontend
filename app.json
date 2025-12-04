@@ -26,7 +26,10 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png",
+      "name": "Finexa — Controla tus finanzas",
+      "shortName": "Finexa",
+      "themeColor": "#3B82F6"
     },
     "plugins": [
       "expo-font",
