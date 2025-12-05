@@ -18,6 +18,8 @@ import { colors } from "../../../theme/theme";
 import TripTransactionSelectorModal, {
   TransactionForSelector,
 } from "./components/TripTransactionSelectorModal";
+import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTimePicker";
+
 
 // 👇 Este tipo debe reflejar EXACTAMENTE el enum de Prisma TripPlanItemType
 type TripPlanItemType =
@@ -679,14 +681,14 @@ export default function TripPlanFormScreen({
       </ScrollView>
 
       {/* Date / Time picker */}
-      <DateTimePickerModal
-        themeVariant="light"
-        isVisible={pickerVisible}
-        mode={currentPickerMode as any}
-        date={currentPickerDate}
-        onConfirm={handleConfirmPicker}
-        onCancel={closePicker}
-      />
+{/* Date / Time picker */}
+<CrossPlatformDateTimePicker
+  isVisible={pickerVisible}
+  mode={currentPickerMode as "date" | "time" | "datetime"}
+  date={currentPickerDate}
+  onConfirm={handleConfirmPicker}
+  onCancel={closePicker}
+/>
 
       {/* Selector de tipo */}
       <Modal
