@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 
-// 👇 Que coincida con el enum de Prisma + "activity" legacy por si quedan registros antiguos
 type TripPlanItemType =
   | "flight"
   | "accommodation"
@@ -21,7 +20,7 @@ type TripPlanItemType =
   | "restaurant"
   | "shopping"
   | "other"
-  | "activity"; // legacy
+  | "activity";
 
 export interface TripPlanItem {
   id: number;
@@ -49,7 +48,7 @@ export default function TripPlanningSection({
 }: TripPlanningSectionProps) {
   const navigation = useNavigation<any>();
 
-  // Ocultar alojamientos y elementos sin fecha válida
+  // Filtrar: sin alojamientos + con fecha válida
   const planningItems = useMemo(
     () =>
       planItems.filter((i) => {
@@ -61,7 +60,6 @@ export default function TripPlanningSection({
     [planItems]
   );
 
-  // 👉 Ordenar primero por día (date), y dentro del mismo día por startTime
   const sortedItems = useMemo(() => {
     const getDayTs = (iso: string) => {
       const d = new Date(iso);
@@ -69,7 +67,7 @@ export default function TripPlanningSection({
     };
 
     const getStartTs = (iso?: string | null) => {
-      if (!iso) return Number.MAX_SAFE_INTEGER; // sin hora, al final
+      if (!iso) return Number.MAX_SAFE_INTEGER;
       const d = new Date(iso);
       const t = d.getTime();
       return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
@@ -80,12 +78,10 @@ export default function TripPlanningSection({
       const db = getDayTs(b.date!);
       if (da !== db) return da - db;
 
-      // mismo día → ordenar por hora de inicio
       const sa = getStartTs(a.startTime);
       const sb = getStartTs(b.startTime);
       if (sa !== sb) return sa - sb;
 
-      // fallback por título para estabilidad
       return a.title.localeCompare(b.title);
     });
   }, [planningItems]);
@@ -125,7 +121,6 @@ export default function TripPlanningSection({
 
   const getIconName = (item: TripPlanItem) => {
     switch (item.type) {
-      // LOGÍSTICA
       case "flight":
         return "airplane-outline";
       case "transport":
@@ -133,7 +128,6 @@ export default function TripPlanningSection({
       case "taxi":
         return "car-sport-outline";
 
-      // CULTURA / TURISMO
       case "museum":
         return "color-palette-outline";
       case "monument":
@@ -141,7 +135,6 @@ export default function TripPlanningSection({
       case "viewpoint":
         return "eye-outline";
 
-      // OCIO / ENTRETENIMIENTO
       case "free_tour":
         return "walk-outline";
       case "concert":
@@ -149,19 +142,15 @@ export default function TripPlanningSection({
       case "bar_party":
         return "wine-outline";
 
-      // NATURALEZA
       case "beach":
         return "sunny-outline";
 
-      // GASTRONOMÍA
       case "restaurant":
         return "restaurant-outline";
 
-      // COMPRAS
       case "shopping":
         return "cart-outline";
 
-      // LEGACY / GENÉRICO
       case "activity":
       case "other":
       default:
@@ -175,13 +164,16 @@ export default function TripPlanningSection({
 
   return (
     <View className="flex-1">
-      {/* TIMELINE */}
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 20, paddingHorizontal: 8 }}
+        contentContainerStyle={{
+          paddingBottom: 24,
+          paddingHorizontal: 12,
+          paddingTop: 4,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {sortedItems.length === 0 ? (
-          <Text className="text-center text-gray-400 text-sm">
+          <Text className="text-center text-gray-400 text-sm mt-16">
             Aún no tienes nada en el planning de este viaje.
           </Text>
         ) : (
@@ -195,34 +187,42 @@ export default function TripPlanningSection({
 
             return (
               <View key={item.id}>
-                {/* Header del día alineado con la línea */}
+                {/* Encabezado de día muy sencillo */}
                 {showHeader && (
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      marginTop: 20,
-                      marginBottom: 8,
+                      marginTop: index === 0 ? 8 : 18,
+                      marginBottom: 6,
                     }}
                   >
-                    {/* Columna de la línea (mismo ancho que la de los items) */}
-                    <View style={{ width: 32 }} />
-                    <Text className="text-[12px] font-semibold text-gray-500">
-                      {formatDayHeader(item.date)}
-                    </Text>
+<View
+  style={{
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: index === 0 ? 10 : 20,
+    marginBottom: 4,
+  }}
+>
+  <View style={{ width: 28 }} />
+  <Text style={{ fontSize: 15, fontWeight: "700", color: "#334155" }}>
+    {formatDayHeader(item.date)}
+  </Text>
+</View>
                   </View>
                 )}
 
                 <View className="flex-row">
-                  {/* TIMELINE IZQUIERDA */}
+                  {/* Columna timeline */}
                   <View
                     style={{
-                      width: 32,
+                      width: 28,
                       alignItems: "center",
                       position: "relative",
                     }}
                   >
-                    {/* Línea continua */}
+                    {/* Línea */}
                     <View
                       style={{
                         position: "absolute",
@@ -232,94 +232,90 @@ export default function TripPlanningSection({
                         backgroundColor: "#E5E7EB",
                       }}
                     />
-                    {/* Círculo con icono */}
-                    <View
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 50,
-                        backgroundColor: "#EEF2FF",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginVertical: 4,
-                      }}
-                    >
-                      <Ionicons
-                        name={getIconName(item)}
-                        size={14}
-                        color={colors.primary}
-                      />
-                    </View>
+                    {/* Nodo */}
+<View
+  style={{
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: "#E0E7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  }}
+>
+  <Ionicons
+    name={getIconName(item)}
+    size={14}
+    color={colors.primary}
+  />
+</View>
+
                   </View>
 
-                  {/* TARJETA */}
+                  {/* Tarjeta súper simple y compacta */}
                   <TouchableOpacity
                     activeOpacity={0.9}
                     onPress={() =>
                       navigation.navigate("TripPlanForm", {
                         tripId,
-                        planItem: item, // modo edición
+                        planItem: item,
                       })
                     }
-                    style={{ flex: 1, marginRight: 8 }}
+                    style={{ flex: 1, marginRight: 4 }}
                   >
                     <View
-                      className="rounded-3xl mb-3"
                       style={{
-                        backgroundColor: "white",
-                        paddingVertical: 10,
+                        borderRadius: 18,
+                        marginBottom: 8,
+                        paddingVertical: 8,
                         paddingHorizontal: 12,
-                        shadowColor: "#000",
-                        shadowOpacity: 0.04,
-                        shadowRadius: 4,
-                        shadowOffset: { width: 0, height: 2 },
+                        backgroundColor: "#F9FAFB",
+                        borderWidth: 1,
+                        borderColor: "#ECEFF3",
                       }}
                     >
-                      <Text className="text-[14px] font-semibold text-gray-900">
-                        {item.title}
-                      </Text>
+                      {/* Título + hora a la derecha */}
+                      <View className="flex-row justify-between items-center mb-1">
+                        <Text
+                          className="text-[13px] font-semibold text-gray-900 flex-1"
+                          numberOfLines={2}
+                        >
+                          {item.title}
+                        </Text>
+                        {(start || end) && (
+                          <Text className="text-[11px] text-slate-500 ml-2">
+                            {start}
+                            {start && end ? " – " : ""}
+                            {end}
+                          </Text>
+                        )}
+                      </View>
 
-                      {/* Lugar + Hora en una sola línea */}
-                      {(item.location || start || end) && (
-                        <View className="flex-row items-center mt-1 flex-wrap">
-                          {item.location && (
-                            <>
-                              <Ionicons
-                                name="location-outline"
-                                size={12}
-                                color="#9CA3AF"
-                              />
-                              <Text className="text-[11px] text-gray-500 ml-1">
-                                {item.location}
-                              </Text>
-                            </>
-                          )}
-
-                          {item.location && (start || end) && (
-                            <Text className="text-[11px] text-gray-400 mx-1">
-                              •
-                            </Text>
-                          )}
-
-                          {(start || end) && (
-                            <>
-                              <Ionicons
-                                name="time-outline"
-                                size={12}
-                                color="#9CA3AF"
-                              />
-                              <Text className="text-[11px] text-gray-500 ml-1">
-                                {start}
-                                {start && end ? " - " : ""}
-                                {end}
-                              </Text>
-                            </>
-                          )}
+                      {/* Ubicación */}
+                      {item.location && (
+                        <View className="flex-row items-center mt-0.5 flex-wrap">
+                          <Ionicons
+                            name="location-outline"
+                            size={11}
+                            color="#9CA3AF"
+                          />
+                          <Text className="text-[11px] text-gray-500 ml-1">
+                            {item.location}
+                          </Text>
                         </View>
                       )}
 
+                      {/* Notas (si existen), discretas y truncadas */}
                       {item.notes && (
-                        <Text className="text-[11px] text-gray-500 mt-1">
+                        <Text
+                          className="text-[11px] text-gray-400 mt-1"
+                          numberOfLines={2}
+                        >
                           {item.notes}
                         </Text>
                       )}
@@ -331,11 +327,11 @@ export default function TripPlanningSection({
           })
         )}
 
-        {/* BOTÓN CREAR (estilo discreto igual que “Añadir viaje”) */}
-        <View className="mt-8">
+        {/* Botón añadir muy limpio y poco intrusivo */}
+        <View className="mt-10 mb-2">
           <TouchableOpacity
             onPress={handleCreate}
-            className="flex-row items-center justify-center py-2.5 rounded-2xl mt-2"
+            className="flex-row items-center justify-center py-2.5 rounded-2xl"
             style={{
               backgroundColor: "#F3F4F6",
               borderWidth: 1,
