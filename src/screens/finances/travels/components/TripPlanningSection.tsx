@@ -254,7 +254,6 @@ export default function TripPlanningSection({
     color={colors.primary}
   />
 </View>
-
                   </View>
 
                   {/* Tarjeta súper simple y compacta */}

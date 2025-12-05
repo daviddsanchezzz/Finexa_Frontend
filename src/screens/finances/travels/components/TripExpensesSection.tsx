@@ -264,12 +264,6 @@ export default function TripExpensesSection({ planItems }: Props) {
                             </View>
                           )}
 
-                          {item.location && (
-                            <View className="flex-row items-center mr-2 mb-1">
-                              <Ionicons name="location-outline" size={11} color="#9CA3AF" />
-                              <Text className="text-[11px] text-gray-500 ml-1">{item.location}</Text>
-                            </View>
-                          )}
                         </View>
                       </View>
                     </View>
