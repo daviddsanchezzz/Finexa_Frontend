@@ -14,6 +14,7 @@ interface Props {
   showProfile?: boolean;   // Muestra icono de perfil (default true)
   showBack?: boolean;      // Muestra flecha atrás (default false)
   title?: string;          // Texto del header
+  showDatePicker?: boolean; // Muestra selector de fecha (default true)
 }
 
 export default function AppHeader({
@@ -21,6 +22,7 @@ export default function AppHeader({
   dateLabel,
   showProfile = true,
   showBack = false,
+  showDatePicker = true,
   title,
 }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -80,17 +82,18 @@ export default function AppHeader({
       {/* ------------------------------------- */}
       {/*      DERECHA: DATE PICKER             */}
       {/* ------------------------------------- */}
-      <TouchableOpacity
-        onPress={onOpenDateModal}
-        activeOpacity={0.75}
-        className="flex-row items-center bg-gray-100 px-3 py-1.5 rounded-full"
-      >
-        <Ionicons name="calendar-outline" size={18} color={colors.text} />
-        <Text className="ml-1.5 text-[15px] text-text font-semibold capitalize">
-          {formattedLabel}
-        </Text>
-      </TouchableOpacity>
-
+      {showDatePicker && (
+        <TouchableOpacity
+          onPress={onOpenDateModal}
+          activeOpacity={0.75}
+          className="flex-row items-center bg-gray-100 px-3 py-1.5 rounded-full"
+        >
+          <Ionicons name="calendar-outline" size={18} color={colors.text} />
+          <Text className="ml-1.5 text-[15px] text-text font-semibold capitalize">
+            {formattedLabel}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

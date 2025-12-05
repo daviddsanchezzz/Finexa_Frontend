@@ -26,7 +26,7 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
         if (route.name === "Home") iconName = "home-outline";
         if (route.name === "Stats") iconName = "podium-outline";
         if (route.name === "Add") iconName = "add-outline";
-        if (route.name === "Budgets") iconName = "folder-outline";
+        if (route.name === "Finances") iconName = "folder-outline";
         if (route.name === "AIChat") iconName = "chatbubble-ellipses-outline";
 
         const isAddButton = route.name === "Add";

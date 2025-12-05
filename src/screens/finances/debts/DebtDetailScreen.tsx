@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../../theme/theme";
-import TransactionsList from "../../components/TransactionsList";
-import api from "../../api/api";
+import { colors } from "../../../theme/theme";
+import TransactionsList from "../../../components/TransactionsList";
+import api from "../../../api/api";
 
 type DebtType = "loan" | "personal";
 type DebtDirection = "i_ow" | "they_owe";
@@ -230,6 +231,37 @@ export default function DebtDetailScreen({ route, navigation }: any) {
     }
   }, [debt?.subcategoryId]);
 
+    const handleDeleteDebt = () => {
+    if (!debt) return;
+
+    Alert.alert(
+      "Eliminar deuda",
+      "¿Seguro que quieres eliminar esta deuda? Esta acción no se puede deshacer.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.delete(`/debts/${debt.id}`);
+              navigation.goBack();
+            } catch (error) {
+              console.error("❌ Error al eliminar deuda:", error);
+              Alert.alert(
+                "Error",
+                "Ha ocurrido un error al eliminar la deuda. Inténtalo de nuevo."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ESTADOS DE CARGA / ERROR
   if (loadingDebt) {
     return (
@@ -364,20 +396,37 @@ export default function DebtDetailScreen({ route, navigation }: any) {
           <Text className="text-lg font-semibold text-gray-900">
             Detalle de deuda
           </Text>
-        </View>
+          </View>
+          <View className="flex-row items-center">
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("DebtForm", { editDebt: debt })}
-          style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-        >
-          <Text
-            className="text-[14px] font-semibold"
-            style={{ color: colors.primary }}
+            <TouchableOpacity
+              onPress={handleDeleteDebt}
+              style={{ paddingHorizontal: 4, paddingVertical: 4 }}
+            >
+              <Text
+                className="text-[14px] font-semibold mr-2"
+                style={{ color: "#DC2626" }} // rojo elegante
+              >
+                Eliminar
+              </Text>
+            </TouchableOpacity>
+
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate("DebtForm", { editDebt: debt })}
+            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
           >
-            Editar
-          </Text>
-        </TouchableOpacity>
+            <Text
+              className="text-[14px] font-semibold"
+              style={{ color: colors.primary }}
+            >
+              Editar
+            </Text>
+          </TouchableOpacity>
+
+        </View>
       </View>
+
 
       <ScrollView
         className="flex-1 px-5"

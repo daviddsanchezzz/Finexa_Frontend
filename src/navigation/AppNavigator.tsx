@@ -14,10 +14,17 @@ import CategoryTransactionsScreen from "../screens/stats/CategoryTransactionsCre
 import ReconcileAccountsScreen from "../screens/profile/ReconcileAccountsCreen";
 import TransfersScreen from "../screens/wallets/TransferScreen";
 import EditMonthScreen from "../screens/stats/EditMonthScreen";
-import BudgetCreateScreen from "../screens/budgets/BudgetCreateScreen";
-import BudgetTransactionsScreen from "../screens/budgets/BudgetTransactionsScreen";
-import DebtDetailScreen from "../screens/budgets/DebtDetailScreen";
-import DebtFormScreen from "../screens/budgets/DebtFormScreen";
+import BudgetCreateScreen from "../screens/finances/budgets/BudgetCreateScreen";
+import BudgetTransactionsScreen from "../screens/finances/budgets/BudgetTransactionsScreen";
+import DebtDetailScreen from "../screens/finances/debts/DebtDetailScreen";
+import DebtFormScreen from "../screens/finances/debts/DebtFormScreen";
+import DebtsHomeScreen from "../screens/finances/debts/DebtsScreen";
+import BudgetsHomeScreen from "../screens/finances/budgets/BudgetsScreen";
+import GoalsHomeScreen from "../screens/finances/goals/GoalsScreen";
+import TripsHomeScreen from "../screens/finances/travels/TravelsScreen";
+import TripFormScreen from "../screens/finances/travels/TravelFormScreen";
+import TripDetailScreen from "../screens/finances/travels/TripDetailScreen";
+import TripPlanFormScreen from "../screens/finances/travels/TripPlanFormScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -34,6 +41,13 @@ export type RootStackParamList = {
   BudgetTransactions: undefined;
   DebtDetail: undefined;
   DebtForm: undefined;
+  Debts: undefined;
+  Budgets: undefined;
+  Goals: undefined;
+  Trips: undefined;
+  TripForm: undefined;
+  TripDetail: undefined;
+  TripPlanForm: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -66,6 +80,13 @@ export default function AppNavigator() {
           <Stack.Screen name="BudgetTransactions" component={BudgetTransactionsScreen} />
           <Stack.Screen name="DebtDetail" component={DebtDetailScreen} />
           <Stack.Screen name="DebtForm" component={DebtFormScreen} />
+          <Stack.Screen name="Debts" component={DebtsHomeScreen} />
+          <Stack.Screen name="Budgets" component={BudgetsHomeScreen} />
+          <Stack.Screen name="Goals" component={GoalsHomeScreen} />
+          <Stack.Screen name="Trips" component={TripsHomeScreen} />
+          <Stack.Screen name="TripForm" component={TripFormScreen} />
+          <Stack.Screen name="TripDetail" component={TripDetailScreen} />
+          <Stack.Screen name="TripPlanForm" component={TripPlanFormScreen} />
         </>
       ) : (
         // 🔓 Rutas públicas

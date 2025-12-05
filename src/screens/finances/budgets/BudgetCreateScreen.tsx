@@ -15,8 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
-import { colors } from "../../theme/theme";
-import api from "../../api/api";
+import { colors } from "../../../theme/theme";
+import api from "../../../api/api";
 import { ViewStyle, TextStyle } from "react-native";
 
 type BudgetPeriod = "daily" | "weekly" | "monthly" | "yearly";

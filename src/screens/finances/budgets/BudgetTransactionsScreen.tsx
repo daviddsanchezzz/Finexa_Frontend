@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import api from "../../api/api";
-import { colors } from "../../theme/theme";
-import TransactionsList from "../../components/TransactionsList";
-import BudgetGoalCard from "../../components/BudgetGoalCard";
+import api from "../../../api/api";
+import { colors } from "../../../theme/theme";
+import TransactionsList from "../../../components/TransactionsList";
+import BudgetGoalCard from "../../../components/BudgetGoalCard";
 
 export default function BudgetTransactionsScreen({ route, navigation }: any) {
   const {

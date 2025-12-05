@@ -15,8 +15,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { colors } from "../../theme/theme";
-import api from "../../api/api";
+import { colors } from "../../../theme/theme";
+import api from "../../../api/api";
 
 type DebtType = "loan" | "personal";
 type DirectionType = "i_ow" | "they_owe";
