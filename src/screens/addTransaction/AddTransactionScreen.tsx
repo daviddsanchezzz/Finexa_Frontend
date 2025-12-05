@@ -401,7 +401,7 @@ useEffect(() => {
                   <TextInput
                     value={amount}
                     onChangeText={(t) => setAmount(t.replace(".", ","))}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     placeholder="0,00"
                     placeholderTextColor="#d1d5db"
                     className="text-[48px] font-semibold text-black text-center"
