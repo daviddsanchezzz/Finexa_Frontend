@@ -26,7 +26,7 @@ const MODULES: FinanceModule[] = [
   {
     key: "budgets",
     title: "Presupuestos",
-    subtitle: "Limita y controla tus gastos por categoría",
+    subtitle: "Limita y controla tus gastos por categoría.",
     emoji: "📊",
     iconName: "wallet-outline",
     routeName: "Budgets",
@@ -36,7 +36,7 @@ const MODULES: FinanceModule[] = [
   {
     key: "goals",
     title: "Objetivos",
-    subtitle: "Ahorra para lo que más te importa",
+    subtitle: "Ahorra para lo que más te importa.",
     emoji: "🎯",
     iconName: "flag-outline",
     routeName: "Goals",
@@ -46,7 +46,7 @@ const MODULES: FinanceModule[] = [
   {
     key: "debts",
     title: "Deudas",
-    subtitle: "Controla préstamos, cuotas y pagos pendientes",
+    subtitle: "Controla préstamos, cuotas y pagos pendientes.",
     emoji: "💸",
     iconName: "card-outline",
     routeName: "Debts",
@@ -56,7 +56,7 @@ const MODULES: FinanceModule[] = [
   {
     key: "investments",
     title: "Inversión",
-    subtitle: "Sigue tu cartera y su rentabilidad",
+    subtitle: "Sigue tu cartera y su rentabilidad.",
     emoji: "📈",
     iconName: "trending-up-outline",
     routeName: "Investments",
@@ -66,7 +66,7 @@ const MODULES: FinanceModule[] = [
   {
     key: "trips",
     title: "Viajes",
-    subtitle: "Agrupa y analiza los gastos de viajes",
+    subtitle: "Agrupa y analiza los gastos de viajes.",
     emoji: "✈️",
     iconName: "airplane-outline",
     routeName: "Trips",
@@ -81,91 +81,182 @@ export default function FinancesScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F3F4F6" }}>
       {/* HEADER SUPERIOR */}
-      <View className="px-5 pb-3">
-        <AppHeader title="Finanzas personales" showProfile={false} showDatePicker={false} />
+      <View className="px-5 pb-2">
+        <AppHeader
+          title="Finanzas personales"
+          showProfile={false}
+          showDatePicker={false}
+        />
       </View>
 
-      {/* LISTA DE MÓDULOS EN GRID */}
+      {/* BANNER INTRO */}
+      <View className="px-5 mb-3">
+        <View
+          style={{
+            backgroundColor: "#E0E7FF",
+            borderRadius: 18,
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              backgroundColor: "#EEF2FF",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 10,
+            }}
+          >
+            <Ionicons
+              name="sparkles-outline"
+              size={16}
+              color={colors.primary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: "#1F2933",
+                marginBottom: 2,
+              }}
+            >
+              Centraliza tus decisiones de dinero
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* LISTA 1 COLUMNA */}
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
       >
-        <View className="flex-row flex-wrap justify-between">
-          {MODULES.map((m) => (
-            <TouchableOpacity
-              key={m.key}
-              onPress={() => handleNavigate(m)}
-              className="mb-4 rounded-3xl"
+        {MODULES.map((m) => (
+          <TouchableOpacity
+            key={m.key}
+            onPress={() => handleNavigate(m)}
+            activeOpacity={0.9}
+            style={{
+              borderRadius: 22,
+              marginBottom: 12,
+              backgroundColor: "#FFFFFF",
+              borderWidth: 1,
+              borderColor: "#E2E8F0",
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              shadowColor: "#0F172A",
+              shadowOpacity: 0.03,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 2,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            {/* ICONO IZQUIERDA */}
+            <View
               style={{
-                width: "48%",
-                backgroundColor: "white",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 14,
-                paddingVertical: 14,
-                shadowColor: "#000",
-                shadowOpacity: 0.05,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 3,
+                width: 44,
+                height: 44,
+                borderRadius: 18,
+                backgroundColor: m.softBg,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
               }}
-              activeOpacity={0.9}
             >
-              {/* ICONO / EMOJI */}
+              <Text style={{ fontSize: 24 }}>{m.emoji}</Text>
+            </View>
+
+            {/* CONTENIDO CENTRAL */}
+            <View style={{ flex: 1 }}>
               <View
-                className="w-10 h-10 rounded-2xl items-center justify-center mb-2"
-                style={{ backgroundColor: m.softBg }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 2,
+                }}
               >
-                <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: "#0F172A",
+                    flex: 1,
+                  }}
+                >
+                  {m.title}
+                </Text>
               </View>
 
-              {/* TÍTULO */}
               <Text
-                className="text-sm font-semibold text-gray-900"
-                numberOfLines={1}
-              >
-                {m.title}
-              </Text>
-
-              {/* SUBTÍTULO */}
-              <Text
-                className="text-[11px] text-gray-500 mt-0.5 mb-2"
+                style={{
+                  fontSize: 11,
+                  color: "#6B7280",
+                  marginBottom: 6,
+                }}
                 numberOfLines={2}
               >
                 {m.subtitle}
               </Text>
 
-              {/* FILA INFERIOR: ICONO + FLECHA */}
-              <View className="flex-row items-center justify-between mt-1">
+              {/* CHIPS INFERIORES: icono + tag */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
                 <View
-                  className="flex-row items-center px-2 py-1 rounded-full"
-                  style={{ backgroundColor: m.softBg }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    backgroundColor: m.softBg,
+                  }}
                 >
                   <Ionicons
                     name={m.iconName}
-                    size={14}
+                    size={13}
                     color={m.accentColor}
                   />
                   <Text
-                    className="text-[10px] font-medium ml-1"
-                    style={{ color: m.accentColor }}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: "600",
+                      color: m.accentColor,
+                      marginLeft: 4,
+                    }}
                   >
                     Ver módulo
                   </Text>
                 </View>
-
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color="#94A3B8"
-                />
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
+
+            {/* FLECHA DERECHA */}
+            <View style={{ marginLeft: 10 }}>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color="#94A3B8"
+              />
+            </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
