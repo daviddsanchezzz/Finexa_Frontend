@@ -21,6 +21,7 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { ViewStyle, TextStyle } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import EditCategoryModal from "../../components/EditCategoryModal";
+import CrossPlatformDateTimePicker from "../../components/CrossPlatformDateTimePicker";
 
 
 export default function AddScreen({ navigation }: any) {
@@ -625,19 +626,16 @@ useEffect(() => {
               <Ionicons name="calendar-outline" size={19} color="black" />
             </TouchableOpacity>
 
-            <DateTimePickerModal
-              isVisible={showDatePicker}
-              mode="datetime"
-              date={date}
-              locale="es_ES"
-              themeVariant="light"
-              is24Hour
-              onConfirm={(d) => {
-                setShowDatePicker(false);
-                setDate(d);
-              }}
-              onCancel={() => setShowDatePicker(false)}
-            />
+          <CrossPlatformDateTimePicker
+            isVisible={showDatePicker}
+            mode="datetime"
+            date={date}
+            onConfirm={(d) => {
+              setShowDatePicker(false);
+              setDate(d);
+            }}
+            onCancel={() => setShowDatePicker(false)}
+          />
 
             <Text className="text-[13px] text-gray-400 mb-2">Descripción</Text>
 
