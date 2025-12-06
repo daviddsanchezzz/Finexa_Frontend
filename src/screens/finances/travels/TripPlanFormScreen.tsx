@@ -342,38 +342,54 @@ const [cost, setCost] = useState<string>(
   };
 
   // 👇 NUEVO: eliminar plan
-  const handleDelete = () => {
-    if (!isEdit || !planItem?.id) return;
-
+const handleDelete = () => {
+  if (!isEdit || !planItem?.id) {
+    console.log("❌ No es edición o falta planItem.id");
+    return;
+  }
+  if (!tripId) {
+    console.log("❌ No hay tripId en route.params");
     Alert.alert(
-      "Eliminar plan",
-      "¿Seguro que quieres eliminar este elemento del viaje?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeleting(true);
-              await api.delete(
-                `/trips/${tripId}/plan-items/${planItem.id}`
-              );
-              navigation.goBack();
-            } catch (err) {
-              console.error("❌ Error al eliminar plan item:", err);
-              Alert.alert(
-                "Error",
-                "No se ha podido eliminar el plan. Inténtalo de nuevo."
-              );
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
+      "Error",
+      "No se ha encontrado el viaje asociado a este plan (tripId indefinido)."
     );
-  };
+    return;
+  }
+
+  Alert.alert(
+    "Eliminar plan",
+    "¿Seguro que quieres eliminar este elemento del viaje?",
+    [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setDeleting(true);
+            console.log(
+              "🗑 Eliminando plan item...",
+              `/trips/${tripId}/plan-items/${planItem.id}`
+            );
+
+            await api.delete(`/trips/${tripId}/plan-items/${planItem.id}`);
+
+            console.log("✅ Plan item eliminado correctamente");
+            navigation.goBack();
+          } catch (err) {
+            console.error("❌ Error al eliminar plan item:", err);
+            Alert.alert(
+              "Error",
+              "No se ha podido eliminar el plan. Inténtalo de nuevo."
+            );
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+    ]
+  );
+};
 
   const currentPickerMode =
     pickerField === "date" ||
@@ -438,15 +454,6 @@ const handleSelectTransaction = (tx: TransactionForSelector) => {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Pastilla contexto */}
-        <View className="mb-3 flex-row items-center">
-          <View className="rounded-full bg-indigo-100 px-3 py-1 flex-row items-center">
-            <Ionicons name="map-outline" size={13} color={colors.primary} />
-            <Text className="ml-1 text-[11px] text-indigo-900">
-              Planning del viaje
-            </Text>
-          </View>
-        </View>
 
         {/* CARD: Tipo + fechas */}
         <View className="rounded-3xl bg-white p-4 shadow-sm mb-4">
@@ -695,31 +702,32 @@ const handleSelectTransaction = (tx: TransactionForSelector) => {
         </TouchableOpacity>
 
         {/* Botón eliminar (solo en edición) */}
-        {isEdit && (
-          <TouchableOpacity
-            onPress={handleDelete}
-            disabled={deleting || saving}
-            className="mt-2 flex-row items-center justify-center rounded-2xl py-3"
-            style={{
-              backgroundColor: "#FEF2F2",
-              borderWidth: 1,
-              borderColor: "#FCA5A5",
-              opacity: deleting || saving ? 0.7 : 1,
-            }}
-            activeOpacity={0.9}
-          >
-            {deleting ? (
-              <ActivityIndicator size="small" color="#B91C1C" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={18} color="#B91C1C" />
-                <Text className="text-[13px] text-red-700 font-semibold ml-1.5">
-                  Eliminar plan
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
+{isEdit && (
+  <TouchableOpacity
+    onPress={handleDelete}
+    disabled={deleting || saving}
+    className="mt-2 flex-row items-center justify-center rounded-2xl py-3"
+    style={{
+      backgroundColor: "#FEF2F2",
+      borderWidth: 1,
+      borderColor: "#FCA5A5",
+      opacity: deleting || saving ? 0.7 : 1,
+    }}
+    activeOpacity={0.9}
+  >
+    {deleting ? (
+      <ActivityIndicator size="small" color="#B91C1C" />
+    ) : (
+      <>
+        <Ionicons name="trash-outline" size={18} color="#B91C1C" />
+        <Text className="text-[13px] text-red-700 font-semibold ml-1.5">
+          Eliminar plan
+        </Text>
+      </>
+    )}
+  </TouchableOpacity>
+)}
+
       </ScrollView>
 
       {/* Date / Time picker */}
