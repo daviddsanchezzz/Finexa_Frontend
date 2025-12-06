@@ -92,6 +92,43 @@ const TYPE_OPTIONS: TypeOption[] = [
   { label: "Other", value: "other", icon: "sparkles-outline" },
 ];
 
+// 👉 Helpers para gestionar el input de euros con coma y 2 decimales
+const formatEuroFromNumber = (value: number): string => {
+  if (isNaN(value)) return "";
+  // 2 decimales y coma como separador
+  return value.toFixed(2).replace(".", ",");
+};
+
+const formatEuroInput = (text: string): string => {
+  if (!text) return "";
+
+  // Solo números, puntos y comas
+  let sanitized = text.replace(/[^0-9.,]/g, "");
+
+  // Convertir siempre . a ,
+  sanitized = sanitized.replace(/\./g, ",");
+
+  // Evitar más de una coma: si hay más, unimos todo lo que sobra
+  const parts = sanitized.split(",");
+  if (parts.length > 2) {
+    sanitized = parts[0] + "," + parts.slice(1).join("");
+  }
+
+  let [intPart, decPart = ""] = sanitized.split(",");
+
+  // Evitar muchos ceros a la izquierda tipo 00012
+  intPart = intPart.replace(/^0+(?=\d)/, "");
+  if (intPart === "") intPart = "0";
+
+  // Máximo 2 decimales
+  if (decPart.length > 2) {
+    decPart = decPart.slice(0, 2);
+  }
+
+  return decPart ? `${intPart},${decPart}` : intPart;
+};
+
+
 export default function TripPlanFormScreen({
   route,
   navigation,
@@ -149,9 +186,11 @@ export default function TripPlanFormScreen({
   const [location, setLocation] = useState<string>(planItem?.location ?? "");
   const [notes, setNotes] = useState<string>(planItem?.notes ?? "");
 
-  const [cost, setCost] = useState<string>(
-    typeof planItem?.cost === "number" ? String(planItem.cost) : ""
-  );
+const [cost, setCost] = useState<string>(
+  typeof planItem?.cost === "number"
+    ? formatEuroFromNumber(planItem.cost)
+    : ""
+);
 
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionForSelector | null>(null);
@@ -360,15 +399,18 @@ export default function TripPlanFormScreen({
     }
   })();
 
-  const handleSelectTransaction = (tx: TransactionForSelector) => {
-    setSelectedTransaction(tx);
-    const amount =
-      typeof tx.amount === "number" ? tx.amount : Number(tx.amount);
-    if (!isNaN(amount)) {
-      setCost(Math.abs(amount).toString());
-    }
-    setTxSelectorVisible(false);
-  };
+const handleSelectTransaction = (tx: TransactionForSelector) => {
+  setSelectedTransaction(tx);
+
+  const rawAmount =
+    typeof tx.amount === "number" ? tx.amount : Number(tx.amount);
+
+  if (!isNaN(rawAmount)) {
+    setCost(formatEuroFromNumber(Math.abs(rawAmount)));
+  }
+
+  setTxSelectorVisible(false);
+};
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -572,7 +614,7 @@ export default function TripPlanFormScreen({
               <Ionicons name="cash-outline" size={16} color="#6B7280" />
               <TextInput
                 value={cost}
-                onChangeText={setCost}
+                onChangeText={(text) => setCost(formatEuroInput(text))}
                 placeholder="Coste (opcional)"
                 keyboardType="decimal-pad"
                 className="flex-1 text-[13px] text-gray-800 ml-2"
