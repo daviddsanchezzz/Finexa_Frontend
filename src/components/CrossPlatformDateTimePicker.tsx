@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { colors } from "../theme/theme";
 
 interface Props {
   isVisible: boolean;
@@ -174,6 +175,9 @@ export default function CrossPlatformDateTimePicker({
                   cursor-pointer active:scale-[0.98] 
                   transition transform shadow-sm
                 "
+                style={{
+                  backgroundColor: colors.primary,
+                }}
               >
                 Confirmar
               </button>
