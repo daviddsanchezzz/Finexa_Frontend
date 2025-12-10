@@ -6,6 +6,10 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  Switch,
+  Alert,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
@@ -145,14 +149,18 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TripTab>("expenses");
 
-    const formatEuro = (n: number) =>
+  // Exportar PDF
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [includeExpenses, setIncludeExpenses] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  const formatEuro = (n: number) =>
     n.toLocaleString("es-ES", {
       style: "currency",
       currency: "EUR",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-
 
   const fetchTrip = async () => {
     if (!tripId) return;
@@ -182,11 +190,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
   const statusStyle = useMemo(() => getStatusStyle(status), [status]);
 
-  const totalSpent = useMemo(() => {
-    if (!trip || !trip.transactions || trip.transactions.length === 0) return 0;
-    return trip.transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
-  }, [trip]);
-
   const days = useMemo(() => {
     if (!trip) return 0;
     const s = new Date(trip.startDate);
@@ -205,6 +208,58 @@ export default function TripDetailScreen({ route, navigation }: any) {
   }, [trip]);
 
   const planItems: TripPlanItem[] = trip?.planItems || [];
+
+  // =========================
+  // EXPORTAR PDF
+  // =========================
+
+  const handleExportPdf = async () => {
+    if (!trip) return;
+
+    try {
+      setExporting(true);
+
+      // Llamada al backend para generar el PDF
+      const res = await api.post(`/trips/${trip.id}/export`, {
+        includeExpenses,
+      });
+
+      const { pdfUrl, base64, fileName } = res.data || {};
+
+      if (pdfUrl) {
+        // Caso sencillo: el backend devuelve URL pública del PDF
+        await Linking.openURL(pdfUrl);
+      } else if (base64) {
+        // Si devuelves base64, aquí puedes implementar lógica con FileSystem/Sharing (Expo)
+        // Ejemplo (pseudo-código):
+        //
+        // const fileUri = FileSystem.cacheDirectory + (fileName || `trip-${trip.id}.pdf`);
+        // await FileSystem.writeAsStringAsync(fileUri, base64, {
+        //   encoding: FileSystem.EncodingType.Base64,
+        // });
+        // await Sharing.shareAsync(fileUri);
+        //
+        Alert.alert(
+          "PDF generado",
+          "El PDF se ha generado correctamente. Implementa la lógica de guardado/compartir a partir del base64."
+        );
+      } else {
+        Alert.alert(
+          "No se ha podido generar el PDF",
+          "No se ha recibido ningún archivo desde el servidor."
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error al exportar viaje", error);
+      Alert.alert(
+        "Error al exportar",
+        "Ha ocurrido un error al generar el PDF. Inténtalo de nuevo más tarde."
+      );
+    } finally {
+      setExporting(false);
+      setExportModalVisible(false);
+    }
+  };
 
   // =========================
   // LOADERS / ERRORES
@@ -276,24 +331,38 @@ export default function TripDetailScreen({ route, navigation }: any) {
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate("TripForm", {
-              editTrip: trip,
-            })
-          }
-          style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-        >
-          <Text
-            className="text-[14px] font-semibold"
-            style={{ color: colors.primary }}
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("TripForm", {
+                editTrip: trip,
+              })
+            }
+            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
           >
-            Editar
-          </Text>
-        </TouchableOpacity>
+            <Text
+              className="text-[14px] font-semibold"
+              style={{ color: colors.primary }}
+            >
+              Editar
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setExportModalVisible(true)}
+            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+          >
+            <Text
+              className="text-[14px] font-semibold"
+              style={{ color: colors.primary }}
+            >
+              Exportar
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* CONTENIDO PRINCIPAL (sin ScrollView, el scroll va dentro de cada sección) */}
+      {/* CONTENIDO PRINCIPAL */}
       <View className="flex-1 px-5">
         {/* HERO CARD */}
         <View
@@ -370,7 +439,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </View>
           </View>
 
-          {/* FECHAS + GASTO */}
+          {/* FECHAS + DÍAS */}
           <View style={{ marginBottom: 10 }}>
             <Text
               style={{
@@ -413,7 +482,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                     color: "rgba(255,255,255,0.8)",
                   }}
                 >
-                  Total gastado 
+                  Total gastado
                 </Text>
                 <Text
                   style={{
@@ -492,7 +561,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
           </View>
         </View>
 
-        {/* CONTENIDO POR TAB (cada sección tiene su propio ScrollView interno) */}
+        {/* CONTENIDO POR TAB */}
         <View style={{ flex: 1 }}>
           {tab === "expenses" && (
             <TripExpensesSection
@@ -519,6 +588,60 @@ export default function TripDetailScreen({ route, navigation }: any) {
           )}
         </View>
       </View>
+
+      {/* MODAL EXPORTAR PDF */}
+      <Modal
+        visible={exportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !exporting && setExportModalVisible(false)}
+      >
+        <View
+          className="flex-1 justify-center items-center px-6"
+          style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
+        >
+          <View className="w-full rounded-2xl bg-white p-5">
+            <Text className="text-base font-semibold text-gray-900 mb-1">
+              Exportar viaje
+            </Text>
+            <Text className="text-xs text-gray-500 mb-4">
+              Se generará un PDF con toda la información del viaje. Puedes
+              decidir si incluir también el detalle de los gastos.
+            </Text>
+
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-sm text-gray-800">Incluir gastos</Text>
+              <Switch value={includeExpenses} onValueChange={setIncludeExpenses} />
+            </View>
+
+            <View className="flex-row justify-end">
+              <TouchableOpacity
+                onPress={() => !exporting && setExportModalVisible(false)}
+                style={{ paddingHorizontal: 10, paddingVertical: 8, marginRight: 8 }}
+                disabled={exporting}
+              >
+                <Text className="text-sm text-gray-500">Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleExportPdf}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  backgroundColor: exporting ? "#9CA3AF" : colors.primary,
+                  opacity: exporting ? 0.8 : 1,
+                }}
+                disabled={exporting}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {exporting ? "Generando..." : "Exportar PDF"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

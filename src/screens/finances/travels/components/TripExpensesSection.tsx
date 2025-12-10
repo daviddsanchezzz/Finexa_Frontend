@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../theme/theme";
+import { useNavigation } from "@react-navigation/native";
 
 type TripPlanItemType =
   | "flight"
@@ -55,18 +56,57 @@ interface GroupDef {
 }
 
 const GROUPS: GroupDef[] = [
-  { id: "flights", label: "Vuelos", icon: "airplane-outline", color: "#DBEAFE", types: ["flight"] },
-  { id: "accommodation", label: "Alojamiento", icon: "bed-outline", color: "#FEF3C7", types: ["accommodation"] },
-  { id: "transport", label: "Transporte", icon: "bus-outline", color: "#ECFDF3", types: ["transport", "taxi"] },
+  {
+    id: "flights",
+    label: "Vuelos",
+    icon: "airplane-outline",
+    color: "#DBEAFE",
+    types: ["flight"],
+  },
+  {
+    id: "accommodation",
+    label: "Alojamiento",
+    icon: "bed-outline",
+    color: "#FEF3C7",
+    types: ["accommodation"],
+  },
+  {
+    id: "transport",
+    label: "Transporte",
+    icon: "bus-outline",
+    color: "#ECFDF3",
+    types: ["transport", "taxi"],
+  },
   {
     id: "activities",
     label: "Actividades y visitas",
     icon: "sparkles-outline",
     color: "#F3E8FF",
-    types: ["museum", "monument", "viewpoint", "free_tour", "concert", "bar_party", "beach", "activity"],
+    types: [
+      "museum",
+      "monument",
+      "viewpoint",
+      "free_tour",
+      "concert",
+      "bar_party",
+      "beach",
+      "activity",
+    ],
   },
-  { id: "food", label: "Comida y bebida", icon: "restaurant-outline", color: "#FFF7ED", types: ["restaurant"] },
-  { id: "shopping", label: "Compras y otros", icon: "cart-outline", color: "#F9FAFB", types: ["shopping", "other"] },
+  {
+    id: "food",
+    label: "Comida y bebida",
+    icon: "restaurant-outline",
+    color: "#FFF7ED",
+    types: ["restaurant"],
+  },
+  {
+    id: "shopping",
+    label: "Compras y otros",
+    icon: "cart-outline",
+    color: "#F9FAFB",
+    types: ["shopping", "other"],
+  },
 ];
 
 const TYPE_ICON: Record<TripPlanItemType, keyof typeof Ionicons.glyphMap> = {
@@ -87,25 +127,39 @@ const TYPE_ICON: Record<TripPlanItemType, keyof typeof Ionicons.glyphMap> = {
   activity: "sparkles-outline",
 };
 
-export default function TripExpensesSection({ planItems }: Props) {
+export default function TripExpensesSection({ tripId, planItems, budget }: Props) {
+  const navigation = useNavigation<any>();
+
   const itemsWithCost = useMemo(
-    () => planItems.filter((i) => typeof i.cost === "number" && !isNaN(i.cost as number)),
+    () =>
+      planItems.filter(
+        (i) => typeof i.cost === "number" && !isNaN(i.cost as number)
+      ),
     [planItems]
   );
 
   const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+    n.toLocaleString("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   const formatDate = (iso?: string | null) => {
     if (!iso) return "";
     const d = new Date(iso);
-    return !isNaN(d.getTime()) ? d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "";
+    return !isNaN(d.getTime())
+      ? d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" })
+      : "";
   };
 
   const formatTime = (iso?: string | null) => {
     if (!iso) return "";
     const d = new Date(iso);
-    return !isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+    return !isNaN(d.getTime())
+      ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : "";
   };
 
   const getGroupForType = (type: TripPlanItemType): GroupId =>
@@ -134,146 +188,270 @@ export default function TripExpensesSection({ planItems }: Props) {
 
     // ordenar items por fecha
     (Object.keys(map) as GroupId[]).forEach((gId) =>
-      map[gId].items.sort((a, b) => (new Date(a.date || "").getTime() || 0) - (new Date(b.date || "").getTime() || 0))
+      map[gId].items.sort(
+        (a, b) =>
+          (new Date(a.date || "").getTime() || 0) -
+          (new Date(b.date || "").getTime() || 0)
+      )
     );
 
     return map;
   }, [itemsWithCost]);
 
   const nonEmptyGroups = useMemo(
-    () => GROUPS.map((g) => ({ ...g, total: grouped[g.id].total, items: grouped[g.id].items })).filter((g) => g.items.length > 0),
+    () =>
+      GROUPS.map((g) => ({
+        ...g,
+        total: grouped[g.id].total,
+        items: grouped[g.id].items,
+      })).filter((g) => g.items.length > 0),
     [grouped]
   );
 
   const [activeGroupId, setActiveGroupId] = useState<GroupId | null>(null);
   const activeGroup =
-    nonEmptyGroups.find((g) => g.id === (activeGroupId ?? nonEmptyGroups[0]?.id)) ?? nonEmptyGroups[0];
+    nonEmptyGroups.find((g) => g.id === (activeGroupId ?? nonEmptyGroups[0]?.id)) ??
+    nonEmptyGroups[0];
 
-  return (
-    <View className="flex-1">
-      {/* Si no hay costes */}
-      {itemsWithCost.length === 0 ? (
+  const expensesCount = itemsWithCost.length;
+  const averageCost = expensesCount ? total / expensesCount : 0;
+  const budgetUsedPct = budget ? Math.min((total / budget) * 100, 100) : null;
+  const remainingBudget = budget != null ? budget - total : null;
+
+  const topCategory = useMemo(() => {
+    if (!nonEmptyGroups.length || total <= 0) return null;
+    const sorted = [...nonEmptyGroups].sort((a, b) => b.total - a.total);
+    const main = sorted[0];
+    const pct = main.total > 0 ? (main.total / total) * 100 : 0;
+    return {
+      label: main.label,
+      percentage: pct,
+    };
+  }, [nonEmptyGroups, total]);
+
+  if (itemsWithCost.length === 0) {
+    return (
+      <View className="flex-1 items-center justify-center px-6">
         <Text className="text-center text-gray-400 mt-8 text-sm">
           Aún no hay costes asignados en el planning de este viaje.
         </Text>
-      ) : (
-        <>
-          {/* Título */}
-          <View className="px-1 mb-1">
-            <Text className="text-[13px] text-gray-500">Distribución por categorías</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View className="flex-1">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 4 }}
+      >
+        {/* TÍTULO DISTRIBUCIÓN */}
+        <View className="px-1 mb-1 flex-row justify-between items-center">
+          <View>
+            <Text className="text-[13px] text-gray-500">
+              Distribución por categorías
+            </Text>
+            <Text className="text-[11px] text-gray-400">
+              Toca una categoría para ver los detalles
+            </Text>
           </View>
+          {activeGroup && (
+            <View
+              className="px-2 py-1 rounded-full"
+              style={{ backgroundColor: "#EEF2FF" }}
+            >
+              <Text className="text-[11px] font-semibold text-indigo-700">
+                {activeGroup.label}
+              </Text>
+            </View>
+          )}
+        </View>
 
-          {/* 🔥 CARRUSEL DE CATEGORÍAS (altura fija + sin hueco extra) */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ height: 110 }} // ← altura fija
-            className="mb-1" // ← poco espacio debajo
-            contentContainerStyle={{
-              paddingHorizontal: 2,
-              paddingVertical: 4,
-              alignItems: "center",
-            }}
-          >
-            {nonEmptyGroups
-              .sort((a, b) => b.total - a.total)
-              .map((group) => {
-                const isActive = activeGroup?.id === group.id;
-                const percentage = total > 0 ? (group.total / total) * 100 : 0;
+        {/* CARRUSEL DE CATEGORÍAS CON BARRA */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ height: 120 }}
+          className="mb-2"
+          contentContainerStyle={{
+            paddingHorizontal: 2,
+            paddingVertical: 6,
+            alignItems: "center",
+          }}
+        >
+          {nonEmptyGroups
+            .slice()
+            .sort((a, b) => b.total - a.total)
+            .map((group) => {
+              const isActive = activeGroup?.id === group.id;
+              const percentage = total > 0 ? (group.total / total) * 100 : 0;
 
-                return (
-                  <TouchableOpacity
-                    key={group.id}
-                    onPress={() => setActiveGroupId(group.id)}
-                    activeOpacity={0.8}
-                    className="mr-2"
-                    style={{
-                      height: "100%", // ← todas las cards mismo alto
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 18,
-                      minWidth: 130,
-                      backgroundColor: isActive ? "white" : group.color,
-                      borderWidth: 1,
-                      borderColor: isActive ? colors.primary : "transparent",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <View className="flex-row items-center">
-                      <View
-                        className="w-7 h-7 rounded-2xl items-center justify-center mr-2"
-                        style={{ backgroundColor: group.color }}
-                      >
-                        <Ionicons name={group.icon} size={16} color={colors.primary} />
-                      </View>
-                      <Text className="text-[12px] font-semibold" numberOfLines={1}>
-                        {group.label}
-                      </Text>
+              return (
+                <TouchableOpacity
+                  key={group.id}
+                  onPress={() => setActiveGroupId(group.id)}
+                  activeOpacity={0.85}
+                  className="mr-3"
+                  style={{
+                    height: "100%",
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 18,
+                    minWidth: 140,
+                    backgroundColor: "white",
+                    borderWidth: isActive ? 1.3 : 1,
+                    borderColor: isActive ? colors.primary : "#E5E7EB",
+                    shadowColor: "#000",
+                    shadowOpacity: 0.06,
+                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 2 },
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <View className="flex-row items-center mb-1.5">
+                    <View
+                      className="w-7 h-7 rounded-2xl items-center justify-center mr-2"
+                      style={{ backgroundColor: group.color }}
+                    >
+                      <Ionicons
+                        name={group.icon}
+                        size={16}
+                        color={colors.primary}
+                      />
                     </View>
+                    <Text
+                      className="text-[12px] font-semibold"
+                      numberOfLines={1}
+                    >
+                      {group.label}
+                    </Text>
+                  </View>
 
-                    <View>
-                      <Text className="text-[11px] text-gray-500">
-                        {group.items.length} gasto{group.items.length > 1 ? "s" : ""}
-                      </Text>
-                      <Text className="text-[13px] font-semibold text-gray-900">{formatEuro(group.total)}</Text>
-                      <Text className="text-[10px] text-gray-500 mt-0.5">
-                        {percentage.toFixed(0)}% del viaje
-                      </Text>
+                  <View>
+                    <Text className="text-[11px] text-gray-500">
+                      {group.items.length} gasto
+                      {group.items.length > 1 ? "s" : ""}
+                    </Text>
+                    <Text className="text-[13px] font-semibold text-gray-900 mt-0.5">
+                      {formatEuro(group.total)}
+                    </Text>
+
+                    {/* Barra de porcentaje */}
+                    <View
+                      style={{
+                        marginTop: 6,
+                        height: 5,
+                        borderRadius: 999,
+                        backgroundColor: "#F3F4F6",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <View
+                        style={{
+                          height: "100%",
+                          width: `${percentage.toFixed(0)}%`,
+                          backgroundColor: colors.primary,
+                        }}
+                      />
+                    </View>
+                    <Text className="text-[10px] text-gray-400 mt-1">
+                      {percentage.toFixed(0)}% del viaje
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+        </ScrollView>
+
+        {/* LISTA DETALLADA (TIMELINE) */}
+        {activeGroup && (
+          <View
+            className="rounded-3xl p-3"
+            style={{ backgroundColor: "white" }}
+          >
+            <View className="flex-row justify-between items-center mb-2 px-1">
+              <Text className="text-[13px] font-semibold text-gray-900">
+                Detalle de {activeGroup.label.toLowerCase()}
+              </Text>
+              <Text className="text-[11px] text-gray-500">
+                {activeGroup.items.length} movimiento
+                {activeGroup.items.length > 1 ? "s" : ""}
+              </Text>
+            </View>
+
+            {activeGroup.items.map((item, index) => {
+              const dateLabel = formatDate(item.date);
+              const timeLabel = formatTime(item.startTime);
+              const iconName = TYPE_ICON[item.type];
+
+              return (
+                <View key={item.id} className="flex-row mb-3">
+                  {/* Timeline left */}
+                  <View className="items-center mr-3">
+                    <View
+                      className="w-8 h-8 rounded-full items-center justify-center"
+                      style={{ backgroundColor: "#F3F4F6" }}
+                    >
+                      <Ionicons
+                        name={iconName}
+                        size={16}
+                        color={colors.primary}
+                      />
+                    </View>
+                    {index < activeGroup.items.length - 1 && (
+                      <View
+                        style={{
+                          width: 1,
+                          flex: 1,
+                          backgroundColor: "#E5E7EB",
+                          marginTop: 2,
+                        }}
+                      />
+                    )}
+                  </View>
+
+                  {/* Card clicable para editar plan */}
+                  <TouchableOpacity
+                    style={{ flex: 1 }}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      navigation.navigate("TripPlanForm", {
+                        tripId,
+                        planItem: item,
+                      })
+                    }
+                  >
+                    <View
+                      className="rounded-2xl px-3 py-2.5 mb-1"
+                      style={{ backgroundColor: "#F9FAFB" }}
+                    >
+                      <View className="flex-row justify-between items-center mb-1">
+                        <Text
+                          className="text-[13px] font-semibold text-gray-900 flex-1"
+                          numberOfLines={2}
+                        >
+                          {item.title}
+                        </Text>
+                        <View className="items-end ml-2">
+                          <Text className="text-[12px] font-semibold text-gray-900">
+                            {formatEuro(item.cost || 0)}
+                          </Text>
+                          {dateLabel && (
+                            <Text className="text-[10px] text-gray-400">
+                              {dateLabel}
+                              {timeLabel ? ` · ${timeLabel}` : ""}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
                     </View>
                   </TouchableOpacity>
-                );
-              })}
-          </ScrollView>
-
-          {/* 🔥 LISTA DE PLANS (timeline) */}
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {activeGroup && (
-              <View className="rounded-3xl p-3" style={{ backgroundColor: "white" }}>
-                {activeGroup.items.map((item, index) => {
-                  const dateLabel = formatDate(item.date);
-                  const timeLabel = formatTime(item.startTime);
-                  const iconName = TYPE_ICON[item.type];
-
-                  return (
-                    <View key={item.id} className="flex-row mb-3">
-                      {/* Timeline left */}
-                      <View className="items-center mr-3">
-                        <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: "#F3F4F6" }}>
-                          <Ionicons name={iconName} size={16} color={colors.primary} />
-                        </View>
-                        {index < activeGroup.items.length - 1 && (
-                          <View style={{ width: 1, flex: 1, backgroundColor: "#E5E7EB", marginTop: 2 }} />
-                        )}
-                      </View>
-
-                      {/* Card */}
-                      <View className="flex-1 rounded-2xl px-3 py-2.5" style={{ backgroundColor: "#F9FAFB" }}>
-                        <View className="flex-row justify-between items-center mb-1">
-                          <Text className="text-[13px] font-semibold text-gray-900 flex-1">{item.title}</Text>
-                          <Text className="text-[13px] font-semibold text-gray-900">{formatEuro(item.cost || 0)}</Text>
-                        </View>
-
-                        <View className="flex-row flex-wrap items-center">
-                          {dateLabel && (
-                            <View className="flex-row items-center mr-2 mb-1">
-                              <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
-                              <Text className="text-[11px] text-gray-500 ml-1">
-                                {dateLabel}
-                                {timeLabel ? ` · ${timeLabel}` : ""}
-                              </Text>
-                            </View>
-                          )}
-
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </ScrollView>
-        </>
-      )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }

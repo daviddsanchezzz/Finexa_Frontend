@@ -13,7 +13,7 @@ const getBaseUrl = () => {
   if (__DEV__) {
     if (Platform.OS === "ios" || Platform.OS === "android") {
       // 👉 MÓVIL FÍSICO / EMULADOR: usar IP del PC
-      const url = "http://192.168.68.54:3000"; // TU IP LOCAL AQUÍ
+      const url = "http://192.168.68.53:3000"; // TU IP LOCAL AQUÍ
       console.log("📱 Dev móvil, usando:", url);
       return url;
     } else {

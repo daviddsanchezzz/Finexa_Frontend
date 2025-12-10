@@ -97,7 +97,7 @@ export default function TripsHomeScreen({ navigation }: any) {
   const [trips, setTrips] = useState<TripUI[]>([]);
   const [loading, setLoading] = useState(false);
 
-    const formatEuro = (n: number) =>
+  const formatEuro = (n: number) =>
     n.toLocaleString("es-ES", {
       style: "currency",
       currency: "EUR",
@@ -112,8 +112,6 @@ export default function TripsHomeScreen({ navigation }: any) {
       const data: TripFromApi[] = res.data || [];
 
       const mapped: TripUI[] = data.map((t) => {
-        // Si el backend ya manda totalSpent, lo usamos
-
         const base = {
           id: t.id,
           name: t.name,
@@ -126,7 +124,6 @@ export default function TripsHomeScreen({ navigation }: any) {
         };
 
         const status = getTripStatus(base);
-
         return { ...base, status };
       });
 
@@ -146,14 +143,19 @@ export default function TripsHomeScreen({ navigation }: any) {
   );
 
   const filteredTrips = useMemo(() => {
-    if (filter === "all") return trips;
+    let base: TripUI[] = trips;
+
     if (filter === "upcoming") {
-      return trips.filter((t) => t.status === "upcoming");
+      base = trips.filter((t) => t.status === "upcoming");
+    } else if (filter === "past") {
+      base = trips.filter((t) => t.status === "past");
     }
-    if (filter === "past") {
-      return trips.filter((t) => t.status === "past");
-    }
-    return trips;
+
+    // Ordenar siempre por fecha de inicio (más antiguo -> más nuevo)
+    return [...base].sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
   }, [filter, trips]);
 
   const summary = useMemo(() => {
@@ -166,7 +168,6 @@ export default function TripsHomeScreen({ navigation }: any) {
     }
 
     const cost = trips.reduce((sum, t) => sum + (t.cost || 0), 0);
-
     const upcomingCount = trips.filter((t) => t.status === "upcoming").length;
 
     return {
@@ -405,9 +406,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                   </View>
 
                   <View className="items-end">
-                    <Text className="text-[11px] text-gray-400">
-                      Gastado
-                    </Text>
+                    <Text className="text-[11px] text-gray-400">Gastado</Text>
                     <Text className="text-[15px] font-semibold text-gray-900">
                       {formatEuro(trip.cost || 0)}
                     </Text>
@@ -444,7 +443,7 @@ export default function TripsHomeScreen({ navigation }: any) {
           })
         )}
 
-        {/* BOTÓN AÑADIR VIAJE (discreto, mismo estilo) */}
+        {/* BOTÓN AÑADIR VIAJE */}
         <TouchableOpacity
           onPress={() => navigation.navigate("TripForm")}
           className="flex-row items-center justify-center py-2.5 rounded-2xl mt-2"

@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
+import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTimePicker";
 
 type TripPlanItemType = "flight" | "accommodation" | "activity" | "transport" | "other";
 
@@ -421,13 +422,15 @@ export default function TripFormScreen({ route, navigation }: any) {
       </ScrollView>
 
       {/* DATE PICKER MODAL */}
-      <DateTimePickerModal
+
+      <CrossPlatformDateTimePicker
         isVisible={datePickerVisible}
         mode="date"
         date={dateField === "end" ? endDate : startDate}
         onConfirm={handleConfirmDate}
         onCancel={closeDatePicker}
       />
+
     </SafeAreaView>
   );
 }
