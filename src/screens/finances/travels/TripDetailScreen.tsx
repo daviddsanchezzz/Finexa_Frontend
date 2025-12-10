@@ -1,4 +1,4 @@
-// src/screens/Trips/TripDetailScreen.tsx
+// src/screens/finances/travels/TripDetailScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -10,8 +10,10 @@ import {
   Switch,
   Alert,
   Linking,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 
@@ -22,7 +24,7 @@ import TripExpensesSection from "./components/TripExpensesSection";
 
 type TripStatus = "upcoming" | "ongoing" | "past";
 
-// 👇 Alineado con el enum de Prisma + "activity" legacy
+// Alineado con el enum de Prisma + "activity" legacy
 type TripPlanItemType =
   | "flight"
   | "accommodation"
@@ -219,7 +221,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
     try {
       setExporting(true);
 
-      // Llamada al backend para generar el PDF
       const res = await api.post(`/trips/${trip.id}/export`, {
         includeExpenses,
       });
@@ -227,22 +228,62 @@ export default function TripDetailScreen({ route, navigation }: any) {
       const { pdfUrl, base64, fileName } = res.data || {};
 
       if (pdfUrl) {
-        // Caso sencillo: el backend devuelve URL pública del PDF
+        // Backend devuelve URL pública del PDF
         await Linking.openURL(pdfUrl);
       } else if (base64) {
-        // Si devuelves base64, aquí puedes implementar lógica con FileSystem/Sharing (Expo)
-        // Ejemplo (pseudo-código):
-        //
-        // const fileUri = FileSystem.cacheDirectory + (fileName || `trip-${trip.id}.pdf`);
-        // await FileSystem.writeAsStringAsync(fileUri, base64, {
-        //   encoding: FileSystem.EncodingType.Base64,
-        // });
-        // await Sharing.shareAsync(fileUri);
-        //
-        Alert.alert(
-          "PDF generado",
-          "El PDF se ha generado correctamente. Implementa la lógica de guardado/compartir a partir del base64."
-        );
+        // Guardar / abrir PDF a partir de base64 sin depender de Expo FS/Sharing
+        const safeFileName =
+          fileName && fileName.trim().length > 0
+            ? fileName.replace(/[^a-zA-Z0-9_\-\.]/g, "_")
+            : `viaje-${trip.id}.pdf`;
+
+        if (Platform.OS === "web") {
+          try {
+            if (typeof window !== "undefined") {
+              const byteCharacters = atob(base64);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: "application/pdf" });
+              const url = URL.createObjectURL(blob);
+
+              // Abrir en nueva pestaña
+              window.open(url, "_blank");
+              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            } else {
+              throw new Error("Entorno web no disponible para abrir PDF");
+            }
+          } catch (e) {
+            console.error("❌ Error al abrir PDF en web:", e);
+            Alert.alert(
+              "Error al abrir PDF",
+              "No se ha podido abrir el archivo en el navegador."
+            );
+          }
+        } else {
+          // iOS / Android: abrir como data URL
+          try {
+            const dataUrl = `data:application/pdf;base64,${base64}`;
+            const supported = await Linking.canOpenURL(dataUrl);
+
+            if (supported) {
+              await Linking.openURL(dataUrl);
+            } else {
+              Alert.alert(
+                "PDF generado",
+                "El archivo se ha generado correctamente, pero no se ha podido abrir automáticamente."
+              );
+            }
+          } catch (e) {
+            console.error("❌ Error al abrir PDF en nativo:", e);
+            Alert.alert(
+              "Error al abrir PDF",
+              "No se ha podido abrir el archivo en el dispositivo."
+            );
+          }
+        }
       } else {
         Alert.alert(
           "No se ha podido generar el PDF",
@@ -611,7 +652,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-sm text-gray-800">Incluir gastos</Text>
-              <Switch value={includeExpenses} onValueChange={setIncludeExpenses} />
+              <Switch
+                value={includeExpenses}
+                onValueChange={setIncludeExpenses}
+              />
             </View>
 
             <View className="flex-row justify-end">

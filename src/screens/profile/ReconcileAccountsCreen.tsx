@@ -12,6 +12,14 @@ import { colors } from "../../theme/theme";
 import api from "../../api/api";
 import { Ionicons } from "@expo/vector-icons";
 
+const formatEuro = (n: number) =>
+  n.toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 export default function ReconcileAccountsScreen({ navigation }: any) {
   const [wallets, setWallets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,18 +49,28 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
   const handleChange = (id: string, value: string) =>
     setRealValues((prev) => ({ ...prev, [id]: value }));
 
+  const parseEuroInput = (raw?: string): number => {
+    if (!raw) return 0;
+    const cleaned = raw.replace(",", ".").replace(/\s/g, "");
+    const v = parseFloat(cleaned);
+    return isNaN(v) ? 0 : v;
+  };
+
   // Totales
   const totalTeorico = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
   const totalReal = Object.keys(realValues).reduce((sum, id) => {
-    const v = parseFloat(realValues[id]);
-    return sum + (isNaN(v) ? 0 : v);
+    return sum + parseEuroInput(realValues[id]);
   }, 0);
   const totalDiff = totalReal - totalTeorico;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
       {loading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={{ marginTop: 40 }}
+        />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -69,7 +87,9 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
             </TouchableOpacity>
 
             <View>
-              <Text className="text-[18px] font-bold text-text">Cuadrar cuentas</Text>
+              <Text className="text-[18px] font-bold text-text">
+                Cuadrar cuentas
+              </Text>
               <Text className="text-[12px] text-gray-500 mt-0.5">
                 Ajusta el saldo real de cada cuenta.
               </Text>
@@ -83,10 +103,10 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
             </Text>
           </View>
 
-          {/* Filas tipo tarjeta, pero mentalidad tabla */}
+          {/* Filas tipo tarjeta */}
           {wallets.map((wallet) => {
             const teorico = wallet.balance || 0;
-            const real = parseFloat(realValues[wallet.id]) || 0;
+            const real = parseEuroInput(realValues[wallet.id]);
             const diff = real - teorico;
 
             const diffColorBg =
@@ -121,9 +141,11 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                   </View>
 
                   <View className={`px-2 py-1 rounded-full ${diffColorBg}`}>
-                    <Text className={`text-[12px] font-semibold ${diffColorText}`}>
-                      {diff >= 0 ? "+" : ""}
-                      {diff.toFixed(2)}
+                    <Text
+                      className={`text-[12px] font-semibold ${diffColorText}`}
+                    >
+                      {diff > 0 ? "+" : diff < 0 ? "−" : ""}
+                      {formatEuro(Math.abs(diff))}
                     </Text>
                   </View>
                 </View>
@@ -131,9 +153,11 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                 {/* Línea 2: Teórico y Real */}
                 <View className="flex-row justify-between items-center">
                   <View className="flex-1 mr-3">
-                    <Text className="text-[11px] text-gray-500 mb-1">Teórico</Text>
+                    <Text className="text-[11px] text-gray-500 mb-1">
+                      Teórico
+                    </Text>
                     <Text className="text-[15px] font-semibold text-gray-800">
-                      {teorico.toFixed(2)}
+                      {formatEuro(teorico)}
                     </Text>
                   </View>
 
@@ -142,9 +166,11 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                       Real
                     </Text>
                     <TextInput
-                      value={realValues[wallet.id]}
+                      value={realValues[wallet.id] ?? ""}
                       onChangeText={(v) => handleChange(wallet.id, v)}
-                      placeholder={teorico.toFixed(2)}
+                      placeholder={formatEuro(teorico)
+                        .replace("€", "")
+                        .trim()}
                       keyboardType="numeric"
                       className="text-[15px] text-right bg-gray-100 px-3 py-1.5 rounded-xl"
                     />
@@ -175,8 +201,9 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                     activeOpacity={0.8}
                   >
                     <Text className="text-primary font-semibold text-[14px]">
-                      Añadir transacción ({diff > 0 ? "+" : ""}
-                      {diff.toFixed(2)})
+                      Añadir transacción (
+                      {diff > 0 ? "+" : diff < 0 ? "−" : ""}
+                      {formatEuro(Math.abs(diff))})
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -193,19 +220,21 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
             <View className="flex-row justify-between mb-2">
               <Text className="text-[13px] text-gray-500">Total teórico</Text>
               <Text className="text-[15px] font-semibold text-gray-800">
-                {totalTeorico.toFixed(2)}
+                {formatEuro(totalTeorico)}
               </Text>
             </View>
 
             <View className="flex-row justify-between mb-2">
               <Text className="text-[13px] text-gray-500">Total real</Text>
               <Text className="text-[15px] font-semibold text-gray-800">
-                {totalReal.toFixed(2)}
+                {formatEuro(totalReal)}
               </Text>
             </View>
 
             <View className="flex-row justify-between mt-1 pt-2 border-t border-gray-200">
-              <Text className="text-[13px] text-gray-500">Diferencia total</Text>
+              <Text className="text-[13px] text-gray-500">
+                Diferencia total
+              </Text>
               <Text
                 className={`text-[16px] font-bold ${
                   totalDiff === 0
@@ -215,8 +244,8 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                     : "text-red-500"
                 }`}
               >
-                {totalDiff >= 0 ? "+" : ""}
-                {totalDiff.toFixed(2)}
+                {totalDiff > 0 ? "+" : totalDiff < 0 ? "−" : ""}
+                {formatEuro(Math.abs(totalDiff))}
               </Text>
             </View>
           </View>
@@ -224,7 +253,8 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
           {/* Nota */}
           <View className="mx-5 mt-4">
             <Text className="text-[11px] text-gray-400">
-              Consejo: usa esta pantalla después de contar efectivo o revisar extractos para detectar descuadres entre la app y la realidad.
+              Consejo: usa esta pantalla después de contar efectivo o revisar
+              extractos para detectar descuadres entre la app y la realidad.
             </Text>
           </View>
         </ScrollView>
