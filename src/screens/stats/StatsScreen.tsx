@@ -86,8 +86,11 @@ export default function StatsScreen({ navigation }: any) {
             const res = await api.get("/transactions", {
               params: { dateFrom, dateTo },
             });
+            const filtered = res.data
+              .filter((tx: any) => tx.type !== "transfer")      // excluir transfer
+              .filter((tx: any) => tx.isRecurring === false);   // excluir plantillas
 
-            setTransactions(res.data.filter((tx: any) => tx.type !== "transfer"));
+            setTransactions(filtered);
           } catch (err) {
             console.log("❌ Error cargando transacciones:", err);
           } finally {

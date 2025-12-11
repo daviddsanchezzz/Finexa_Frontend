@@ -1,5 +1,4 @@
-// --- AddScreen.tsx completo al 100% ---
-
+// src/screens/Transactions/AddScreen.tsx
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
@@ -14,15 +13,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { colors } from "../../theme/theme";
 import api from "../../api/api";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { ViewStyle, TextStyle } from "react-native";
-import { useRoute } from "@react-navigation/native";
 import EditCategoryModal from "../../components/EditCategoryModal";
 import CrossPlatformDateTimePicker from "../../components/CrossPlatformDateTimePicker";
-
+import { appAlert } from "../../utils/appAlert";
 
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
@@ -81,11 +78,12 @@ export default function AddScreen({ navigation }: any) {
       // Recargar SOLO la categoría actual
       const res = await api.get(`/categories/${savedItem.categoryId}`);
       console.log("Subcategorías recargadas:", res.data);
+
       // Actualizar la categoría seleccionada con la nueva info
       setSelectedCategory(res.data);
 
       // Seleccionar automáticamente la subcategoría recién creada
-      const newSub = res.data.subcategories.find(s => s.id === savedItem.id);
+      const newSub = res.data.subcategories.find((s: any) => s.id === savedItem.id);
       if (newSub) setSelectedSub(newSub);
     }
 
@@ -93,7 +91,6 @@ export default function AddScreen({ navigation }: any) {
     await fetchData();
     setCategoryModalVisible(false);
   };
-
 
   //---------------------------------------
   // Cargar datos
@@ -118,7 +115,7 @@ export default function AddScreen({ navigation }: any) {
   // Selección automática de carteras
   //---------------------------------------
   useEffect(() => {
-    if (editData) return;          // si estamos editando, NO tocar nada
+    if (editData) return; // si estamos editando, NO tocar nada
     if (wallets.length === 0) return;
 
     if (type === "transfer") {
@@ -135,7 +132,6 @@ export default function AddScreen({ navigation }: any) {
       } else {
         setSelectedWalletTo(null);
       }
-
     } else {
       // Expense / Income → siempre seleccionar primera cartera
       if (!selectedWallet || selectedWallet.id !== wallets[0].id) {
@@ -143,7 +139,6 @@ export default function AddScreen({ navigation }: any) {
       }
     }
   }, [wallets, type, editData]);
-
 
   useFocusEffect(
     useCallback(() => {
@@ -172,58 +167,59 @@ export default function AddScreen({ navigation }: any) {
     }, [editData])
   );
 
-//---------------------------------------
-// Rellenar datos si venimos en modo edición
-//---------------------------------------
-useEffect(() => {
-  if (!editData || wallets.length === 0 || categories.length === 0) return;
+  //---------------------------------------
+  // Rellenar datos si venimos en modo edición
+  //---------------------------------------
+  useEffect(() => {
+    if (!editData || wallets.length === 0 || categories.length === 0) return;
 
-  setType(editData.type);
+    setType(editData.type);
 
-  // --------- WALLET ----------
-  if (editData.type === "transfer") {
-    const from = wallets.find(w => w.id === editData.fromWalletId) || null;
-    const to   = wallets.find(w => w.id === editData.toWalletId) || null;
+    // --------- WALLET ----------
+    if (editData.type === "transfer") {
+      const from = wallets.find((w) => w.id === editData.fromWalletId) || null;
+      const to = wallets.find((w) => w.id === editData.toWalletId) || null;
 
-    setSelectedWalletFrom(from);
-    setSelectedWalletTo(to);
-  } else {
-    const wallet = wallets.find(w => w.id === editData.walletId) || null;
-    setSelectedWallet(wallet);
-  }
+      setSelectedWalletFrom(from);
+      setSelectedWalletTo(to);
+    } else {
+      const wallet = wallets.find((w) => w.id === editData.walletId) || null;
+      setSelectedWallet(wallet);
+    }
 
-  // --------- CATEGORY ----------
-  const cat = categories.find(c => c.id === editData.categoryId) || null;
-  setSelectedCategory(cat);
+    // --------- CATEGORY ----------
+    const cat = categories.find((c) => c.id === editData.categoryId) || null;
+    setSelectedCategory(cat);
 
-  // --------- SUBCATEGORY ----------
-  if (cat && Array.isArray(cat.subcategories)) {
-    const sub = cat.subcategories.find(s => s.id === editData.subcategoryId) || null;
-    setSelectedSub(sub);
-  } else {
-    setSelectedSub(null);
-  }
+    // --------- SUBCATEGORY ----------
+    if (cat && Array.isArray(cat.subcategories)) {
+      const sub =
+        cat.subcategories.find((s: any) => s.id === editData.subcategoryId) || null;
+      setSelectedSub(sub);
+    } else {
+      setSelectedSub(null);
+    }
 
-  // --------- CAMPOS BÁSICOS ----------
-  setAmount(
-    typeof editData.amount === "number" 
-      ? editData.amount.toString().replace(".", ",") 
-      : "0,00"
-  );
+    // --------- CAMPOS BÁSICOS ----------
+    setAmount(
+      typeof editData.amount === "number"
+        ? editData.amount.toString().replace(".", ",")
+        : "0,00"
+    );
 
-  setDescription(editData.description || "");
-  setDate(new Date(editData.date));
+    setDescription(editData.description || "");
+    setDate(new Date(editData.date));
 
-  // --------- RECURRENCIA ----------
-  if (editData.recurrence) {
-    setRecurrenceInterval(editData.recurrence.interval || "never");
-    setIsRecurring(editData.recurrence.interval !== "never");
-  } else {
-    setRecurrenceInterval("never");
-    setIsRecurring(false);
-  }
-}, [editData, wallets, categories]);
-
+    // --------- RECURRENCIA ----------
+    if (editData.isRecurring && editData.recurrence) {
+      // recurrence viene como string: "daily" | "weekly" | "monthly" | "yearly"
+      setRecurrenceInterval(editData.recurrence);
+      setIsRecurring(true);
+    } else {
+      setRecurrenceInterval("never");
+      setIsRecurring(false);
+    }
+  }, [editData, wallets, categories]);
 
   //---------------------------------------
   // Lógica filtrado categorías
@@ -232,23 +228,34 @@ useEffect(() => {
   const subcategories = selectedCategory?.subcategories || [];
 
   //---------------------------------------
-  // Guardar
+  // Helper: ¿esta transacción pertenece a una serie recurrente?
   //---------------------------------------
-  const handleSubmit = async () => {
+  const isPartOfSeries = !!(
+    editData &&
+    (editData.isRecurring || editData.parentId)
+  );
+
+  //---------------------------------------
+  // Guardar (con scope para recurrentes en edición)
+  //---------------------------------------
+  const handleSubmit = async (
+    scope: "single" | "series" | "future" = "single"
+  ) => {
     if (type === "transfer") {
       if (!selectedWalletFrom || !selectedWalletTo)
-        return Alert.alert("Selecciona ambas carteras");
+        return appAlert("Error", "Selecciona ambas carteras");
+
       if (selectedWalletFrom.id === selectedWalletTo.id)
-        return Alert.alert("Las carteras deben ser diferentes");
+        return appAlert("Error", "Las carteras deben ser diferentes");
     } else if (!selectedWallet) {
-      return Alert.alert("Selecciona una cartera");
+      return appAlert("Error", "Selecciona una cartera");
     }
 
     if (type !== "transfer" && !selectedCategory)
-      return Alert.alert("Selecciona una categoría");
+      return appAlert("Error", "Selecciona una categoría");
 
     if (!amount || isNaN(Number(amount.replace(",", "."))))
-      return Alert.alert("Introduce una cantidad válida");
+      return appAlert("Error", "Introduce una cantidad válida");
 
     const payload: any = {
       type,
@@ -266,21 +273,31 @@ useEffect(() => {
       payload.subcategoryId = selectedSub?.id || null;
     }
 
+    // Recurrencia: alineado con el back (isRecurring + recurrence string/null)
     if (recurrenceInterval !== "never") {
-      payload.recurrence = { interval: recurrenceInterval };
+      payload.isRecurring = true;
+      payload.recurrence = recurrenceInterval; // "daily" | "weekly" | "monthly" | "yearly"
+    } else {
+      payload.isRecurring = false;
+      payload.recurrence = null;
     }
 
     try {
       setSaving(true);
       if (editData) {
-        await api.patch(`/transactions/${editData.id}`, payload);
+        // PATCH con scope para soportar:
+        // - single  → solo esta
+        // - series  → toda la serie
+        // - future  → solo futuras
+        await api.patch(`/transactions/${editData.id}`, payload, {
+          params: { scope },
+        });
       } else {
         await api.post("/transactions", payload);
-    }
-      Alert.alert("Guardado correctamente");
+      }
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", "No se pudo guardar");
+      appAlert("Error", "No se pudo guardar");
     } finally {
       setSaving(false);
     }
@@ -291,7 +308,7 @@ useEffect(() => {
     borderColor: "#3b82f6",
   };
 
-    const openCategoryModal = (isSub = false) => {
+  const openCategoryModal = (isSub = false) => {
     setModalEditingItem({
       isSub,
       categoryId: isSub ? selectedCategory?.id : null,
@@ -302,7 +319,6 @@ useEffect(() => {
     setCategoryModalVisible(true);
   };
 
-
   //---------------------------------------
   // UI
   //---------------------------------------
@@ -310,7 +326,10 @@ useEffect(() => {
     <SafeAreaView className="flex-1 bg-white">
       {/* HEADER */}
       <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 50 }}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ width: 50 }}
+        >
           <Ionicons name="chevron-back" size={26} color="#111" />
         </TouchableOpacity>
 
@@ -321,7 +340,38 @@ useEffect(() => {
         </View>
 
         <View style={{ minWidth: 60, alignItems: "flex-end" }}>
-          <TouchableOpacity onPress={handleSubmit} disabled={saving}>
+        <TouchableOpacity
+          onPress={() => {
+            if (editData && isPartOfSeries) {
+              appAlert(
+                "Actualizar transacción recurrente",
+                "¿Qué quieres actualizar?",
+                [
+                  {
+                    text: "Solo esta",
+                    onPress: () => handleSubmit("single"),
+                  },
+                  {
+                    text: "Solo futuras",
+                    onPress: () => handleSubmit("future"),
+                  },
+                  {
+                    text: "Toda la serie",
+                    style: "destructive",
+                    onPress: () => handleSubmit("series"),
+                  },
+                  {
+                    text: "Cancelar",
+                    style: "cancel",
+                  },
+                ]
+              );
+            } else {
+              handleSubmit("single");
+            }
+          }}
+          disabled={saving}
+        >
             {saving ? (
               <ActivityIndicator size="small" />
             ) : (
@@ -354,9 +404,21 @@ useEffect(() => {
             {/* TABS */}
             <View className="mt-6 mb-6 flex-row bg-gray-100 rounded-2xl p-1">
               {[
-                { label: "Gasto", value: "expense", bg: "rgba(239,68,68,0.12)" },      // rojo suave
-                { label: "Ingreso", value: "income", bg: "rgba(34,197,94,0.12)" },     // verde suave
-                { label: "Transferencia", value: "transfer", bg: "rgba(37,99,235,0.12)" }, // azul suave
+                {
+                  label: "Gasto",
+                  value: "expense",
+                  bg: "rgba(239,68,68,0.12)", // rojo suave
+                },
+                {
+                  label: "Ingreso",
+                  value: "income",
+                  bg: "rgba(34,197,94,0.12)", // verde suave
+                },
+                {
+                  label: "Transferencia",
+                  value: "transfer",
+                  bg: "rgba(37,99,235,0.12)", // azul suave
+                },
               ].map((opt) => {
                 const active = type === opt.value;
 
@@ -364,7 +426,6 @@ useEffect(() => {
                   <TouchableOpacity
                     key={opt.value}
                     onPress={() => {
-                      // 🔹 MISMA LÓGICA QUE TENÍAS
                       setType(opt.value as any);
                       setSelectedCategory(null);
                       setSelectedSub(null);
@@ -385,7 +446,7 @@ useEffect(() => {
                       style={{
                         fontSize: 15,
                         fontWeight: "600",
-                        color: active ? "#111827" : "#9CA3AF", // negro vs gris
+                        color: active ? "#111827" : "#9CA3AF",
                       }}
                     >
                       {opt.label}
@@ -394,6 +455,7 @@ useEffect(() => {
                 );
               })}
             </View>
+
             {/* INPUT CANTIDAD */}
             <View className="items-center mb-10 mt-2">
               <View className="flex-row items-center pb-2 justify-center">
@@ -542,15 +604,17 @@ useEffect(() => {
                     );
                   })}
 
-                  {/* 🔵 BOTÓN CREAR CATEGORÍA */}
+                  {/* BOTÓN CREAR CATEGORÍA */}
                   <TouchableOpacity
                     onPress={() => openCategoryModal(false)}
-                    style={[
-                      chipBase,
-                      { borderColor: colors.primary },
-                    ]}
+                    style={[chipBase, { borderColor: colors.primary }]}
                   >
-                    <Text style={[chipText, { color: colors.primary, fontWeight: "600" }]}>
+                    <Text
+                      style={[
+                        chipText,
+                        { color: colors.primary, fontWeight: "600" },
+                      ]}
+                    >
                       + Crear categoría
                     </Text>
                   </TouchableOpacity>
@@ -561,16 +625,17 @@ useEffect(() => {
             {/* SUBCATEGORÍAS */}
             {selectedCategory && (
               <>
-                <Text className="text-[13px] text-gray-400 mb-2">Subcategoría</Text>
+                <Text className="text-[13px] text-gray-400 mb-2">
+                  Subcategoría
+                </Text>
 
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   className="mb-6"
                 >
-                  {/* 🔵 SI EXISTEN → MOSTRAR SUBCATEGORÍAS */}
                   {subcategories.length > 0 &&
-                    subcategories.map((sub) => {
+                    subcategories.map((sub: any) => {
                       const isSelected = selectedSub?.id === sub.id;
                       return (
                         <TouchableOpacity
@@ -588,23 +653,22 @@ useEffect(() => {
                       );
                     })}
 
-                  {/* 🔵 SI NO EXISTEN → NO MOSTRAR LISTA, SOLO ESTE BOTÓN */}
-                  {/* 🔵 SI EXISTEN → ESTE BOTÓN SE MUESTRA IGUAL, COMO ÚLTIMO */}
                   <TouchableOpacity
                     onPress={() => openCategoryModal(true)}
-                    style={[
-                      chipBase,
-                      { borderColor: colors.primary},
-                    ]}
+                    style={[chipBase, { borderColor: colors.primary }]}
                   >
-                    <Text style={[chipText, { color: colors.primary, fontWeight: "600" }]}>
+                    <Text
+                      style={[
+                        chipText,
+                        { color: colors.primary, fontWeight: "600" },
+                      ]}
+                    >
                       + Crear subcategoría
                     </Text>
                   </TouchableOpacity>
                 </ScrollView>
               </>
             )}
-
 
             {/* FECHA */}
             <Text className="text-[13px] text-gray-400 mb-2">Fecha</Text>
@@ -626,21 +690,22 @@ useEffect(() => {
               <Ionicons name="calendar-outline" size={19} color="black" />
             </TouchableOpacity>
 
-          <CrossPlatformDateTimePicker
-            isVisible={showDatePicker}
-            mode="datetime"
-            date={date}
-            onConfirm={(d) => {
-              setShowDatePicker(false);
-              setDate(d);
-            }}
-            onCancel={() => setShowDatePicker(false)}
-          />
+            <CrossPlatformDateTimePicker
+              isVisible={showDatePicker}
+              mode="datetime"
+              date={date}
+              onConfirm={(d) => {
+                setShowDatePicker(false);
+                setDate(d);
+              }}
+              onCancel={() => setShowDatePicker(false)}
+            />
 
+            {/* DESCRIPCIÓN */}
             <Text className="text-[13px] text-gray-400 mb-2">Descripción</Text>
 
             <View
-              onLayout={e => {
+              onLayout={(e) => {
                 setDescriptionY(e.nativeEvent.layout.y);
               }}
             >
@@ -657,14 +722,16 @@ useEffect(() => {
                       y: descriptionY - 80,
                       animated: true,
                     });
-                  }, 250); // <- GARANTIZA que el teclado ya apareció
+                  }, 250);
                 }}
               />
             </View>
 
             {/* RECURRENCIA */}
             <View className="mt-6">
-              <Text className="text-[13px] text-gray-400 mb-3">Recurrencia</Text>
+              <Text className="text-[13px] text-gray-400 mb-3">
+                Recurrencia
+              </Text>
 
               <ScrollView
                 horizontal
@@ -698,7 +765,6 @@ useEffect(() => {
                 })}
               </ScrollView>
             </View>
-
           </ScrollView>
 
           <EditCategoryModal
@@ -706,9 +772,7 @@ useEffect(() => {
             onClose={() => setCategoryModalVisible(false)}
             editingItem={modalEditingItem}
             onSave={handleCategoryModalSave}
-
           />
-
         </KeyboardAvoidingView>
       )}
     </SafeAreaView>

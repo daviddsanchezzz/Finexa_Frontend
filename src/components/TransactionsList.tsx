@@ -1,10 +1,15 @@
+// src/components/TransactionsList.tsx
 import React from "react";
-import { View, Text, Alert, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
 import Modal from "react-native-modal";
+import { appAlert } from "../utils/appAlert";
+import RecurringScopeModal, {
+  RecurringScope,
+} from "./RecurringScopeModal";
 
 interface Props {
   transactions: any[];
@@ -20,10 +25,17 @@ export default function TransactionsList({
   const [selectedTx, setSelectedTx] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
 
+  // Modal alcance borrado recurrente (reutiliza RecurringScopeModal)
+  const [deleteScopeModal, setDeleteScopeModal] = React.useState<{
+    visible: boolean;
+    tx: any | null;
+  }>({ visible: false, tx: null });
+
   const openTxModal = (tx: any) => {
     setSelectedTx(tx);
     setModalVisible(true);
   };
+
   const closeModal = () => {
     setModalVisible(false);
     setSelectedTx(null);
@@ -114,19 +126,45 @@ export default function TransactionsList({
     ).padStart(2, "0")}`;
   };
 
-  // 🔴 Eliminar
-  const deleteTx = async (tx: any) => {
-    Alert.alert("Eliminar", "¿Seguro?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: async () => {
-          await api.delete(`/transactions/${tx.id}`);
-          onDeleted?.();
+  // Helper: ¿pertenece a una serie recurrente?
+  const isPartOfSeries = (tx: any) => !!(tx?.isRecurring || tx?.parentId);
+
+  // 🔴 Borrado real en backend, con scope
+  const deleteTxByScope = async (tx: any, scope: RecurringScope) => {
+    try {
+      await api.delete(`/transactions/${tx.id}`, { params: { scope } });
+      onDeleted?.();
+    } catch (e) {
+      appAlert("Error", "No se pudo eliminar");
+    }
+  };
+
+  const handleScopePress = async (scope: RecurringScope) => {
+    if (!deleteScopeModal.tx) return;
+    const tx = deleteScopeModal.tx;
+    setDeleteScopeModal({ visible: false, tx: null });
+    await deleteTxByScope(tx, scope);
+  };
+
+  // 🔴 Eliminar (decide si usar modal de scopes o confirm simple)
+  const deleteTx = (tx: any) => {
+    const partOfSeries = isPartOfSeries(tx);
+
+    if (partOfSeries) {
+      setDeleteScopeModal({ visible: true, tx });
+    } else {
+      appAlert("Eliminar transacción", "¿Seguro que quieres eliminarla?", [
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => deleteTxByScope(tx, "single"),
         },
-      },
-    ]);
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+      ]);
+    }
   };
 
   const renderRightActions = (tx: any) => (
@@ -430,9 +468,9 @@ export default function TransactionsList({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={async () => {
+                  onPress={() => {
                     closeModal();
-                    await deleteTx(selectedTx);
+                    deleteTx(selectedTx);
                   }}
                   className="flex-1 bg-red-500 py-3 rounded-full"
                 >
@@ -445,6 +483,14 @@ export default function TransactionsList({
           )}
         </View>
       </Modal>
+
+      {/* MODAL ALCANCE ELIMINACIÓN RECURRENTE (reutilizable y profesional) */}
+      <RecurringScopeModal
+        visible={deleteScopeModal.visible}
+        mode="delete"
+        onClose={() => setDeleteScopeModal({ visible: false, tx: null })}
+        onSelect={handleScopePress}
+      />
     </View>
   );
 }

@@ -51,7 +51,9 @@ export default function HomeScreen({ navigation }: any) {
 
       const res = await api.get("/transactions", { params });
 
-      const filtered = res.data.filter((tx: any) => tx.type !== "transfer");
+      const filtered = res.data
+        .filter((tx: any) => tx.type !== "transfer")
+        .filter((tx: any) => tx.isRecurring === false);   // 👈 excluir plantillas
       const sorted = filtered.sort(
         (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );

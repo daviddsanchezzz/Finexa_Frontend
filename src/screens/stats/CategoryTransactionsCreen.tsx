@@ -26,10 +26,10 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
 
       const res = await api.get("/transactions", { params });
 
-      const filtered = res.data.filter(
-        (tx: any) =>
-          tx.category?.name === categoryName && tx.type === type
-      );
+      const filtered = res.data
+        .filter((tx: any) => !tx.isRecurring)                                    // excluir plantillas
+        .filter((tx: any) => tx.category?.name === categoryName)                // filtrar categoría
+        .filter((tx: any) => tx.type === type);                                 // filtrar tipo
 
       setTransactions(filtered);
     } catch (e) {
