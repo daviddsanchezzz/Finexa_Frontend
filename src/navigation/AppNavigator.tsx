@@ -25,6 +25,7 @@ import TripsHomeScreen from "../screens/finances/travels/TravelsScreen";
 import TripFormScreen from "../screens/finances/travels/TravelFormScreen";
 import TripDetailScreen from "../screens/finances/travels/TripDetailScreen";
 import TripPlanFormScreen from "../screens/finances/travels/TripPlanFormScreen";
+import RecurringTransactionsScreen from "../screens/finances/RecurringTransactions/RecurringTransactionsScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -48,6 +49,7 @@ export type RootStackParamList = {
   TripForm: undefined;
   TripDetail: undefined;
   TripPlanForm: undefined;
+  RecurringTransactions: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -87,6 +89,7 @@ export default function AppNavigator() {
           <Stack.Screen name="TripForm" component={TripFormScreen} />
           <Stack.Screen name="TripDetail" component={TripDetailScreen} />
           <Stack.Screen name="TripPlanForm" component={TripPlanFormScreen} />
+          <Stack.Screen name="RecurringTransactions" component={RecurringTransactionsScreen} />
         </>
       ) : (
         // 🔓 Rutas públicas

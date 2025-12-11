@@ -73,6 +73,17 @@ const MODULES: FinanceModule[] = [
     accentColor: "#0EA5E9",
     softBg: "#E0F2FE",
   },
+  {
+    key: "recurring",
+    title: "Transacciones recurrentes",
+    subtitle: "Gestiona pagos programados y sus próximas ejecuciones.",
+    emoji: "🔁",
+    iconName: "repeat-outline",
+    routeName: "RecurringTransactions",
+    accentColor: "#A855F7",
+    softBg: "#F3E8FF",
+  },
+
 ];
 
 export default function FinancesScreen({ navigation }: any) {
