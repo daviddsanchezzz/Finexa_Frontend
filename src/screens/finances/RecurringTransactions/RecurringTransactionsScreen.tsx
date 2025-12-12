@@ -216,7 +216,7 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F3F4F6", padding: 24 }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F3F4F6", paddingHorizontal: 20 }}>
       <View className=" pb-2">
         <AppHeader
           title="Transacciones recurrentes"

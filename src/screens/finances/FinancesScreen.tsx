@@ -94,7 +94,7 @@ export default function FinancesScreen({ navigation }: any) {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: "#F3F4F6" }}>
       {/* HEADER SUPERIOR */}
-      <View className="px-5 pb-2">
+      <View className="px-5 pb-1">
         <AppHeader
           title="Finanzas personales"
           showProfile={false}
@@ -104,7 +104,7 @@ export default function FinancesScreen({ navigation }: any) {
 
       {/* LISTA 1 COLUMNA */}
       <ScrollView
-        className="flex-1 px-5 mb-14"
+        className="flex-1 px-5 mb-16"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
       >
