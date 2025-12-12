@@ -102,53 +102,9 @@ export default function FinancesScreen({ navigation }: any) {
         />
       </View>
 
-      {/* BANNER INTRO */}
-      <View className="px-5 mb-3">
-        <View
-          style={{
-            backgroundColor: "#E0E7FF",
-            borderRadius: 18,
-            paddingVertical: 10,
-            paddingHorizontal: 14,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 999,
-              backgroundColor: "#EEF2FF",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 10,
-            }}
-          >
-            <Ionicons
-              name="sparkles-outline"
-              size={16}
-              color={colors.primary}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: "#1F2933",
-                marginBottom: 2,
-              }}
-            >
-              Centraliza tus decisiones de dinero
-            </Text>
-          </View>
-        </View>
-      </View>
-
       {/* LISTA 1 COLUMNA */}
       <ScrollView
-        className="flex-1 px-5"
+        className="flex-1 px-5 mb-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
       >

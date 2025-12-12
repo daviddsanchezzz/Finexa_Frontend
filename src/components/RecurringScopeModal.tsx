@@ -29,6 +29,7 @@ export default function RecurringScopeModal({
     if (!visible) {
       setSelectedScope(null);
     }
+    console.log("visible changed");
   }, [visible]);
 
   const isDelete = mode === "delete";

@@ -39,7 +39,14 @@ export default function TransfersScreen({ navigation }) {
       };
 
       const res = await api.get("/transactions", { params });
-      setTransfers(res.data);
+
+      const filtered = res.data
+        .filter((tx: any) => tx.isRecurring === false);   // 👈 excluir plantillas
+      const sorted = filtered.sort(
+        (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
+      setTransfers(sorted);
 
     } catch (e) {
       console.error("❌ Error:", e);
