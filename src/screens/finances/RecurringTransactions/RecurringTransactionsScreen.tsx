@@ -216,8 +216,8 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F3F4F6" }}>
-      <View className="px-5 pb-2">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: "#F3F4F6", padding: 24 }}>
+      <View className=" pb-2">
         <AppHeader
           title="Transacciones recurrentes"
           showProfile={false}
@@ -226,7 +226,7 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
         />
       </View>
 
-      <View className="px-5 mb-3">
+      <View className=" mb-3">
         <View
           style={{
             backgroundColor: "#F3E8FF",
@@ -269,7 +269,7 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
       </View>
 
       <ScrollView
-        className="flex-1 px-5"
+        className="flex-1 "
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
         refreshControl={

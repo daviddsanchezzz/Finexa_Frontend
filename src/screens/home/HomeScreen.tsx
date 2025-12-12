@@ -141,7 +141,7 @@ export default function HomeScreen({ navigation }: any) {
 
       {/* LISTA */}
       <ScrollView
-        className="flex-1 px-5 pt-0 mb-2"
+        className="flex-1 px-5 pt-0 mb-8"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 70 }}
       >

@@ -104,7 +104,7 @@ export default function FinancesScreen({ navigation }: any) {
 
       {/* LISTA 1 COLUMNA */}
       <ScrollView
-        className="flex-1 px-5 mb-4"
+        className="flex-1 px-5 mb-14"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
       >
