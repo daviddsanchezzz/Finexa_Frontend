@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -25,11 +24,19 @@ export default function AddScreen({ navigation }: any) {
   const route = useRoute();
   const editData = (route.params as any)?.editData || null;
 
+  // ✅ si vienes desde InvestmentDetail para añadir aportación
+  const prefillInvestmentAssetId = (route.params as any)?.prefillInvestmentAssetId ?? null;
+
   const scrollRef = useRef<ScrollView>(null);
 
   const [type, setType] = useState<"expense" | "income" | "transfer">("expense");
   const [wallets, setWallets] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+
+  // ✅ investments
+  const [investmentAssets, setInvestmentAssets] = useState<any[]>([]);
+  const [selectedInvestmentAsset, setSelectedInvestmentAsset] = useState<any>(null);
+
   const [selectedWallet, setSelectedWallet] = useState<any>(null);
   const [selectedWalletFrom, setSelectedWalletFrom] = useState<any>(null);
   const [selectedWalletTo, setSelectedWalletTo] = useState<any>(null);
@@ -66,6 +73,11 @@ export default function AddScreen({ navigation }: any) {
     fontSize: 15,
   };
 
+  const blueSelected = {
+    backgroundColor: "#e0f2fe",
+    borderColor: "#3b82f6",
+  };
+
   //---------------------------------------
   // Scroll a zona exacta cuando se abre teclado
   //---------------------------------------
@@ -75,19 +87,14 @@ export default function AddScreen({ navigation }: any) {
 
   const handleCategoryModalSave = async (savedItem: any) => {
     if (savedItem?.isSub) {
-      // Recargar SOLO la categoría actual
       const res = await api.get(`/categories/${savedItem.categoryId}`);
-      console.log("Subcategorías recargadas:", res.data);
 
-      // Actualizar la categoría seleccionada con la nueva info
       setSelectedCategory(res.data);
 
-      // Seleccionar automáticamente la subcategoría recién creada
       const newSub = res.data.subcategories.find((s: any) => s.id === savedItem.id);
       if (newSub) setSelectedSub(newSub);
     }
 
-    // Recargar todas las categorías igualmente
     await fetchData();
     setCategoryModalVisible(false);
   };
@@ -98,12 +105,16 @@ export default function AddScreen({ navigation }: any) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [walletRes, catRes] = await Promise.all([
+
+      const [walletRes, catRes, invRes] = await Promise.all([
         api.get("/wallets"),
         api.get("/categories"),
+        api.get("/investments/assets"),
       ]);
+
       setWallets(walletRes.data || []);
       setCategories(catRes.data || []);
+      setInvestmentAssets(invRes.data || []);
     } catch (error) {
       console.error("ERROR:", error);
     } finally {
@@ -111,20 +122,24 @@ export default function AddScreen({ navigation }: any) {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
+
   //---------------------------------------
   // Selección automática de carteras
   //---------------------------------------
   useEffect(() => {
-    if (editData) return; // si estamos editando, NO tocar nada
+    if (editData) return;
     if (wallets.length === 0) return;
 
     if (type === "transfer") {
-      // FROM = la primera siempre
       if (!selectedWalletFrom || selectedWalletFrom.id !== wallets[0].id) {
         setSelectedWalletFrom(wallets[0]);
       }
 
-      // TO = la segunda si existe, si no null
       if (wallets.length > 1) {
         if (!selectedWalletTo || selectedWalletTo.id !== wallets[1].id) {
           setSelectedWalletTo(wallets[1]);
@@ -133,18 +148,46 @@ export default function AddScreen({ navigation }: any) {
         setSelectedWalletTo(null);
       }
     } else {
-      // Expense / Income → siempre seleccionar primera cartera
       if (!selectedWallet || selectedWallet.id !== wallets[0].id) {
         setSelectedWallet(wallets[0]);
       }
     }
   }, [wallets, type, editData]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
-  );
+  //---------------------------------------
+  // Auto-selección de asset cuando TO es wallet inversión
+  //---------------------------------------
+  useEffect(() => {
+    if (editData) return;
+    if (type !== "transfer") return;
+
+    const toIsInvestment = selectedWalletTo?.kind === "investment";
+    if (!toIsInvestment) {
+      setSelectedInvestmentAsset(null);
+      return;
+    }
+
+    // 1) si vienes desde InvestmentDetail con prefill
+    if (prefillInvestmentAssetId && investmentAssets.length) {
+      const found = investmentAssets.find((a) => a.id === prefillInvestmentAssetId);
+      if (found) {
+        setSelectedInvestmentAsset(found);
+        return;
+      }
+    }
+
+    // 2) default: primer asset
+    if (!selectedInvestmentAsset && investmentAssets.length) {
+      setSelectedInvestmentAsset(investmentAssets[0]);
+    }
+  }, [
+    type,
+    selectedWalletTo,
+    investmentAssets,
+    prefillInvestmentAssetId,
+    editData,
+    selectedInvestmentAsset,
+  ]);
 
   //---------------------------------------
   // Resetear pantalla al entrar
@@ -158,6 +201,7 @@ export default function AddScreen({ navigation }: any) {
         setSelectedWalletTo(null);
         setSelectedCategory(null);
         setSelectedSub(null);
+        setSelectedInvestmentAsset(null);
         setAmount("");
         setDescription("");
         setDate(new Date());
@@ -182,9 +226,19 @@ export default function AddScreen({ navigation }: any) {
 
       setSelectedWalletFrom(from);
       setSelectedWalletTo(to);
+
+      // ✅ asset si era aportación a inversión
+      if (editData.investmentAssetId && investmentAssets.length > 0) {
+        const inv =
+          investmentAssets.find((a) => a.id === editData.investmentAssetId) || null;
+        setSelectedInvestmentAsset(inv);
+      } else {
+        setSelectedInvestmentAsset(null);
+      }
     } else {
       const wallet = wallets.find((w) => w.id === editData.walletId) || null;
       setSelectedWallet(wallet);
+      setSelectedInvestmentAsset(null);
     }
 
     // --------- CATEGORY ----------
@@ -193,8 +247,7 @@ export default function AddScreen({ navigation }: any) {
 
     // --------- SUBCATEGORY ----------
     if (cat && Array.isArray(cat.subcategories)) {
-      const sub =
-        cat.subcategories.find((s: any) => s.id === editData.subcategoryId) || null;
+      const sub = cat.subcategories.find((s: any) => s.id === editData.subcategoryId) || null;
       setSelectedSub(sub);
     } else {
       setSelectedSub(null);
@@ -212,14 +265,13 @@ export default function AddScreen({ navigation }: any) {
 
     // --------- RECURRENCIA ----------
     if (editData.isRecurring && editData.recurrence) {
-      // recurrence viene como string: "daily" | "weekly" | "monthly" | "yearly"
       setRecurrenceInterval(editData.recurrence);
       setIsRecurring(true);
     } else {
       setRecurrenceInterval("never");
       setIsRecurring(false);
     }
-  }, [editData, wallets, categories]);
+  }, [editData, wallets, categories, investmentAssets]);
 
   //---------------------------------------
   // Lógica filtrado categorías
@@ -230,23 +282,23 @@ export default function AddScreen({ navigation }: any) {
   //---------------------------------------
   // Helper: ¿esta transacción pertenece a una serie recurrente?
   //---------------------------------------
-  const isPartOfSeries = !!(
-    editData &&
-    (editData.isRecurring || editData.parentId)
-  );
+  const isPartOfSeries = !!(editData && (editData.isRecurring || editData.parentId));
 
   //---------------------------------------
   // Guardar (con scope para recurrentes en edición)
   //---------------------------------------
-  const handleSubmit = async (
-    scope: "single" | "series" | "future" = "single"
-  ) => {
+  const handleSubmit = async (scope: "single" | "series" | "future" = "single") => {
     if (type === "transfer") {
       if (!selectedWalletFrom || !selectedWalletTo)
         return appAlert("Error", "Selecciona ambas carteras");
 
       if (selectedWalletFrom.id === selectedWalletTo.id)
         return appAlert("Error", "Las carteras deben ser diferentes");
+
+      // ✅ si destino es wallet inversión, exige asset
+      if (selectedWalletTo?.kind === "investment" && !selectedInvestmentAsset) {
+        return appAlert("Error", "Selecciona la inversión (BTC, Robo, etc.)");
+      }
     } else if (!selectedWallet) {
       return appAlert("Error", "Selecciona una cartera");
     }
@@ -267,16 +319,23 @@ export default function AddScreen({ navigation }: any) {
     if (type === "transfer") {
       payload.fromWalletId = selectedWalletFrom.id;
       payload.toWalletId = selectedWalletTo.id;
+
+      // ✅ inversión: manda investmentAssetId solo si toWallet.kind === investment
+      if (selectedWalletTo?.kind === "investment") {
+        payload.investmentAssetId = selectedInvestmentAsset?.id;
+      } else {
+        payload.investmentAssetId = null;
+      }
     } else {
       payload.walletId = selectedWallet.id;
       payload.categoryId = selectedCategory?.id || null;
       payload.subcategoryId = selectedSub?.id || null;
     }
 
-    // Recurrencia: alineado con el back (isRecurring + recurrence string/null)
+    // Recurrencia
     if (recurrenceInterval !== "never") {
       payload.isRecurring = true;
-      payload.recurrence = recurrenceInterval; // "daily" | "weekly" | "monthly" | "yearly"
+      payload.recurrence = recurrenceInterval;
     } else {
       payload.isRecurring = false;
       payload.recurrence = null;
@@ -285,10 +344,6 @@ export default function AddScreen({ navigation }: any) {
     try {
       setSaving(true);
       if (editData) {
-        // PATCH con scope para soportar:
-        // - single  → solo esta
-        // - series  → toda la serie
-        // - future  → solo futuras
         await api.patch(`/transactions/${editData.id}`, payload, {
           params: { scope },
         });
@@ -301,11 +356,6 @@ export default function AddScreen({ navigation }: any) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const blueSelected = {
-    backgroundColor: "#e0f2fe",
-    borderColor: "#3b82f6",
   };
 
   const openCategoryModal = (isSub = false) => {
@@ -326,10 +376,7 @@ export default function AddScreen({ navigation }: any) {
     <SafeAreaView className="flex-1 bg-white">
       {/* HEADER */}
       <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ width: 50 }}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 50 }}>
           <Ionicons name="chevron-back" size={26} color="#111" />
         </TouchableOpacity>
 
@@ -340,38 +387,25 @@ export default function AddScreen({ navigation }: any) {
         </View>
 
         <View style={{ minWidth: 60, alignItems: "flex-end" }}>
-        <TouchableOpacity
-          onPress={() => {
-            if (editData && isPartOfSeries) {
-              appAlert(
-                "Actualizar transacción recurrente",
-                "¿Qué quieres actualizar?",
-                [
-                  {
-                    text: "Solo esta",
-                    onPress: () => handleSubmit("single"),
-                  },
-                  {
-                    text: "Solo futuras",
-                    onPress: () => handleSubmit("future"),
-                  },
+          <TouchableOpacity
+            onPress={() => {
+              if (editData && isPartOfSeries) {
+                appAlert("Actualizar transacción recurrente", "¿Qué quieres actualizar?", [
+                  { text: "Solo esta", onPress: () => handleSubmit("single") },
+                  { text: "Solo futuras", onPress: () => handleSubmit("future") },
                   {
                     text: "Toda la serie",
                     style: "destructive",
                     onPress: () => handleSubmit("series"),
                   },
-                  {
-                    text: "Cancelar",
-                    style: "cancel",
-                  },
-                ]
-              );
-            } else {
-              handleSubmit("single");
-            }
-          }}
-          disabled={saving}
-        >
+                  { text: "Cancelar", style: "cancel" },
+                ]);
+              } else {
+                handleSubmit("single");
+              }
+            }}
+            disabled={saving}
+          >
             {saving ? (
               <ActivityIndicator size="small" />
             ) : (
@@ -385,11 +419,7 @@ export default function AddScreen({ navigation }: any) {
 
       {/* CONTENIDO */}
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={colors.primary}
-          style={{ marginTop: 50 }}
-        />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -404,21 +434,9 @@ export default function AddScreen({ navigation }: any) {
             {/* TABS */}
             <View className="mt-6 mb-6 flex-row bg-gray-100 rounded-2xl p-1">
               {[
-                {
-                  label: "Gasto",
-                  value: "expense",
-                  bg: "rgba(239,68,68,0.12)", // rojo suave
-                },
-                {
-                  label: "Ingreso",
-                  value: "income",
-                  bg: "rgba(34,197,94,0.12)", // verde suave
-                },
-                {
-                  label: "Transferencia",
-                  value: "transfer",
-                  bg: "rgba(37,99,235,0.12)", // azul suave
-                },
+                { label: "Gasto", value: "expense", bg: "rgba(239,68,68,0.12)" },
+                { label: "Ingreso", value: "income", bg: "rgba(34,197,94,0.12)" },
+                { label: "Transferencia", value: "transfer", bg: "rgba(37,99,235,0.12)" },
               ].map((opt) => {
                 const active = type === opt.value;
 
@@ -432,6 +450,7 @@ export default function AddScreen({ navigation }: any) {
                       setSelectedWallet(null);
                       setSelectedWalletFrom(null);
                       setSelectedWalletTo(null);
+                      setSelectedInvestmentAsset(null);
                     }}
                     style={{
                       flex: 1,
@@ -470,10 +489,7 @@ export default function AddScreen({ navigation }: any) {
                     onFocus={() => scrollToInput(0)}
                     style={{ minWidth: 120 }}
                   />
-
-                  <Text className="text-[32px] text-gray-400 font-semibold ml-1 mb-1">
-                    €
-                  </Text>
+                  <Text className="text-[32px] text-gray-400 font-semibold ml-1 mb-1">€</Text>
                 </View>
               </View>
             </View>
@@ -482,11 +498,7 @@ export default function AddScreen({ navigation }: any) {
             {type === "transfer" ? (
               <>
                 <Text className="text-[13px] text-gray-400 mb-2">Desde</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="mb-4"
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
                   {wallets.map((wallet) => {
                     const isSelected = selectedWalletFrom?.id === wallet.id;
                     return (
@@ -497,12 +509,12 @@ export default function AddScreen({ navigation }: any) {
                           if (selectedWalletTo?.id === wallet.id) {
                             const next = wallets.find((w) => w.id !== wallet.id);
                             setSelectedWalletTo(next || null);
+
+                            // si cambia TO por evitar conflicto, limpia asset si ya no es investment
+                            if ((next as any)?.kind !== "investment") setSelectedInvestmentAsset(null);
                           }
                         }}
-                        style={[
-                          chipBase,
-                          isSelected ? blueSelected : { borderColor: "#d1d5db" },
-                        ]}
+                        style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                       >
                         <Text style={chipText}>
                           {wallet.emoji} {wallet.name}
@@ -513,11 +525,7 @@ export default function AddScreen({ navigation }: any) {
                 </ScrollView>
 
                 <Text className="text-[13px] text-gray-400 mb-2">Hacia</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="mb-6"
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
                   {wallets.map((wallet) => {
                     const isDisabled = selectedWalletFrom?.id === wallet.id;
                     const isSelected = selectedWalletTo?.id === wallet.id;
@@ -526,7 +534,15 @@ export default function AddScreen({ navigation }: any) {
                       <TouchableOpacity
                         key={`to-${wallet.id}`}
                         activeOpacity={isDisabled ? 1 : 0.8}
-                        onPress={() => !isDisabled && setSelectedWalletTo(wallet)}
+                        onPress={() => {
+                          if (isDisabled) return;
+                          setSelectedWalletTo(wallet);
+
+                          // ✅ si deja de ser wallet inversión, limpia asset
+                          if (wallet.kind !== "investment") {
+                            setSelectedInvestmentAsset(null);
+                          }
+                        }}
                         style={[
                           chipBase,
                           isDisabled
@@ -543,25 +559,74 @@ export default function AddScreen({ navigation }: any) {
                     );
                   })}
                 </ScrollView>
+
+                {/* ✅ Selector de inversión solo si TO es wallet de inversión */}
+                {selectedWalletTo?.kind === "investment" ? (
+                  <>
+                    <Text className="text-[13px] text-gray-400 mb-2">Inversión</Text>
+
+                    {investmentAssets.length === 0 ? (
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate("InvestmentForm")}
+                        className="py-3 px-4 rounded-2xl mb-6"
+                        style={{
+                          backgroundColor: "#F3F4F6",
+                          borderWidth: 1,
+                          borderColor: "#E5E7EB",
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        <Text className="text-[14px] text-slate-600 font-semibold">
+                          No tienes inversiones. Crea una
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                        {investmentAssets.map((inv) => {
+                          const isSelected = selectedInvestmentAsset?.id === inv.id;
+                          return (
+                            <TouchableOpacity
+                              key={inv.id}
+                              onPress={() => setSelectedInvestmentAsset(inv)}
+                              style={[
+                                chipBase,
+                                isSelected ? blueSelected : { borderColor: "#d1d5db" },
+                              ]}
+                              activeOpacity={0.9}
+                            >
+                              <Text style={chipText}>
+                                📈 {inv.name}
+                                {inv.symbol ? ` · ${inv.symbol}` : ""}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate("InvestmentForm")}
+                          style={[chipBase, { borderColor: colors.primary }]}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={[chipText, { color: colors.primary, fontWeight: "600" }]}>
+                            + Crear inversión
+                          </Text>
+                        </TouchableOpacity>
+                      </ScrollView>
+                    )}
+                  </>
+                ) : null}
               </>
             ) : (
               <>
                 <Text className="text-[13px] text-gray-400 mb-2">Cartera</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="mb-6"
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
                   {wallets.map((wallet) => {
                     const isSelected = selectedWallet?.id === wallet.id;
                     return (
                       <TouchableOpacity
                         key={wallet.id}
                         onPress={() => setSelectedWallet(wallet)}
-                        style={[
-                          chipBase,
-                          isSelected ? blueSelected : { borderColor: "#d1d5db" },
-                        ]}
+                        style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                       >
                         <Text style={chipText}>
                           {wallet.emoji} {wallet.name}
@@ -578,11 +643,7 @@ export default function AddScreen({ navigation }: any) {
               <>
                 <Text className="text-[13px] text-gray-400 mb-2">Categoría</Text>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="mb-6"
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
                   {filteredCategories.map((cat) => {
                     const isSelected = selectedCategory?.id === cat.id;
                     return (
@@ -592,10 +653,7 @@ export default function AddScreen({ navigation }: any) {
                           setSelectedCategory(cat);
                           setSelectedSub(null);
                         }}
-                        style={[
-                          chipBase,
-                          isSelected ? blueSelected : { borderColor: "#d1d5db" },
-                        ]}
+                        style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                       >
                         <Text style={chipText}>
                           {cat.emoji} {cat.name}
@@ -609,12 +667,7 @@ export default function AddScreen({ navigation }: any) {
                     onPress={() => openCategoryModal(false)}
                     style={[chipBase, { borderColor: colors.primary }]}
                   >
-                    <Text
-                      style={[
-                        chipText,
-                        { color: colors.primary, fontWeight: "600" },
-                      ]}
-                    >
+                    <Text style={[chipText, { color: colors.primary, fontWeight: "600" }]}>
                       + Crear categoría
                     </Text>
                   </TouchableOpacity>
@@ -623,17 +676,11 @@ export default function AddScreen({ navigation }: any) {
             )}
 
             {/* SUBCATEGORÍAS */}
-            {selectedCategory && (
+            {type !== "transfer" && selectedCategory && (
               <>
-                <Text className="text-[13px] text-gray-400 mb-2">
-                  Subcategoría
-                </Text>
+                <Text className="text-[13px] text-gray-400 mb-2">Subcategoría</Text>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="mb-6"
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
                   {subcategories.length > 0 &&
                     subcategories.map((sub: any) => {
                       const isSelected = selectedSub?.id === sub.id;
@@ -641,10 +688,7 @@ export default function AddScreen({ navigation }: any) {
                         <TouchableOpacity
                           key={sub.id}
                           onPress={() => setSelectedSub(sub)}
-                          style={[
-                            chipBase,
-                            isSelected ? blueSelected : { borderColor: "#d1d5db" },
-                          ]}
+                          style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                         >
                           <Text style={chipText}>
                             {sub.emoji} {sub.name}
@@ -657,12 +701,7 @@ export default function AddScreen({ navigation }: any) {
                     onPress={() => openCategoryModal(true)}
                     style={[chipBase, { borderColor: colors.primary }]}
                   >
-                    <Text
-                      style={[
-                        chipText,
-                        { color: colors.primary, fontWeight: "600" },
-                      ]}
-                    >
+                    <Text style={[chipText, { color: colors.primary, fontWeight: "600" }]}>
                       + Crear subcategoría
                     </Text>
                   </TouchableOpacity>
@@ -682,10 +721,7 @@ export default function AddScreen({ navigation }: any) {
                   month: "short",
                   year: "numeric",
                 })}{" "}
-                {date.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </Text>
               <Ionicons name="calendar-outline" size={19} color="black" />
             </TouchableOpacity>
@@ -703,7 +739,6 @@ export default function AddScreen({ navigation }: any) {
 
             {/* DESCRIPCIÓN */}
             <Text className="text-[13px] text-gray-400 mb-2">Descripción</Text>
-
             <View
               onLayout={(e) => {
                 setDescriptionY(e.nativeEvent.layout.y);
@@ -729,15 +764,9 @@ export default function AddScreen({ navigation }: any) {
 
             {/* RECURRENCIA */}
             <View className="mt-6">
-              <Text className="text-[13px] text-gray-400 mb-3">
-                Recurrencia
-              </Text>
+              <Text className="text-[13px] text-gray-400 mb-3">Recurrencia</Text>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="mb-2"
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
                 {[
                   { label: "Nunca", value: "never" },
                   { label: "Diaria", value: "daily" },
@@ -754,10 +783,7 @@ export default function AddScreen({ navigation }: any) {
                         setRecurrenceInterval(opt.value);
                         setIsRecurring(opt.value !== "never");
                       }}
-                      style={[
-                        chipBase,
-                        isSelected ? blueSelected : { borderColor: "#d1d5db" },
-                      ]}
+                      style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                     >
                       <Text style={chipText}>{opt.label}</Text>
                     </TouchableOpacity>

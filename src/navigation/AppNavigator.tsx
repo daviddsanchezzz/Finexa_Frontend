@@ -26,6 +26,10 @@ import TripFormScreen from "../screens/finances/travels/TravelFormScreen";
 import TripDetailScreen from "../screens/finances/travels/TripDetailScreen";
 import TripPlanFormScreen from "../screens/finances/travels/TripPlanFormScreen";
 import RecurringTransactionsScreen from "../screens/finances/RecurringTransactions/RecurringTransactionsScreen";
+import InvestmentsScreen from "../screens/finances/invests/InvestmentsScreen";
+import InvestmentFormScreen from "../screens/finances/invests/InvestmentFormScreen";
+import InvestmentValuationScreen from "../screens/finances/invests/InvestmentValuationScreen";
+import InvestmentDetailScreen from "../screens/finances/invests/InvestmentDetailScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -50,6 +54,10 @@ export type RootStackParamList = {
   TripDetail: undefined;
   TripPlanForm: undefined;
   RecurringTransactions: undefined;
+  Investments: undefined;
+  InvestmentForm: undefined;
+  InvestmentValuation: undefined;
+  InvestmentDetail: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -90,6 +98,10 @@ export default function AppNavigator() {
           <Stack.Screen name="TripDetail" component={TripDetailScreen} />
           <Stack.Screen name="TripPlanForm" component={TripPlanFormScreen} />
           <Stack.Screen name="RecurringTransactions" component={RecurringTransactionsScreen} />
+          <Stack.Screen name="Investments" component={InvestmentsScreen} />
+          <Stack.Screen name="InvestmentForm" component={InvestmentFormScreen} />
+          <Stack.Screen name="InvestmentValuation" component={InvestmentValuationScreen} />
+          <Stack.Screen name="InvestmentDetail" component={InvestmentDetailScreen} />
         </>
       ) : (
         // 🔓 Rutas públicas

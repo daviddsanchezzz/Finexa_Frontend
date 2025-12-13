@@ -24,6 +24,7 @@ export default function TransactionsList({
 }: Props) {
   const [selectedTx, setSelectedTx] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
+  const isRecurringOccurrence = (tx: any) => !!tx?.parentId; // instancia generada
 
   // Modal alcance borrado recurrente (reutiliza RecurringScopeModal)
   const [deleteScopeModal, setDeleteScopeModal] = React.useState<{
@@ -307,9 +308,21 @@ export default function TransactionsList({
                               : tx.category?.name || "Sin categoría"}
                           </Text>
 
-                          <Text className="text-gray-400 text-[12px]">
-                            {getSecondaryText(tx)}
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            {isRecurringOccurrence(tx) && (
+                              <Ionicons
+                                name="repeat-outline"
+                                size={14}
+                                color="#9CA3AF"
+                                style={{ marginRight: 6, marginTop: 1 }}
+                              />
+                            )}
+
+                            <Text className="text-gray-400 text-[12px]">
+                              {getSecondaryText(tx)}
+                            </Text>
+                          </View>
+
                         </View>
                       </View>
 

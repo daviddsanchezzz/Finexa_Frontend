@@ -88,7 +88,8 @@ export default function StatsScreen({ navigation }: any) {
             });
             const filtered = res.data
               .filter((tx: any) => tx.type !== "transfer")      // excluir transfer
-              .filter((tx: any) => tx.isRecurring === false);   // excluir plantillas
+              .filter((tx: any) => tx.isRecurring === false)   // excluir plantillas
+              .filter((tx: any) => tx.excludeFromStats !== true);
 
             setTransactions(filtered);
           } catch (err) {
