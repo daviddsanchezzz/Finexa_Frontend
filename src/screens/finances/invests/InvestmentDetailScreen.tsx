@@ -1,7 +1,6 @@
 // src/screens/Investments/InvestmentDetailScreen.tsx
-// Versión alternativa: header ultra-ligero + “cards” con secciones claras + gráfico tipo línea sin libs (sparkline SVG)
-// Si ya tienes react-native-svg en el proyecto: expo install react-native-svg
-// Si NO lo tienes, puedes cambiar Sparkline por la variante “barras” (te lo dejo comentado).
+// Header ultra-ligero + cards + sparkline SVG + lista de aportaciones debajo de “Información”
+// IMPORTANTE: no hay endpoint de aportaciones. Se filtran desde /transactions por assetId.
 
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -18,7 +17,7 @@ import AppHeader from "../../../components/AppHeader";
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 
-// ✅ Sparkline (recomendado)
+// ✅ Sparkline
 import Svg, { Path, Circle } from "react-native-svg";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
@@ -48,6 +47,26 @@ interface SummaryAsset {
 }
 
 type RangeKey = "1m" | "3m" | "6m" | "1y" | "all";
+
+type TransactionFromApi = {
+  id: number;
+  date?: string | null; // ISO
+  createdAt?: string | null; // ISO
+  amount: number;
+  currency?: string | null;
+  note?: string | null;
+
+  // campos típicos que pueden existir (soportamos varios nombres)
+  investmentAssetId?: number | null;
+  investment_asset_id?: number | null;
+  investmentAsset?: { id: number } | null;
+
+  // opcionales para mejorar filtro
+  type?: string | null;
+  kind?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+};
 
 const formatMoney = (n: number, currency = "EUR") =>
   n.toLocaleString("es-ES", {
@@ -127,13 +146,7 @@ const rangeLabel = (k: RangeKey) => {
 
 function buildSparkPath(points: { x: number; y: number }[]) {
   if (!points.length) return "";
-  return points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(" ");
-}
-
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
+  return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
 }
 
 export default function InvestmentDetailScreen({ navigation, route }: any) {
@@ -142,6 +155,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [asset, setAsset] = useState<AssetFromApi | null>(null);
   const [summaryRow, setSummaryRow] = useState<SummaryAsset | null>(null);
   const [series, setSeries] = useState<SeriesPoint[]>([]);
+  const [transactions, setTransactions] = useState<TransactionFromApi[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const [range, setRange] = useState<RangeKey>("3m");
@@ -161,6 +175,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
       const serRes = await api.get(`/investments/assets/${assetId}/series`);
       setSeries(serRes.data || []);
+
+    const tRes = await api.get(`/transactions`, {
+    params: { investmentAssetId: assetId },
+    });
+    setTransactions(tRes.data || []);
     } catch (e) {
       console.error("❌ Error loading investment detail:", e);
       navigation.goBack();
@@ -190,9 +209,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     return { invested, currentValue, pnl, meta, last };
   }, [asset, summaryRow, series]);
 
-  const sortedSeries = useMemo(() => {
-    return [...series].sort((a, b) => parseISO(a.date) - parseISO(b.date));
-  }, [series]);
+  const sortedSeries = useMemo(() => [...series].sort((a, b) => parseISO(a.date) - parseISO(b.date)), [series]);
 
   const filteredSeries = useMemo(() => {
     if (!sortedSeries.length) return [];
@@ -215,12 +232,10 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     const maxV = Math.max(...values);
     const span = maxV - minV || 1;
 
-    // canvas
     const W = 320;
     const H = 90;
     const padX = 8;
     const padY = 10;
-
     const step = (W - padX * 2) / (pts.length - 1);
 
     const mapped = pts.map((p, i) => {
@@ -243,22 +258,48 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
     const deltaMeta = pnlMeta(delta);
 
-    return {
-      W,
-      H,
-      minV,
-      maxV,
-      mapped,
-      path,
-      last,
-      prev,
-      delta,
-      deltaPct,
-      rangeDelta,
-      rangeDeltaPct,
-      deltaMeta,
-    };
+    return { W, H, mapped, path, delta, deltaPct, rangeDelta, rangeDeltaPct, deltaMeta };
   }, [filteredSeries]);
+
+  // ✅ Filtrado de aportaciones desde transactions usando assetId
+  const contributions = useMemo(() => {
+    const matchesAsset = (tx: TransactionFromApi) => {
+      const a =
+        tx.investmentAssetId ??
+        tx.investment_asset_id ??
+        tx.investmentAsset?.id ??
+        null;
+      return a === assetId;
+    };
+
+    // Intento de detectar “aportación” si tu modelo trae tipo/categoría
+    const looksLikeContribution = (tx: TransactionFromApi) => {
+      const hay = `${tx.type ?? ""} ${tx.kind ?? ""} ${tx.category ?? ""} ${tx.subcategory ?? ""}`.toLowerCase();
+      if (!hay.trim()) return true; // si no hay metadata, aceptamos y mostramos (mejor que ocultar)
+      return (
+        hay.includes("aport") ||
+        hay.includes("contrib") ||
+        hay.includes("investment") ||
+        hay.includes("inversion") ||
+        hay.includes("transfer")
+      );
+    };
+
+    const getIso = (tx: TransactionFromApi) => tx.date || tx.createdAt || "";
+
+    return [...transactions]
+      .filter((tx) => matchesAsset(tx))
+      .filter((tx) => looksLikeContribution(tx))
+      .map((tx) => ({
+        id: tx.id,
+        iso: getIso(tx),
+        amount: tx.amount,
+        currency: tx.currency || currency,
+        note: tx.note || null,
+      }))
+      .filter((x) => !!x.iso)
+      .sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
+  }, [transactions, assetId, currency]);
 
   const QuickAction = ({
     title,
@@ -308,14 +349,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           />
         </View>
 
-        <Text
-          style={{
-            marginTop: 10,
-            fontSize: 14,
-            fontWeight: "900",
-            color: isPrimary ? "white" : "#0F172A",
-          }}
-        >
+        <Text style={{ marginTop: 10, fontSize: 14, fontWeight: "900", color: isPrimary ? "white" : "#0F172A" }}>
           {title}
         </Text>
         <Text
@@ -374,7 +408,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header mínimo: sin hero */}
       <View className="px-5 pb-3">
         <AppHeader title={asset?.name || "Inversión"} showProfile={false} showDatePicker={false} showBack={true} />
       </View>
@@ -390,7 +423,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          {/* HERO NUMÉRICO: SOLO 2 líneas fuertes + chip P&L */}
+          {/* HERO */}
           <View
             style={{
               backgroundColor: "white",
@@ -478,7 +511,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* ACCIONES: 2 cards grandes (no barra inferior) */}
+          {/* ACCIONES */}
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
             <QuickAction
               title="Añadir valoración"
@@ -491,12 +524,12 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               title="Añadir aportación"
               subtitle="Registra una transferencia a inversión"
               icon="swap-horizontal-outline"
-              onPress={() => navigation.navigate("CreateTransaction", { prefillInvestmentAssetId: assetId })}
+              onPress={() => navigation.navigate("Add", { prefillInvestmentAssetId: assetId })}
               tone="neutral"
             />
           </View>
 
-          {/* GRÁFICO: Card con sparkline + métricas del rango */}
+          {/* GRÁFICO */}
           <View
             style={{
               backgroundColor: "white",
@@ -555,7 +588,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 >
                   <Svg width="100%" height={chart.H} viewBox={`0 0 ${chart.W} ${chart.H}`}>
                     <Path d={chart.path} stroke={colors.primary} strokeWidth="3" fill="none" />
-                    {/* último punto */}
                     {chart.mapped.length ? (
                       <Circle
                         cx={chart.mapped[chart.mapped.length - 1].x}
@@ -576,7 +608,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   </View>
                 </View>
 
-                {/* Métricas del rango */}
                 <View style={{ marginTop: 12, flexDirection: "row", gap: 10 }}>
                   <View
                     style={{
@@ -644,15 +675,13 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   }}
                 >
                   <Ionicons name="analytics-outline" size={16} color={colors.primary} />
-                  <Text style={{ fontSize: 13, fontWeight: "900", color: colors.primary }}>
-                    Ver serie completa
-                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "900", color: colors.primary }}>Ver serie completa</Text>
                 </TouchableOpacity>
               </>
             )}
           </View>
 
-          {/* DETALLES: filas con icono */}
+          {/* INFORMACIÓN */}
           <View
             style={{
               backgroundColor: "white",
@@ -679,15 +708,12 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 }}
               >
                 <Ionicons name="information-circle-outline" size={14} color="#64748B" />
-                <Text style={{ fontSize: 12, fontWeight: "900", color: "#334155" }}>
-                  {asset.currency}
-                </Text>
+                <Text style={{ fontSize: 12, fontWeight: "900", color: "#334155" }}>{asset.currency}</Text>
               </View>
             </View>
 
             <View style={{ marginTop: 10 }}>
               <MetricRow label="Tipo" value={typeLabel(asset.type)} icon="pricetag-outline" />
-              <MetricRow label="Símbolo" value={asset.symbol ? asset.symbol : "—"} icon="text-outline" />
               <MetricRow
                 label="Aportado inicial"
                 value={formatMoney(asset.initialInvested || 0, currency)}
@@ -700,6 +726,108 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               </View>
             </View>
           </View>
+
+          {/* APORTACIONES (debajo de Información) */}
+          {contributions.length > 0 ? (
+            <View
+              style={{
+                backgroundColor: "white",
+                borderRadius: 28,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                marginTop: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Aportaciones</Text>
+
+                <View
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    backgroundColor: "#F1F5F9",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Ionicons name="cash-outline" size={14} color="#64748B" />
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#334155" }}>{contributions.length}</Text>
+                </View>
+              </View>
+
+              <View style={{ marginTop: 10 }}>
+                {contributions.slice(0, 8).map((c) => (
+                  <View
+                    key={c.id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingVertical: 10,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#E5E7EB",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1, paddingRight: 10 }}>
+                      <View
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 12,
+                          backgroundColor: "#F1F5F9",
+                          borderWidth: 1,
+                          borderColor: "#E5E7EB",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons name="add-outline" size={14} color="#64748B" />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                          {formatMoney(c.amount, c.currency)}
+                        </Text>
+                        <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: "#64748B" }}>
+                          {formatDate(c.iso)}
+                          {c.note ? ` · ${c.note}` : ""}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Ionicons name="chevron-forward-outline" size={16} color="#94A3B8" />
+                  </View>
+                ))}
+
+                {contributions.length > 8 ? (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("Transactions", { filterInvestmentAssetId: assetId })}
+                    activeOpacity={0.9}
+                    style={{
+                      marginTop: 12,
+                      paddingVertical: 12,
+                      borderRadius: 22,
+                      backgroundColor: "#F8FAFC",
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="list-outline" size={16} color="#334155" />
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#334155" }}>Ver todas</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
