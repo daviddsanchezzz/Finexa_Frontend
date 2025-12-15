@@ -10,7 +10,6 @@ export default function ProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-
       {/* 🔹 Header con avatar */}
       <View className="bg-primary/10 pb-6 pt-8 items-center relative">
         {/* Botón cerrar */}
@@ -91,9 +90,19 @@ export default function ProfileScreen({ navigation }: any) {
             { label: "Cuenta", icon: "person-outline" },
             { label: "Notificaciones", icon: "notifications-outline" },
             { label: "Apariencia", icon: "sunny-outline" },
-            { label: "Categorías", icon: "color-palette-outline", navigate: "Categories" },
+            { label: "Informes", icon: "document-text-outline", navigate: "Reports" }, // ✅ NUEVO
+
+            {
+              label: "Categorías",
+              icon: "color-palette-outline",
+              navigate: "Categories",
+            },
             { label: "Carteras", icon: "wallet-outline", navigate: "Wallets" },
-            { label: "Cuadrar cuentas", icon: "receipt-outline", navigate: "ReconcileAccounts" },
+            {
+              label: "Cuadrar cuentas",
+              icon: "receipt-outline",
+              navigate: "ReconcileAccounts",
+            },
             { label: "Seguridad", icon: "lock-closed-outline" },
             { label: "Centro de ayuda", icon: "help-circle-outline" },
             { label: "Sobre Spendly", icon: "information-circle-outline" },
@@ -103,7 +112,7 @@ export default function ProfileScreen({ navigation }: any) {
               activeOpacity={0.7}
               onPress={() => item.navigate && navigation.navigate(item.navigate as never)}
               className={`flex-row justify-between items-center px-6 py-4 ${
-                idx !== 7 ? "border-b border-gray-100" : ""
+                idx !== 9 ? "border-b border-gray-100" : ""
               }`}
             >
               <View className="flex-row items-center">
