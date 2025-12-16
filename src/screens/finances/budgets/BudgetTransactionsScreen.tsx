@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Alert,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../../api/api";
@@ -9,12 +16,17 @@ import BudgetGoalCard from "../../../components/BudgetGoalCard";
 
 export default function BudgetTransactionsScreen({ route, navigation }: any) {
   const {
+    budgetId, // 👈 necesario para editar/eliminar
     budgetName,
     budgetEmoji,
     budgetColor,
     budgetLimit,
     budgetSpent,
     categoryName,
+    categoryId,
+    walletId,
+    periodType,
+    range, // opcional {from,to}
     type,
     dateFrom,
     dateTo,
@@ -28,19 +40,20 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
       setLoading(true);
 
       const params: any = {
-        dateFrom,
-        dateTo,
-        type,
+        dateFrom: range?.from || dateFrom,
+        dateTo: range?.to || dateTo,
+        type: type || "expense",
+        excludeFromStats: false,
+        isRecurring: false,
+        active: true,
       };
+
+      if (categoryId) params.categoryId = categoryId;
+      if (walletId) params.walletId = walletId;
 
       const res = await api.get("/transactions", { params });
 
-      const filtered = res.data.filter(
-        (tx: any) =>
-          tx.category?.name === categoryName && tx.type === type
-      );
-
-      setTransactions(filtered);
+      setTransactions(res.data || []);
     } catch (e) {
       console.log("❌ Error cargando transacciones por presupuesto", e);
     } finally {
@@ -52,16 +65,79 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
     fetchTx();
   }, []);
 
+  const handleEdit = () => {
+    if (!budgetId) {
+      Alert.alert("Error", "No se recibió budgetId. Pásalo desde la pantalla anterior.");
+      return;
+    }
+
+    navigation.navigate("BudgetCreate", {
+      periodType: periodType,
+      editData: {
+        id: budgetId,
+        name: budgetName,
+        limit: Number(budgetLimit) || 0,
+        period: periodType,
+        startDate: range?.from || undefined,
+        categoryId: categoryId || null,
+        walletId: walletId || null,
+      },
+    });
+  };
+
+  const handleDelete = () => {
+    if (!budgetId) {
+      Alert.alert("Error", "No se recibió budgetId. Pásalo desde la pantalla anterior.");
+      return;
+    }
+
+    Alert.alert(
+      "Eliminar presupuesto",
+      "¿Seguro que quieres eliminar este presupuesto? Esta acción no se puede deshacer.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await api.delete(`/budgets/${budgetId}`);
+              Alert.alert("Eliminado", "Presupuesto eliminado correctamente.");
+              navigation.goBack();
+            } catch (e) {
+              console.log("❌ Error eliminando presupuesto", e);
+              Alert.alert("Error", "No se pudo eliminar el presupuesto.");
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
-
-      {/* HEADER */}
-      <View className="flex-row items-center px-5 py-3">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
+      {/* HEADER: Back + acciones texto a la derecha */}
+      <View className="flex-row items-center justify-between px-5 py-3">
+        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
-       </View>
 
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={handleEdit} activeOpacity={0.85} className="mr-4">
+            <Text className="text-[14px] font-semibold text-text">Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleDelete} activeOpacity={0.85}>
+            <Text className="text-[14px] font-semibold" style={{ color: "#ef4444" }}>
+              Eliminar
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* CONTENIDO */}
       {loading ? (
         <ActivityIndicator
           size="large"
@@ -69,28 +145,32 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
           style={{ marginTop: 50 }}
         />
       ) : (
-        <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
-
-          {/* 🔥 BUDGET CARD ENCIMA DEL LISTADO */}
-          <BudgetGoalCard
-            title={budgetName}
-            icon={budgetEmoji}
-            total={Number(budgetLimit) || 0}
-            current={Number(budgetSpent) || 0}
-            color={budgetColor}
-            onPress={() => {}}
+        <View className="flex-1 px-5">
+          {/* RESUMEN FIJO (NO SCROLL) */}
+          <View className="pb-3">
+            <BudgetGoalCard
+              title={budgetName}
+              icon={budgetEmoji}
+              total={Number(budgetLimit) || 0}
+              current={Number(budgetSpent) || 0}
+              color={budgetColor}
+              onPress={() => {}}
             />
+          </View>
 
-
-          {/* 📌 LISTADO DE TRANSACCIONES */}
-          <TransactionsList
-            transactions={transactions}
-            navigation={navigation}
-            onDeleted={fetchTx}
-          />
-
-          <View style={{ height: 30 }} />
-        </ScrollView>
+          {/* SOLO EL LISTADO SCROLLEA */}
+          <ScrollView
+            className="flex-1"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 30 }}
+          >
+            <TransactionsList
+              transactions={transactions}
+              navigation={navigation}
+              onDeleted={fetchTx}
+            />
+          </ScrollView>
+        </View>
       )}
     </SafeAreaView>
   );

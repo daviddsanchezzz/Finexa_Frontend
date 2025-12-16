@@ -1,75 +1,66 @@
-// src/screens/Budgets/BudgetsHomeScreen.tsx
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../components/AppHeader";
 import { colors } from "../../../theme/theme";
 import BudgetGoalCard from "../../../components/BudgetGoalCard";
+import api from "../../../api/api";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly";
 
-interface Budget {
+interface BudgetFromApi {
   id: number;
-  name: string;
-  periodType: PeriodType;
+  name: string | null;
+  period: PeriodType;
   limit: number;
-  spent: number;
-  category?: {
+  startDate: string;
+
+  categoryId: number | null;
+  walletId: number | null;
+
+  category: null | {
+    id: number;
     name: string;
-    emoji?: string;
-    color?: string;
+    emoji?: string | null;
+    color?: string | null;
   };
+
+  wallet: null | {
+    id: number;
+    name: string;
+    emoji: string;
+    currency: string;
+    kind: string;
+  };
+
+  range?: { from: string; to: string }; // si tu backend lo devuelve
+  spent: number;
+  remaining: number;
+  progress: number;
 }
 
-// MOCKS
-const mockBudgets: Budget[] = [
-  {
-    id: 1,
-    name: "Comida",
-    periodType: "monthly",
-    limit: 200,
-    spent: 120,
-    category: { name: "Comida", emoji: "🍔", color: "#f97316" },
-  },
-  {
-    id: 2,
-    name: "Transporte",
-    periodType: "monthly",
-    limit: 80,
-    spent: 30,
-    category: { name: "Transporte", emoji: "🚌", color: "#22c55e" },
-  },
-  {
-    id: 3,
-    name: "Café diario",
-    periodType: "daily",
-    limit: 5,
-    spent: 3,
-    category: { name: "Café", emoji: "☕️", color: "#a855f7" },
-  },
-  {
-    id: 4,
-    name: "Salida finde",
-    periodType: "weekly",
-    limit: 60,
-    spent: 40,
-    category: { name: "Ocio", emoji: "🎉", color: "#3b82f6" },
-  },
-  {
-    id: 5,
-    name: "Ahorro anual",
-    periodType: "yearly",
-    limit: 2000,
-    spent: 750,
-    category: { name: "Ahorro", emoji: "💰", color: "#16a34a" },
-  },
-];
+interface OverviewResponse {
+  period: PeriodType | null;
+  date?: string;
+  from?: string;
+  to?: string;
+  summary: {
+    totalLimit: number;
+    totalSpent: number;
+    remaining: number;
+    count: number;
+  };
+  budgets: BudgetFromApi[];
+}
 
 const getPeriodLabel = (period: PeriodType) => {
   switch (period) {
@@ -89,31 +80,74 @@ const getPeriodLabel = (period: PeriodType) => {
 export default function BudgetsHomeScreen({ navigation }: any) {
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
 
-  const filteredBudgets = useMemo(
-    () => mockBudgets.filter((b) => b.periodType === periodType),
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [budgets, setBudgets] = useState<BudgetFromApi[]>([]);
+  const [summary, setSummary] = useState<OverviewResponse["summary"]>({
+    totalLimit: 0,
+    totalSpent: 0,
+    remaining: 0,
+    count: 0,
+  });
+
+  const fetchOverview = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      try {
+        if (!opts?.silent) setLoading(true);
+
+        const res = await api.get<OverviewResponse>("/budgets/overview", {
+          params: { period: periodType },
+        });
+
+        setBudgets(res.data?.budgets || []);
+        setSummary(
+          res.data?.summary || {
+            totalLimit: 0,
+            totalSpent: 0,
+            remaining: 0,
+            count: 0,
+          }
+        );
+      } catch (e) {
+        console.log("❌ Error cargando overview de budgets", e);
+        setBudgets([]);
+        setSummary({ totalLimit: 0, totalSpent: 0, remaining: 0, count: 0 });
+      } finally {
+        if (!opts?.silent) setLoading(false);
+      }
+    },
     [periodType]
   );
 
-  const summary = useMemo(() => {
-    const totalLimit = filteredBudgets.reduce(
-      (sum, b) => sum + (b.limit || 0),
-      0
-    );
-    const totalSpent = filteredBudgets.reduce(
-      (sum, b) => sum + (b.spent || 0),
-      0
-    );
-    const remaining = Math.max(totalLimit - totalSpent, 0);
+  useFocusEffect(
+    useCallback(() => {
+      fetchOverview();
+    }, [fetchOverview])
+  );
 
-    return {
-      totalLimit,
-      totalSpent,
-      remaining,
-      count: filteredBudgets.length,
-    };
-  }, [filteredBudgets]);
+  // Cuando cambias el periodo, refresca automáticamente
+  React.useEffect(() => {
+    fetchOverview();
+  }, [periodType]);
+
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await fetchOverview({ silent: true });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchOverview]);
 
   const periodLabel = getPeriodLabel(periodType);
+
+  // Si tu backend devolviera budgets “mixed periods” (no debería si filtras por period),
+  // filtramos por seguridad:
+  const filteredBudgets = useMemo(
+    () => budgets.filter((b) => b.period === periodType),
+    [budgets, periodType]
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -127,17 +161,16 @@ export default function BudgetsHomeScreen({ navigation }: any) {
         />
       </View>
 
-      {/*  + RESUMEN */}
+      {/* RESUMEN + SELECTOR */}
       <View className="px-5 mb-3">
-        {/* RESUMEN COMO BUDGETGOALCARD (COLORES INVERTIDOS) */}
         <View className="mb-2">
           <BudgetGoalCard
             title={`Resumen ${periodLabel}`}
             icon="📊"
             total={summary.totalLimit}
             current={summary.totalSpent}
-            color="white" // <-- Barra blanca
-            backgroundColor={colors.primary} // <-- Fondo azul intenso
+            color="white"
+            backgroundColor={colors.primary}
             titleColor="white"
             subtitleColor="rgba(255,255,255,0.8)"
           />
@@ -182,72 +215,89 @@ export default function BudgetsHomeScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* LISTA DE PRESUPUESTOS */}
-      <ScrollView
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        {filteredBudgets.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-16 text-sm">
-            No tienes presupuestos para este periodo.
-          </Text>
-        ) : (
-          filteredBudgets.map((b) => {
-            const hasCategory = !!b.category;
-            const title = hasCategory ? b.category!.name : b.name;
-            const icon = hasCategory ? b.category!.emoji || "💰" : "💰";
-            const color = hasCategory
-              ? b.category!.color || colors.primary
-              : colors.primary;
-
-            return (
-              <View key={b.id} className="mb-3">
-                <BudgetGoalCard
-                  title={title}
-                  icon={icon}
-                  total={b.limit}
-                  current={b.spent}
-                  color={color}
-                  onPress={() =>
-                    navigation.navigate("BudgetTransactions", {
-                      budgetId: b.id,
-                      budgetName: title,
-                      budgetEmoji: icon,
-                      budgetColor: color,
-                      budgetLimit: b.limit,
-                      budgetSpent: b.spent,
-                      categoryName: b.category?.name,
-                      periodType,
-                    })
-                  }
-                />
-              </View>
-            );
-          })
-        )}
-
-        {/* BOTÓN AÑADIR PRESUPUESTO (discreto) */}
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate("BudgetCreate", {
-              periodType,
-            })
+      {/* CONTENIDO */}
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={{ marginTop: 50 }}
+        />
+      ) : (
+        <ScrollView
+          className="flex-1 px-5"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          className="flex-row items-center justify-center py-2.5 rounded-2xl mt-2"
-          style={{
-            backgroundColor: "#F3F4F6",
-            borderWidth: 1,
-            borderColor: "#E5E7EB",
-          }}
-          activeOpacity={0.9}
         >
-          <Ionicons name="add-outline" size={18} color="#64748B" />
-          <Text className="text-sm text-slate-500 font-medium ml-1.5">
-            Añadir presupuesto
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {filteredBudgets.length === 0 ? (
+            <Text className="text-center text-gray-400 mt-16 text-sm">
+              No tienes presupuestos para este periodo.
+            </Text>
+          ) : (
+            filteredBudgets.map((b) => {
+              const hasCategory = !!b.category;
+              const title = hasCategory
+                ? b.category!.name
+                : b.name || "Presupuesto";
+              const icon = hasCategory
+                ? b.category!.emoji || "💰"
+                : "💰";
+              const color = hasCategory
+                ? b.category!.color || colors.primary
+                : colors.primary;
+
+              return (
+                <View key={b.id} className="mb-3">
+                  <BudgetGoalCard
+                    title={title}
+                    icon={icon}
+                    total={b.limit}
+                    current={b.spent}
+                    color={color}
+                    onPress={() =>
+                      navigation.navigate("BudgetTransactions", {
+                        budgetId: b.id,
+                        budgetName: title,
+                        budgetEmoji: icon,
+                        budgetColor: color,
+                        budgetLimit: b.limit,
+                        budgetSpent: b.spent,
+                        categoryId: b.categoryId,
+                        walletId: b.walletId,
+                        periodType: periodType,
+                        range: b.range, // por si lo usas para filtrar transacciones
+                      })
+                    }
+                  />
+                </View>
+              );
+            })
+          )}
+
+          {/* BOTÓN AÑADIR PRESUPUESTO */}
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("BudgetCreate", {
+                periodType,
+              })
+            }
+            className="flex-row items-center justify-center py-2.5 rounded-2xl mt-2"
+            style={{
+              backgroundColor: "#F3F4F6",
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+            }}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="add-outline" size={18} color="#64748B" />
+            <Text className="text-sm text-slate-500 font-medium ml-1.5">
+              Añadir presupuesto
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
