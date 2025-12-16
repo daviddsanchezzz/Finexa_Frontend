@@ -224,7 +224,7 @@ export default function BudgetsHomeScreen({ navigation }: any) {
         />
       ) : (
         <ScrollView
-          className="flex-1"
+          className="flex-1 px-3"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
           refreshControl={

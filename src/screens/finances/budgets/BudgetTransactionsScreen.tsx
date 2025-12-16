@@ -179,42 +179,17 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
             />
           </View>
 
-{/* ✅ KPI BAR (más vistosa) */}
-{/* ✅ Resumen simple y bonito */}
-<View className="flex-row items-center justify-between mb-3">
-  {/* Chip: nº transacciones */}
-  <View
-    className="flex-row items-center px-3 py-2 rounded-full border"
-    style={{
-      backgroundColor: "rgba(0,0,0,0.03)",
-      borderColor: "rgba(0,0,0,0.06)",
-    }}
-  >
-    <Ionicons name="receipt-outline" size={16} color={colors.text} />
-    <Text className="ml-2 text-[13px] text-text font-semibold">
-      {txCount}
-    </Text>
-    <Text className="ml-1 text-[13px] text-muted-foreground">
-      transacc.
-    </Text>
-  </View>
-
-  {/* Chip: total */}
-  <View
-    className="flex-row items-center px-3 py-2 rounded-full border"
-    style={{
-      backgroundColor: signedSum < 0 ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)",
-      borderColor: signedSum < 0 ? "rgba(239,68,68,0.20)" : "rgba(34,197,94,0.20)",
-    }}
-  >
-    <Text className="text-[13px] text-muted-foreground mr-2">Total</Text>
+<View className="items-center mb-3">
+  <Text className="text-[13px] text-muted-foreground">
+    {txCount} transacciones ·{" "}
     <Text
-      className="text-[13px] font-semibold"
+      className="font-semibold"
     >
       {formatMoney(signedSum)}
     </Text>
-  </View>
+  </Text>
 </View>
+
 
 
           {/* SOLO EL LISTADO SCROLLEA */}
