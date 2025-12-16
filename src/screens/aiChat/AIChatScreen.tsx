@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +15,9 @@ import { colors } from "../../theme/theme";
 
 const N8N_WEBHOOK_URL =
   "https://n8n.srv877053.hstgr.cloud/webhook-test/finexa-chat";
+
+// AJUSTA ESTO A TU TAB BAR EN WEB (64/72/80 suelen cuadrar)
+const WEB_TABBAR_HEIGHT = 92;
 
 type ChatMessage = {
   id: number;
@@ -28,11 +32,7 @@ export default function AIChatScreen() {
       from: "ai",
       text: "¡Hola! Soy Finexa Assistant 🤖\nPronto podré ayudarte con tus gastos, presupuestos y más.",
     },
-    {
-      id: 2,
-      from: "user",
-      text: "¿Puedes ayudarme a analizar mis gastos?",
-    },
+    { id: 2, from: "user", text: "¿Puedes ayudarme a analizar mis gastos?" },
     {
       id: 3,
       from: "ai",
@@ -42,94 +42,70 @@ export default function AIChatScreen() {
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
   const scrollRef = useRef<ScrollView | null>(null);
   const insets = useSafeAreaInsets();
 
-  const scrollToEnd = () => {
-    setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }, 50);
-  };
+  const extraBottom = Platform.OS === "web" ? WEB_TABBAR_HEIGHT : 0;
+
+  const scrollToEnd = useCallback((animated = true) => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated });
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollToEnd(true);
+  }, [messages.length, scrollToEnd]);
 
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-
     const text = input.trim();
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      from: "user",
-      text,
-    };
+    if (!text || loading) return;
 
-    // Añadimos el mensaje del usuario
-    setMessages((prev) => [...prev, userMessage]);
+    setLoading(true);
     setInput("");
-    scrollToEnd();
 
-    // Añadimos un mensaje temporal de "pensando..."
+    const userMessage: ChatMessage = { id: Date.now(), from: "user", text };
     const thinkingId = Date.now() + 1;
+
     setMessages((prev) => [
       ...prev,
       userMessage,
-      {
-        id: thinkingId,
-        from: "ai",
-        text: "Pensando...",
-      },
+      { id: thinkingId, from: "ai", text: "Pensando..." },
     ]);
-
-    setLoading(true);
 
     try {
       const res = await fetch(N8N_WEBHOOK_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: text,
-          // aquí puedes mandar más cosas: userId, idioma, etc.
-          // userId: "123",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
       });
 
-      let aiText = "No he recibido respuesta del flujo de n8n 🤔";
-
+      let aiText = "No he recibido respuesta del asistente 🤔";
       try {
         const data = await res.json();
-        aiText =
-          data?.reply ||
-          data?.data?.reply || // por si tu flujo devuelve otro shape
-          aiText;
-      } catch {
-        // por si la respuesta no es JSON válido
-      }
+        aiText = data?.reply || data?.data?.reply || aiText;
+      } catch {}
 
-      // Reemplazamos el "Pensando..." por la respuesta real
-      setMessages((prev) => [
-        ...prev.filter((m) => m.id !== thinkingId && m.id !== userMessage.id),
-        userMessage,
-        {
-          id: Date.now() + 2,
-          from: "ai",
-          text: aiText,
-        },
-      ]);
-    } catch (error) {
-      console.error("Error llamando a n8n:", error);
-      setMessages((prev) => [
-        ...prev.filter((m) => m.id !== thinkingId && m.id !== userMessage.id),
-        userMessage,
-        {
-          id: Date.now() + 3,
-          from: "ai",
-          text:
-            "Ha habido un problema al conectar con el asistente 😥\nInténtalo de nuevo en un momento.",
-        },
-      ]);
+      setMessages((prev) => {
+        const withoutThinking = prev.filter((m) => m.id !== thinkingId);
+        return [...withoutThinking, { id: Date.now() + 2, from: "ai", text: aiText }];
+      });
+    } catch (e) {
+      setMessages((prev) => {
+        const withoutThinking = prev.filter((m) => m.id !== thinkingId);
+        return [
+          ...withoutThinking,
+          {
+            id: Date.now() + 3,
+            from: "ai",
+            text: "Ha habido un problema al conectar con el asistente 😥\nInténtalo de nuevo.",
+          },
+        ];
+      });
     } finally {
       setLoading(false);
-      scrollToEnd();
+      scrollToEnd(true);
     }
   };
 
@@ -139,127 +115,156 @@ export default function AIChatScreen() {
       <View
         style={{
           paddingHorizontal: 18,
-          paddingVertical: 16,
+          paddingVertical: 14,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
           flexDirection: "row",
           alignItems: "center",
+          gap: 12,
         }}
       >
-        <Ionicons
-          name="chatbubble-ellipses-outline"
-          size={22}
-          color={colors.text}
-        />
-        <Text
-          style={{
-            color: colors.text,
-            fontSize: 20,
-            fontWeight: "600",
-            marginLeft: 10,
-          }}
-        >
-          Assistente Financiero
-        </Text>
-      </View>
-
-      {/* CHAT + INPUT */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 70 : 0}
-      >
-        <ScrollView
-          ref={scrollRef}
-          style={{ flex: 1, paddingHorizontal: 12 }}
-          contentContainerStyle={{
-            paddingVertical: 15,
-            paddingBottom: 130, // espacio para el input flotante
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.map((msg) => (
-            <View
-              key={msg.id}
-              style={{
-                alignSelf: msg.from === "user" ? "flex-end" : "flex-start",
-                backgroundColor:
-                  msg.from === "user" ? colors.primary : colors.card,
-                paddingVertical: 10,
-                paddingHorizontal: 14,
-                borderRadius: 16,
-                marginBottom: 12,
-                maxWidth: "75%",
-              }}
-            >
-              <Text
-                style={{
-                  color: msg.from === "user" ? "#fff" : colors.text,
-                  fontSize: 15,
-                  lineHeight: 20,
-                }}
-              >
-                {msg.text}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* INPUT FLOTANTE */}
         <View
           style={{
-            position: "absolute",
-            bottom: insets.bottom + 30, // encima del tab bar
-            left: 0,
-            right: 0,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: `${colors.primary}20`,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={18}
+            color={colors.primary}
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+            Asistente financiero
+          </Text>
+        </View>
+
+        {loading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1, minHeight: 0 }} // minHeight:0 ayuda MUCHO en web con flex/scroll
+        behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined}
+      >
+        {/* MENSAJES */}
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1 }}
+          contentContainerStyle={{
             paddingHorizontal: 12,
+            paddingTop: 14,
+            // IMPORTANTE: deja espacio para que el final no quede tapado en web
+            paddingBottom: 12 + extraBottom,
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scrollToEnd(false)}
+        >
+          {messages.map((msg) => {
+            const isUser = msg.from === "user";
+            return (
+              <View
+                key={msg.id}
+                style={{
+                  alignSelf: isUser ? "flex-end" : "flex-start",
+                  maxWidth: "80%",
+                  marginBottom: 10,
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: isUser ? colors.primary : colors.card,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    borderRadius: 18,
+                    borderTopRightRadius: isUser ? 6 : 18,
+                    borderTopLeftRadius: isUser ? 18 : 6,
+                    borderWidth: isUser ? 0 : 1,
+                    borderColor: isUser ? "transparent" : colors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isUser ? "#fff" : colors.text,
+                      fontSize: 15,
+                      lineHeight: 20,
+                    }}
+                  >
+                    {msg.text}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* INPUT */}
+        <View
+          style={{
+            paddingHorizontal: 12,
+            paddingTop: 10,
+            // aquí es donde se estaba “metiendo debajo” del tabbar en web
+            paddingBottom: Math.max(insets.bottom, 10) + extraBottom,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            backgroundColor: colors.background,
           }}
         >
           <View
             style={{
-              backgroundColor: "#fff",
-              borderRadius: 30,
-              paddingHorizontal: 15,
+              backgroundColor: colors.card,
+              borderRadius: 28,
+              paddingHorizontal: 14,
               paddingVertical: 10,
               flexDirection: "row",
-              alignItems: "center",
-              shadowColor: "#000",
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-              shadowOffset: { width: 0, height: 3 },
-              elevation: 3,
+              alignItems: "flex-end",
+              borderWidth: 1,
+              borderColor: colors.border,
             }}
           >
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder={
-                loading
-                  ? "Esperando respuesta del asistente..."
-                  : "Escribe un mensaje..."
-              }
+              placeholder={loading ? "Esperando respuesta..." : "Escribe un mensaje…"}
               editable={!loading}
               placeholderTextColor={colors.textSecondary}
               style={{
                 flex: 1,
                 color: colors.text,
                 fontSize: 16,
+                paddingVertical: Platform.OS === "ios" ? 8 : 4,
+                maxHeight: 110,
               }}
+              multiline
+              onFocus={() => scrollToEnd(true)}
             />
 
             <TouchableOpacity
               onPress={sendMessage}
               disabled={!input.trim() || loading}
-              style={{ marginLeft: 10 }}
+              style={{
+                marginLeft: 10,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor:
+                  !input.trim() || loading ? `${colors.primary}20` : colors.primary,
+              }}
+              activeOpacity={0.85}
             >
               <Ionicons
                 name="send"
-                size={24}
-                color={
-                  !input.trim() || loading
-                    ? colors.textSecondary
-                    : colors.primary
-                }
+                size={18}
+                color={!input.trim() || loading ? colors.primary : "#fff"}
               />
             </TouchableOpacity>
           </View>
