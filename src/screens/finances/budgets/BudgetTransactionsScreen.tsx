@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import BudgetGoalCard from "../../../components/BudgetGoalCard";
 
 export default function BudgetTransactionsScreen({ route, navigation }: any) {
   const {
-    budgetId, // 👈 necesario para editar/eliminar
+    budgetId,
     budgetName,
     budgetEmoji,
     budgetColor,
@@ -26,7 +26,7 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
     categoryId,
     walletId,
     periodType,
-    range, // opcional {from,to}
+    range,
     type,
     dateFrom,
     dateTo,
@@ -64,6 +64,31 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
   useEffect(() => {
     fetchTx();
   }, []);
+
+  // ✅ Métricas debajo del resumen
+  const txCount = transactions.length;
+
+  const txSum = useMemo(() => {
+    return (transactions || []).reduce((acc: number, tx: any) => {
+      const amount = Number(tx.amount ?? tx.value ?? 0); // por si tu backend usa otro nombre
+      if (!Number.isFinite(amount)) return acc;
+      return acc + amount;
+    }, 0);
+  }, [transactions]);
+
+  const signedSum = useMemo(() => {
+    // Si estás viendo gastos, lo mostramos negativo (más intuitivo en presupuesto)
+    const isExpense = (type || "expense") === "expense";
+    return isExpense ? -Math.abs(txSum) : Math.abs(txSum);
+  }, [txSum, type]);
+
+  const formatMoney = (n: number) => {
+    const value = Number(n || 0);
+    const sign = value < 0 ? "-" : "";
+    const abs = Math.abs(value);
+    // Formato simple (sin Intl por compat RN); ajusta si ya tienes util de currency
+    return `${sign}${abs.toFixed(2)}€`;
+  };
 
   const handleEdit = () => {
     if (!budgetId) {
@@ -139,11 +164,7 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
 
       {/* CONTENIDO */}
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={colors.primary}
-          style={{ marginTop: 50 }}
-        />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <View className="flex-1 px-5">
           {/* RESUMEN FIJO (NO SCROLL) */}
@@ -158,17 +179,51 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
             />
           </View>
 
+{/* ✅ KPI BAR (más vistosa) */}
+{/* ✅ Resumen simple y bonito */}
+<View className="flex-row items-center justify-between mb-3">
+  {/* Chip: nº transacciones */}
+  <View
+    className="flex-row items-center px-3 py-2 rounded-full border"
+    style={{
+      backgroundColor: "rgba(0,0,0,0.03)",
+      borderColor: "rgba(0,0,0,0.06)",
+    }}
+  >
+    <Ionicons name="receipt-outline" size={16} color={colors.text} />
+    <Text className="ml-2 text-[13px] text-text font-semibold">
+      {txCount}
+    </Text>
+    <Text className="ml-1 text-[13px] text-muted-foreground">
+      transacc.
+    </Text>
+  </View>
+
+  {/* Chip: total */}
+  <View
+    className="flex-row items-center px-3 py-2 rounded-full border"
+    style={{
+      backgroundColor: signedSum < 0 ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)",
+      borderColor: signedSum < 0 ? "rgba(239,68,68,0.20)" : "rgba(34,197,94,0.20)",
+    }}
+  >
+    <Text className="text-[13px] text-muted-foreground mr-2">Total</Text>
+    <Text
+      className="text-[13px] font-semibold"
+    >
+      {formatMoney(signedSum)}
+    </Text>
+  </View>
+</View>
+
+
           {/* SOLO EL LISTADO SCROLLEA */}
           <ScrollView
             className="flex-1"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 30 }}
           >
-            <TransactionsList
-              transactions={transactions}
-              navigation={navigation}
-              onDeleted={fetchTx}
-            />
+            <TransactionsList transactions={transactions} navigation={navigation} onDeleted={fetchTx} />
           </ScrollView>
         </View>
       )}
