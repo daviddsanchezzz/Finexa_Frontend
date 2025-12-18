@@ -97,6 +97,17 @@ const MODULES: FinanceModule[] = [
     accentColor: "#A855F7",
     softBg: "#F3E8FF",
   },
+  {
+  key: "monthlyContributions",
+  title: "Aportaciones mensuales",
+  subtitle: "Planifica y controla cuánto aportas cada mes a tus objetivos e inversión.",
+  emoji: "🗓️",
+  iconName: "calendar-outline",
+  routeName: "MonthlyContributions",
+  accentColor: "#14B8A6",
+  softBg: "#E6FFFB",
+},
+
 ];
 
 /* ===========================

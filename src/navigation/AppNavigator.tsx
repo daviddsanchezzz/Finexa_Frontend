@@ -32,6 +32,7 @@ import InvestmentValuationScreen from "../screens/finances/invests/InvestmentVal
 import InvestmentDetailScreen from "../screens/finances/invests/InvestmentDetailScreen";
 import ReportsScreen from "../screens/reports/ReportsScreen";
 import ReportsPdfViewerScreen from "../screens/reports/ReportsPdfViewerScreen";
+import MonthlyContributionsScreen from "../screens/finances/MonthlyContributions/MonthlyContributionsScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -62,6 +63,7 @@ export type RootStackParamList = {
   InvestmentDetail: undefined;
   Reports: undefined;
   ReportsPdfViewer: undefined;
+  MonthlyContributions: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -108,6 +110,7 @@ export default function AppNavigator() {
           <Stack.Screen name="InvestmentDetail" component={InvestmentDetailScreen} />
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="ReportsPdfViewer" component={ReportsPdfViewerScreen} />
+          <Stack.Screen name="MonthlyContributions" component={MonthlyContributionsScreen} />
         </>
       ) : (
         // 🔓 Rutas públicas
