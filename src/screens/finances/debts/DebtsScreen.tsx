@@ -278,7 +278,7 @@ export default function DebtsHomeScreen({ navigation }: any) {
               d.direction === "i_ow" ? "#EF4444" : "#22C55E";
 
             return (
-              <View key={d.id} className="mb-8">
+              <View key={d.id} className="mb-2">
                 <BudgetGoalCard
                   title={d.name}
                   icon={d.emoji || "💸"}
@@ -292,45 +292,6 @@ export default function DebtsHomeScreen({ navigation }: any) {
                   }
                 />
 
-                {/* Info extra debajo de la card */}
-                <View className="flex-row justify-between mt-1 px-1">
-                  <View className="flex-row items-center">
-                    <Ionicons
-                      name="business-outline"
-                      size={13}
-                      color="#9CA3AF"
-                    />
-                    <Text className="text-[11px] text-gray-500 ml-1">
-                      {d.entity || "Sin entidad"}
-                    </Text>
-                  </View>
-
-                  <View className="flex-row items-center space-x-1">
-                    <View
-                      className="px-2 py-0.5 rounded-full mr-1"
-                      style={{ backgroundColor: "#F3F4F6" }}
-                    >
-                      <Text
-                        className="text-[10px] font-semibold"
-                        style={{ color: statusColor }}
-                      >
-                        {statusLabel}
-                      </Text>
-                    </View>
-
-                    <View
-                      className="px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#EEF2FF" }}
-                    >
-                      <Text
-                        className="text-[10px] font-semibold"
-                        style={{ color: directionColor }}
-                      >
-                        {directionLabel}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
               </View>
             );
           })
