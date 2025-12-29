@@ -322,7 +322,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     <View className="flex-1">
                       <Text className="text-[15px] font-semibold text-gray-900">
                         {a.name}
-                        {a.symbol ? ` · ${a.symbol}` : ""}
                       </Text>
 
                       <View className="flex-row items-center mt-0.5">

@@ -596,7 +596,6 @@ export default function AddScreen({ navigation }: any) {
                             >
                               <Text style={chipText}>
                                 📈 {inv.name}
-                                {inv.symbol ? ` · ${inv.symbol}` : ""}
                               </Text>
                             </TouchableOpacity>
                           );

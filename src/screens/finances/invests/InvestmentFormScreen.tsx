@@ -17,6 +17,8 @@ import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+type InvestmentRiskType = "variable_income" | "fixed_income"; // ✅ solo dos valores
+type RiskOrNull = InvestmentRiskType | null; // ✅ o ninguno
 
 const TYPE_OPTIONS: {
   key: InvestmentAssetType;
@@ -30,13 +32,23 @@ const TYPE_OPTIONS: {
   { key: "custom", label: "Custom", icon: "shapes-outline" },
 ];
 
+const RISK_OPTIONS: {
+  key: InvestmentRiskType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: "variable_income", label: "Renta variable", icon: "trending-up-outline" },
+  { key: "fixed_income", label: "Renta fija", icon: "shield-checkmark-outline" },
+];
+
 interface AssetFromApi {
   id: number;
   name: string;
-  symbol?: string | null;
+  description?: string | null;
   type: InvestmentAssetType;
+  riskType?: RiskOrNull;
   currency: string;
-  initialInvested: number; // ✅ NUEVO
+  initialInvested: number;
   active: boolean;
 }
 
@@ -49,7 +61,6 @@ function parseAmount(input: string): number | null {
   const raw = input.trim();
   if (!raw) return null;
 
-  // quita espacios, convierte separadores ES a formato JS
   const normalized = raw
     .replace(/\s/g, "")
     .replace(/\./g, "") // miles
@@ -68,11 +79,11 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
-  const [symbol, setSymbol] = useState("");
+  const [description, setDescription] = useState("");
   const [type, setType] = useState<InvestmentAssetType>("custom");
+  const [riskType, setRiskType] = useState<RiskOrNull>(null); // ✅ null por defecto
   const [currency, setCurrency] = useState("EUR");
 
-  // ✅ NUEVO: aportado previo como texto para permitir coma/punto
   const [initialInvestedText, setInitialInvestedText] = useState<string>("");
 
   const title = useMemo(
@@ -85,12 +96,18 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
     [initialInvestedText]
   );
 
+  // UX: sugerencia automática de riskType para tipos inequívocos
+  const autoRiskForType = useCallback((t: InvestmentAssetType): RiskOrNull => {
+    if (t === "crypto" || t === "stock") return "variable_income";
+    return null;
+  }, []);
+
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
-    if (currency.trim() && !isValidCurrencyCode(currency.trim().toUpperCase()))
-      return false;
 
-    // si el usuario escribió algo, debe parsear y ser >= 0
+    const cur = currency.trim().toUpperCase();
+    if (cur && !isValidCurrencyCode(cur)) return false;
+
     if (initialInvestedText.trim()) {
       if (initialInvestedNumber === null) return false;
       if (initialInvestedNumber < 0) return false;
@@ -108,11 +125,11 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       const a: AssetFromApi = res.data;
 
       setName(a.name ?? "");
-      setSymbol(a.symbol ?? "");
+      setDescription(a.description ?? "");
       setType(a.type ?? "custom");
+      setRiskType((a.riskType ?? null) as RiskOrNull);
       setCurrency((a.currency ?? "EUR").toUpperCase());
 
-      // ✅ rellena aportado previo
       setInitialInvestedText(
         typeof a.initialInvested === "number" ? String(a.initialInvested) : "0"
       );
@@ -137,7 +154,10 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       : null;
 
     if (initialInvestedText.trim() && parsed === null) {
-      Alert.alert("Importe inválido", "Revisa el aportado previo (ej: 2500 o 2.500,50).");
+      Alert.alert(
+        "Importe inválido",
+        "Revisa el aportado previo (ej: 2500 o 2.500,50)."
+      );
       return;
     }
     if (parsed !== null && parsed < 0) {
@@ -145,12 +165,15 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       return;
     }
 
+    // ✅ normaliza description: si viene vacío, manda null para permitir “borrar”
+    const desc = description.trim();
+
     const payload: any = {
       name: name.trim(),
-      symbol: symbol.trim() ? symbol.trim().toUpperCase() : undefined,
+      description: desc ? desc : null, // ✅ importante
       type,
+      riskType: riskType ?? null, // ✅ importante (solo 2 valores o null)
       currency: currency.trim() ? currency.trim().toUpperCase() : "EUR",
-      // ✅ enviamos number si viene escrito, si no, no tocamos (en edit)
       ...(parsed !== null ? { initialInvested: parsed } : {}),
     };
 
@@ -172,7 +195,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       if (isEdit) {
         await api.patch(`/investments/assets/${assetId}`, payload);
       } else {
-        // en create, si no escribe nada, inicialInvested = 0
         if (!("initialInvested" in payload)) payload.initialInvested = 0;
         await api.post(`/investments/assets`, payload);
       }
@@ -182,9 +204,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       console.error("❌ Error saving asset:", e);
       const msg =
         e?.response?.data?.message ||
-        (isEdit
-          ? "No se pudo actualizar la inversión."
-          : "No se pudo crear la inversión.");
+        (isEdit ? "No se pudo actualizar la inversión." : "No se pudo crear la inversión.");
       Alert.alert("Error", String(msg));
     } finally {
       setSaving(false);
@@ -218,6 +238,15 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       ]
     );
   };
+
+  const onSelectType = (t: InvestmentAssetType) => {
+    setType(t);
+    const suggested = autoRiskForType(t);
+    // ✅ solo autocompleta si aún no se ha definido
+    if (suggested && riskType === null) setRiskType(suggested);
+  };
+
+  const clearRisk = () => setRiskType(null);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -313,7 +342,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder='Ej: Bitcoin, VWCE, "Crypto genérico"'
+                placeholder='Ej: Bitcoin, VWCE, "Mi cartera bonos"'
                 placeholderTextColor="#9CA3AF"
                 style={{
                   marginLeft: 10,
@@ -324,10 +353,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               />
             </View>
 
-            {/* SYMBOL */}
-            <Text className="text-[11px] text-gray-400 mt-4">
-              Símbolo (opcional)
-            </Text>
+            {/* DESCRIPTION */}
+            <Text className="text-[11px] text-gray-400 mt-4">Descripción (opcional)</Text>
             <View
               className="flex-row items-center mt-1 rounded-2xl"
               style={{
@@ -338,13 +365,12 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 paddingVertical: 10,
               }}
             >
-              <Ionicons name="pricetag-outline" size={16} color="#64748B" />
+              <Ionicons name="document-text-outline" size={16} color="#64748B" />
               <TextInput
-                value={symbol}
-                onChangeText={setSymbol}
-                placeholder="Ej: BTC"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Ej: BTC, ISIN, broker, notas…"
                 placeholderTextColor="#9CA3AF"
-                autoCapitalize="characters"
                 style={{
                   marginLeft: 10,
                   flex: 1,
@@ -352,9 +378,9 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                   fontWeight: "600",
                 }}
               />
-              {!!symbol.trim() && (
+              {!!description.trim() && (
                 <TouchableOpacity
-                  onPress={() => setSymbol("")}
+                  onPress={() => setDescription("")}
                   style={{ padding: 6, borderRadius: 10 }}
                   activeOpacity={0.9}
                 >
@@ -371,7 +397,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 return (
                   <TouchableOpacity
                     key={opt.key}
-                    onPress={() => setType(opt.key)}
+                    onPress={() => onSelectType(opt.key)}
                     activeOpacity={0.9}
                     style={{
                       paddingVertical: 8,
@@ -404,6 +430,61 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               })}
             </View>
 
+            {/* RISK TYPE */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
+              <Text className="text-[11px] text-gray-400">Riesgo</Text>
+
+              {riskType !== null ? (
+                <TouchableOpacity onPress={clearRisk} activeOpacity={0.9} style={{ flexDirection: "row", gap: 6 }}>
+                  <Ionicons name="close-circle-outline" size={16} color="#94A3B8" />
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>Quitar</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <View className="flex-row flex-wrap mt-2" style={{ gap: 8 }}>
+              {RISK_OPTIONS.map((opt) => {
+                const active = riskType === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    onPress={() => setRiskType(opt.key)}
+                    activeOpacity={0.9}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 10,
+                      borderRadius: 14,
+                      backgroundColor: active ? "#ECFDF5" : "#F3F4F6",
+                      borderWidth: 1,
+                      borderColor: active ? "#10B981" : "#E5E7EB",
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={14}
+                      color={active ? "#059669" : "#64748B"}
+                    />
+                    <Text
+                      style={{
+                        marginLeft: 6,
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color: active ? "#059669" : "#64748B",
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text className="text-[11px] text-gray-400 mt-3 leading-4">
+              Selecciona renta fija o renta variable, o déjalo sin definir.
+            </Text>
+
             {/* CURRENCY */}
             <Text className="text-[11px] text-gray-400 mt-4">Divisa</Text>
             <View
@@ -432,18 +513,14 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 }}
               />
               {!isValidCurrencyCode(currency.trim() || "EUR") ? (
-                <Text
-                  style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}
-                >
+                <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>
                   ISO
                 </Text>
               ) : null}
             </View>
 
-            {/* ✅ NEW: APORTADO PREVIO */}
-            <Text className="text-[11px] text-gray-400 mt-4">
-              Aportado previo (antes de usar la app)
-            </Text>
+            {/* APORTADO PREVIO */}
+            <Text className="text-[11px] text-gray-400 mt-4">Aportado previo (antes de usar la app)</Text>
             <View
               className="flex-row items-center mt-1 rounded-2xl"
               style={{
@@ -521,10 +598,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               activeOpacity={0.9}
             >
               <Ionicons name="trash-outline" size={18} color="#DC2626" />
-              <Text
-                className="text-sm font-semibold ml-2"
-                style={{ color: "#DC2626" }}
-              >
+              <Text className="text-sm font-semibold ml-2" style={{ color: "#DC2626" }}>
                 Eliminar inversión
               </Text>
             </TouchableOpacity>

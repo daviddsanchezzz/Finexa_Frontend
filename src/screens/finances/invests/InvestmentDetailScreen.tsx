@@ -1,7 +1,4 @@
 // src/screens/Investments/InvestmentDetailScreen.tsx
-// Header ultra-ligero + cards + sparkline SVG + lista de aportaciones debajo de “Información”
-// IMPORTANTE: no hay endpoint de aportaciones. Se filtran desde /transactions por assetId.
-
 import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
@@ -17,19 +14,21 @@ import AppHeader from "../../../components/AppHeader";
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 
-// ✅ Sparkline
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
 
 interface AssetFromApi {
   id: number;
   name: string;
-  symbol?: string | null;
+  description?: string | null;
   type: InvestmentAssetType;
+  riskType?: InvestmentRiskType | null;
   currency: string;
   initialInvested: number;
   active: boolean;
+  createdAt?: string | null; // ISO
 }
 
 interface SeriesPoint {
@@ -56,12 +55,10 @@ type TransactionFromApi = {
   currency?: string | null;
   note?: string | null;
 
-  // campos típicos que pueden existir (soportamos varios nombres)
   investmentAssetId?: number | null;
   investment_asset_id?: number | null;
   investmentAsset?: { id: number } | null;
 
-  // opcionales para mejorar filtro
   type?: string | null;
   kind?: string | null;
   category?: string | null;
@@ -93,6 +90,28 @@ const typeLabel = (t: InvestmentAssetType) => {
       return "Fondo";
     default:
       return "Custom";
+  }
+};
+
+const riskLabel = (r?: InvestmentRiskType | null) => {
+  switch (r) {
+    case "variable_income":
+      return "Renta variable";
+    case "fixed_income":
+      return "Renta fija";
+    default:
+      return "Sin definir";
+  }
+};
+
+const riskIcon = (r?: InvestmentRiskType | null) => {
+  switch (r) {
+    case "variable_income":
+      return "trending-up-outline" as const;
+    case "fixed_income":
+      return "shield-checkmark-outline" as const;
+    default:
+      return "help-circle-outline" as const;
   }
 };
 
@@ -159,6 +178,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState<boolean>(false);
 
   const [range, setRange] = useState<RangeKey>("3m");
+  const [tab, setTab] = useState<"contributions" | "valuations">("contributions");
 
   const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
 
@@ -176,10 +196,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       const serRes = await api.get(`/investments/assets/${assetId}/series`);
       setSeries(serRes.data || []);
 
-    const tRes = await api.get(`/transactions`, {
-    params: { investmentAssetId: assetId },
-    });
-    setTransactions(tRes.data || []);
+      const tRes = await api.get(`/transactions`, { params: { investmentAssetId: assetId } });
+      setTransactions(tRes.data || []);
     } catch (e) {
       console.error("❌ Error loading investment detail:", e);
       navigation.goBack();
@@ -232,10 +250,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     const maxV = Math.max(...values);
     const span = maxV - minV || 1;
 
-    const W = 320;
-    const H = 90;
-    const padX = 8;
-    const padY = 10;
+    const W = 340;
+    const H = 128;
+    const padX = 12;
+    const padY = 14;
+
     const step = (W - padX * 2) / (pts.length - 1);
 
     const mapped = pts.map((p, i) => {
@@ -246,6 +265,9 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     });
 
     const path = buildSparkPath(mapped.map((m) => ({ x: m.x, y: m.y })));
+    const areaPath = `${path} L ${mapped[mapped.length - 1].x.toFixed(2)} ${(H - padY).toFixed(
+      2
+    )} L ${mapped[0].x.toFixed(2)} ${(H - padY).toFixed(2)} Z`;
 
     const last = pts[pts.length - 1];
     const prev = pts[pts.length - 2];
@@ -258,24 +280,18 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
     const deltaMeta = pnlMeta(delta);
 
-    return { W, H, mapped, path, delta, deltaPct, rangeDelta, rangeDeltaPct, deltaMeta };
+    return { W, H, padY, mapped, path, areaPath, minV, maxV, delta, deltaPct, rangeDelta, rangeDeltaPct, deltaMeta };
   }, [filteredSeries]);
 
-  // ✅ Filtrado de aportaciones desde transactions usando assetId
   const contributions = useMemo(() => {
     const matchesAsset = (tx: TransactionFromApi) => {
-      const a =
-        tx.investmentAssetId ??
-        tx.investment_asset_id ??
-        tx.investmentAsset?.id ??
-        null;
+      const a = tx.investmentAssetId ?? tx.investment_asset_id ?? tx.investmentAsset?.id ?? null;
       return a === assetId;
     };
 
-    // Intento de detectar “aportación” si tu modelo trae tipo/categoría
     const looksLikeContribution = (tx: TransactionFromApi) => {
       const hay = `${tx.type ?? ""} ${tx.kind ?? ""} ${tx.category ?? ""} ${tx.subcategory ?? ""}`.toLowerCase();
-      if (!hay.trim()) return true; // si no hay metadata, aceptamos y mostramos (mejor que ocultar)
+      if (!hay.trim()) return true;
       return (
         hay.includes("aport") ||
         hay.includes("contrib") ||
@@ -287,84 +303,206 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
     const getIso = (tx: TransactionFromApi) => tx.date || tx.createdAt || "";
 
-    return [...transactions]
+    const txRows = [...transactions]
       .filter((tx) => matchesAsset(tx))
       .filter((tx) => looksLikeContribution(tx))
       .map((tx) => ({
-        id: tx.id,
+        id: `tx-${tx.id}`,
         iso: getIso(tx),
         amount: tx.amount,
         currency: tx.currency || currency,
         note: tx.note || null,
+        kind: "tx" as const,
       }))
       .filter((x) => !!x.iso)
       .sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
-  }, [transactions, assetId, currency]);
 
-  const QuickAction = ({
-    title,
-    subtitle,
+    const hasInitial = (asset?.initialInvested ?? 0) > 0;
+    const initialIso = asset?.createdAt || (txRows.length ? txRows[txRows.length - 1].iso : new Date().toISOString());
+
+    const initialRow = hasInitial
+      ? [
+          {
+            id: "initial",
+            iso: initialIso,
+            amount: asset?.initialInvested ?? 0,
+            currency,
+            note: "Aportación inicial",
+            kind: "initial" as const,
+          },
+        ]
+      : [];
+
+    return [...initialRow, ...txRows];
+  }, [transactions, assetId, currency, asset?.initialInvested, asset?.createdAt]);
+
+  const valuations = useMemo(() => {
+    return [...series]
+      .filter((p) => !!p.date)
+      .map((p, idx) => ({
+        id: `${p.date}-${idx}`,
+        iso: p.date,
+        value: p.value,
+        currency: p.currency || currency,
+      }))
+      .sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
+  }, [series, currency]);
+
+  const Chip = ({
+    icon,
+    label,
+  }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+  }) => (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        backgroundColor: "rgba(255,255,255,0.18)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.14)",
+      }}
+    >
+      <Ionicons name={icon} size={14} color="rgba(255,255,255,0.92)" />
+      <Text style={{ fontSize: 12, fontWeight: "900", color: "rgba(255,255,255,0.92)" }}>
+        {label}
+      </Text>
+    </View>
+  );
+
+  const KPI = ({
+    label,
+    value,
+    hint,
+  }: {
+    label: string;
+    value: string;
+    hint?: string;
+  }) => (
+    <View
+      style={{
+        flex: 1,
+        padding: 12,
+        borderRadius: 18,
+        backgroundColor: "rgba(255,255,255,0.16)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.14)",
+      }}
+    >
+      <Text style={{ fontSize: 11, fontWeight: "900", color: "rgba(255,255,255,0.75)" }}>{label}</Text>
+      <Text style={{ marginTop: 6, fontSize: 14, fontWeight: "900", color: "white" }} numberOfLines={1}>
+        {value}
+      </Text>
+      {hint ? (
+        <Text style={{ marginTop: 4, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.70)" }}>
+          {hint}
+        </Text>
+      ) : null}
+    </View>
+  );
+
+  const SmallAction = ({
+    label,
     icon,
     onPress,
     tone = "primary",
+    style,
   }: {
-    title: string;
-    subtitle: string;
+    label: string;
     icon: keyof typeof Ionicons.glyphMap;
     onPress: () => void;
     tone?: "primary" | "neutral";
+    style?: any;
   }) => {
     const isPrimary = tone === "primary";
     return (
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.9}
-        style={{
-          flex: 1,
-          borderRadius: 22,
-          padding: 14,
-          backgroundColor: isPrimary ? colors.primary : "white",
-          borderWidth: 1,
-          borderColor: isPrimary ? "transparent" : "#E5E7EB",
-        }}
+        style={[
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            paddingVertical: 12,
+            paddingHorizontal: 12,
+            borderRadius: 18,
+            backgroundColor: isPrimary ? colors.primary : "white",
+            borderWidth: 1,
+            borderColor: isPrimary ? "transparent" : "#E5E7EB",
+          },
+          style,
+        ]}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 14,
-              backgroundColor: isPrimary ? "rgba(255,255,255,0.18)" : "#F1F5F9",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name={icon} size={18} color={isPrimary ? "white" : "#334155"} />
-          </View>
-
-          <Ionicons
-            name="chevron-forward-outline"
-            size={18}
-            color={isPrimary ? "rgba(255,255,255,0.9)" : "#94A3B8"}
-          />
-        </View>
-
-        <Text style={{ marginTop: 10, fontSize: 14, fontWeight: "900", color: isPrimary ? "white" : "#0F172A" }}>
-          {title}
-        </Text>
-        <Text
+        <View
           style={{
-            marginTop: 4,
-            fontSize: 11,
-            fontWeight: "700",
-            color: isPrimary ? "rgba(255,255,255,0.8)" : "#64748B",
+            width: 26,
+            height: 26,
+            borderRadius: 999,
+            backgroundColor: isPrimary ? "rgba(255,255,255,0.18)" : "#F1F5F9",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          {subtitle}
+          <Ionicons name={icon} size={15} color={isPrimary ? "white" : "#334155"} />
+        </View>
+        <Text style={{ fontSize: 12, fontWeight: "900", color: isPrimary ? "white" : "#0F172A" }} numberOfLines={1}>
+          {label}
         </Text>
       </TouchableOpacity>
     );
   };
+
+  const SegmentedTab = ({
+    label,
+    active,
+    onPress,
+    count,
+  }: {
+    label: string;
+    active: boolean;
+    onPress: () => void;
+    count?: number;
+  }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={{
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 14,
+        backgroundColor: active ? "white" : "transparent",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: 8,
+      }}
+    >
+      <Text style={{ fontSize: 12, fontWeight: "900", color: active ? "#0F172A" : "#64748B" }}>
+        {label}
+      </Text>
+      {typeof count === "number" ? (
+        <View
+          style={{
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 999,
+            backgroundColor: active ? "#EEF2FF" : "#E5E7EB",
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: "900", color: active ? colors.primary : "#475569" }}>
+            {count}
+          </Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
+  );
 
   const MetricRow = ({
     label,
@@ -380,31 +518,39 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingVertical: 10,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: "#E5E7EB",
+        borderBottomColor: "#F1F5F9",
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, paddingRight: 12 }}>
         <View
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 12,
-            backgroundColor: "#F1F5F9",
+            width: 34,
+            height: 34,
+            borderRadius: 14,
+            backgroundColor: "#F8FAFC",
             borderWidth: 1,
             borderColor: "#E5E7EB",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Ionicons name={icon} size={14} color="#64748B" />
+          <Ionicons name={icon} size={16} color="#64748B" />
         </View>
-        <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B" }}>{label}</Text>
+        <Text style={{ fontSize: 12, fontWeight: "900", color: "#475569" }}>{label}</Text>
       </View>
-      <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>{value}</Text>
+
+      <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
+
+  const riskChip = useMemo(() => {
+    const r = asset?.riskType ?? "unknown";
+    return { icon: riskIcon(r), label: riskLabel(r) };
+  }, [asset?.riskType]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -418,118 +564,99 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           <Text className="text-gray-400 mt-3 text-sm">Cargando…</Text>
         </View>
       ) : (
-        <ScrollView
-          className="flex-1 px-5"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
+        <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+{/* HERO (Minimal + accent bar) */}
+<View
+  style={{
+    backgroundColor: "white",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 12,
+    overflow: "hidden",
+  }}
+>
+  <View style={{ flexDirection: "row" }}>
+    <View style={{ width: 6, backgroundColor: colors.primary }} />
+    <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ fontSize: 11, fontWeight: "900", color: "#94A3B8" }}>Valor actual</Text>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate("InvestmentForm", { assetId })}
+          activeOpacity={0.9}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 16,
+            backgroundColor: "#F8FAFC",
+            borderWidth: 1,
+            borderColor: "#E5E7EB",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          {/* HERO */}
-          <View
-            style={{
-              backgroundColor: "white",
-              borderRadius: 28,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              marginBottom: 12,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 18,
-                    backgroundColor: "#F1F5F9",
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="layers-outline" size={18} color="#334155" />
-                </View>
+          <Ionicons name="create-outline" size={18} color="#334155" />
+        </TouchableOpacity>
+      </View>
 
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-                    {asset.name}
-                    {asset.symbol ? ` · ${asset.symbol}` : ""}
-                  </Text>
-                  <Text style={{ marginTop: 3, fontSize: 12, fontWeight: "800", color: "#64748B" }}>
-                    {typeLabel(asset.type)} · {asset.currency} · Última: {stats.last}
-                  </Text>
-                </View>
-              </View>
+      <Text style={{ marginTop: 6, fontSize: 30, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+        {formatMoney(stats.currentValue, currency)}
+      </Text>
 
-              <TouchableOpacity
-                onPress={() => navigation.navigate("InvestmentForm", { assetId })}
-                activeOpacity={0.9}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 18,
-                  backgroundColor: "#EEF2FF",
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="create-outline" size={18} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
+      <View style={{ marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B" }} numberOfLines={1}>
+          Aportado: {formatMoney(stats.invested, currency)}
+        </Text>
 
-            <View style={{ marginTop: 14 }}>
-              <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>Valor actual</Text>
-              <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
-                {formatMoney(stats.currentValue, currency)}
-              </Text>
+        <View
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 999,
+            backgroundColor: stats.meta.soft,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Ionicons name={stats.meta.icon} size={14} color={stats.meta.color} />
+          <Text style={{ fontSize: 12, fontWeight: "900", color: stats.meta.color }} numberOfLines={1}>
+            {formatMoney(stats.pnl, currency)} · {formatPct(stats.pnl, stats.invested)}
+          </Text>
+        </View>
+      </View>
 
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B" }}>
-                  Aportado: {formatMoney(stats.invested, currency)}
-                </Text>
+      <View style={{ marginTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB", flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Ionicons name="time-outline" size={14} color="#64748B" />
+          <Text style={{ fontSize: 12, fontWeight: "900", color: "#334155" }}>Última: {stats.last}</Text>
+        </View>
+      </View>
+    </View>
+  </View>
+</View>
 
-                <View
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: 999,
-                    backgroundColor: stats.meta.soft,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <Ionicons name={stats.meta.icon} size={14} color={stats.meta.color} />
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: stats.meta.color }}>
-                    {formatMoney(stats.pnl, currency)} · {formatPct(stats.pnl, stats.invested)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
 
-          {/* ACCIONES */}
+          {/* Acciones (full width / 2 columnas) */}
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
-            <QuickAction
-              title="Añadir valoración"
-              subtitle="Guarda el valor total hoy o cualquier día"
+            <SmallAction
+              label="Añadir valoración"
               icon="add-circle-outline"
               onPress={() => navigation.navigate("InvestmentValuation", { assetId })}
               tone="primary"
+              style={{ flex: 1 }}
             />
-            <QuickAction
-              title="Añadir aportación"
-              subtitle="Registra una transferencia a inversión"
+            <SmallAction
+              label="Añadir aportación"
               icon="swap-horizontal-outline"
               onPress={() => navigation.navigate("Add", { prefillInvestmentAssetId: assetId })}
               tone="neutral"
+              style={{ flex: 1 }}
             />
           </View>
 
-          {/* GRÁFICO */}
+          {/* Gráfica */}
           <View
             style={{
               backgroundColor: "white",
@@ -541,7 +668,12 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Gráfica</Text>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Evolución</Text>
+                <Text style={{ marginTop: 3, fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>
+                  Basado en valoraciones guardadas
+                </Text>
+              </View>
 
               <View style={{ flexDirection: "row", gap: 6 }}>
                 {(["1m", "3m", "6m", "1y", "all"] as RangeKey[]).map((k) => {
@@ -586,16 +718,39 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     paddingHorizontal: 12,
                   }}
                 >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>
+                      Máx: {formatMoney(chart.maxV, currency)}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>
+                      Mín: {formatMoney(chart.minV, currency)}
+                    </Text>
+                  </View>
+
                   <Svg width="100%" height={chart.H} viewBox={`0 0 ${chart.W} ${chart.H}`}>
+                    <Defs>
+                      <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={colors.primary} stopOpacity="0.18" />
+                        <Stop offset="1" stopColor={colors.primary} stopOpacity="0.02" />
+                      </LinearGradient>
+                    </Defs>
+
+                    <Path
+                      d={`M 0 ${(chart.H - chart.padY).toFixed(2)} L ${chart.W.toFixed(2)} ${(chart.H - chart.padY).toFixed(2)}`}
+                      stroke="#E5E7EB"
+                      strokeWidth="1"
+                      fill="none"
+                    />
+
+                    <Path d={chart.areaPath} fill="url(#areaGrad)" />
                     <Path d={chart.path} stroke={colors.primary} strokeWidth="3" fill="none" />
-                    {chart.mapped.length ? (
-                      <Circle
-                        cx={chart.mapped[chart.mapped.length - 1].x}
-                        cy={chart.mapped[chart.mapped.length - 1].y}
-                        r="4"
-                        fill={colors.primary}
-                      />
-                    ) : null}
+
+                    <Circle
+                      cx={chart.mapped[chart.mapped.length - 1].x}
+                      cy={chart.mapped[chart.mapped.length - 1].y}
+                      r="4"
+                      fill={colors.primary}
+                    />
                   </Svg>
 
                   <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
@@ -620,14 +775,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     }}
                   >
                     <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>Cambio del rango</Text>
-                    <Text
-                      style={{
-                        marginTop: 6,
-                        fontSize: 16,
-                        fontWeight: "900",
-                        color: pnlMeta(chart.rangeDelta).color,
-                      }}
-                    >
+                    <Text style={{ marginTop: 6, fontSize: 16, fontWeight: "900", color: pnlMeta(chart.rangeDelta).color }}>
                       {formatMoney(chart.rangeDelta, currency)}
                     </Text>
                     <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: "#64748B" }}>
@@ -657,31 +805,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     </Text>
                   </View>
                 </View>
-
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("InvestmentSeries", { assetId })}
-                  activeOpacity={0.9}
-                  style={{
-                    marginTop: 12,
-                    paddingVertical: 12,
-                    borderRadius: 22,
-                    backgroundColor: "#EEF2FF",
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                >
-                  <Ionicons name="analytics-outline" size={16} color={colors.primary} />
-                  <Text style={{ fontSize: 13, fontWeight: "900", color: colors.primary }}>Ver serie completa</Text>
-                </TouchableOpacity>
               </>
             )}
           </View>
 
-          {/* INFORMACIÓN */}
+          {/* Información */}
           <View
             style={{
               backgroundColor: "white",
@@ -689,17 +817,17 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               padding: 16,
               borderWidth: 1,
               borderColor: "#E5E7EB",
+              marginBottom: 12,
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Información</Text>
-
               <View
                 style={{
                   paddingHorizontal: 10,
                   paddingVertical: 6,
                   borderRadius: 999,
-                  backgroundColor: "#F1F5F9",
+                  backgroundColor: "#F8FAFC",
                   borderWidth: 1,
                   borderColor: "#E5E7EB",
                   flexDirection: "row",
@@ -714,120 +842,145 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
             <View style={{ marginTop: 10 }}>
               <MetricRow label="Tipo" value={typeLabel(asset.type)} icon="pricetag-outline" />
-              <MetricRow
-                label="Aportado inicial"
-                value={formatMoney(asset.initialInvested || 0, currency)}
-                icon="flag-outline"
-              />
-              <View style={{ paddingTop: 10 }}>
-                <Text style={{ fontSize: 11, color: "#94A3B8", lineHeight: 16 }}>
-                  “Aportado” incluye aportaciones registradas en la app. “Valor actual” depende de tus valoraciones guardadas.
-                </Text>
-              </View>
+              <MetricRow label="Riesgo" value={riskLabel(asset.riskType)} icon={riskIcon(asset.riskType)} />
+              <MetricRow label="Aportado inicial" value={formatMoney(asset.initialInvested || 0, currency)} icon="flag-outline" />
+
+              {asset.description?.trim() ? (
+                <View
+                  style={{
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 18,
+                    backgroundColor: "#F8FAFC",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons name="document-text-outline" size={16} color="#64748B" />
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Descripción</Text>
+                  </View>
+                  <Text style={{ marginTop: 6, fontSize: 12, fontWeight: "700", color: "#334155", lineHeight: 18 }}>
+                    {asset.description}
+                  </Text>
+                </View>
+              ) : null}
+
+
             </View>
           </View>
 
-          {/* APORTACIONES (debajo de Información) */}
-          {contributions.length > 0 ? (
+          {/* Tabs + Tabla */}
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 28,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+            }}
+          >
+            {/* Segmented control */}
             <View
               style={{
-                backgroundColor: "white",
-                borderRadius: 28,
-                padding: 16,
+                flexDirection: "row",
+                gap: 8,
+                padding: 6,
+                borderRadius: 18,
+                backgroundColor: "#F8FAFC",
                 borderWidth: 1,
                 borderColor: "#E5E7EB",
-                marginTop: 12,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Aportaciones</Text>
+              <SegmentedTab
+                label="Aportaciones"
+                active={tab === "contributions"}
+                onPress={() => setTab("contributions")}
+                count={contributions.length}
+              />
+              <SegmentedTab
+                label="Valoraciones"
+                active={tab === "valuations"}
+                onPress={() => setTab("valuations")}
+                count={valuations.length}
+              />
+            </View>
 
-                <View
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: 999,
-                    backgroundColor: "#F1F5F9",
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <Ionicons name="cash-outline" size={14} color="#64748B" />
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#334155" }}>{contributions.length}</Text>
-                </View>
+            {/* Table */}
+            <View style={{ marginTop: 14 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#E5E7EB",
+                }}
+              >
+                <Text style={{ flex: 1.2, fontSize: 11, fontWeight: "900", color: "#64748B" }}>Fecha</Text>
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: "900", color: "#64748B", textAlign: "right" }}>
+                  {tab === "contributions" ? "Importe" : "Valor"}
+                </Text>
               </View>
 
-              <View style={{ marginTop: 10 }}>
-                {contributions.slice(0, 8).map((c) => (
-                  <View
-                    key={c.id}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      paddingVertical: 10,
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#E5E7EB",
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1, paddingRight: 10 }}>
-                      <View
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 12,
-                          backgroundColor: "#F1F5F9",
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Ionicons name="add-outline" size={14} color="#64748B" />
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+              {tab === "contributions" ? (
+                contributions.length ? (
+                  contributions.map((c) => (
+                    <View
+                      key={c.id}
+                      style={{
+                        paddingVertical: 12,
+                        borderBottomWidth: 1,
+                        borderBottomColor: "#F1F5F9",
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Text style={{ flex: 1.2, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                          {formatDate(c.iso)}
+                        </Text>
+                        <Text style={{ flex: 1, fontSize: 12, fontWeight: "900", color: "#0F172A", textAlign: "right" }}>
                           {formatMoney(c.amount, c.currency)}
                         </Text>
-                        <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: "#64748B" }}>
-                          {formatDate(c.iso)}
-                          {c.note ? ` · ${c.note}` : ""}
-                        </Text>
                       </View>
+
+                      {c.note ? (
+                        <Text style={{ marginTop: 4, fontSize: 11, fontWeight: "800", color: "#64748B" }}>
+                          {c.note}
+                        </Text>
+                      ) : null}
                     </View>
-
-                    <Ionicons name="chevron-forward-outline" size={16} color="#94A3B8" />
-                  </View>
-                ))}
-
-                {contributions.length > 8 ? (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("Transactions", { filterInvestmentAssetId: assetId })}
-                    activeOpacity={0.9}
+                  ))
+                ) : (
+                  <Text style={{ marginTop: 10, fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
+                    No hay aportaciones registradas.
+                  </Text>
+                )
+              ) : valuations.length ? (
+                valuations.map((v) => (
+                  <View
+                    key={v.id}
                     style={{
-                      marginTop: 12,
                       paddingVertical: 12,
-                      borderRadius: 22,
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#F1F5F9",
                     }}
                   >
-                    <Ionicons name="list-outline" size={16} color="#334155" />
-                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#334155" }}>Ver todas</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text style={{ flex: 1.2, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                        {formatDate(v.iso)}
+                      </Text>
+                      <Text style={{ flex: 1, fontSize: 12, fontWeight: "900", color: "#0F172A", textAlign: "right" }}>
+                        {formatMoney(v.value, v.currency)}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={{ marginTop: 10, fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
+                  No hay valoraciones guardadas.
+                </Text>
+              )}
             </View>
-          ) : null}
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
