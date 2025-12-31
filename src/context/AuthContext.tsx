@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/api";
-import { storage } from "../utils/storage"; // 👈 Usamos nuestro wrapper
+import { storage } from "../utils/storage";
 
 type User = {
   id: number;
@@ -28,12 +28,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (token) {
         try {
-          // Inyecta el token para que axios lo use automáticamente
+          // opcional (request interceptor ya lo hace), pero ayuda en arranque
           api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+          // Si el token caducó, /auth/me devolverá 401 y api.ts intentará refresh
           const res = await api.get("/auth/me");
           setUser(res.data.user);
-        } catch (err) {
-          await storage.removeItem("access_token");
+        } catch {
+          // No borres tokens aquí; api.ts los borra si refresh falla de verdad
           setUser(null);
         }
       }
@@ -48,19 +50,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const res = await api.post("/auth/login", { email, password });
     const { access_token, refresh_token, user } = res.data;
 
-    // Guarda el token con nuestro wrapper (funciona en web + móvil)
     await storage.setItem("access_token", access_token);
     await storage.setItem("refresh_token", refresh_token);
 
-
-    // Añade el token a axios globalmente
     api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-
     setUser(user);
   };
 
   const logout = async () => {
     await storage.removeItem("access_token");
+    await storage.removeItem("refresh_token"); // ✅ importante
     delete api.defaults.headers.common["Authorization"];
     setUser(null);
   };
