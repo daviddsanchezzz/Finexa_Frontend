@@ -14,6 +14,9 @@ import AppHeader from "../../../components/AppHeader";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 
+// ✅ SVG: Donut + Sparkline
+import Svg, { G, Circle, Path } from "react-native-svg";
+
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
 interface SummaryAssetFromApi {
@@ -34,6 +37,11 @@ interface SummaryFromApi {
   totalPnL: number;
   assets: SummaryAssetFromApi[];
 }
+
+type PortfolioTimelinePoint = {
+  date: string; // YYYY-MM-DD
+  totalCurrentValue: number;
+};
 
 const formatMoney = (n: number, currency = "EUR") =>
   n.toLocaleString("es-ES", {
@@ -93,9 +101,180 @@ const formatShortDate = (iso: string) =>
     year: "numeric",
   });
 
+// =====================
+// DONUT
+// =====================
+type DonutSlice = {
+  id: number;
+  label: string;
+  value: number;
+  pct: number; // 0..1
+  color: string;
+};
+
+const palette = [
+  "#2563EB",
+  "#16A34A",
+  "#F59E0B",
+  "#DC2626",
+  "#7C3AED",
+  "#0EA5E9",
+  "#10B981",
+  "#F97316",
+  "#EC4899",
+  "#64748B",
+];
+
+const DonutChart = ({
+  slices,
+  size = 164,
+  strokeWidth = 22,
+  centerLabel,
+  centerSubLabel,
+}: {
+  slices: DonutSlice[];
+  size?: number;
+  strokeWidth?: number;
+  centerLabel?: string;
+  centerSubLabel?: string;
+}) => {
+  const radius = (size - strokeWidth) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  let acc = 0;
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <G rotation={-90} origin={`${cx}, ${cy}`}>
+          <Circle
+            cx={cx}
+            cy={cy}
+            r={radius}
+            stroke="#E5E7EB"
+            strokeWidth={strokeWidth}
+            fill="transparent"
+          />
+
+          {slices.map((s) => {
+            const dash = s.pct * circumference;
+            const gap = circumference - dash;
+            const dashoffset = circumference * (1 - acc);
+
+            acc += s.pct;
+
+            return (
+              <Circle
+                key={s.id}
+                cx={cx}
+                cy={cy}
+                r={radius}
+                stroke={s.color}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                fill="transparent"
+                strokeDasharray={`${dash} ${gap}`}
+                strokeDashoffset={dashoffset}
+              />
+            );
+          })}
+        </G>
+      </Svg>
+
+      <View
+        style={{
+          position: "absolute",
+          inset: 0,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
+          {centerLabel || ""}
+        </Text>
+        {!!centerSubLabel && (
+          <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 2 }}>
+            {centerSubLabel}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+};
+
+// =====================
+// SPARKLINE (TOTAL TIMELINE)
+// =====================
+const Sparkline = ({
+  values,
+  width = 240,
+  height = 64,
+  strokeWidth = 3,
+}: {
+  values: number[];
+  width?: number;
+  height?: number;
+  strokeWidth?: number;
+}) => {
+  const clean = values.filter((n) => Number.isFinite(n));
+  if (clean.length < 2) return null;
+
+  const min = Math.min(...clean);
+  const max = Math.max(...clean);
+  const range = max - min || 1;
+
+  const stepX = width / (clean.length - 1);
+
+  const pts = clean.map((v, i) => {
+    const x = i * stepX;
+    const y = height - ((v - min) / range) * height;
+    return { x, y };
+  });
+
+  const d = pts
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(" ");
+
+  return (
+    <Svg width={width} height={height}>
+      <Path d={d} stroke="#0F172A" strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+    </Svg>
+  );
+};
+
+// =====================
+// RANGE SELECTOR
+// =====================
+type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
+
+const rangeToDays: Record<RangeKey, number> = {
+  "1M": 30,
+  "3M": 90,
+  "6M": 180,
+  "1Y": 365,
+  // Ojo: si tu backend hace clamp a 365, "ALL" será equivalente a 1Y.
+  // Si quieres "TOTAL" real, sube el clamp en backend o añade soporte range=all.
+  ALL: 365,
+};
+
+const rangeLabel: Record<RangeKey, string> = {
+  "1M": "Último mes",
+  "3M": "Últimos 3 meses",
+  "6M": "Últimos 6 meses",
+  "1Y": "Último año",
+  ALL: "Total",
+};
+
 export default function InvestmentsHomeScreen({ navigation }: any) {
   const [summary, setSummary] = useState<SummaryFromApi | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [timeline, setTimeline] = useState<PortfolioTimelinePoint[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
+  const [range, setRange] = useState<RangeKey>("ALL");
 
   const fetchSummary = async () => {
     try {
@@ -109,10 +288,25 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const fetchTimeline = async (rk: RangeKey) => {
+    try {
+      setTimelineLoading(true);
+      const days = rangeToDays[rk];
+      const res = await api.get(`/investments/timeline?days=${days}`);
+      setTimeline(res.data?.points || []);
+    } catch (err) {
+      console.error("❌ Error al obtener investments timeline:", err);
+      setTimeline([]);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchSummary();
-    }, [])
+      fetchTimeline(range);
+    }, [range])
   );
 
   const currency = useMemo(() => "EUR", []);
@@ -123,7 +317,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const totalPnL = summary?.totalPnL || 0;
     const pct = totalInvested ? (totalPnL / totalInvested) * 100 : 0;
 
-    // última valoración global (max de lastValuationDate)
     const lastGlobal =
       (summary?.assets || [])
         .map((a) => a.lastValuationDate)
@@ -149,8 +342,48 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     });
   }, [summary]);
 
-  // Badge total PnL
   const totalBadge = useMemo(() => pnlBadge(hero.totalPnL), [hero.totalPnL]);
+
+  const allocation = useMemo(() => {
+    const list = assets || [];
+    const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
+    if (!total) return { total: 0, slices: [] as DonutSlice[] };
+
+    const slices = list
+      .map((a, idx) => {
+        const value = a.currentValue || 0;
+        const pct = value / total;
+
+        return {
+          id: a.id,
+          label: a.name,
+          value,
+          pct,
+          color: palette[idx % palette.length],
+        };
+      })
+      .filter((s) => s.pct > 0);
+
+    return { total, slices };
+  }, [assets]);
+
+  const timelineValues = useMemo(
+    () => (timeline || []).map((p) => p.totalCurrentValue || 0),
+    [timeline]
+  );
+
+  const timelineMeta = useMemo(() => {
+    if (!timelineValues.length) return { first: 0, last: 0, diff: 0, pct: 0 };
+
+    const first = timelineValues[0] || 0;
+    const last = timelineValues[timelineValues.length - 1] || 0;
+    const diff = last - first;
+    const pct = first ? (diff / first) * 100 : 0;
+
+    return { first, last, diff, pct };
+  }, [timelineValues]);
+
+  const rangeKeys: RangeKey[] = ["1M", "3M", "6M", "1Y", "ALL"];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -159,7 +392,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
       </View>
 
-      {/* HERO (mejor organizado) */}
+      {/* HERO */}
       <View className="px-5 mb-2">
         <View
           style={{
@@ -173,7 +406,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             shadowOffset: { width: 0, height: 4 },
           }}
         >
-          {/* top row: título + chip pnl */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               <View
@@ -190,9 +422,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               </View>
 
               <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>
-                  Resumen
-                </Text>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>Resumen</Text>
                 <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
                   {hero.count} {hero.count === 1 ? "asset" : "assets"}
                   {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
@@ -217,7 +447,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* main number: valor actual */}
           <View style={{ marginTop: 12 }}>
             <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
               Valor actual total
@@ -227,7 +456,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             </Text>
           </View>
 
-          {/* secondary metrics grid */}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
             <View
               style={{
@@ -267,14 +495,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               </Text>
             </View>
           </View>
-
-          {/* hint row */}
-          <View style={{ marginTop: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons name="information-circle-outline" size={14} color="rgba(255,255,255,0.75)" />
-            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
-              El valor actual depende de tus registros guardados.
-            </Text>
-          </View>
         </View>
       </View>
 
@@ -309,7 +529,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   shadowOffset: { width: 0, height: 2 },
                 }}
               >
-                {/* HEADER */}
                 <View className="flex-row justify-between items-center mb-2">
                   <View className="flex-row items-center flex-1 pr-2">
                     <View
@@ -320,9 +539,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     </View>
 
                     <View className="flex-1">
-                      <Text className="text-[15px] font-semibold text-gray-900">
-                        {a.name}
-                      </Text>
+                      <Text className="text-[15px] font-semibold text-gray-900">{a.name}</Text>
 
                       <View className="flex-row items-center mt-0.5">
                         <Ionicons name="pricetag-outline" size={12} color="#9CA3AF" />
@@ -341,7 +558,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   </View>
                 </View>
 
-                {/* FOOTER */}
                 <View className="flex-row justify-between items-center mt-1">
                   <View className="flex-row items-center">
                     <Ionicons name="stats-chart-outline" size={13} color="#9CA3AF" />
@@ -356,21 +572,111 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     </Text>
                   </View>
                 </View>
-
-                <View className="flex-row justify-between items-center mt-2">
-                  <View className="flex-row items-center">
-                    <Ionicons name="calendar-outline" size={13} color="#9CA3AF" />
-                    <Text className="text-[11px] text-gray-500 ml-1">
-                      Último valor:{" "}
-                      {a.lastValuationDate ? formatShortDate(a.lastValuationDate) : "Sin datos"}
-                    </Text>
-                  </View>
-
-                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                </View>
               </TouchableOpacity>
             );
           })
+        )}
+
+        {/* DONUT: distribución por activo */}
+        {!loading && assets.length > 0 && allocation.slices.length > 0 && (
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 24,
+              padding: 14,
+              marginTop: 6,
+              marginBottom: 10,
+              shadowColor: "#000",
+              shadowOpacity: 0.04,
+              shadowRadius: 5,
+              shadowOffset: { width: 0, height: 2 },
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>
+                  Distribución por activo
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 2 }}>
+                  Basado en valor actual
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: "#F1F5F9",
+                  borderWidth: 1,
+                  borderColor: "#E2E8F0",
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "900", color: "#0F172A" }}>
+                  {formatMoney(allocation.total, currency)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", marginTop: 12, gap: 14, alignItems: "center" }}>
+              <DonutChart
+                slices={allocation.slices}
+                size={168}
+                strokeWidth={22}
+                centerLabel={`${allocation.slices.length}`}
+                centerSubLabel={allocation.slices.length === 1 ? "asset" : "assets"}
+              />
+
+              <View style={{ flex: 1 }}>
+                {allocation.slices.slice(0, 6).map((s) => (
+                  <View
+                    key={s.id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingVertical: 6,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#F1F5F9",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 8 }}>
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 6,
+                          backgroundColor: s.color,
+                          marginRight: 8,
+                        }}
+                      />
+                      <View style={{ flex: 1, maxWidth: 150 }}>
+                        <Text
+                          style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {s.label}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                      {(s.pct * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                ))}
+
+                {allocation.slices.length > 6 && (
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 8 }}>
+                    +{allocation.slices.length - 6} más…
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
         )}
 
         {/* CTA doble */}
