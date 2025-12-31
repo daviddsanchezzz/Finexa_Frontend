@@ -1,5 +1,5 @@
 // src/screens/Investments/InvestmentsHomeScreen.tsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -14,8 +15,7 @@ import AppHeader from "../../../components/AppHeader";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 
-// ✅ SVG: Donut + Sparkline
-import Svg, { G, Circle, Path } from "react-native-svg";
+import Svg, { G, Path, Circle } from "react-native-svg";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
@@ -43,8 +43,36 @@ type PortfolioTimelinePoint = {
   totalCurrentValue: number;
 };
 
+const assetTypeIcon = (type: InvestmentAssetType) => {
+  switch (type) {
+    case "crypto":
+      return "logo-bitcoin";
+    case "stock":
+      return "trending-up-outline";
+    case "etf":
+      return "layers-outline";
+    case "fund":
+      return "pie-chart-outline";
+    default:
+      return "briefcase-outline";
+  }
+};
+
+const palette = [
+  "#2563EB",
+  "#16A34A",
+  "#F59E0B",
+  "#DC2626",
+  "#7C3AED",
+  "#0EA5E9",
+  "#10B981",
+  "#F97316",
+  "#EC4899",
+  "#64748B",
+];
+
 const formatMoney = (n: number, currency = "EUR") =>
-  n.toLocaleString("es-ES", {
+  (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -102,7 +130,20 @@ const formatShortDate = (iso: string) =>
   });
 
 // =====================
-// DONUT
+// RANGE SELECTOR (timeline)
+// =====================
+type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
+
+const rangeToDays: Record<RangeKey, number> = {
+  "1M": 30,
+  "3M": 90,
+  "6M": 180,
+  "1Y": 365,
+  ALL: 365,
+};
+
+// =====================
+// DONUT PRO (recto, sin gaps, centro solo cantidad)
 // =====================
 type DonutSlice = {
   id: number;
@@ -112,71 +153,78 @@ type DonutSlice = {
   color: string;
 };
 
-const palette = [
-  "#2563EB",
-  "#16A34A",
-  "#F59E0B",
-  "#DC2626",
-  "#7C3AED",
-  "#0EA5E9",
-  "#10B981",
-  "#F97316",
-  "#EC4899",
-  "#64748B",
-];
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+const deg2rad = (d: number) => (d * Math.PI) / 180;
 
-const DonutChart = ({
+const polarToCartesian = (cx: number, cy: number, r: number, angleDeg: number) => {
+  const a = deg2rad(angleDeg);
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+};
+
+const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
+  const start = polarToCartesian(cx, cy, r, startAngle);
+  const end = polarToCartesian(cx, cy, r, endAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(
+    2
+  )} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+};
+
+const DonutPro = ({
   slices,
-  size = 164,
-  strokeWidth = 22,
-  centerLabel,
-  centerSubLabel,
+  size,
+  strokeWidth,
+  selectedId,
+  onSelect,
+  centerValueText,
 }: {
   slices: DonutSlice[];
-  size?: number;
-  strokeWidth?: number;
-  centerLabel?: string;
-  centerSubLabel?: string;
+  size: number;
+  strokeWidth: number;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  centerValueText: string;
 }) => {
-  const radius = (size - strokeWidth) / 2;
   const cx = size / 2;
   const cy = size / 2;
-  const circumference = 2 * Math.PI * radius;
+  const r = (size - strokeWidth) / 2;
 
-  let acc = 0;
+  const startAt = -90;
+  let accDeg = 0;
 
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        <G rotation={-90} origin={`${cx}, ${cy}`}>
-          <Circle
-            cx={cx}
-            cy={cy}
-            r={radius}
-            stroke="#E5E7EB"
-            strokeWidth={strokeWidth}
-            fill="transparent"
-          />
+        <Circle cx={cx} cy={cy} r={r} stroke="#E2E8F0" strokeWidth={strokeWidth} fill="transparent" />
 
+        <G>
           {slices.map((s) => {
-            const dash = s.pct * circumference;
-            const gap = circumference - dash;
-            const dashoffset = circumference * (1 - acc);
+            const pct = clamp01(s.pct);
+            const sweep = Math.max(0, pct * 360);
 
-            acc += s.pct;
+            if (sweep <= 0.2) {
+              accDeg += sweep;
+              return null;
+            }
+
+            const segStart = startAt + accDeg;
+            const segEnd = startAt + accDeg + sweep;
+            accDeg += sweep;
+
+            const isSelected = selectedId != null ? s.id === selectedId : false;
+            const dimOthers = selectedId != null;
+            const d = describeArc(cx, cy, r, segStart, segEnd);
 
             return (
-              <Circle
+              <Path
                 key={s.id}
-                cx={cx}
-                cy={cy}
-                r={radius}
+                d={d}
                 stroke={s.color}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                fill="transparent"
-                strokeDasharray={`${dash} ${gap}`}
-                strokeDashoffset={dashoffset}
+                strokeWidth={isSelected ? strokeWidth + 2 : strokeWidth}
+                strokeLinecap="butt"
+                fill="none"
+                opacity={dimOthers ? (isSelected ? 1 : 0.28) : 1}
+                onPress={() => onSelect(s.id)}
               />
             );
           })}
@@ -189,82 +237,24 @@ const DonutChart = ({
           inset: 0,
           alignItems: "center",
           justifyContent: "center",
+          paddingHorizontal: 12,
         }}
       >
-        <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
-          {centerLabel || ""}
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "900",
+            color: "#0F172A",
+            textAlign: "center",
+          }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {centerValueText}
         </Text>
-        {!!centerSubLabel && (
-          <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 2 }}>
-            {centerSubLabel}
-          </Text>
-        )}
       </View>
     </View>
   );
-};
-
-// =====================
-// SPARKLINE (TOTAL TIMELINE)
-// =====================
-const Sparkline = ({
-  values,
-  width = 240,
-  height = 64,
-  strokeWidth = 3,
-}: {
-  values: number[];
-  width?: number;
-  height?: number;
-  strokeWidth?: number;
-}) => {
-  const clean = values.filter((n) => Number.isFinite(n));
-  if (clean.length < 2) return null;
-
-  const min = Math.min(...clean);
-  const max = Math.max(...clean);
-  const range = max - min || 1;
-
-  const stepX = width / (clean.length - 1);
-
-  const pts = clean.map((v, i) => {
-    const x = i * stepX;
-    const y = height - ((v - min) / range) * height;
-    return { x, y };
-  });
-
-  const d = pts
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(" ");
-
-  return (
-    <Svg width={width} height={height}>
-      <Path d={d} stroke="#0F172A" strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
-    </Svg>
-  );
-};
-
-// =====================
-// RANGE SELECTOR
-// =====================
-type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
-
-const rangeToDays: Record<RangeKey, number> = {
-  "1M": 30,
-  "3M": 90,
-  "6M": 180,
-  "1Y": 365,
-  // Ojo: si tu backend hace clamp a 365, "ALL" será equivalente a 1Y.
-  // Si quieres "TOTAL" real, sube el clamp en backend o añade soporte range=all.
-  ALL: 365,
-};
-
-const rangeLabel: Record<RangeKey, string> = {
-  "1M": "Último mes",
-  "3M": "Últimos 3 meses",
-  "6M": "Últimos 6 meses",
-  "1Y": "Último año",
-  ALL: "Total",
 };
 
 export default function InvestmentsHomeScreen({ navigation }: any) {
@@ -275,6 +265,18 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   const [range, setRange] = useState<RangeKey>("ALL");
+  const [selectedSliceId, setSelectedSliceId] = useState<number | null>(null);
+
+  const { width: SCREEN_W } = useWindowDimensions();
+
+  // ✅ Donut centrado y más contenido vertical disponible (leyenda debajo)
+  const donutSize = useMemo(() => {
+    // al ir centrado, podemos hacerlo algo más grande, pero con límites
+    const target = Math.floor(SCREEN_W * 0.50);
+    return Math.max(132, Math.min(176, target));
+  }, [SCREEN_W]);
+
+  const donutStroke = useMemo(() => Math.max(12, Math.min(16, Math.round(donutSize * 0.10))), [donutSize]);
 
   const fetchSummary = async () => {
     try {
@@ -349,11 +351,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
     if (!total) return { total: 0, slices: [] as DonutSlice[] };
 
-    const slices = list
+    const base = list
       .map((a, idx) => {
         const value = a.currentValue || 0;
         const pct = value / total;
-
         return {
           id: a.id,
           label: a.name,
@@ -362,32 +363,44 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           color: palette[idx % palette.length],
         };
       })
-      .filter((s) => s.pct > 0);
+      .filter((s) => s.pct > 0)
+      .sort((a, b) => b.value - a.value);
 
-    return { total, slices };
+    const MIN_PCT = 0.03; // 3%
+    const big = base.filter((s) => s.pct >= MIN_PCT);
+    const small = base.filter((s) => s.pct < MIN_PCT);
+
+    if (small.length >= 2) {
+      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
+      const otherPct = otherValue / total;
+      big.push({
+        id: -1,
+        label: "Otros",
+        value: otherValue,
+        pct: otherPct,
+        color: "#94A3B8",
+      });
+    } else {
+      big.push(...small);
+    }
+
+    return { total, slices: big };
   }, [assets]);
 
-  const timelineValues = useMemo(
-    () => (timeline || []).map((p) => p.totalCurrentValue || 0),
-    [timeline]
-  );
+  const selectedSlice = useMemo(() => {
+    if (!allocation.slices.length) return null;
+    const found = allocation.slices.find((s) => s.id === selectedSliceId);
+    return found || allocation.slices[0];
+  }, [allocation.slices, selectedSliceId]);
 
-  const timelineMeta = useMemo(() => {
-    if (!timelineValues.length) return { first: 0, last: 0, diff: 0, pct: 0 };
-
-    const first = timelineValues[0] || 0;
-    const last = timelineValues[timelineValues.length - 1] || 0;
-    const diff = last - first;
-    const pct = first ? (diff / first) * 100 : 0;
-
-    return { first, last, diff, pct };
-  }, [timelineValues]);
-
-  const rangeKeys: RangeKey[] = ["1M", "3M", "6M", "1Y", "ALL"];
+  useEffect(() => {
+    if (!selectedSliceId) return;
+    const exists = allocation.slices.some((s) => s.id === selectedSliceId);
+    if (!exists) setSelectedSliceId(null);
+  }, [allocation.slices, selectedSliceId]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* HEADER */}
       <View className="px-5 pb-3">
         <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
       </View>
@@ -498,77 +511,62 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* LISTA */}
-      <ScrollView
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
+      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : assets.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-16 text-sm">
-            Aún no tienes assets. Crea uno para empezar.
-          </Text>
+          <Text className="text-center text-gray-400 mt-16 text-sm">Aún no tienes assets. Crea uno para empezar.</Text>
         ) : (
           assets.map((a) => {
+            const pctText = formatPct(a.pnl || 0, a.invested || 0);
             const badge = pnlBadge(a.pnl);
 
             return (
               <TouchableOpacity
                 key={a.id}
-                activeOpacity={0.9}
+                activeOpacity={0.85}
                 onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
-                className="rounded-3xl mb-3"
                 style={{
                   backgroundColor: "white",
-                  padding: 14,
-                  shadowColor: "#000",
-                  shadowOpacity: 0.04,
-                  shadowRadius: 5,
-                  shadowOffset: { width: 0, height: 2 },
+                  borderRadius: 18,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  marginBottom: 8,
+                  borderWidth: 1,
+                  borderColor: "#EEF2F7",
                 }}
               >
-                <View className="flex-row justify-between items-center mb-2">
-                  <View className="flex-row items-center flex-1 pr-2">
-                    <View
-                      className="w-9 h-9 rounded-2xl items-center justify-center mr-2"
-                      style={{ backgroundColor: "#F3F4F6" }}
-                    >
-                      <Ionicons name={badge.icon} size={18} color={badge.color} />
-                    </View>
-
-                    <View className="flex-1">
-                      <Text className="text-[15px] font-semibold text-gray-900">{a.name}</Text>
-
-                      <View className="flex-row items-center mt-0.5">
-                        <Ionicons name="pricetag-outline" size={12} color="#9CA3AF" />
-                        <Text className="text-[11px] text-gray-500 ml-1">
-                          {typeLabel(a.type)} · Invertido {formatMoney(a.invested || 0, currency)}
-                        </Text>
-                      </View>
-                    </View>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 12,
+                      backgroundColor: "#F1F5F9",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 10,
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                    }}
+                  >
+                    <Ionicons name={assetTypeIcon(a.type)} size={16} color="#64748B" />
                   </View>
 
-                  <View className="items-end">
-                    <Text className="text-[11px] text-gray-400">Valor</Text>
-                    <Text className="text-[15px] font-semibold text-gray-900">
-                      {formatMoney(a.currentValue || 0, currency)}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", lineHeight: 18 }} numberOfLines={2}>
+                      {a.name}
                     </Text>
-                  </View>
-                </View>
 
-                <View className="flex-row justify-between items-center mt-1">
-                  <View className="flex-row items-center">
-                    <Ionicons name="stats-chart-outline" size={13} color="#9CA3AF" />
-                    <Text className="text-[11px] text-gray-500 ml-1">
-                      {formatMoney(a.pnl || 0, currency)} ({formatPct(a.pnl || 0, a.invested || 0)})
+                    <Text style={{ fontSize: 11, color: "#64748B", fontWeight: "600", marginTop: 2 }}>
+                      {typeLabel(a.type)} · {formatMoney(a.currentValue || 0, currency)}
                     </Text>
                   </View>
 
-                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: badge.bg }}>
-                    <Text className="text-[10px] font-semibold" style={{ color: badge.color }}>
-                      {badge.label}
+                  <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "700", color: badge.color }}>{pctText}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
+                      {formatMoney(a.pnl || 0, currency)}
                     </Text>
                   </View>
                 </View>
@@ -577,7 +575,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           })
         )}
 
-        {/* DONUT: distribución por activo */}
+        {/* DONUT + LEYENDA DEBAJO */}
         {!loading && assets.length > 0 && allocation.slices.length > 0 && (
           <View
             style={{
@@ -594,55 +592,54 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               borderColor: "#E5E7EB",
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
               <View>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>
-                  Distribución por activo
-                </Text>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 2 }}>
-                  Basado en valor actual
-                </Text>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Distribución por activo</Text>
               </View>
 
-              <View
-                style={{
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 999,
-                  backgroundColor: "#F1F5F9",
-                  borderWidth: 1,
-                  borderColor: "#E2E8F0",
-                }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: "900", color: "#0F172A" }}>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8" }}>Total</Text>
+                <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
                   {formatMoney(allocation.total, currency)}
                 </Text>
               </View>
             </View>
 
-            <View style={{ flexDirection: "row", marginTop: 12, gap: 14, alignItems: "center" }}>
-              <DonutChart
+            {/* Donut centrado */}
+            <View style={{ alignItems: "center", marginTop: 14 }}>
+              <DonutPro
                 slices={allocation.slices}
-                size={168}
-                strokeWidth={22}
-                centerLabel={`${allocation.slices.length}`}
-                centerSubLabel={allocation.slices.length === 1 ? "asset" : "assets"}
+                size={donutSize}
+                strokeWidth={donutStroke}
+                selectedId={selectedSlice?.id ?? null}
+                onSelect={(id) => setSelectedSliceId((prev) => (prev === id ? null : id))}
+                centerValueText={
+                  selectedSlice ? formatMoney(selectedSlice.value, currency) : formatMoney(allocation.total, currency)
+                }
               />
+            </View>
 
-              <View style={{ flex: 1 }}>
-                {allocation.slices.slice(0, 6).map((s) => (
-                  <View
+            {/* Leyenda debajo (premium, 2 columnas si quieres) */}
+            <View style={{ marginTop: 12 }}>
+              {allocation.slices.slice(0, 8).map((s) => {
+                const isActive = (selectedSlice?.id ?? null) === s.id;
+
+                return (
+                  <TouchableOpacity
                     key={s.id}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedSliceId((prev) => (prev === s.id ? null : s.id))}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      paddingVertical: 6,
+                      paddingVertical: 10,
                       borderBottomWidth: 1,
                       borderBottomColor: "#F1F5F9",
+                      opacity: selectedSliceId != null ? (isActive ? 1 : 0.55) : 1,
                     }}
                   >
-                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
                       <View
                         style={{
                           width: 10,
@@ -652,34 +649,38 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                           marginRight: 8,
                         }}
                       />
-                      <View style={{ flex: 1, maxWidth: 150 }}>
-                        <Text
-                          style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {s.label}
-                        </Text>
-                      </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: isActive ? "900" : "800",
+                          color: "#0F172A",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {s.label}
+                      </Text>
                     </View>
 
-                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
-                      {(s.pct * 100).toFixed(1)}%
-                    </Text>
-                  </View>
-                ))}
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                        {(s.pct * 100).toFixed(1)}%
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
 
-                {allocation.slices.length > 6 && (
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 8 }}>
-                    +{allocation.slices.length - 6} más…
-                  </Text>
-                )}
-              </View>
+              {allocation.slices.length > 8 && (
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 10 }}>
+                  +{allocation.slices.length - 8} más…
+                </Text>
+              )}
             </View>
           </View>
         )}
 
-        {/* CTA doble */}
+        {/* CTA */}
         <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
           <TouchableOpacity
             onPress={() => navigation.navigate("InvestmentForm")}
@@ -723,6 +724,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {timelineLoading ? <View style={{ height: 10 }} /> : null}
       </ScrollView>
     </SafeAreaView>
   );
