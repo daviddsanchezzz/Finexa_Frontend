@@ -15,13 +15,16 @@ interface Props {
   transactions: any[];
   onDeleted?: () => void;
   navigation: any;
+  backgroundColor?: string;
 }
 
 export default function TransactionsList({
   transactions,
   onDeleted,
   navigation,
+  backgroundColor,
 }: Props) {
+  const bg = backgroundColor ?? colors.background;
   const [selectedTx, setSelectedTx] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
   const isRecurringOccurrence = (tx: any) => !!tx?.parentId; // instancia generada
@@ -287,15 +290,16 @@ export default function TransactionsList({
                     renderLeftActions={() => renderLeftActions(tx)}
                     overshootRight={false}
                     overshootLeft={false}
-                    containerStyle={{ backgroundColor: colors.background }}
+                    containerStyle={{ backgroundColor: bg }}
                     childrenContainerStyle={{
-                      backgroundColor: colors.background,
+                      backgroundColor: bg,
                     }}
                   >
                     <TouchableOpacity
                       activeOpacity={0.7}
                       onPress={() => openTxModal(tx)}
-                      className="flex-row justify-between items-center py-1.5 px-1.5 bg-background rounded-xl"
+                      style={{ backgroundColor: bg }}
+                      className="flex-row justify-between items-center py-1.5 px-1.5 rounded-xl"
                     >
                       {/* IZQUIERDA */}
                       <View className="flex-row items-center">

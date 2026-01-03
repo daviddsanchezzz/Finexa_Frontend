@@ -1,11 +1,11 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import BottomNav from "../components/BottomTab";
-import HomeScreen from "../screens/home/HomeScreen";
-import StatsScreen from "../screens/stats/StatsScreen";
-import AddScreen from "../screens/addTransaction/AddTransactionScreen";
-import AIChatScreen from "../screens/aiChat/AIChatScreen";
-import FinancesScreen from "../screens/finances/FinancesScreen";
+import HomeScreen from "../screens/Mobile/home/HomeScreen";
+import StatsScreen from "../screens/Mobile/stats/StatsScreen";
+import AddScreen from "../screens/Mobile/addTransaction/AddTransactionScreen";
+import AIChatScreen from "../screens/Mobile/aiChat/AIChatScreen";
+import FinancesScreen from "../screens/Mobile/finances/FinancesScreen";
 
 const Tab = createBottomTabNavigator();
 
