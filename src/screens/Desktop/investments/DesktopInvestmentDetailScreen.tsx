@@ -1,0 +1,938 @@
+// src/screens/Investments/DesktopInvestmentDetailScreen.tsx
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  Dimensions,
+  TouchableOpacity,
+  Pressable,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+
+import api from "../../../api/api";
+import { colors } from "../../../theme/theme"; // ✅ SOLO este colors (quita el de api/api)
+import { textStyles } from "../../../theme/typography";
+
+// ✅ Modales (ya los tienes creados/importables)
+import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
+import DesktopInvestmentValuationModal from "../../../components/DesktopInvestmentValuationModal";
+
+type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
+type RangeKey = "1m" | "3m" | "6m" | "1y" | "all";
+
+interface AssetFromApi {
+  id: number;
+  name: string;
+  description?: string | null;
+  type: InvestmentAssetType;
+  riskType?: InvestmentRiskType | null;
+  currency: string;
+  initialInvested: number;
+  active: boolean;
+  createdAt?: string | null;
+  symbol?: string | null;
+}
+
+interface SeriesPoint {
+  date: string; // ISO
+  value: number;
+  currency?: string;
+}
+
+interface SummaryAssetRow {
+  id: number;
+  invested: number;
+  currentValue: number;
+  pnl: number;
+  lastValuationDate: string | null;
+}
+
+type TransactionFromApi = {
+  id: number;
+  date?: string | null;
+  createdAt?: string | null;
+  amount: number;
+  currency?: string | null;
+  note?: string | null;
+
+  investmentAssetId?: number | null;
+  investment_asset_id?: number | null;
+  investmentAsset?: { id: number } | null;
+
+  type?: string | null;
+  kind?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+};
+
+function formatMoney(n: number, currency = "EUR") {
+  const v = Number.isFinite(n) ? n : 0;
+  return v.toLocaleString("es-ES", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+function formatPct(pnl: number, invested: number) {
+  if (!invested) return "0,0%";
+  return `${((pnl / invested) * 100).toFixed(1).replace(".", ",")}%`;
+}
+function parseISO(iso: string) {
+  return new Date(iso).getTime();
+}
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+function formatMonthShort(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
+}
+function formatDayShort(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" });
+}
+function rangeDays(k: RangeKey) {
+  switch (k) {
+    case "1m":
+      return 30;
+    case "3m":
+      return 90;
+    case "6m":
+      return 180;
+    case "1y":
+      return 365;
+    default:
+      return null;
+  }
+}
+function pnlTone(pnl: number) {
+  if (pnl > 0) return "success";
+  if (pnl < 0) return "danger";
+  return "neutral";
+}
+const typeLabel = (t: InvestmentAssetType) => {
+  switch (t) {
+    case "crypto":
+      return "Crypto";
+    case "etf":
+      return "ETF";
+    case "stock":
+      return "Acción";
+    case "fund":
+      return "Fondo";
+    default:
+      return "Otro";
+  }
+};
+const typeIcon = (t: InvestmentAssetType) => {
+  switch (t) {
+    case "crypto":
+      return "logo-bitcoin";
+    case "stock":
+      return "trending-up-outline";
+    case "etf":
+      return "layers-outline";
+    case "fund":
+      return "pie-chart-outline";
+    default:
+      return "briefcase-outline";
+  }
+};
+
+function useUiScale() {
+  const { width } = Dimensions.get("window");
+  const s = useMemo(() => {
+    const raw = width / 1440;
+    return Math.max(0.86, Math.min(1.08, raw));
+  }, [width]);
+  const px = useCallback((n: number) => Math.round(n * s), [s]);
+  const fs = useCallback((n: number) => Math.round(n * s), [s]);
+  return { s, px, fs, width };
+}
+
+function SectionCard({
+  title,
+  right,
+  children,
+  noPadding,
+  px,
+  fs,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  noPadding?: boolean;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: "white",
+        borderRadius: px(12),
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        padding: noPadding ? 0 : px(16),
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOpacity: 0.03,
+        shadowRadius: px(10),
+        shadowOffset: { width: 0, height: px(6) },
+      }}
+    >
+      <View
+        style={{
+          paddingHorizontal: noPadding ? px(16) : 0,
+          paddingTop: noPadding ? px(16) : 0,
+          paddingBottom: px(10),
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: px(10),
+        }}
+      >
+        <Text style={[textStyles.labelMuted, { fontSize: fs(12) }]}>{title}</Text>
+        {!!right && <View>{right}</View>}
+      </View>
+
+      <View style={{ paddingHorizontal: noPadding ? px(16) : 0, paddingBottom: noPadding ? px(16) : 0 }}>{children}</View>
+    </View>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  icon,
+  tone = "neutral",
+  subtitle,
+  px,
+  fs,
+}: {
+  title: string;
+  value: string;
+  subtitle?: React.ReactNode;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone?: "neutral" | "success" | "danger" | "info";
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  const paletteTone = {
+    neutral: { accent: "#000000", iconBg: "#F1F5F9", iconFg: "#000000", title: "#94A3B8" },
+    info: { accent: "#3B82F6", iconBg: "rgba(59,130,246,0.12)", iconFg: "#2563EB", title: "#94A3B8" },
+    success: { accent: "#22C55E", iconBg: "rgba(34,197,94,0.12)", iconFg: "#16A34A", title: "#94A3B8" },
+    danger: { accent: "#EF4444", iconBg: "rgba(239,68,68,0.12)", iconFg: "#DC2626", title: "#94A3B8" },
+  }[tone];
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        minWidth: px(230),
+        backgroundColor: "white",
+        borderRadius: px(12),
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOpacity: 0.04,
+        shadowRadius: px(12),
+        shadowOffset: { width: 0, height: px(6) },
+      }}
+    >
+      <View style={{ flexDirection: "row", flex: 1 }}>
+        <View style={{ width: px(4), backgroundColor: paletteTone.accent }} />
+        <View style={{ flex: 1, padding: px(16) }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: px(10) }}>
+            <Text style={[textStyles.labelMuted, { fontSize: fs(11), color: paletteTone.title, letterSpacing: 0.6 }]} numberOfLines={1}>
+              {title}
+            </Text>
+            <View style={{ width: px(34), height: px(34), borderRadius: px(10), alignItems: "center", justifyContent: "center", backgroundColor: paletteTone.iconBg }}>
+              <Ionicons name={icon} size={px(18)} color={paletteTone.iconFg} />
+            </View>
+          </View>
+
+          <Text style={[textStyles.numberLG, { marginTop: px(12), fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]} numberOfLines={1}>
+            {value}
+          </Text>
+
+          {!!subtitle && <View style={{ marginTop: px(6) }}>{subtitle}</View>}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function TopButton({
+  icon,
+  label,
+  onPress,
+  px,
+  fs,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label?: string;
+  onPress: () => void;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  const [hover, setHover] = useState(false);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onHoverIn={Platform.OS === "web" ? () => setHover(true) : undefined}
+      onHoverOut={Platform.OS === "web" ? () => setHover(false) : undefined}
+      style={{
+        height: px(38),
+        paddingHorizontal: label ? px(12) : 0,
+        width: label ? undefined : px(38),
+        borderRadius: px(10),
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        backgroundColor: hover ? "#F8FAFC" : "white",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: label ? px(8) : 0,
+      }}
+    >
+      <Ionicons name={icon} size={px(18)} color="#64748B" />
+      {!!label && <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "800", color: "#64748B" }]}>{label}</Text>}
+    </Pressable>
+  );
+}
+
+function SegmentedRange({
+  value,
+  onChange,
+  px,
+  fs,
+}: {
+  value: RangeKey;
+  onChange: (v: RangeKey) => void;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  const items: Array<{ key: RangeKey; label: string }> = [
+    { key: "1m", label: "1M" },
+    { key: "3m", label: "3M" },
+    { key: "6m", label: "6M" },
+    { key: "1y", label: "1Y" },
+    { key: "all", label: "Todo" },
+  ];
+
+  return (
+    <View style={{ flexDirection: "row", backgroundColor: "rgba(15,23,42,0.06)", padding: px(4), borderRadius: px(12), height: px(44) }}>
+      {items.map((x) => {
+        const active = value === x.key;
+        return (
+          <TouchableOpacity
+            key={x.key}
+            activeOpacity={0.9}
+            onPress={() => onChange(x.key)}
+            style={{
+              paddingHorizontal: px(14),
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: px(10),
+              backgroundColor: active ? "rgba(15,23,42,0.10)" : "transparent",
+            }}
+          >
+            <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: active ? "900" : "800", color: active ? "#0F172A" : "#64748B" }]}>{x.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+/** ===== Chart ===== */
+function buildPath(points: { x: number; y: number }[]) {
+  if (!points.length) return "";
+  return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
+}
+
+function SparkLine({ series, height }: { series: SeriesPoint[]; height: number }) {
+  const pts = series;
+  const W = 1000;
+  const H = 300;
+  const padX = 28;
+  const padY = 22;
+
+  const values = pts.map((p) => Number(p.value || 0));
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const span = maxV - minV || 1;
+
+  const step = pts.length <= 1 ? 0 : (W - padX * 2) / (pts.length - 1);
+
+  const mapped = pts.map((p, i) => {
+    const x = padX + i * step;
+    const t = (Number(p.value || 0) - minV) / span;
+    const y = padY + (1 - t) * (H - padY * 2);
+    return { x, y };
+  });
+
+  const path = buildPath(mapped);
+  const areaPath =
+    mapped.length >= 2
+      ? `${path} L ${mapped[mapped.length - 1].x.toFixed(2)} ${(H - padY).toFixed(2)} L ${mapped[0].x.toFixed(2)} ${(H - padY).toFixed(2)} Z`
+      : "";
+
+  const last = mapped[mapped.length - 1];
+
+  return (
+    <View style={{ width: "100%", height }}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          <LinearGradient id="areaGradDesktop" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={colors.primary} stopOpacity="0.18" />
+            <Stop offset="1" stopColor={colors.primary} stopOpacity="0.02" />
+          </LinearGradient>
+        </Defs>
+
+        <Path d={`M ${padX} ${padY} L ${W - padX} ${padY}`} stroke="#EEF2F7" strokeWidth="2" />
+        <Path
+          d={`M ${padX} ${(padY + (H - padY * 2) * 0.5).toFixed(2)} L ${W - padX} ${(padY + (H - padY * 2) * 0.5).toFixed(2)}`}
+          stroke="#EEF2F7"
+          strokeWidth="2"
+        />
+        <Path d={`M ${padX} ${H - padY} L ${W - padX} ${H - padY}`} stroke="#EEF2F7" strokeWidth="2" />
+
+        {areaPath ? <Path d={areaPath} fill="url(#areaGradDesktop)" /> : null}
+        <Path d={path} stroke={colors.primary} strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+        {last ? (
+          <>
+            <Circle cx={last.x} cy={last.y} r="7" fill={colors.primary} />
+            <Circle cx={last.x} cy={last.y} r="12" fill={colors.primary} opacity="0.12" />
+          </>
+        ) : null}
+      </Svg>
+    </View>
+  );
+}
+
+/** ===== List Panel (2-column bottom) ===== */
+function PanelTable({
+  title,
+  leftHeader,
+  rightHeader,
+  rows,
+  emptyText,
+  px,
+  fs,
+}: {
+  title: string;
+  leftHeader: string;
+  rightHeader: string;
+  rows: Array<{ id: string; left: string; right: string; rightTone?: "neutral" | "success" | "danger" }>;
+  emptyText: string;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  const toneColor = (t?: "neutral" | "success" | "danger") => {
+    if (t === "success") return "#16A34A";
+    if (t === "danger") return "#DC2626";
+    return "#0F172A";
+  };
+
+  const bodyH = px(380);
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "white",
+        borderRadius: px(12),
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOpacity: 0.03,
+        shadowRadius: px(10),
+        shadowOffset: { width: 0, height: px(6) },
+      }}
+    >
+      <View style={{ padding: px(16), paddingBottom: px(10), flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={[textStyles.labelMuted, { fontSize: fs(12) }]}>{title}</Text>
+      </View>
+
+      <View
+        style={{
+          flexDirection: "row",
+          backgroundColor: "#F8FAFC",
+          borderTopWidth: 1,
+          borderTopColor: "#E5E7EB",
+          borderBottomWidth: 1,
+          borderBottomColor: "#E5E7EB",
+          paddingHorizontal: px(16),
+          paddingVertical: px(10),
+        }}
+      >
+        <Text style={[textStyles.labelMuted, { flex: 1.2, fontSize: fs(11) }]} numberOfLines={1}>
+          {leftHeader}
+        </Text>
+        <Text style={[textStyles.labelMuted, { flex: 1, fontSize: fs(11), textAlign: "right" }]} numberOfLines={1}>
+          {rightHeader}
+        </Text>
+      </View>
+
+      <ScrollView style={{ height: bodyH }} showsVerticalScrollIndicator={true}>
+        {rows.length === 0 ? (
+          <View style={{ padding: px(16) }}>
+            <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>{emptyText}</Text>
+          </View>
+        ) : (
+          rows.map((r, idx) => (
+            <View
+              key={r.id}
+              style={{
+                flexDirection: "row",
+                paddingHorizontal: px(16),
+                paddingVertical: px(12),
+                borderBottomWidth: 1,
+                borderBottomColor: "#E5E7EB",
+                backgroundColor: idx % 2 === 0 ? "white" : "#FCFCFD",
+              }}
+            >
+              <Text style={[textStyles.body, { flex: 1.2, fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]} numberOfLines={1}>
+                {r.left}
+              </Text>
+              <Text
+                style={[
+                  textStyles.number,
+                  {
+                    flex: 1,
+                    fontSize: fs(12),
+                    fontWeight: "900",
+                    color: toneColor(r.rightTone),
+                    textAlign: "right",
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {r.right}
+              </Text>
+            </View>
+          ))
+        )}
+
+      </ScrollView>
+    </View>
+  );
+}
+
+/** ===== Contributions helpers ===== */
+function matchesAsset(tx: TransactionFromApi, assetId: number) {
+  const a = tx.investmentAssetId ?? tx.investment_asset_id ?? tx.investmentAsset?.id ?? null;
+  return Number(a) === Number(assetId);
+}
+function looksLikeContribution(tx: TransactionFromApi) {
+  const hay = `${tx.type ?? ""} ${tx.kind ?? ""} ${tx.category ?? ""} ${tx.subcategory ?? ""}`.toLowerCase();
+  if (!hay.trim()) return true;
+  return hay.includes("aport") || hay.includes("contrib") || hay.includes("investment") || hay.includes("inversion") || hay.includes("transfer");
+}
+function txIso(tx: TransactionFromApi) {
+  return tx.date || tx.createdAt || "";
+}
+
+export default function DesktopInvestmentDetailScreen({ navigation }: any) {
+  const route = useRoute<any>();
+  const assetId: number | undefined = route?.params?.assetId;
+
+  const { px, fs, width } = useUiScale();
+  const WIDE = width >= 1100;
+  const CHART_H = px(280);
+
+  const [loading, setLoading] = useState(true);
+
+  const [asset, setAsset] = useState<AssetFromApi | null>(null);
+  const [summaryRow, setSummaryRow] = useState<SummaryAssetRow | null>(null);
+  const [series, setSeries] = useState<SeriesPoint[]>([]);
+  const [transactions, setTransactions] = useState<TransactionFromApi[]>([]);
+  const [range, setRange] = useState<RangeKey>("3m");
+
+  // ✅ modales
+  const [editOpen, setEditOpen] = useState(false);
+  const [valuationOpen, setValuationOpen] = useState(false);
+
+  const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
+
+  const fetchAll = useCallback(async () => {
+    if (!assetId) return;
+
+    try {
+      setLoading(true);
+
+      const aRes = await api.get(`/investments/assets/${assetId}`);
+      setAsset(aRes.data || null);
+
+      const sRes = await api.get(`/investments/summary`);
+      const row = (sRes.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
+      setSummaryRow(row);
+
+      const serRes = await api.get(`/investments/assets/${assetId}/series`);
+      setSeries(Array.isArray(serRes.data) ? serRes.data : []);
+
+      const tRes = await api.get(`/transactions`, { params: { investmentAssetId: assetId } });
+      setTransactions(Array.isArray(tRes.data) ? tRes.data : []);
+    } catch (e) {
+      console.error("❌ Error cargando DesktopInvestmentDetail:", e);
+      setAsset(null);
+      setSummaryRow(null);
+      setSeries([]);
+      setTransactions([]);
+      navigation?.goBack?.();
+    } finally {
+      setLoading(false);
+    }
+  }, [assetId, navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAll();
+    }, [fetchAll])
+  );
+
+  const sortedSeries = useMemo(
+    () => [...series].filter((p) => !!p?.date).sort((a, b) => parseISO(a.date) - parseISO(b.date)),
+    [series]
+  );
+
+  const filteredSeries = useMemo(() => {
+    if (!sortedSeries.length) return [];
+    if (range === "all") return sortedSeries;
+
+    const days = rangeDays(range);
+    if (!days) return sortedSeries;
+
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const f = sortedSeries.filter((p) => parseISO(p.date) >= cutoff);
+    return f.length >= 4 ? f : sortedSeries.slice(-8);
+  }, [sortedSeries, range]);
+
+  const stats = useMemo(() => {
+    const invested = summaryRow?.invested ?? (asset?.initialInvested ?? 0);
+    const currentValue = summaryRow?.currentValue ?? invested;
+    const pnl = summaryRow?.pnl ?? currentValue - invested;
+
+    const last =
+      summaryRow?.lastValuationDate
+        ? formatShortDate(summaryRow.lastValuationDate)
+        : sortedSeries.length
+        ? formatShortDate(sortedSeries[sortedSeries.length - 1].date)
+        : "Sin datos";
+
+    return { invested, currentValue, pnl, last };
+  }, [asset, summaryRow, sortedSeries]);
+
+  const pnlColor = stats.pnl > 0 ? "#16A34A" : stats.pnl < 0 ? "#DC2626" : "#64748B";
+
+  const headerTitle = asset ? `${asset.name}${asset.symbol ? ` (${String(asset.symbol).toUpperCase()})` : ""}` : "Detalle del activo";
+
+  const valuationsRows = useMemo(() => {
+    const desc = [...sortedSeries].slice().reverse();
+    return desc.map((p, idx) => ({
+      id: `${p.date}-${idx}`,
+      left: formatShortDate(p.date),
+      right: formatMoney(Number(p.value || 0), currency),
+      rightTone: "neutral" as const,
+    }));
+  }, [sortedSeries, currency]);
+
+  const contributionsRows = useMemo(() => {
+    if (!assetId) return [];
+
+    const txRows = [...transactions]
+      .filter((tx) => matchesAsset(tx, assetId))
+      .filter((tx) => looksLikeContribution(tx))
+      .map((tx) => {
+        const iso = txIso(tx);
+        return {
+          id: `tx-${tx.id}`,
+          iso,
+          amount: Number(tx.amount || 0),
+          ccy: tx.currency || currency,
+          note: tx.note || null,
+        };
+      })
+      .filter((x) => !!x.iso)
+      .sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
+
+    const hasInitial = (asset?.initialInvested ?? 0) > 0;
+    const initialIso = asset?.createdAt || (txRows.length ? txRows[txRows.length - 1].iso : new Date().toISOString());
+
+    const initial = hasInitial
+      ? [
+          {
+            id: "initial",
+            iso: initialIso,
+            amount: Number(asset?.initialInvested ?? 0),
+            ccy: currency,
+            note: "Aportación inicial",
+          },
+        ]
+      : [];
+
+    const all = [...initial, ...txRows].sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
+
+    return all.map((x) => ({
+      id: x.id,
+      left: formatShortDate(x.iso),
+      right: formatMoney(x.amount, x.ccy),
+      rightTone: x.amount >= 0 ? ("neutral" as const) : ("danger" as const),
+    }));
+  }, [transactions, assetId, currency, asset?.initialInvested, asset?.createdAt]);
+
+  if (!assetId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background ?? "#F8FAFC", padding: px(22), justifyContent: "center" }}>
+        <Text style={[textStyles.bodyMuted, { fontSize: fs(13), fontWeight: "800", color: "#94A3B8" }]}>Falta assetId en la navegación.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background ?? "#F8FAFC" }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: px(22), paddingTop: px(18), paddingBottom: px(90) }}>
+        {/* Header */}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: px(14) }}>
+          <View style={{ flex: 1, paddingRight: px(12) }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
+              <View
+                style={{
+                  width: px(40),
+                  height: px(40),
+                  borderRadius: px(12),
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  backgroundColor: "white",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name={typeIcon(asset?.type || "custom")} size={px(18)} color="#64748B" />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={[textStyles.h1, { fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]} numberOfLines={2}>
+                  {headerTitle}
+                </Text>
+                <Text style={[textStyles.bodyMuted, { marginTop: px(4), fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
+                  {loading ? "Cargando…" : `Última valoración: ${stats.last}`}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
+            <TopButton icon="arrow-back-outline" label="Volver" onPress={() => navigation.goBack?.()} px={px} fs={fs} />
+            <TopButton icon="create-outline" label="Editar" onPress={() => setEditOpen(true)} px={px} fs={fs} />
+            <TopButton icon="cash-outline" label="Valorar" onPress={() => setValuationOpen(true)} px={px} fs={fs} />
+            <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
+          </View>
+        </View>
+
+        {/* KPI */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
+          <StatCard
+            title="VALOR ACTUAL"
+            value={loading ? "—" : formatMoney(stats.currentValue, currency)}
+            subtitle={
+              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
+                Valor de mercado
+              </Text>
+            }
+            icon="wallet-outline"
+            tone="neutral"
+            px={px}
+            fs={fs}
+          />
+
+          <StatCard
+            title="INVERTIDO"
+            value={loading ? "—" : formatMoney(stats.invested, currency)}
+            subtitle={
+              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
+                Capital aportado
+              </Text>
+            }
+            icon="add-circle-outline"
+            tone="info"
+            px={px}
+            fs={fs}
+          />
+
+          <StatCard
+            title="P/L"
+            value={loading ? "—" : formatMoney(stats.pnl, currency)}
+            subtitle={
+              loading ? null : (
+                <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
+                  <Text style={{ color: pnlColor, fontWeight: "900" }}>{stats.pnl >= 0 ? "Ganancia" : "Pérdida"}</Text>
+                </Text>
+              )
+            }
+            icon="stats-chart-outline"
+            tone={pnlTone(stats.pnl) as any}
+            px={px}
+            fs={fs}
+          />
+
+          <StatCard
+            title="% P/L"
+            value={loading ? "—" : formatPct(stats.pnl, stats.invested)}
+            subtitle={
+              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
+                Rentabilidad
+              </Text>
+            }
+            icon="trending-up-outline"
+            tone={pnlTone(stats.pnl) as any}
+            px={px}
+            fs={fs}
+          />
+        </View>
+
+        <View style={{ marginTop: px(16), gap: px(12) }}>
+          {/* Chart + Info */}
+          <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
+            <View style={{ flex: 1, minWidth: WIDE ? px(680) : undefined }}>
+              <SectionCard title="Evolución" right={<SegmentedRange value={range} onChange={setRange} px={px} fs={fs} />} px={px} fs={fs}>
+                <View style={{ height: CHART_H, justifyContent: "center" }}>
+                  {loading ? (
+                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    </View>
+                  ) : filteredSeries.length < 2 ? (
+                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>
+                        No hay suficientes puntos para dibujar la gráfica (mínimo 2).
+                      </Text>
+                    </View>
+                  ) : (
+                    <SparkLine series={filteredSeries} height={CHART_H} />
+                  )}
+                </View>
+
+                {!loading && filteredSeries.length >= 2 ? (
+                  <View style={{ marginTop: px(10), flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
+                      {range === "1m" ? formatDayShort(filteredSeries[0].date) : formatMonthShort(filteredSeries[0].date)}
+                    </Text>
+                    <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
+                      {range === "1m"
+                        ? formatDayShort(filteredSeries[filteredSeries.length - 1].date)
+                        : formatMonthShort(filteredSeries[filteredSeries.length - 1].date)}
+                    </Text>
+                  </View>
+                ) : null}
+              </SectionCard>
+            </View>
+
+            <View style={{ width: WIDE ? px(420) : "100%" }}>
+              <SectionCard title="Información" px={px} fs={fs}>
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : !asset ? (
+                  <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>Sin datos.</Text>
+                ) : (
+                  <View style={{ gap: px(10) }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
+                      <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Tipo</Text>
+                      <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]}>{typeLabel(asset.type)}</Text>
+                    </View>
+
+                    <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
+                      <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Moneda</Text>
+                      <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]}>{asset.currency}</Text>
+                    </View>
+
+                    <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
+                      <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>P/L</Text>
+                      <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: pnlColor }]}>{formatMoney(stats.pnl, currency)}</Text>
+                    </View>
+
+                    {asset.description?.trim() ? (
+                      <>
+                        <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+                        <View style={{ gap: px(6) }}>
+                          <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Descripción</Text>
+                          <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "700", color: "#334155", lineHeight: fs(18) }]}>{asset.description}</Text>
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
+                )}
+              </SectionCard>
+            </View>
+          </View>
+
+          {/* Bottom lists */}
+          <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
+            <PanelTable
+              title="Valoraciones"
+              leftHeader="Fecha"
+              rightHeader="Valor"
+              rows={loading ? [] : valuationsRows}
+              emptyText={loading ? "Cargando…" : "No hay valoraciones."}
+              px={px}
+              fs={fs}
+            />
+
+            <PanelTable
+              title="Aportaciones"
+              leftHeader="Fecha"
+              rightHeader="Importe"
+              rows={loading ? [] : contributionsRows}
+              emptyText={loading ? "Cargando…" : "No hay aportaciones registradas."}
+              px={px}
+              fs={fs}
+            />
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* ✅ MODALS: fuera del ScrollView (importante) */}
+      <DesktopInvestmentFormModal
+        visible={editOpen}
+        assetId={assetId}
+        onClose={() => setEditOpen(false)}
+        onSaved={async () => {
+          setEditOpen(false);
+          await fetchAll();
+        }}
+      />
+
+      <DesktopInvestmentValuationModal
+        visible={valuationOpen}
+        assetId={assetId}
+        currency={currency}
+        onClose={() => setValuationOpen(false)}
+        onSaved={async () => {
+          setValuationOpen(false);
+          await fetchAll();
+        }}
+      />
+    </View>
+  );
+}

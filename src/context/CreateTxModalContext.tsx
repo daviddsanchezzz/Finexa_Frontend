@@ -12,10 +12,42 @@ export type CreateTxPrefill = {
 };
 
 /**
+ * Datos mínimos para editar.
+ * Puedes dejarlo en `any` si tu app todavía no tiene un tipo formal de tx,
+ * pero esto te ayuda a no romper TS y a tener intellisense.
+ */
+export type EditTxData = {
+  id: number;
+  type: "income" | "expense" | "transfer";
+  amount: number;
+  date: string;
+
+  // opcionales habituales
+  wallet?: { id: number; name?: string } | null;
+  category?: any;
+  subcategory?: any;
+  description?: string | null;
+  note?: string | null;
+
+  asset?: { id: number; name?: string } | null;
+  fromWallet?: any;
+  toWallet?: any;
+
+  // flags
+  isRecurring?: boolean;
+  active?: boolean;
+  excludeFromStats?: boolean;
+};
+
+/**
  * API pública del modal
  */
-type CreateTxModalContextValue = {
+export type CreateTxModalContextValue = {
   openCreateTx: (prefill?: CreateTxPrefill) => void;
+
+  // ✅ NUEVO: abrir el modal en modo edición
+  openEditTx: (tx: EditTxData) => void;
+
   closeCreateTx: () => void;
 };
 
@@ -26,17 +58,12 @@ const CreateTxModalContext = createContext<CreateTxModalContextValue | null>(nul
 
 /**
  * Hook de consumo
- * 👉 usar en cualquier screen / componente dentro del DesktopShell
  */
 export function useCreateTxModal() {
   const ctx = useContext(CreateTxModalContext);
-
   if (!ctx) {
-    throw new Error(
-      "useCreateTxModal debe usarse dentro de <CreateTxModalProvider />"
-    );
+    throw new Error("useCreateTxModal debe usarse dentro de <CreateTxModalProvider />");
   }
-
   return ctx;
 }
 
@@ -51,9 +78,5 @@ export function CreateTxModalProvider({
   value: CreateTxModalContextValue;
   children: React.ReactNode;
 }) {
-  return (
-    <CreateTxModalContext.Provider value={value}>
-      {children}
-    </CreateTxModalContext.Provider>
-  );
+  return <CreateTxModalContext.Provider value={value}>{children}</CreateTxModalContext.Provider>;
 }

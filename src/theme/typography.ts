@@ -80,6 +80,13 @@ export const textStyles = {
     color: "#94A3B8",
   } as TextStyle,
 
+    labelMuted2 : {
+    fontFamily: families.base,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#94A3B8",
+  } as TextStyle,
+
   caption: {
     fontFamily: families.base,
     fontSize: 11,
@@ -91,7 +98,7 @@ export const textStyles = {
   body: {
     fontFamily: families.base,
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#0F172A",
   } as TextStyle,
 

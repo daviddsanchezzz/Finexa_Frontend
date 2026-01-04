@@ -32,6 +32,7 @@ type Props = {
   onClose: () => void;
   onSaved?: () => void;
   prefill?: Prefill;
+  editData?: any | null;
 };
 
 type Wallet = { id: number; name: string; emoji?: string; kind?: string };
@@ -168,7 +169,7 @@ const parseDateTimeLocal = (v: string) => {
   return isNaN(dt.getTime()) ? null : dt;
 };
 
-export default function CreateTransactionModal({ visible, onClose, onSaved, prefill }: Props) {
+export default function CreateTransactionModal({ visible, onClose, onSaved, prefill, editData }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -493,7 +494,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
         ]}
       >
         <Pressable
-          onPress={() => {}}
+  onPress={(e: any) => e?.stopPropagation?.()}
+  onStartShouldSetResponder={() => true}
           style={[
             {
               width: 900,
