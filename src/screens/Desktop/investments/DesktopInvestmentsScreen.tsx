@@ -22,8 +22,16 @@ import { textStyles, typography } from "../../../theme/typography";
 
 // ✅ NUEVO: modal embebido
 import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
+import DesktopInvestmentOperationModal, {
+  InvestmentAssetLite,
+} from "../../../components/DesktopInvestmentOperationModal";
+import DesktopInvestmentValuationModal2, {
+  ValuationAssetLite,
+} from "../../../components/DesktopInvestmentValuationModal2";
+import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
 
-type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+
+type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
 interface SummaryAssetFromApi {
   id: number;
@@ -45,9 +53,12 @@ interface SummaryFromApi {
 }
 
 type PortfolioTimelinePoint = {
-  date: string; // YYYY-MM-DD
-  totalCurrentValue: number;
+  date: string;
+  totalCurrentValue?: number; // compat
+  equity: number;
+  netContributions: number;
 };
+
 
 type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
@@ -123,6 +134,10 @@ const typeLabel = (t: InvestmentAssetType) => {
       return "Acción";
     case "fund":
       return "Fondo";
+    case "custom":
+      return "Personalizado";
+    case "cash":
+      return "Efectivo";
     default:
       return "Otro";
   }
@@ -138,6 +153,10 @@ const typeIcon = (t: InvestmentAssetType) => {
       return "layers-outline";
     case "fund":
       return "pie-chart-outline";
+    case "custom":
+      return "construct-outline";
+    case "cash":
+      return "cash-outline";
     default:
       return "briefcase-outline";
   }
@@ -491,6 +510,17 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingAssetId, setEditingAssetId] = useState<number | undefined>(undefined);
 
+    const [opsOpen, setOpsOpen] = useState(false);
+
+  const openOps = useCallback(() => setOpsOpen(true), []);
+  const closeOps = useCallback(() => setOpsOpen(false), []);
+
+
+  const [valuationOpen, setValuationOpen] = useState(false);
+
+const openValuation = useCallback(() => setValuationOpen(true), []);
+const closeValuation = useCallback(() => setValuationOpen(false), []);
+
   const openCreate = useCallback(() => {
     setEditingAssetId(undefined);
     setFormOpen(true);
@@ -517,11 +547,39 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
     setSummary(res.data || null);
   };
 
-  const fetchTimeline = async (rk: RangeKey) => {
-    const days = rangeToDays[rk];
-    const res = await api.get(`/investments/timeline?days=${days}`);
-    setTimeline(res.data?.points || []);
-  };
+  const assetsLite: InvestmentAssetLite[] = useMemo(() => {
+    const list = summary?.assets || [];
+    return list.map((a) => ({ id: a.id, name: a.name, type: a.type }));
+  }, [summary]);
+
+const valuationAssets: ValuationAssetLite[] = useMemo(() => {
+  const list = summary?.assets || [];
+  return list.map((a) => ({
+    id: a.id,
+    name: a.name,
+    symbol: a.symbol,
+    type: a.type,
+    currency: a.currency,
+    currentValue: a.currentValue,
+    lastValuationDate: a.lastValuationDate,
+  }));
+}, [summary]);
+
+
+const fetchTimeline = async (rk: RangeKey) => {
+  const days = rangeToDays[rk];
+  const res = await api.get(`/investments/timeline?days=${days}`);
+  const pts = (res.data?.points || []) as any[];
+
+  setTimeline(
+    pts.map((p) => ({
+      date: p.date,
+      totalCurrentValue: p.totalCurrentValue, // compat
+      equity: Number(p.equity ?? p.totalCurrentValue ?? 0),
+      netContributions: Number(p.netContributions ?? 0),
+    }))
+  );
+};
 
   const fetchAll = useCallback(async () => {
     try {
@@ -635,17 +693,17 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
         {/* ===== Header ===== */}
         <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: px(14) }}>
           <View style={{ flex: 1, paddingRight: px(12) }}>
-            <Text style={[textStyles.h1, { fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]}>Inversiones</Text>
+            <Text style={[textStyles.h1, { fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]}>Visión general de tu portfolio y rendimiento</Text>
             <Text style={[textStyles.bodyMuted, { marginTop: px(4), fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={2}>
-              Visión general de tu portfolio y rendimiento
-              {hero.lastGlobal ? ` · Última valoración: ${formatShortDate(hero.lastGlobal)}` : ""}
+              {hero.lastGlobal ? `Última valoración: ${formatShortDate(hero.lastGlobal)}` : ""}
             </Text>
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
             {/* ✅ CAMBIO: abre modal */}
             <TopButton icon="add-outline" label="Nueva" onPress={openCreate} px={px} fs={fs} />
-            <TopButton icon="calendar-outline" label="Valorar" onPress={() => navigation.navigate("InvestmentValuation")} px={px} fs={fs} />
+              <TopButton icon="swap-horizontal-outline" label="Operación" onPress={openOps} px={px} fs={fs} />
+<TopButton icon="calendar-outline" label="Valorar" onPress={openValuation} px={px} fs={fs} />
             <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
           </View>
         </View>
@@ -715,28 +773,15 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
         <View style={{ marginTop: px(16), gap: px(12) }}>
           <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
             <View style={{ flex: 1, minWidth: WIDE ? px(680) : undefined }}>
-              <SectionCard title="Evolución del portfolio" right={<SegmentedRange value={range} onChange={setRange} px={px} fs={fs} />} px={px} fs={fs}>
-                <View style={{ height: CHART_H, justifyContent: "center" }}>
-                  {timelineLoading ? (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    </View>
-                  ) : timeline.length < 2 ? (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>Añade valoraciones para ver la evolución.</Text>
-                    </View>
-                  ) : (
-                    <PortfolioLineChart points={timeline} height={CHART_H} />
-                  )}
-                </View>
-
-                {!timelineLoading && labels.length > 0 && (
-                  <View style={{ marginTop: px(10), flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>{labels[0]}</Text>
-                    <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>{labels[labels.length - 1]}</Text>
-                  </View>
-                )}
-              </SectionCard>
+<PortfolioChartsPanel
+  points={timeline}
+  loading={timelineLoading}
+  range={range}
+  onRangeChange={setRange}
+  px={px}
+  fs={fs}
+  chartHeight={CHART_H}
+/>
             </View>
 
             <View style={{ width: WIDE ? px(420) : "100%" }}>
@@ -962,6 +1007,25 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
         onClose={closeForm}
         onSaved={fetchAll}
       />
+
+      <DesktopInvestmentOperationModal
+        visible={opsOpen}
+        onClose={closeOps}
+        onSaved={fetchAll}
+        assets={assetsLite}
+        px={px}
+        fs={fs}
+      />
+
+      <DesktopInvestmentValuationModal2
+      visible={valuationOpen}
+      onClose={closeValuation}
+      onSaved={fetchAll}
+      assets={valuationAssets}
+      currencyFallback={currency}
+    />
+
+
     </View>
   );
 }

@@ -18,7 +18,7 @@ import api from "../api/api";
 import { colors } from "../theme/theme";
 import { textStyles, typography } from "../theme/typography";
 
-type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 type InvestmentRiskType = "variable_income" | "fixed_income";
 type RiskOrNull = InvestmentRiskType | null;
 
@@ -31,7 +31,9 @@ const TYPE_OPTIONS: {
   { key: "etf", label: "ETF", icon: "layers-outline" },
   { key: "stock", label: "Acción", icon: "trending-up-outline" },
   { key: "fund", label: "Fondo", icon: "briefcase-outline" },
-  { key: "custom", label: "Custom", icon: "shapes-outline" },
+  { key: "cash", label: "Efectivo", icon: "cash-outline" },
+    { key: "custom", label: "Personalizada", icon: "shapes-outline" },
+
 ];
 
 const RISK_OPTIONS: {

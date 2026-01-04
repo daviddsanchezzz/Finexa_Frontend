@@ -15,10 +15,9 @@ import { useFocusEffect, useRoute } from "@react-navigation/native";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 import api from "../../../api/api";
-import { colors } from "../../../theme/theme"; // ✅ SOLO este colors (quita el de api/api)
+import { colors } from "../../../theme/theme";
 import { textStyles } from "../../../theme/typography";
 
-// ✅ Modales (ya los tienes creados/importables)
 import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
 import DesktopInvestmentValuationModal from "../../../components/DesktopInvestmentValuationModal";
 
@@ -69,6 +68,19 @@ type TransactionFromApi = {
   kind?: string | null;
   category?: string | null;
   subcategory?: string | null;
+};
+
+/** ✅ Valoraciones reales (con id) */
+type ValuationFromApi = {
+  id: number;
+  assetId?: number;
+  investmentAssetId?: number;
+  date: string;
+  value: number;
+  currency?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  active?: boolean;
 };
 
 function formatMoney(n: number, currency = "EUR") {
@@ -208,11 +220,72 @@ function SectionCard({
         {!!right && <View>{right}</View>}
       </View>
 
-      <View style={{ paddingHorizontal: noPadding ? px(16) : 0, paddingBottom: noPadding ? px(16) : 0 }}>{children}</View>
+      <View style={{ paddingHorizontal: noPadding ? px(16) : 0, paddingBottom: noPadding ? px(16) : 0 }}>
+        {children}
+      </View>
     </View>
   );
 }
 
+/** =========================
+ * Operations helpers
+ * ========================= */
+type InvestmentOperationType = "buy" | "sell" | "deposit" | "withdraw" | "swap";
+
+type InvestmentOperationFromApi = {
+  id: number;
+  userId?: number;
+  assetId: number;
+  type: InvestmentOperationType;
+  date?: string | null;
+  amount: number;
+  fee?: number | null;
+  transactionId?: number | null;
+  swapGroupId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  active?: boolean;
+};
+
+function opLabel(t: InvestmentOperationType) {
+  switch (t) {
+    case "buy":
+      return "Compra";
+    case "sell":
+      return "Venta";
+    case "deposit":
+      return "Aportación";
+    case "withdraw":
+      return "Retirada";
+    case "swap":
+      return "Swap";
+    default:
+      return "Operación";
+  }
+}
+
+function opSignedAmount(op: InvestmentOperationFromApi) {
+  const a = Math.abs(Number(op.amount || 0));
+  const fee = Math.abs(Number(op.fee || 0));
+  const sign = op.type === "sell" || op.type === "withdraw" ? -1 : 1;
+  return sign * a - fee; // fee siempre resta
+}
+
+function opIso(op: InvestmentOperationFromApi) {
+  return op.date || op.createdAt || "";
+}
+
+type Tone = "neutral" | "success" | "danger";
+
+function opTone(t?: string | null): Tone {
+  if (t === "buy" || t === "deposit") return "success";
+  if (t === "sell" || t === "withdraw") return "danger";
+  return "neutral";
+}
+
+/** =========================
+ * UI components
+ * ========================= */
 function StatCard({
   title,
   value,
@@ -260,7 +333,16 @@ function StatCard({
             <Text style={[textStyles.labelMuted, { fontSize: fs(11), color: paletteTone.title, letterSpacing: 0.6 }]} numberOfLines={1}>
               {title}
             </Text>
-            <View style={{ width: px(34), height: px(34), borderRadius: px(10), alignItems: "center", justifyContent: "center", backgroundColor: paletteTone.iconBg }}>
+            <View
+              style={{
+                width: px(34),
+                height: px(34),
+                borderRadius: px(10),
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: paletteTone.iconBg,
+              }}
+            >
               <Ionicons name={icon} size={px(18)} color={paletteTone.iconFg} />
             </View>
           </View>
@@ -352,7 +434,9 @@ function SegmentedRange({
               backgroundColor: active ? "rgba(15,23,42,0.10)" : "transparent",
             }}
           >
-            <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: active ? "900" : "800", color: active ? "#0F172A" : "#64748B" }]}>{x.label}</Text>
+            <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: active ? "900" : "800", color: active ? "#0F172A" : "#64748B" }]}>
+              {x.label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -427,10 +511,20 @@ function SparkLine({ series, height }: { series: SeriesPoint[]; height: number }
   );
 }
 
-/** ===== List Panel (2-column bottom) ===== */
+/** ===== Simple Panel Table (2/3 columnas) ===== */
+type PanelRow = {
+  id: string;
+  left: string;
+  middle?: { label: string; tone?: Tone; icon?: keyof typeof Ionicons.glyphMap };
+  right: string;
+  rightTone?: Tone;
+  onPress?: () => void;
+};
+
 function PanelTable({
   title,
   leftHeader,
+  middleHeader,
   rightHeader,
   rows,
   emptyText,
@@ -439,19 +533,26 @@ function PanelTable({
 }: {
   title: string;
   leftHeader: string;
+  middleHeader?: string;
   rightHeader: string;
-  rows: Array<{ id: string; left: string; right: string; rightTone?: "neutral" | "success" | "danger" }>;
+  rows: PanelRow[];
   emptyText: string;
   px: (n: number) => number;
   fs: (n: number) => number;
 }) {
-  const toneColor = (t?: "neutral" | "success" | "danger") => {
-    if (t === "success") return "#16A34A";
-    if (t === "danger") return "#DC2626";
-    return "#0F172A";
+  const isWeb = Platform.OS === "web";
+  const hasMiddle = !!middleHeader;
+
+  const tonePalette = (t?: Tone) => {
+    if (t === "success") return { fg: "#16A34A", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.18)" };
+    if (t === "danger") return { fg: "#DC2626", bg: "rgba(239,68,68,0.10)", bd: "rgba(239,68,68,0.18)" };
+    return { fg: "#0F172A", bg: "rgba(15,23,42,0.05)", bd: "rgba(15,23,42,0.10)" };
   };
 
   const bodyH = px(380);
+  const leftFlex = hasMiddle ? 1.1 : 1.25;
+  const midFlex = 0.9;
+  const rightFlex = 1;
 
   return (
     <View
@@ -463,89 +564,124 @@ function PanelTable({
         borderColor: "#E5E7EB",
         overflow: "hidden",
         shadowColor: "#000",
-        shadowOpacity: 0.03,
-        shadowRadius: px(10),
-        shadowOffset: { width: 0, height: px(6) },
+        shadowOpacity: 0.02,
+        shadowRadius: px(8),
+        shadowOffset: { width: 0, height: px(4) },
       }}
     >
-      <View style={{ padding: px(16), paddingBottom: px(10), flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Text style={[textStyles.labelMuted, { fontSize: fs(12) }]}>{title}</Text>
+      <View style={{ paddingHorizontal: px(16), paddingTop: px(14), paddingBottom: px(10) }}>
+        <Text style={[textStyles.h2, { fontSize: fs(13), fontWeight: "900", color: "#0F172A" }]}>{title}</Text>
       </View>
 
       <View
         style={{
           flexDirection: "row",
-          backgroundColor: "#F8FAFC",
+          alignItems: "center",
+          backgroundColor: "#FAFAFB",
           borderTopWidth: 1,
-          borderTopColor: "#E5E7EB",
+          borderTopColor: "#EEF2F7",
           borderBottomWidth: 1,
-          borderBottomColor: "#E5E7EB",
+          borderBottomColor: "#EEF2F7",
           paddingHorizontal: px(16),
-          paddingVertical: px(10),
+          paddingVertical: px(9),
         }}
       >
-        <Text style={[textStyles.labelMuted, { flex: 1.2, fontSize: fs(11) }]} numberOfLines={1}>
+        <Text style={[textStyles.labelMuted, { flex: leftFlex, fontSize: fs(10.5) }]} numberOfLines={1}>
           {leftHeader}
         </Text>
-        <Text style={[textStyles.labelMuted, { flex: 1, fontSize: fs(11), textAlign: "right" }]} numberOfLines={1}>
+
+        {hasMiddle ? (
+          <Text style={[textStyles.labelMuted, { flex: midFlex, fontSize: fs(10.5), textAlign: "center" }]} numberOfLines={1}>
+            {middleHeader}
+          </Text>
+        ) : null}
+
+        <Text style={[textStyles.labelMuted, { flex: rightFlex, fontSize: fs(10.5), textAlign: "right" }]} numberOfLines={1}>
           {rightHeader}
         </Text>
       </View>
 
-      <ScrollView style={{ height: bodyH }} showsVerticalScrollIndicator={true}>
+      <ScrollView style={{ height: bodyH }} showsVerticalScrollIndicator>
         {rows.length === 0 ? (
           <View style={{ padding: px(16) }}>
-            <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>{emptyText}</Text>
+            <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }]}>{emptyText}</Text>
           </View>
         ) : (
-          rows.map((r, idx) => (
-            <View
-              key={r.id}
-              style={{
-                flexDirection: "row",
-                paddingHorizontal: px(16),
-                paddingVertical: px(12),
-                borderBottomWidth: 1,
-                borderBottomColor: "#E5E7EB",
-                backgroundColor: idx % 2 === 0 ? "white" : "#FCFCFD",
-              }}
-            >
-              <Text style={[textStyles.body, { flex: 1.2, fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]} numberOfLines={1}>
-                {r.left}
-              </Text>
-              <Text
-                style={[
-                  textStyles.number,
-                  {
-                    flex: 1,
-                    fontSize: fs(12),
-                    fontWeight: "900",
-                    color: toneColor(r.rightTone),
-                    textAlign: "right",
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {r.right}
-              </Text>
-            </View>
-          ))
-        )}
+          rows.map((r, idx) => {
+            const clickable = !!r.onPress;
+            const rightPalette = tonePalette(r.rightTone);
+            const midPalette = tonePalette(r.middle?.tone);
 
+            return (
+              <Pressable
+                key={r.id}
+                onPress={r.onPress}
+                disabled={!clickable}
+                style={({ hovered, pressed }) => [
+                  {
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: px(16),
+                    paddingVertical: px(12),
+                    borderBottomWidth: idx === rows.length - 1 ? 0 : 1,
+                    borderBottomColor: "#F1F5F9",
+                    backgroundColor: "white",
+                    opacity: pressed ? 0.92 : 1,
+                  },
+                  clickable && isWeb && hovered ? { backgroundColor: "#F8FAFC" } : null,
+                ]}
+              >
+                <View style={{ flex: leftFlex, paddingRight: px(12) }}>
+                  <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]} numberOfLines={1}>
+                    {r.left}
+                  </Text>
+                </View>
+
+                {hasMiddle ? (
+                  <View style={{ flex: midFlex, alignItems: "center", justifyContent: "center" }}>
+                    {r.middle ? (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingHorizontal: px(10),
+                          height: px(22),
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: midPalette.bd,
+                          backgroundColor: midPalette.bg,
+                          gap: px(6),
+                        }}
+                      >
+                        {r.middle.icon ? <Ionicons name={r.middle.icon} size={px(13)} color={midPalette.fg} /> : null}
+                        <Text style={{ fontSize: fs(10.5), fontWeight: "900", color: midPalette.fg }} numberOfLines={1}>
+                          {r.middle.label}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: fs(11), fontWeight: "700", color: "#94A3B8" }}>—</Text>
+                    )}
+                  </View>
+                ) : null}
+
+                <View style={{ flex: rightFlex, alignItems: "flex-end" }}>
+                  <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "900", color: rightPalette.fg, textAlign: "right" }]} numberOfLines={1}>
+                    {r.right}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );
 }
 
-/** ===== Contributions helpers ===== */
+/** ===== Contributions helpers (no usadas ahora) ===== */
 function matchesAsset(tx: TransactionFromApi, assetId: number) {
   const a = tx.investmentAssetId ?? tx.investment_asset_id ?? tx.investmentAsset?.id ?? null;
   return Number(a) === Number(assetId);
-}
-function looksLikeContribution(tx: TransactionFromApi) {
-  const hay = `${tx.type ?? ""} ${tx.kind ?? ""} ${tx.category ?? ""} ${tx.subcategory ?? ""}`.toLowerCase();
-  if (!hay.trim()) return true;
-  return hay.includes("aport") || hay.includes("contrib") || hay.includes("investment") || hay.includes("inversion") || hay.includes("transfer");
 }
 function txIso(tx: TransactionFromApi) {
   return tx.date || tx.createdAt || "";
@@ -564,12 +700,17 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
   const [asset, setAsset] = useState<AssetFromApi | null>(null);
   const [summaryRow, setSummaryRow] = useState<SummaryAssetRow | null>(null);
   const [series, setSeries] = useState<SeriesPoint[]>([]);
-  const [transactions, setTransactions] = useState<TransactionFromApi[]>([]);
   const [range, setRange] = useState<RangeKey>("3m");
 
-  // ✅ modales
+  const [operations, setOperations] = useState<InvestmentOperationFromApi[]>([]);
+  const [valuations, setValuations] = useState<ValuationFromApi[]>([]);
+
+  // modales
   const [editOpen, setEditOpen] = useState(false);
   const [valuationOpen, setValuationOpen] = useState(false);
+
+  // ✅ para abrir el modal en modo editar (si tu modal lo soporta)
+  const [editingValuationId, setEditingValuationId] = useState<number | null>(null);
 
   const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
 
@@ -589,14 +730,22 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
       const serRes = await api.get(`/investments/assets/${assetId}/series`);
       setSeries(Array.isArray(serRes.data) ? serRes.data : []);
 
-      const tRes = await api.get(`/transactions`, { params: { investmentAssetId: assetId } });
-      setTransactions(Array.isArray(tRes.data) ? tRes.data : []);
+      // valoraciones reales con id
+      const vRes = await api.get(`/investments/valuations`, { params: { assetId } });
+      const vList = Array.isArray(vRes.data) ? vRes.data : vRes.data?.valuations ?? [];
+      setValuations(Array.isArray(vList) ? vList : []);
+
+      // operations
+      const oRes = await api.get(`/investments/operations`, { params: { assetId } });
+      const list = Array.isArray(oRes.data) ? oRes.data : oRes.data?.operations ?? [];
+      setOperations(Array.isArray(list) ? list : []);
     } catch (e) {
       console.error("❌ Error cargando DesktopInvestmentDetail:", e);
       setAsset(null);
       setSummaryRow(null);
       setSeries([]);
-      setTransactions([]);
+      setValuations([]);
+      setOperations([]);
       navigation?.goBack?.();
     } finally {
       setLoading(false);
@@ -630,6 +779,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
     const invested = summaryRow?.invested ?? (asset?.initialInvested ?? 0);
     const currentValue = summaryRow?.currentValue ?? invested;
     const pnl = summaryRow?.pnl ?? currentValue - invested;
+    const initialInvested = asset?.initialInvested ?? 0;
 
     const last =
       summaryRow?.lastValuationDate
@@ -638,66 +788,71 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
         ? formatShortDate(sortedSeries[sortedSeries.length - 1].date)
         : "Sin datos";
 
-    return { invested, currentValue, pnl, last };
+    return { invested, currentValue, pnl, last, initialInvested };
   }, [asset, summaryRow, sortedSeries]);
 
   const pnlColor = stats.pnl > 0 ? "#16A34A" : stats.pnl < 0 ? "#DC2626" : "#64748B";
 
   const headerTitle = asset ? `${asset.name}${asset.symbol ? ` (${String(asset.symbol).toUpperCase()})` : ""}` : "Detalle del activo";
 
-  const valuationsRows = useMemo(() => {
-    const desc = [...sortedSeries].slice().reverse();
-    return desc.map((p, idx) => ({
-      id: `${p.date}-${idx}`,
-      left: formatShortDate(p.date),
-      right: formatMoney(Number(p.value || 0), currency),
-      rightTone: "neutral" as const,
-    }));
-  }, [sortedSeries, currency]);
+  /** ✅ Valoraciones: SIMPLE, sin badge/subtitle (ya es obvio que son valoraciones) */
+  const valuationsRows: PanelRow[] = useMemo(() => {
+    const list = [...valuations]
+      .filter((v) => (v.active ?? true))
+      .filter((v) => {
+        const vAsset = v.assetId ?? v.investmentAssetId ?? null;
+        return vAsset == null ? true : Number(vAsset) === Number(assetId);
+      })
+      .filter((v) => !!v.date)
+      .sort((a, b) => parseISO(b.date) - parseISO(a.date));
 
-  const contributionsRows = useMemo(() => {
+    return list.map((v) => ({
+      id: `val-${v.id}`,
+      left: formatShortDate(v.date),
+      right: formatMoney(Number(v.value || 0), currency),
+      rightTone: "neutral",
+      onPress: () => {
+        // abrir en modo editar (si tu modal lo soporta)
+        setEditingValuationId(v.id);
+        setValuationOpen(true);
+      },
+    }));
+  }, [valuations, currency, assetId]);
+
+  /** ✅ Operaciones: orden correcto por fecha y columna central de tipo */
+  const operationsRows: PanelRow[] = useMemo(() => {
     if (!assetId) return [];
 
-    const txRows = [...transactions]
-      .filter((tx) => matchesAsset(tx, assetId))
-      .filter((tx) => looksLikeContribution(tx))
-      .map((tx) => {
-        const iso = txIso(tx);
-        return {
-          id: `tx-${tx.id}`,
-          iso,
-          amount: Number(tx.amount || 0),
-          ccy: tx.currency || currency,
-          note: tx.note || null,
-        };
-      })
-      .filter((x) => !!x.iso)
-      .sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
+    const ops = [...operations]
+      .filter((op) => (op.active ?? true))
+      .filter((op) => Number(op.assetId) === Number(assetId))
+      .filter((op) => !!opIso(op))
+      .sort((a, b) => parseISO(opIso(b)) - parseISO(opIso(a)));
 
-    const hasInitial = (asset?.initialInvested ?? 0) > 0;
-    const initialIso = asset?.createdAt || (txRows.length ? txRows[txRows.length - 1].iso : new Date().toISOString());
+    return ops.map((op) => {
+      const iso = opIso(op);
+      const amount = opSignedAmount(op);
 
-    const initial = hasInitial
-      ? [
-          {
-            id: "initial",
-            iso: initialIso,
-            amount: Number(asset?.initialInvested ?? 0),
-            ccy: currency,
-            note: "Aportación inicial",
-          },
-        ]
-      : [];
+      const icon =
+        op.type === "buy"
+          ? "add-circle-outline"
+          : op.type === "sell"
+          ? "remove-circle-outline"
+          : op.type === "deposit"
+          ? "download-outline"
+          : op.type === "withdraw"
+          ? "log-out-outline"
+          : "swap-horizontal-outline";
 
-    const all = [...initial, ...txRows].sort((a, b) => parseISO(b.iso) - parseISO(a.iso));
-
-    return all.map((x) => ({
-      id: x.id,
-      left: formatShortDate(x.iso),
-      right: formatMoney(x.amount, x.ccy),
-      rightTone: x.amount >= 0 ? ("neutral" as const) : ("danger" as const),
-    }));
-  }, [transactions, assetId, currency, asset?.initialInvested, asset?.createdAt]);
+      return {
+        id: `op-${op.id}`,
+        left: formatShortDate(iso),
+        middle: { label: opLabel(op.type), tone: opTone(op.type), icon },
+        right: formatMoney(amount, currency),
+        rightTone: opTone(op.type),
+      };
+    });
+  }, [operations, assetId, currency]);
 
   if (!assetId) {
     return (
@@ -709,7 +864,10 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background ?? "#F8FAFC" }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: px(22), paddingTop: px(18), paddingBottom: px(90) }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: px(22), paddingTop: px(18), paddingBottom: px(90) }}
+      >
         {/* Header */}
         <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: px(14) }}>
           <View style={{ flex: 1, paddingRight: px(12) }}>
@@ -743,7 +901,16 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
             <TopButton icon="arrow-back-outline" label="Volver" onPress={() => navigation.goBack?.()} px={px} fs={fs} />
             <TopButton icon="create-outline" label="Editar" onPress={() => setEditOpen(true)} px={px} fs={fs} />
-            <TopButton icon="cash-outline" label="Valorar" onPress={() => setValuationOpen(true)} px={px} fs={fs} />
+            <TopButton
+              icon="cash-outline"
+              label="Valorar"
+              onPress={() => {
+                setEditingValuationId(null); // crear nueva
+                setValuationOpen(true);
+              }}
+              px={px}
+              fs={fs}
+            />
             <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
           </View>
         </View>
@@ -753,11 +920,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           <StatCard
             title="VALOR ACTUAL"
             value={loading ? "—" : formatMoney(stats.currentValue, currency)}
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
-                Valor de mercado
-              </Text>
-            }
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>Valor de mercado</Text>}
             icon="wallet-outline"
             tone="neutral"
             px={px}
@@ -767,11 +930,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           <StatCard
             title="INVERTIDO"
             value={loading ? "—" : formatMoney(stats.invested, currency)}
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
-                Capital aportado
-              </Text>
-            }
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>Capital aportado</Text>}
             icon="add-circle-outline"
             tone="info"
             px={px}
@@ -797,11 +956,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           <StatCard
             title="% P/L"
             value={loading ? "—" : formatPct(stats.pnl, stats.invested)}
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
-                Rentabilidad
-              </Text>
-            }
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>Rentabilidad</Text>}
             icon="trending-up-outline"
             tone={pnlTone(stats.pnl) as any}
             px={px}
@@ -836,9 +991,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
                       {range === "1m" ? formatDayShort(filteredSeries[0].date) : formatMonthShort(filteredSeries[0].date)}
                     </Text>
                     <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
-                      {range === "1m"
-                        ? formatDayShort(filteredSeries[filteredSeries.length - 1].date)
-                        : formatMonthShort(filteredSeries[filteredSeries.length - 1].date)}
+                      {range === "1m" ? formatDayShort(filteredSeries[filteredSeries.length - 1].date) : formatMonthShort(filteredSeries[filteredSeries.length - 1].date)}
                     </Text>
                   </View>
                 ) : null}
@@ -872,12 +1025,24 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
                       <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: pnlColor }]}>{formatMoney(stats.pnl, currency)}</Text>
                     </View>
 
+                    {asset.initialInvested ? (
+                      <>
+                        <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
+                          <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Invertido inicialmente</Text>
+                          <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]}>{formatMoney(stats.initialInvested, currency)}</Text>
+                        </View>
+                      </>
+                    ) : null}
+
                     {asset.description?.trim() ? (
                       <>
                         <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
                         <View style={{ gap: px(6) }}>
                           <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Descripción</Text>
-                          <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "700", color: "#334155", lineHeight: fs(18) }]}>{asset.description}</Text>
+                          <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "700", color: "#334155", lineHeight: fs(18) }]}>
+                            {asset.description}
+                          </Text>
                         </View>
                       </>
                     ) : null}
@@ -900,11 +1065,12 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
             />
 
             <PanelTable
-              title="Aportaciones"
+              title="Operaciones"
               leftHeader="Fecha"
+              middleHeader="Tipo"
               rightHeader="Importe"
-              rows={loading ? [] : contributionsRows}
-              emptyText={loading ? "Cargando…" : "No hay aportaciones registradas."}
+              rows={loading ? [] : operationsRows}
+              emptyText={loading ? "Cargando…" : "No hay operaciones."}
               px={px}
               fs={fs}
             />
@@ -912,7 +1078,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
         </View>
       </ScrollView>
 
-      {/* ✅ MODALS: fuera del ScrollView (importante) */}
+      {/* MODALS: fuera del ScrollView */}
       <DesktopInvestmentFormModal
         visible={editOpen}
         assetId={assetId}
@@ -923,13 +1089,23 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
         }}
       />
 
+      {/* NOTA:
+         - Este screen pasa editingValuationId.
+         - Si tu DesktopInvestmentValuationModal NO soporta esta prop, elimínala aquí o añádela en el modal.
+      */}
       <DesktopInvestmentValuationModal
         visible={valuationOpen}
         assetId={assetId}
         currency={currency}
-        onClose={() => setValuationOpen(false)}
+        // @ts-ignore si aún no has añadido la prop en el modal
+        editingValuationId={editingValuationId}
+        onClose={() => {
+          setValuationOpen(false);
+          setEditingValuationId(null);
+        }}
         onSaved={async () => {
           setValuationOpen(false);
+          setEditingValuationId(null);
           await fetchAll();
         }}
       />
