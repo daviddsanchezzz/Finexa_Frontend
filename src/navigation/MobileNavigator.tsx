@@ -31,6 +31,7 @@ import InvestmentDetailScreen from "../screens/Mobile/finances/invests/Investmen
 import ReportsScreen from "../screens/Mobile/reports/ReportsScreen";
 import ReportsPdfViewerScreen from "../screens/Mobile/reports/ReportsPdfViewerScreen";
 import MonthlyContributionsScreen from "../screens/Mobile/finances/MonthlyContributions/MonthlyContributionsScreen";
+import InvestmentOperationScreen from "../screens/Mobile/finances/invests/InvestmentOperationScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -62,6 +63,7 @@ export type RootStackParamList = {
   Reports: undefined;
   ReportsPdfViewer: undefined;
   MonthlyContributions: undefined;
+  InvestmentOperation: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -108,6 +110,7 @@ export default function MobileNavigator() {
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="ReportsPdfViewer" component={ReportsPdfViewerScreen} />
           <Stack.Screen name="MonthlyContributions" component={MonthlyContributionsScreen} />
+<Stack.Screen name="InvestmentOperation" component={InvestmentOperationScreen} />
         </>
       ) : (
         <>

@@ -143,7 +143,7 @@ const rangeToDays: Record<RangeKey, number> = {
 };
 
 // =====================
-// DONUT PRO (recto, sin gaps, centro solo cantidad)
+// DONUT PRO
 // =====================
 type DonutSlice = {
   id: number;
@@ -269,9 +269,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   const { width: SCREEN_W } = useWindowDimensions();
 
-  // ✅ Donut centrado y más contenido vertical disponible (leyenda debajo)
   const donutSize = useMemo(() => {
-    // al ir centrado, podemos hacerlo algo más grande, pero con límites
     const target = Math.floor(SCREEN_W * 0.50);
     return Math.max(132, Math.min(176, target));
   }, [SCREEN_W]);
@@ -366,7 +364,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.value - a.value);
 
-    const MIN_PCT = 0.03; // 3%
+    const MIN_PCT = 0.03;
     const big = base.filter((s) => s.pct >= MIN_PCT);
     const small = base.filter((s) => s.pct < MIN_PCT);
 
@@ -399,183 +397,287 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     if (!exists) setSelectedSliceId(null);
   }, [allocation.slices, selectedSliceId]);
 
+  // ✅ Nuevo: botón premium reutilizable (para CTA)
+  const CtaButton = ({
+    label,
+    icon,
+    onPress,
+    variant = "neutral",
+  }: {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    onPress: () => void;
+    variant?: "neutral" | "primary" | "soft";
+  }) => {
+    const isPrimary = variant === "primary";
+    const isSoft = variant === "soft";
+
+    const bg = isPrimary ? colors.primary : isSoft ? "#EEF2FF" : "#F3F4F6";
+    const bd = "#E5E7EB";
+    const fg = isPrimary ? "white" : isSoft ? colors.primary : "#64748B";
+    const weight = isPrimary ? "800" : isSoft ? "800" : "700";
+
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.9}
+        style={{
+          flex: 1,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 12,
+          borderRadius: 18,
+          backgroundColor: bg,
+          borderWidth: 1,
+          borderColor: bd,
+        }}
+      >
+        <Ionicons name={icon} size={18} color={fg} />
+        <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: weight as any, color: fg }}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
+      {/* ✅ Header fijo (NO SCROLL) */}
       <View className="px-5 pb-3">
         <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
       </View>
 
-      {/* HERO */}
-      <View className="px-5 mb-2">
-        <View
-          style={{
-            backgroundColor: colors.primary,
-            borderRadius: 26,
-            padding: 16,
-            marginBottom: 10,
-            shadowColor: "#000",
-            shadowOpacity: 0.12,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+      {/* ✅ Scroll desde debajo del header */}
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* HERO */}
+        <View className="px-5 mb-2">
+          <View
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: 26,
+              padding: 16,
+              marginBottom: 10,
+              shadowColor: "#000",
+              shadowOpacity: 0.12,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 16,
+                    backgroundColor: "rgba(255,255,255,0.16)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>📈</Text>
+                </View>
+
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>Resumen</Text>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
+                    {hero.count} {hero.count === 1 ? "asset" : "assets"}
+                    {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
+                  </Text>
+                </View>
+              </View>
+
               <View
                 style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 16,
-                  backgroundColor: "rgba(255,255,255,0.16)",
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: "rgba(255,255,255,0.18)",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name={totalBadge.icon} size={14} color="white" />
+                <Text style={{ color: "white", fontWeight: "900", marginLeft: 6, fontSize: 12 }}>
+                  {hero.pct.toFixed(2)}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
+                Valor actual total
+              </Text>
+              <Text style={{ fontSize: 26, fontWeight: "900", color: "white", marginTop: 2 }}>
+                {formatMoney(hero.totalCurrentValue, currency)}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "rgba(255,255,255,0.14)",
+                  borderRadius: 18,
+                  padding: 12,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="add-circle-outline" size={14} color="rgba(255,255,255,0.9)" />
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>
+                    Invertido
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "white", marginTop: 6 }}>
+                  {formatMoney(hero.totalInvested, currency)}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "rgba(255,255,255,0.14)",
+                  borderRadius: 18,
+                  padding: 12,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="stats-chart-outline" size={14} color="rgba(255,255,255,0.9)" />
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>
+                    Resultado
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "white", marginTop: 6 }}>
+                  {formatMoney(hero.totalPnL, currency)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ✅ NUEVO: Acciones rápidas debajo del HERO */}
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <CtaButton
+              label="Añadir inversión"
+              icon="add-outline"
+              variant="neutral"
+              onPress={() => navigation.navigate("InvestmentForm")}
+            />
+            <CtaButton
+              label="Añadir valoración"
+              icon="calendar-outline"
+              variant="soft"
+              onPress={() => navigation.navigate("InvestmentValuation")}
+            />
+          </View>
+
+          {/* ✅ NUEVO: Botón añadir operación (pantalla futura) */}
+          <View style={{ marginVertical: 10 }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("InvestmentOperation")} // placeholder (crearemos esta pantalla luego)
+              activeOpacity={0.9}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                paddingVertical: 12,
+                borderRadius: 18,
+                backgroundColor: "white",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+              }}
+            >
+              <View
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  backgroundColor: "#F1F5F9",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Text style={{ fontSize: 20 }}>📈</Text>
+                <Ionicons name="swap-horizontal-outline" size={16} color="#334155" />
               </View>
-
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>Resumen</Text>
-                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
-                  {hero.count} {hero.count === 1 ? "asset" : "assets"}
-                  {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
-                </Text>
-              </View>
-            </View>
-
-            <View
-              style={{
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                borderRadius: 999,
-                backgroundColor: "rgba(255,255,255,0.18)",
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <Ionicons name={totalBadge.icon} size={14} color="white" />
-              <Text style={{ color: "white", fontWeight: "900", marginLeft: 6, fontSize: 12 }}>
-                {hero.pct.toFixed(2)}%
+              <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>
+                Añadir operación
               </Text>
-            </View>
-          </View>
-
-          <View style={{ marginTop: 12 }}>
-            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
-              Valor actual total
-            </Text>
-            <Text style={{ fontSize: 26, fontWeight: "900", color: "white", marginTop: 2 }}>
-              {formatMoney(hero.totalCurrentValue, currency)}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "rgba(255,255,255,0.14)",
-                borderRadius: 18,
-                padding: 12,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Ionicons name="add-circle-outline" size={14} color="rgba(255,255,255,0.9)" />
-                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>
-                  Invertido
-                </Text>
-              </View>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "white", marginTop: 6 }}>
-                {formatMoney(hero.totalInvested, currency)}
-              </Text>
-            </View>
-
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "rgba(255,255,255,0.14)",
-                borderRadius: 18,
-                padding: 12,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Ionicons name="stats-chart-outline" size={14} color="rgba(255,255,255,0.9)" />
-                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>
-                  Resultado
-                </Text>
-              </View>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "white", marginTop: 6 }}>
-                {formatMoney(hero.totalPnL, currency)}
-              </Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
-      </View>
 
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-        ) : assets.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-16 text-sm">Aún no tienes assets. Crea uno para empezar.</Text>
-        ) : (
-          assets.map((a) => {
-            const pctText = formatPct(a.pnl || 0, a.invested || 0);
-            const badge = pnlBadge(a.pnl);
+        {/* LISTA */}
+        <View className="px-5">
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+          ) : assets.length === 0 ? (
+            <Text className="text-center text-gray-400 mt-16 text-sm">Aún no tienes assets. Crea uno para empezar.</Text>
+          ) : (
+            assets.map((a) => {
+              const pctText = formatPct(a.pnl || 0, a.invested || 0);
+              const badge = pnlBadge(a.pnl);
 
-            return (
-              <TouchableOpacity
-                key={a.id}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
-                style={{
-                  backgroundColor: "white",
-                  borderRadius: 18,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  marginBottom: 8,
-                  borderWidth: 1,
-                  borderColor: "#EEF2F7",
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 12,
-                      backgroundColor: "#F1F5F9",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 10,
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                    }}
-                  >
-                    <Ionicons name={assetTypeIcon(a.type)} size={16} color="#64748B" />
+              return (
+                <TouchableOpacity
+                  key={a.id}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: 18,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: "#EEF2F7",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 12,
+                        backgroundColor: "#F1F5F9",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 10,
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                      }}
+                    >
+                      <Ionicons name={assetTypeIcon(a.type)} size={16} color="#64748B" />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", lineHeight: 18 }} numberOfLines={2}>
+                        {a.name}
+                      </Text>
+
+                      <Text style={{ fontSize: 11, color: "#64748B", fontWeight: "600", marginTop: 2 }}>
+                        {typeLabel(a.type)} · {formatMoney(a.currentValue || 0, currency)}
+                      </Text>
+                    </View>
+
+                    <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
+                      <Text style={{ fontSize: 14, fontWeight: "700", color: badge.color }}>{pctText}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
+                        {formatMoney(a.pnl || 0, currency)}
+                      </Text>
+                    </View>
                   </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
 
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", lineHeight: 18 }} numberOfLines={2}>
-                      {a.name}
-                    </Text>
-
-                    <Text style={{ fontSize: 11, color: "#64748B", fontWeight: "600", marginTop: 2 }}>
-                      {typeLabel(a.type)} · {formatMoney(a.currentValue || 0, currency)}
-                    </Text>
-                  </View>
-
-                  <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: "700", color: badge.color }}>{pctText}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
-                      {formatMoney(a.pnl || 0, currency)}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-
-        {/* DONUT + LEYENDA DEBAJO */}
+        {/* DONUT + LEYENDA */}
         {!loading && assets.length > 0 && allocation.slices.length > 0 && (
           <View
             style={{
@@ -584,6 +686,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               padding: 14,
               marginTop: 6,
               marginBottom: 10,
+              marginHorizontal: 20,
               shadowColor: "#000",
               shadowOpacity: 0.04,
               shadowRadius: 5,
@@ -605,7 +708,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               </View>
             </View>
 
-            {/* Donut centrado */}
             <View style={{ alignItems: "center", marginTop: 14 }}>
               <DonutPro
                 slices={allocation.slices}
@@ -619,7 +721,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               />
             </View>
 
-            {/* Leyenda debajo (premium, 2 columnas si quieres) */}
             <View style={{ marginTop: 12 }}>
               {allocation.slices.slice(0, 8).map((s) => {
                 const isActive = (selectedSlice?.id ?? null) === s.id;
@@ -679,51 +780,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             </View>
           </View>
         )}
-
-        {/* CTA */}
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("InvestmentForm")}
-            activeOpacity={0.9}
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 12,
-              borderRadius: 18,
-              backgroundColor: "#F3F4F6",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-            }}
-          >
-            <Ionicons name="add-outline" size={18} color="#64748B" />
-            <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: "700", color: "#64748B" }}>
-              Añadir inversión
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("InvestmentValuation")}
-            activeOpacity={0.9}
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingVertical: 12,
-              borderRadius: 18,
-              backgroundColor: "#EEF2FF",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-            }}
-          >
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: "800", color: colors.primary }}>
-              Añadir valor
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {timelineLoading ? <View style={{ height: 10 }} /> : null}
       </ScrollView>

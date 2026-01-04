@@ -902,7 +902,7 @@ const fetchTimeline = async (rk: RangeKey) => {
                   }}
                 >
                   <Th label="ACTIVO" flex={GRID.asset} px={px} fs={fs} />
-                  <Th label="TIPO" flex={GRID.type} px={px} fs={fs} />
+                  <Th label="TIPO" align="right" flex={GRID.type} px={px} fs={fs} />
                   <Th label="VALOR ACTUAL" align="right" flex={GRID.cur} px={px} fs={fs} />
                   <Th label="INVERTIDO" align="right" flex={GRID.inv} px={px} fs={fs} />
                   <Th label="P/L" align="right" flex={GRID.pnl} px={px} fs={fs} />
@@ -966,7 +966,7 @@ const fetchTimeline = async (rk: RangeKey) => {
                         </View>
                       </Td>
 
-                      <Td flex={GRID.type} px={px}>
+                      <Td flex={GRID.type} align="right" px={px}>
                         <Text style={[textStyles.caption, { fontSize: fs(12), fontWeight: "700", color: "#0F172A" }]} numberOfLines={1}>
                           {typeLabel(a.type)}
                         </Text>

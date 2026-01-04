@@ -1,6 +1,14 @@
 // src/components/DesktopInvestmentValuationModal.tsx
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { View, Text, Modal, Pressable, TextInput, ActivityIndicator, Platform } from "react-native";
+import {
+  View,
+  Text,
+  Modal,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import api from "../api/api";
@@ -26,24 +34,43 @@ function parseAmount(input: string): number | null {
   return n;
 }
 
+function toISODateOnly(isoOrDate: string) {
+  // Soporta ISO completo o YYYY-MM-DD
+  if (!isoOrDate) return "";
+  if (isValidISODate(isoOrDate)) return isoOrDate;
+
+  const d = new Date(isoOrDate);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function todayISODate() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 type Props = {
   visible: boolean;
   assetId: number;
   currency?: string;
-  /** ✅ NUEVO: si viene, el modal entra en modo "editar" */
-  editingValuationId?: number | null;
+  editingValuationId?: number | null; // ✅ NUEVO
   onClose: () => void;
   onSaved?: () => void;
 };
 
-type ValuationFromApi = {
+type ValuationDetail = {
   id: number;
   assetId?: number;
   investmentAssetId?: number;
   date: string;
   value: number;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  currency?: string | null;
   active?: boolean;
 };
 
@@ -55,76 +82,85 @@ export default function DesktopInvestmentValuationModal({
   onClose,
   onSaved,
 }: Props) {
+  const isEdit = !!editingValuationId;
+
   const [saving, setSaving] = useState(false);
   const [loadingVal, setLoadingVal] = useState(false);
 
-  // defaults
   const [date, setDate] = useState<string>("");
   const [valueText, setValueText] = useState<string>("");
 
-  const isEdit = !!editingValuationId;
-
-  /** ✅ NUEVO: inicialización en create vs edit */
+  // ✅ Cargar datos al abrir:
+  // - Create: fecha hoy + value vacío
+  // - Edit: fetch valoración y rellenar
   useEffect(() => {
     if (!visible) return;
 
-    // CREATE: defaults hoy + vacío
-    if (!editingValuationId) {
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      setDate(`${yyyy}-${mm}-${dd}`);
-      setValueText("");
-      setLoadingVal(false);
-      return;
-    }
+    let cancelled = false;
 
-    // EDIT: cargar valoración
-    let mounted = true;
-    (async () => {
+    const run = async () => {
+      // reset mínimo al abrir para evitar "flash" de datos viejos
+      setSaving(false);
+
+      if (!isEdit) {
+        setLoadingVal(false);
+        setDate(todayISODate());
+        setValueText("");
+        return;
+      }
+
+      // Edit mode
+      setLoadingVal(true);
       try {
-        setLoadingVal(true);
-
+        // ⚠️ Ajusta endpoint si el tuyo es distinto
         const res = await api.get(`/investments/valuations/${editingValuationId}`);
-        const v: ValuationFromApi = res.data;
+        const v: ValuationDetail | null = res?.data ?? null;
 
-        if (!mounted) return;
+        if (cancelled) return;
 
-        // si tu backend devuelve ISO completo, normalizamos a YYYY-MM-DD
-        const iso = String(v?.date ?? "");
-        const yyyyMmDd = iso.includes("T") ? iso.split("T")[0] : iso;
-
-        setDate(yyyyMmDd);
-        setValueText(String(v?.value ?? ""));
+        if (v?.id) {
+          setDate(toISODateOnly(v.date));
+          // mostramos con coma si quieres estilo ES
+          // Para no liarla: deja el number "tal cual" con '.' y tu parser lo soporta
+          setValueText(String(Number(v.value ?? 0)));
+        } else {
+          // fallback
+          setDate(todayISODate());
+          setValueText("");
+        }
       } catch (e) {
-        console.error("❌ Error cargando valoración:", e);
-        // fallback a create para no bloquear UX
-        const d = new Date();
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        setDate(`${yyyy}-${mm}-${dd}`);
+        if (cancelled) return;
+        console.error("❌ Error cargando valoración a editar:", e);
+        // fallback a create-like state (pero seguimos en edit)
+        setDate(todayISODate());
         setValueText("");
       } finally {
-        if (mounted) setLoadingVal(false);
+        if (!cancelled) setLoadingVal(false);
       }
-    })();
+    };
+
+    run();
 
     return () => {
-      mounted = false;
+      cancelled = true;
     };
-  }, [visible, editingValuationId]);
+    // Importante: depende de visible y del id (para permitir editar distintas valoraciones sin cerrar)
+  }, [visible, isEdit, editingValuationId]);
 
   const valueNumber = useMemo(() => parseAmount(valueText), [valueText]);
 
   const canSave = useMemo(() => {
     if (!assetId) return false;
     if (!isValidISODate(date)) return false;
+
+    // En edición también exigimos valor válido
     if (valueText.trim() && valueNumber === null) return false;
     if (valueNumber === null) return false;
     if (valueNumber < 0) return false;
+
+    // Evita guardar mientras carga la valoración
     if (loadingVal) return false;
+
     return true;
   }, [assetId, date, valueText, valueNumber, loadingVal]);
 
@@ -138,11 +174,14 @@ export default function DesktopInvestmentValuationModal({
         assetId,
         date, // YYYY-MM-DD
         value: valueNumber!,
+        currency, // si en tu backend no hace falta, no pasa nada (o quítalo)
       };
 
-      if (editingValuationId) {
+      if (isEdit && editingValuationId) {
+        // ⚠️ Ajusta endpoint si el tuyo es distinto
         await api.patch(`/investments/valuations/${editingValuationId}`, payload);
       } else {
+        // create
         await api.post(`/investments/valuations`, payload);
       }
 
@@ -152,13 +191,15 @@ export default function DesktopInvestmentValuationModal({
     } finally {
       setSaving(false);
     }
-  }, [assetId, canSave, date, onSaved, valueNumber, editingValuationId]);
+  }, [canSave, assetId, date, valueNumber, currency, isEdit, editingValuationId, onSaved]);
+
+  const busy = saving || loadingVal;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={busy ? undefined : onClose}>
       {/* Backdrop */}
       <Pressable
-        onPress={saving ? undefined : onClose}
+        onPress={busy ? undefined : onClose}
         style={{
           flex: 1,
           backgroundColor: "rgba(15,23,42,0.45)",
@@ -208,6 +249,7 @@ export default function DesktopInvestmentValuationModal({
               >
                 <Ionicons name="cash-outline" size={18} color={colors.primary} />
               </View>
+
               <View>
                 <Text style={[textStyles.h2, { fontSize: 14, fontWeight: "900", color: "#0F172A" }]}>
                   {isEdit ? "Editar valoración" : "Nueva valoración"}
@@ -219,7 +261,7 @@ export default function DesktopInvestmentValuationModal({
             </View>
 
             <Pressable
-              onPress={saving ? undefined : onClose}
+              onPress={busy ? undefined : onClose}
               style={{
                 width: 36,
                 height: 36,
@@ -229,6 +271,7 @@ export default function DesktopInvestmentValuationModal({
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: "white",
+                opacity: busy ? 0.6 : 1,
               }}
             >
               <Ionicons name="close" size={18} color="#64748B" />
@@ -238,14 +281,16 @@ export default function DesktopInvestmentValuationModal({
           {/* Body */}
           <View style={{ padding: 16, gap: 14 }}>
             {loadingVal ? (
-              <View style={{ paddingVertical: 18, alignItems: "center", justifyContent: "center", gap: 10 }}>
-                <ActivityIndicator color={colors.primary} />
-                <Text style={[textStyles.caption, { fontSize: 12, fontWeight: "800", color: "#94A3B8" }]}>Cargando valoración…</Text>
+              <View style={{ paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[textStyles.bodyMuted, { fontSize: 12, fontWeight: "800", color: "#94A3B8" }]}>
+                  Cargando valoración…
+                </Text>
               </View>
             ) : null}
 
             {/* Date */}
-            <View style={{ gap: 6, opacity: loadingVal ? 0.6 : 1 }}>
+            <View style={{ gap: 6, opacity: loadingVal ? 0.7 : 1 }}>
               <Text style={[textStyles.labelMuted, { fontSize: 12 }]}>Fecha</Text>
 
               {Platform.OS === "web" ? (
@@ -253,7 +298,7 @@ export default function DesktopInvestmentValuationModal({
                 <input
                   type="date"
                   value={date}
-                  disabled={loadingVal || saving}
+                  disabled={loadingVal}
                   onChange={(e: any) => setDate(e?.target?.value ?? "")}
                   style={{
                     height: 42,
@@ -265,13 +310,13 @@ export default function DesktopInvestmentValuationModal({
                     fontWeight: 800,
                     color: "#0F172A",
                     outline: "none",
-                    opacity: loadingVal || saving ? 0.7 : 1,
+                    opacity: loadingVal ? 0.7 : 1,
                   }}
                 />
               ) : (
                 <TextInput
                   value={date}
-                  editable={!loadingVal && !saving}
+                  editable={!loadingVal}
                   onChangeText={setDate}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor="#94A3B8"
@@ -284,17 +329,20 @@ export default function DesktopInvestmentValuationModal({
                     paddingHorizontal: 12,
                     fontWeight: "800",
                     color: "#0F172A",
+                    opacity: loadingVal ? 0.7 : 1,
                   }}
                 />
               )}
 
-              {!isValidISODate(date) ? (
-                <Text style={[textStyles.caption, { fontSize: 11, fontWeight: "800", color: "#DC2626" }]}>Formato inválido (usa YYYY-MM-DD)</Text>
+              {!!date && !isValidISODate(date) ? (
+                <Text style={[textStyles.caption, { fontSize: 11, fontWeight: "800", color: "#DC2626" }]}>
+                  Formato inválido (usa YYYY-MM-DD)
+                </Text>
               ) : null}
             </View>
 
             {/* Value */}
-            <View style={{ gap: 6, opacity: loadingVal ? 0.6 : 1 }}>
+            <View style={{ gap: 6, opacity: loadingVal ? 0.7 : 1 }}>
               <Text style={[textStyles.labelMuted, { fontSize: 12 }]}>Valor</Text>
               <View
                 style={{
@@ -312,12 +360,12 @@ export default function DesktopInvestmentValuationModal({
                 <Ionicons name="wallet-outline" size={16} color="#64748B" />
                 <TextInput
                   value={valueText}
-                  editable={!loadingVal && !saving}
+                  editable={!loadingVal}
                   onChangeText={setValueText}
                   placeholder={`Ej: 2500 (${currency})`}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
-                  style={{ flex: 1, fontWeight: "900", color: "#0F172A" }}
+                  style={{ flex: 1, fontWeight: "900", color: "#0F172A", opacity: loadingVal ? 0.7 : 1 }}
                 />
                 {valueText.trim() && valueNumber === null ? (
                   <Text style={[textStyles.caption, { fontSize: 11, fontWeight: "900", color: "#DC2626" }]}>inválido</Text>
@@ -327,9 +375,18 @@ export default function DesktopInvestmentValuationModal({
           </View>
 
           {/* Footer */}
-          <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB", flexDirection: "row", justifyContent: "flex-end", gap: 10 }}>
+          <View
+            style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: "#E5E7EB",
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              gap: 10,
+            }}
+          >
             <Pressable
-              onPress={saving ? undefined : onClose}
+              onPress={busy ? undefined : onClose}
               style={{
                 height: 42,
                 paddingHorizontal: 14,
@@ -339,6 +396,7 @@ export default function DesktopInvestmentValuationModal({
                 backgroundColor: "white",
                 alignItems: "center",
                 justifyContent: "center",
+                opacity: busy ? 0.6 : 1,
               }}
             >
               <Text style={[textStyles.button, { fontSize: 12, fontWeight: "900", color: "#64748B" }]}>Cancelar</Text>
@@ -346,22 +404,24 @@ export default function DesktopInvestmentValuationModal({
 
             <Pressable
               onPress={onSubmit}
-              disabled={!canSave || saving}
+              disabled={!canSave || busy}
               style={{
                 height: 42,
                 paddingHorizontal: 14,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: !canSave || saving ? "#E5E7EB" : colors.primary,
-                backgroundColor: !canSave || saving ? "#E5E7EB" : colors.primary,
+                borderColor: !canSave || busy ? "#E5E7EB" : colors.primary,
+                backgroundColor: !canSave || busy ? "#E5E7EB" : colors.primary,
                 alignItems: "center",
                 justifyContent: "center",
                 flexDirection: "row",
                 gap: 8,
               }}
             >
-              {saving ? <ActivityIndicator color="white" /> : <Ionicons name="checkmark-outline" size={18} color="white" />}
-              <Text style={[textStyles.button, { fontSize: 12, fontWeight: "900", color: "white" }]}>{isEdit ? "Guardar cambios" : "Guardar"}</Text>
+              {busy ? <ActivityIndicator color="white" /> : <Ionicons name="checkmark-outline" size={18} color="white" />}
+              <Text style={[textStyles.button, { fontSize: 12, fontWeight: "900", color: "white" }]}>
+                {isEdit ? "Guardar cambios" : "Guardar"}
+              </Text>
             </Pressable>
           </View>
         </Pressable>
