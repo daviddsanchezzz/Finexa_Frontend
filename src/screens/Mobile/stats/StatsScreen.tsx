@@ -350,8 +350,7 @@ export default function StatsScreen({ navigation }: any) {
     return [];
   })();
 
-  const totalSaving =
-    summary?.balance ?? totalIncomes - totalExpenses - totalInvestment;
+  const totalSaving = totalIncomes - totalExpenses;
 
   // ------------------------------
   // CARRUSEL HANDLERS
@@ -737,93 +736,6 @@ export default function StatsScreen({ navigation }: any) {
                   </View>
                 </>
               )}
-            </View>
-
-            {/* INVERSION (TOTAL + POR ASSET) */}
-            <View className="mx-5 mb-8">
-              <Text className="text-[15px] font-medium text-gray-500">
-                INVERSIÓN
-              </Text>
-
-              {/* Desglose por asset */}
-              {investmentByAsset.length === 0 ? (
-                <Text className="text-gray-400 mt-2">
-                  No hay inversiones en este periodo
-                </Text>
-              ) : (
-                <View className="mt-2">
-                  {investmentByAsset.map((a) => {
-                    const percent =
-                      totalInvestment > 0
-                        ? (a.amount / totalInvestment) * 100
-                        : 0;
-
-                    return (
-                      <TouchableOpacity
-                        key={a.assetId}
-                        activeOpacity={0.7}
-                        onPress={() =>
-                          navigation.navigate("InvestmentDetail", {
-                            assetId: a.assetId,
-                          })
-                        }
-                        className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
-                        style={{
-                          backgroundColor: colors.background,
-                          borderRadius: 12,
-                          marginVertical: 3,
-                        }}
-                      >
-                        <View className="flex-row items-center">
-                          <View
-                            className="w-9 h-9 rounded-lg items-center justify-center mr-3"
-                            style={{
-                              backgroundColor: "rgba(59,130,246,0.18)",
-                            }}
-                          >
-                            <Text className="text-[18px]">📈</Text>
-                          </View>
-
-                          <View style={{ maxWidth: CARD_W - 160 }}>
-                            <Text
-                              className="text-[16px] font-semibold text-text"
-                              numberOfLines={1}
-                            >
-                              {a.name}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <View className="items-end">
-                          <Text className="text-[16px] font-semibold text-text">
-                            {formatEuro(a.amount)}
-                          </Text>
-                          <Text className="text-[13px] text-gray-500 mt-0.5">
-                            {formatPercent(percent)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Total */}
-              <View
-                className="flex-row justify-between items-center py-3 px-3 mt-1"
-                style={{
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  marginVertical: 3,
-                }}
-              >
-                <Text className="text-[16px] font-semibold text-text">
-                  Total inversión
-                </Text>
-                <Text className="text-[16px] font-bold text-text">
-                  {formatEuro(totalInvestment)}
-                </Text>
-              </View>
             </View>
 
             {/* AHORRO */}
