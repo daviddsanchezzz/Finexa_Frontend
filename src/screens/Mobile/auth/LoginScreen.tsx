@@ -69,7 +69,7 @@ export default function LoginScreen({ navigation }: any) {
       {/* Logo / Marca */}
       <View className="mb-10 items-center">
         <Image
-          source={require("../../../../assets/finex_logo.png")}
+          source={require("../../../../assets/finex_logo.webp")}
           style={{ width: 90, height: 90, resizeMode: "contain", marginBottom: 12 }}
         />
         <Text className="text-5xl font-bold text-primary mb-1">Finexa</Text>

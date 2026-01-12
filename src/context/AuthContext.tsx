@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import { storage } from "../utils/storage";
 
@@ -11,7 +11,8 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
-  loading: boolean;
+  hydrated: boolean;          // ya leímos storage
+  checkingSession: boolean;   // estamos validando /auth/me
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -20,30 +21,42 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(false);
 
   useEffect(() => {
-    const checkToken = async () => {
+    let cancelled = false;
+
+    const bootstrap = async () => {
       const token = await storage.getItem("access_token");
 
-      if (token) {
-        try {
-          // opcional (request interceptor ya lo hace), pero ayuda en arranque
-          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      // Ya podemos renderizar (Login o App). NO bloqueamos por red.
+      if (!cancelled) setHydrated(true);
 
-          // Si el token caducó, /auth/me devolverá 401 y api.ts intentará refresh
-          const res = await api.get("/auth/me");
-          setUser(res.data.user);
-        } catch {
-          // No borres tokens aquí; api.ts los borra si refresh falla de verdad
-          setUser(null);
-        }
+      if (!token) return;
+
+      // Si hay token, validamos en background
+      try {
+        if (!cancelled) setCheckingSession(true);
+
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        const res = await api.get("/auth/me"); // si 401, tu interceptor intentará refresh
+        if (!cancelled) setUser(res.data.user);
+      } catch {
+        // Si falla, el interceptor ya limpiará tokens si refresh falla.
+        // Aquí solo reflejamos sesión no válida.
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setCheckingSession(false);
       }
-
-      setLoading(false);
     };
 
-    checkToken();
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -59,16 +72,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     await storage.removeItem("access_token");
-    await storage.removeItem("refresh_token"); // ✅ importante
+    await storage.removeItem("refresh_token");
     delete api.defaults.headers.common["Authorization"];
     setUser(null);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, hydrated, checkingSession, login, logout }),
+    [user, hydrated, checkingSession]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

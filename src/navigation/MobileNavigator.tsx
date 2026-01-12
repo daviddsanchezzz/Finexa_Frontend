@@ -43,15 +43,18 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function MobileNavigator() {
-  const { user, loading } = useAuth();
+  const { user, hydrated  } = useAuth();
 
-  if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
+if (!hydrated) {
+  // Opcional: pero intenta que sea mínimo.
+  // En web incluso puedes devolver null o un splash muy ligero.
+  return (
+    <View className="flex-1 items-center justify-center bg-white">
+      <ActivityIndicator size="large" color="#2563eb" />
+    </View>
+  );
+}
+
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
