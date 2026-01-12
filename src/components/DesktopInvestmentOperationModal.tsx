@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
 
-type OperationMode = "buy" | "sell" | "deposit" | "withdraw" | "swap";
+type OperationType = "buy" | "sell" | "transfer_in" | "transfer_out" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
 export type InvestmentAssetLite = {
@@ -181,7 +181,7 @@ export default function DesktopInvestmentOperationModal({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [mode, setMode] = useState<OperationMode>("buy");
+const [opType, setOpType] = useState<OperationType>("buy");
 
   // Wallets cash desde backend
   const [wallets, setWallets] = useState<WalletLite[]>([]);
@@ -215,22 +215,22 @@ export default function DesktopInvestmentOperationModal({
     []
   );
 
-  const modeMeta = useMemo(() => {
-    switch (mode) {
-      case "buy":
-        return { title: "Comprar", subtitle: "Cash → inversión (requiere wallet origen cash)" };
-      case "sell":
-        return { title: "Vender", subtitle: "Inversión → cash (requiere wallet destino cash)" };
-      case "deposit":
-        return { title: "Aportar", subtitle: "Cash → inversión (equivalente a compra/aportación)" };
-      case "withdraw":
-        return { title: "Retirar", subtitle: "Inversión → cash (equivalente a venta/retirada)" };
-      case "swap":
-        return { title: "Swap", subtitle: "Activo A → Activo B (sin wallets en v1)" };
-      default:
-        return { title: "Operación", subtitle: "" };
-    }
-  }, [mode]);
+const opMeta = useMemo(() => {
+  switch (opType) {
+    case "buy":
+      return { title: "Comprar", subtitle: "Cash → inversión (wallet origen cash)" };
+    case "sell":
+      return { title: "Vender", subtitle: "Inversión → cash (wallet destino cash)" };
+    case "transfer_in":
+      return { title: "Aportar", subtitle: "Cash → inversión (aporte/entrada)" };
+    case "transfer_out":
+      return { title: "Retirar", subtitle: "Inversión → cash (retirada/salida)" };
+    case "swap":
+      return { title: "Swap", subtitle: "Activo A → Activo B (sin wallets en v1)" };
+    default:
+      return { title: "Operación", subtitle: "" };
+  }
+}, [opType]);
 
   const fetchWallets = useCallback(async () => {
     try {
@@ -257,7 +257,7 @@ export default function DesktopInvestmentOperationModal({
   }, []);
 
   const resetForm = useCallback(() => {
-    setMode("buy");
+    setOpType("buy");
 
     setSelectedWallet(null);
 
@@ -293,105 +293,103 @@ export default function DesktopInvestmentOperationModal({
     })();
   }, [visible, resetForm, fetchWallets]);
 
-  const canSave = useMemo(() => {
-    if (loading || saving) return false;
+const canSave = useMemo(() => {
+  if (loading || saving) return false;
+
+  const feeN = fee.trim() ? moneyToNumber(fee) : 0;
+  if (fee.trim() && !Number.isFinite(feeN)) return false;
+  if (Number.isFinite(feeN) && feeN < 0) return false;
+
+  if (opType === "swap") {
+    if (!fromAsset || !toAsset) return false;
+    if (fromAsset.id === toAsset.id) return false;
+
+    const outN = moneyToNumber(amountOut);
+    if (!amountOut || !Number.isFinite(outN) || outN <= 0) return false;
+
+    if (amountIn.trim()) {
+      const inN = moneyToNumber(amountIn);
+      if (!Number.isFinite(inN) || inN <= 0) return false;
+    }
+    return true;
+  }
+
+  if (!selectedAsset) return false;
+  if (!selectedWallet) return false;
+
+  const amtN = moneyToNumber(amount);
+  if (!amount || !Number.isFinite(amtN) || amtN <= 0) return false;
+
+  return true;
+}, [loading, saving, fee, opType, fromAsset, toAsset, amountOut, amountIn, selectedAsset, selectedWallet, amount]);
+
+const handleSubmit = useCallback(async () => {
+  if (!canSave) return;
+
+  try {
+    setSaving(true);
+
+    const date = new Date().toISOString();
+    const desc = description.trim() || undefined;
 
     const feeN = fee.trim() ? moneyToNumber(fee) : 0;
-    if (fee.trim() && !Number.isFinite(feeN)) return false;
-    if (Number.isFinite(feeN) && feeN < 0) return false;
+    if (fee.trim() && !Number.isFinite(feeN)) return;
 
-    if (mode === "swap") {
-      if (!fromAsset || !toAsset) return false;
-      if (fromAsset.id === toAsset.id) return false;
-
+    if (opType === "swap") {
       const outN = moneyToNumber(amountOut);
-      if (!amountOut || !Number.isFinite(outN) || outN <= 0) return false;
+      const inN = amountIn.trim() ? moneyToNumber(amountIn) : outN;
 
-      if (amountIn.trim()) {
-        const inN = moneyToNumber(amountIn);
-        if (!Number.isFinite(inN) || inN <= 0) return false;
-      }
-
-      return true;
-    }
-
-    if (!selectedAsset) return false;
-    if (!selectedWallet) return false;
-
-    const amtN = moneyToNumber(amount);
-    if (!amount || !Number.isFinite(amtN) || amtN <= 0) return false;
-
-    return true;
-  }, [amount, amountIn, amountOut, fee, fromAsset, loading, mode, saving, selectedAsset, selectedWallet, toAsset]);
-
-  const handleSubmit = useCallback(async () => {
-    if (!canSave) return;
-
-    try {
-      setSaving(true);
-
-      const date = new Date().toISOString();
-      const desc = description.trim() || undefined;
-
-      const feeN = fee.trim() ? moneyToNumber(fee) : 0;
-      if (fee.trim() && !Number.isFinite(feeN)) return;
-
-      if (mode === "swap") {
-        const outN = moneyToNumber(amountOut);
-        const inN = amountIn.trim() ? moneyToNumber(amountIn) : outN;
-
-        await api.post("/investments/swap", {
-          fromAssetId: fromAsset!.id,
-          toAssetId: toAsset!.id,
-          amountOut: outN,
-          amountIn: inN,
-          fee: feeN || 0,
-          date,
-          description: desc,
-        });
-
-        onSaved();
-        onClose();
-        return;
-      }
-
-      const amtN = moneyToNumber(amount);
-
-      const baseBody: any = { amount: amtN, fee: feeN || 0, date, description: desc };
-
-      if (mode === "buy") {
-        await api.post(`/investments/${selectedAsset!.id}/buy`, { ...baseBody, fromWalletId: selectedWallet!.id });
-      } else if (mode === "deposit") {
-        await api.post(`/investments/${selectedAsset!.id}/deposit`, { ...baseBody, fromWalletId: selectedWallet!.id });
-      } else if (mode === "sell") {
-        await api.post(`/investments/${selectedAsset!.id}/sell`, { ...baseBody, toWalletId: selectedWallet!.id });
-      } else if (mode === "withdraw") {
-        await api.post(`/investments/${selectedAsset!.id}/withdraw`, { ...baseBody, toWalletId: selectedWallet!.id });
-      }
+      await api.post("/investments/swap", {
+        fromAssetId: fromAsset!.id,
+        toAssetId: toAsset!.id,
+        amountOut: outN,
+        amountIn: inN,
+        fee: feeN || 0,
+        date,
+        description: desc,
+      });
 
       onSaved();
       onClose();
-    } catch (e: any) {
-      // Si quieres, aquí puedes meter tu toast / inline error como en transacciones
-      console.error("DesktopInvestmentOperationModal submit error:", e?.response?.data || e);
-    } finally {
-      setSaving(false);
+      return;
     }
-  }, [
-    amount,
-    amountIn,
-    amountOut,
-    canSave,
-    description,
-    fee,
-    fromAsset,
-    mode,
-    onClose,
-    onSaved,
-    selectedAsset,
-    selectedWallet,
-    toAsset,
-  ]);
+
+    const amtN = moneyToNumber(amount);
+    const baseBody: any = { amount: amtN, fee: feeN || 0, date, description: desc };
+
+    // IMPORTANTE: aquí mantienes tus endpoints tal cual
+    if (opType === "buy") {
+      await api.post(`/investments/${selectedAsset!.id}/buy`, { ...baseBody, fromWalletId: selectedWallet!.id });
+    } else if (opType === "transfer_in") {
+      await api.post(`/investments/${selectedAsset!.id}/deposit`, { ...baseBody, fromWalletId: selectedWallet!.id });
+    } else if (opType === "sell") {
+      await api.post(`/investments/${selectedAsset!.id}/sell`, { ...baseBody, toWalletId: selectedWallet!.id });
+    } else if (opType === "transfer_out") {
+      await api.post(`/investments/${selectedAsset!.id}/withdraw`, { ...baseBody, toWalletId: selectedWallet!.id });
+    }
+
+    onSaved();
+    onClose();
+  } catch (e: any) {
+    console.error("DesktopInvestmentOperationModal submit error:", e?.response?.data || e);
+  } finally {
+    setSaving(false);
+  }
+}, [
+  canSave,
+  opType,
+  amount,
+  fee,
+  description,
+  amountOut,
+  amountIn,
+  fromAsset,
+  toAsset,
+  selectedAsset,
+  selectedWallet,
+  onSaved,
+  onClose,
+]);
 
   // Keyboard web: ESC / Ctrl+Enter
   useEffect(() => {
@@ -409,10 +407,10 @@ export default function DesktopInvestmentOperationModal({
   }, [visible, onClose, canSave, saving, handleSubmit]);
 
   const walletLabel = useMemo(() => {
-    if (mode === "buy" || mode === "deposit") return "Wallet origen (cash)";
-    if (mode === "sell" || mode === "withdraw") return "Wallet destino (cash)";
+    if (opType === "buy" || opType === "transfer_in") return "Wallet origen (cash)";
+    if (opType === "sell" || opType === "transfer_out") return "Wallet destino (cash)";
     return "Wallet (cash)";
-  }, [mode]);
+  }, [opType]);
 
   const AmountCard = (
     <View
@@ -428,10 +426,10 @@ export default function DesktopInvestmentOperationModal({
       }}
     >
       <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", alignSelf: "flex-start" }}>
-        {mode === "swap" ? "Cantidad (swap)" : "Cantidad"}
+        {opType === "swap" ? "Cantidad (swap)" : "Cantidad"}
       </Text>
 
-      {mode === "swap" ? (
+      {opType === "swap" ? (
         <View style={{ width: "100%", marginTop: 8 }}>
           <View style={{ marginBottom: 10 }}>
             <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>Salida</Text>
@@ -580,7 +578,7 @@ export default function DesktopInvestmentOperationModal({
                 <Ionicons name="flash" size={18} color={colors.primary} />
               </View>
               <View>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{modeMeta.title}</Text>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{opMeta.title}</Text>
               </View>
             </View>
 
@@ -657,39 +655,37 @@ export default function DesktopInvestmentOperationModal({
                   </Text>
 
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                    {[
-                      { label: "Comprar", value: "buy" as const, icon: "cart" as const, tint: tints.buy },
-                      { label: "Vender", value: "sell" as const, icon: "cash" as const, tint: tints.sell },
-                      { label: "Aportar", value: "deposit" as const, icon: "arrow-down" as const, tint: tints.deposit },
-                      { label: "Retirar", value: "withdraw" as const, icon: "arrow-up" as const, tint: tints.withdraw },
-                      { label: "Transferir", value: "swap" as const, icon: "swap-horizontal" as const, tint: tints.swap },
-                    ].map((opt, idx) => {
-                      const active = mode === opt.value;
-                      return (
-                        <View key={opt.value} style={{ marginRight: 8, marginBottom: 8 }}>
-                          <Chip
-                            label={opt.label}
-                            leftIcon={opt.icon}
-                            active={active}
-                            tint={opt.tint}
-                            onPress={() => {
-                              setMode(opt.value);
+ {[
+  { label: "Comprar",   value: "buy" as const,         icon: "cart" as const,            tint: tints.buy },
+  { label: "Vender",    value: "sell" as const,        icon: "cash" as const,            tint: tints.sell },
+  { label: "Aportar",   value: "transfer_in" as const, icon: "arrow-down" as const,      tint: tints.deposit },
+  { label: "Retirar",   value: "transfer_out" as const,icon: "arrow-up" as const,        tint: tints.withdraw },
+  { label: "Swap",      value: "swap" as const,        icon: "swap-horizontal" as const, tint: tints.swap },
+].map((opt) => {
+  const active = opType === opt.value;
+  return (
+    <View key={opt.value} style={{ marginRight: 8, marginBottom: 8 }}>
+      <Chip
+        label={opt.label}
+        leftIcon={opt.icon}
+        active={active}
+        tint={opt.tint}
+        onPress={() => {
+          setOpType(opt.value);
 
-                              // ajustes suaves al cambiar de modo
-                              if (opt.value === "swap") {
-                                // mantener fromAsset si existe
-                                if (!fromAsset && selectedAsset) setFromAsset(selectedAsset);
-                                setSelectedWallet(null); // no aplica
-                              } else {
-                                // volver a un modo con wallet: autoselección si falta
-                                if (!selectedWallet && wallets.length) setSelectedWallet(wallets[0]);
-                                if (!selectedAsset && assets.length) setSelectedAsset(assets[0]);
-                              }
-                            }}
-                          />
-                        </View>
-                      );
-                    })}
+          if (opt.value === "swap") {
+            if (!fromAsset && selectedAsset) setFromAsset(selectedAsset);
+            setSelectedWallet(null); // no aplica
+          } else {
+            if (!selectedWallet && wallets.length) setSelectedWallet(wallets[0]);
+            if (!selectedAsset && assets.length) setSelectedAsset(assets[0]);
+          }
+        }}
+      />
+    </View>
+  );
+})}
+
                   </View>
 
                 </View>
@@ -698,7 +694,7 @@ export default function DesktopInvestmentOperationModal({
               </View>
 
               {/* Wallet (solo si NO swap) */}
-              {mode !== "swap" ? (
+              {opType !== "swap" ? (
                 <Section
                   title={walletLabel}
                   right={
@@ -758,7 +754,7 @@ export default function DesktopInvestmentOperationModal({
               ) : null}
 
               {/* Activo(s) */}
-              {mode === "swap" ? (
+              {opType === "swap" ? (
                 <>
                   <Section title="Activo origen">
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>

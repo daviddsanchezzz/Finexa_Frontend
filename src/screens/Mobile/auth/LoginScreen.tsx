@@ -51,7 +51,7 @@ export default function LoginScreen({ navigation }: any) {
       await login(email, password);
 
       console.log("✅ Sesión iniciada:", user);
-      navigation.replace("Home"); // 👈 redirige tras login exitoso
+      navigation.replace("MainTabs"); // 👈 redirige tras login exitoso
     } catch (error: any) {
       console.error("❌ Error al iniciar sesión:", error.response?.data || error.message);
       setError(error.response?.data?.message || "Credenciales incorrectas.");

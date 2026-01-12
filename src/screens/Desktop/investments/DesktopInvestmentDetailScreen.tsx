@@ -230,7 +230,7 @@ function SectionCard({
 /** =========================
  * Operations helpers
  * ========================= */
-type InvestmentOperationType = "buy" | "sell" | "deposit" | "withdraw" | "swap";
+type InvestmentOperationType = "transfer_in"|"transfer_out"|"buy"|"sell"|"swap_in"|"swap_out";
 
 type InvestmentOperationFromApi = {
   id: number;
@@ -247,28 +247,41 @@ type InvestmentOperationFromApi = {
   active?: boolean;
 };
 
-function opLabel(t: InvestmentOperationType) {
+type BackendOpType = "transfer_in"|"transfer_out"|"buy"|"sell"|"swap_in"|"swap_out";
+
+function opLabel(t: BackendOpType) {
   switch (t) {
-    case "buy":
-      return "Compra";
-    case "sell":
-      return "Venta";
-    case "deposit":
-      return "Aportación";
-    case "withdraw":
-      return "Retirada";
-    case "swap":
-      return "Swap";
-    default:
-      return "Operación";
+    case "transfer_in": return "Aportación";
+    case "transfer_out": return "Retirada";
+    case "buy": return "Compra";
+    case "sell": return "Venta";
+    case "swap_in": return "Swap (entrada)";
+    case "swap_out": return "Swap (salida)";
   }
 }
 
+
 function opSignedAmount(op: InvestmentOperationFromApi) {
-  const a = Math.abs(Number(op.amount || 0));
+  const amount = Math.abs(Number(op.amount || 0));
   const fee = Math.abs(Number(op.fee || 0));
-  const sign = op.type === "sell" || op.type === "withdraw" ? -1 : 1;
-  return sign * a - fee; // fee siempre resta
+
+  switch (op.type) {
+    case "transfer_in":
+    case "buy":
+      // entra dinero a inversión (cash sale)
+      return amount + fee;
+
+    case "transfer_out":
+    case "sell":
+      // sale dinero de inversión (cash entra)
+      return -(amount - fee);
+
+    // swaps no afectan cash
+    case "swap_in":
+    case "swap_out":
+    default:
+      return 0;
+  }
 }
 
 function opIso(op: InvestmentOperationFromApi) {
@@ -838,9 +851,9 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           ? "add-circle-outline"
           : op.type === "sell"
           ? "remove-circle-outline"
-          : op.type === "deposit"
+          : op.type === "transfer_in"
           ? "download-outline"
-          : op.type === "withdraw"
+          : op.type === "transfer_out"
           ? "log-out-outline"
           : "swap-horizontal-outline";
 

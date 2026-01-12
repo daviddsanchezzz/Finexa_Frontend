@@ -75,8 +75,8 @@ export const textStyles = {
 
   labelMuted: {
     fontFamily: families.base,
-    fontSize: 11,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "700",
     color: "#94A3B8",
   } as TextStyle,
 

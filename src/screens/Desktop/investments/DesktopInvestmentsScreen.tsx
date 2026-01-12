@@ -29,6 +29,7 @@ import DesktopInvestmentValuationModal2, {
   ValuationAssetLite,
 } from "../../../components/DesktopInvestmentValuationModal2";
 import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
+import DesktopMonthlyPerformanceTable from "../../../components/DesktopMonthlyPerformanceTable";
 
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -701,10 +702,10 @@ const fetchTimeline = async (rk: RangeKey) => {
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
             {/* ✅ CAMBIO: abre modal */}
-            <TopButton icon="add-outline" label="Nueva" onPress={openCreate} px={px} fs={fs} />
+              <TopButton icon="add-outline" label="Nueva" onPress={openCreate} px={px} fs={fs} />
               <TopButton icon="swap-horizontal-outline" label="Operación" onPress={openOps} px={px} fs={fs} />
-<TopButton icon="calendar-outline" label="Valorar" onPress={openValuation} px={px} fs={fs} />
-            <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
+              <TopButton icon="calendar-outline" label="Valorar" onPress={openValuation} px={px} fs={fs} />
+              <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
           </View>
         </View>
 
@@ -773,15 +774,15 @@ const fetchTimeline = async (rk: RangeKey) => {
         <View style={{ marginTop: px(16), gap: px(12) }}>
           <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
             <View style={{ flex: 1, minWidth: WIDE ? px(680) : undefined }}>
-<PortfolioChartsPanel
-  points={timeline}
-  loading={timelineLoading}
-  range={range}
-  onRangeChange={setRange}
-  px={px}
-  fs={fs}
-  chartHeight={CHART_H}
-/>
+              <PortfolioChartsPanel
+                points={timeline}
+                loading={timelineLoading}
+                range={range}
+                onRangeChange={setRange}
+                px={px}
+                fs={fs}
+                chartHeight={CHART_H}
+              />
             </View>
 
             <View style={{ width: WIDE ? px(420) : "100%" }}>
@@ -997,7 +998,14 @@ const fetchTimeline = async (rk: RangeKey) => {
               </>
             )}
           </SectionCard>
+
+          <View style={{ marginTop: px(12) }}>
+  <DesktopMonthlyPerformanceTable px={px} fs={fs} currency={currency} defaultRange="12M" />
+</View>
+
         </View>
+
+
       </ScrollView>
 
       {/* ✅ MODAL embebido en pantalla */}

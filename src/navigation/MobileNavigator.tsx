@@ -1,37 +1,11 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
+
 import LoginScreen from "../screens/Mobile/auth/LoginScreen";
 import RegisterScreen from "../screens/Mobile/auth/RegisterScreen";
 import MainTabs from "./MainTabs";
-import ProfileScreen from "../screens/Mobile/profile/ProfileScreen";
-import CategoriesScreen from "../screens/Mobile/categories/CategoriesScreen";
-import { ActivityIndicator, View } from "react-native";
-import WalletsScreen from "../screens/Mobile/wallets/WalletsScreen";
-import CategoryTransactionsScreen from "../screens/Mobile/stats/CategoryTransactionsCreen";
-import ReconcileAccountsScreen from "../screens/Mobile/profile/ReconcileAccountsCreen";
-import TransfersScreen from "../screens/Mobile/wallets/TransferScreen";
-import EditMonthScreen from "../screens/Mobile/stats/EditMonthScreen";
-import BudgetCreateScreen from "../screens/Mobile/finances/budgets/BudgetCreateScreen";
-import BudgetTransactionsScreen from "../screens/Mobile/finances/budgets/BudgetTransactionsScreen";
-import DebtDetailScreen from "../screens/Mobile/finances/debts/DebtDetailScreen";
-import DebtFormScreen from "../screens/Mobile/finances/debts/DebtFormScreen";
-import DebtsHomeScreen from "../screens/Mobile/finances/debts/DebtsScreen";
-import BudgetsHomeScreen from "../screens/Mobile/finances/budgets/BudgetsScreen";
-import GoalsHomeScreen from "../screens/Mobile/finances/goals/GoalsScreen";
-import TripsHomeScreen from "../screens/Mobile/finances/travels/TravelsScreen";
-import TripFormScreen from "../screens/Mobile/finances/travels/TravelFormScreen";
-import TripDetailScreen from "../screens/Mobile/finances/travels/TripDetailScreen";
-import TripPlanFormScreen from "../screens/Mobile/finances/travels/TripPlanFormScreen";
-import RecurringTransactionsScreen from "../screens/Mobile/finances/RecurringTransactions/RecurringTransactionsScreen";
-import InvestmentsScreen from "../screens/Mobile/finances/invests/InvestmentsScreen";
-import InvestmentFormScreen from "../screens/Mobile/finances/invests/InvestmentFormScreen";
-import InvestmentValuationScreen from "../screens/Mobile/finances/invests/InvestmentValuationScreen";
-import InvestmentDetailScreen from "../screens/Mobile/finances/invests/InvestmentDetailScreen";
-import ReportsScreen from "../screens/Mobile/reports/ReportsScreen";
-import ReportsPdfViewerScreen from "../screens/Mobile/reports/ReportsPdfViewerScreen";
-import MonthlyContributionsScreen from "../screens/Mobile/finances/MonthlyContributions/MonthlyContributionsScreen";
-import InvestmentOperationScreen from "../screens/Mobile/finances/invests/InvestmentOperationScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -84,33 +58,195 @@ export default function MobileNavigator() {
       {user ? (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="Categories" component={CategoriesScreen} />
-          <Stack.Screen name="Wallets" component={WalletsScreen} />
-          <Stack.Screen name="CategoryTransactions" component={CategoryTransactionsScreen} />
-          <Stack.Screen name="ReconcileAccounts" component={ReconcileAccountsScreen} />
-          <Stack.Screen name="Transfers" component={TransfersScreen} />
-          <Stack.Screen name="EditMonth" component={EditMonthScreen} />
-          <Stack.Screen name="BudgetCreate" component={BudgetCreateScreen} />
-          <Stack.Screen name="BudgetTransactions" component={BudgetTransactionsScreen} />
-          <Stack.Screen name="DebtDetail" component={DebtDetailScreen} />
-          <Stack.Screen name="DebtForm" component={DebtFormScreen} />
-          <Stack.Screen name="Debts" component={DebtsHomeScreen} />
-          <Stack.Screen name="Budgets" component={BudgetsHomeScreen} />
-          <Stack.Screen name="Goals" component={GoalsHomeScreen} />
-          <Stack.Screen name="Trips" component={TripsHomeScreen} />
-          <Stack.Screen name="TripForm" component={TripFormScreen} />
-          <Stack.Screen name="TripDetail" component={TripDetailScreen} />
-          <Stack.Screen name="TripPlanForm" component={TripPlanFormScreen} />
-          <Stack.Screen name="RecurringTransactions" component={RecurringTransactionsScreen} />
-          <Stack.Screen name="Investments" component={InvestmentsScreen} />
-          <Stack.Screen name="InvestmentForm" component={InvestmentFormScreen} />
-          <Stack.Screen name="InvestmentValuation" component={InvestmentValuationScreen} />
-          <Stack.Screen name="InvestmentDetail" component={InvestmentDetailScreen} />
-          <Stack.Screen name="Reports" component={ReportsScreen} />
-          <Stack.Screen name="ReportsPdfViewer" component={ReportsPdfViewerScreen} />
-          <Stack.Screen name="MonthlyContributions" component={MonthlyContributionsScreen} />
-<Stack.Screen name="InvestmentOperation" component={InvestmentOperationScreen} />
+
+          <Stack.Screen
+            name="Profile"
+            getComponent={() =>
+              require("../screens/Mobile/profile/ProfileScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Categories"
+            getComponent={() =>
+              require("../screens/Mobile/categories/CategoriesScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Wallets"
+            getComponent={() =>
+              require("../screens/Mobile/wallets/WalletsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="CategoryTransactions"
+            getComponent={() =>
+              require("../screens/Mobile/stats/CategoryTransactionsCreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="ReconcileAccounts"
+            getComponent={() =>
+              require("../screens/Mobile/profile/ReconcileAccountsCreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Transfers"
+            getComponent={() =>
+              require("../screens/Mobile/wallets/TransferScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="EditMonth"
+            getComponent={() =>
+              require("../screens/Mobile/stats/EditMonthScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="BudgetCreate"
+            getComponent={() =>
+              require("../screens/Mobile/finances/budgets/BudgetCreateScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="BudgetTransactions"
+            getComponent={() =>
+              require("../screens/Mobile/finances/budgets/BudgetTransactionsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="DebtDetail"
+            getComponent={() =>
+              require("../screens/Mobile/finances/debts/DebtDetailScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="DebtForm"
+            getComponent={() =>
+              require("../screens/Mobile/finances/debts/DebtFormScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Debts"
+            getComponent={() =>
+              require("../screens/Mobile/finances/debts/DebtsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Budgets"
+            getComponent={() =>
+              require("../screens/Mobile/finances/budgets/BudgetsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Goals"
+            getComponent={() =>
+              require("../screens/Mobile/finances/goals/GoalsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Trips"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TravelsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="TripForm"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TravelFormScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="TripDetail"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TripDetailScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="TripPlanForm"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TripPlanFormScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="RecurringTransactions"
+            getComponent={() =>
+              require("../screens/Mobile/finances/RecurringTransactions/RecurringTransactionsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Investments"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="InvestmentForm"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentFormScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="InvestmentValuation"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentValuationScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="InvestmentDetail"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentDetailScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="InvestmentOperation"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentOperationScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Reports"
+            getComponent={() =>
+              require("../screens/Mobile/reports/ReportsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="ReportsPdfViewer"
+            getComponent={() =>
+              require("../screens/Mobile/reports/ReportsPdfViewerScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="MonthlyContributions"
+            getComponent={() =>
+              require("../screens/Mobile/finances/MonthlyContributions/MonthlyContributionsScreen").default
+            }
+          />
         </>
       ) : (
         <>
