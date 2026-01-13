@@ -96,6 +96,7 @@ export default function EditWalletModal({
       currency: currency.toUpperCase(),
       userId: user?.id,
     };
+    console.log("Payload a enviar:", payload);
 
     try {
       setLoading(true);

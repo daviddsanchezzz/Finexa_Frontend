@@ -43,17 +43,26 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function MobileNavigator() {
-  const { user, hydrated  } = useAuth();
+  const { user, hydrated, checkingSession } = useAuth();
 
-if (!hydrated) {
-  // Opcional: pero intenta que sea mínimo.
-  // En web incluso puedes devolver null o un splash muy ligero.
-  return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator size="large" color="#2563eb" />
-    </View>
-  );
-}
+  // 1) Espera a leer storage
+  if (!hydrated) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
+  // 2) Espera a restaurar sesión (refresh + /auth/me)
+  if (checkingSession) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
 
 
   return (
