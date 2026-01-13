@@ -10,8 +10,6 @@ import {
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
-import { storage } from "../../../utils/storage";
-import api from "../../../api/api";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function LoginScreen({ navigation }: any) {
@@ -38,27 +36,20 @@ export default function LoginScreen({ navigation }: any) {
     return true;
   };
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
+const handleLogin = async () => {
+  if (!validateForm()) return;
 
-    try {
-      setLoading(true);
-      const res = await api.post("/auth/login", { email, password });
-      const { access_token, refresh_token, user } = res.data;
-
-      await storage.setItem("access_token", access_token);
-      await storage.setItem("refresh_token", refresh_token);
-      await login(email, password);
-
-      console.log("✅ Sesión iniciada:", user);
-      navigation.replace("MainTabs"); // 👈 redirige tras login exitoso
-    } catch (error: any) {
-      console.error("❌ Error al iniciar sesión:", error.response?.data || error.message);
-      setError(error.response?.data?.message || "Credenciales incorrectas.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    await login(email, password);  // SOLO esto
+    navigation.replace("MainTabs");
+  } catch (error: any) {
+    console.error("❌ Error al iniciar sesión:", error.response?.data || error.message);
+    setError(error.response?.data?.message || "Credenciales incorrectas.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <ScrollView

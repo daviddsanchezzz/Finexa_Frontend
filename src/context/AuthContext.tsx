@@ -1,18 +1,18 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import api from "../api/api";
+import api, { plainApi } from "../api/api";
 import { storage } from "../utils/storage";
 
 type User = {
   id: number;
   name: string;
   email: string;
-  avatar: string;
+  avatar?: string;
 };
 
 type AuthContextType = {
   user: User | null;
-  hydrated: boolean;          // ya leímos storage
-  checkingSession: boolean;   // estamos validando /auth/me
+  hydrated: boolean;
+  checkingSession: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -28,24 +28,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let cancelled = false;
 
     const bootstrap = async () => {
-      const token = await storage.getItem("access_token");
-
-      // Ya podemos renderizar (Login o App). NO bloqueamos por red.
       if (!cancelled) setHydrated(true);
 
-      if (!token) return;
+      const refreshToken = await storage.getItem("refresh_token");
+      if (!refreshToken) return;
 
-      // Si hay token, validamos en background
       try {
         if (!cancelled) setCheckingSession(true);
 
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        // Refresh SIN interceptores
+        const refreshRes = await plainApi.post("/auth/refresh", { refresh_token: refreshToken });
 
-        const res = await api.get("/auth/me"); // si 401, tu interceptor intentará refresh
-        if (!cancelled) setUser(res.data.user);
+        const newAccessToken = refreshRes.data?.access_token;
+        const newRefreshToken = refreshRes.data?.refresh_token;
+
+        if (!newAccessToken) throw new Error("No access_token");
+
+        await storage.setItem("access_token", newAccessToken);
+        if (newRefreshToken) await storage.setItem("refresh_token", newRefreshToken);
+
+        api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
+
+        // Cargar usuario
+        const meRes = await api.get("/auth/me");
+        if (!cancelled) setUser(meRes.data.user);
       } catch {
-        // Si falla, el interceptor ya limpiará tokens si refresh falla.
-        // Aquí solo reflejamos sesión no válida.
+        await storage.removeItem("access_token");
+        await storage.removeItem("refresh_token");
+        delete api.defaults.headers.common["Authorization"];
         if (!cancelled) setUser(null);
       } finally {
         if (!cancelled) setCheckingSession(false);
@@ -53,7 +63,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     bootstrap();
-
     return () => {
       cancelled = true;
     };
@@ -71,6 +80,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
+    try {
+      await api.post("/auth/logout"); // si lo implementas
+    } catch {}
+
     await storage.removeItem("access_token");
     await storage.removeItem("refresh_token");
     delete api.defaults.headers.common["Authorization"];
