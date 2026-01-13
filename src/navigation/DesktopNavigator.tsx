@@ -9,6 +9,7 @@ import DesktopRegisterScreen from "../screens/Desktop/auth/DesktopRegisterScreen
 
 // Desktop shell (layout principal)
 import DesktopShellNavigator from "./DesktopShellNavigator";
+
 export type DesktopStackParamList = {
   DesktopLogin: undefined;
   DesktopRegister: undefined;
@@ -18,10 +19,20 @@ export type DesktopStackParamList = {
 const Stack = createNativeStackNavigator<DesktopStackParamList>();
 
 export default function DesktopNavigator() {
-  const { user, loading } = useAuth();
+  // ✅ Igual que en Mobile: hydrated + checkingSession
+  const { user, hydrated, checkingSession } = useAuth();
 
-  // Loader coherente con mobile
-  if (loading) {
+  // 1) Espera a hidratar storage
+  if (!hydrated) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "white" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // 2) Espera a restaurar sesión (refresh + /auth/me)
+  if (checkingSession) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "white" }}>
         <ActivityIndicator size="large" />
@@ -33,7 +44,7 @@ export default function DesktopNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
         // 🔒 Rutas privadas desktop
-<Stack.Screen name="DesktopShell" component={DesktopShellNavigator} />
+        <Stack.Screen name="DesktopShell" component={DesktopShellNavigator} />
       ) : (
         // 🔓 Rutas públicas desktop
         <>
