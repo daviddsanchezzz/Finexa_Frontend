@@ -18,6 +18,7 @@ import {
   EditTxData,
 } from "../context/CreateTxModalContext";
 import { textStyles } from "../theme/typography";
+import TripsHomeDesktopScreen from "../screens/Desktop/travel/TripsHomeDesktopScreen";
 
 type DesktopRouteKey =
   | "dashboard"
@@ -439,7 +440,7 @@ export default function DesktopShellNavigator() {
       <Stack.Screen name="dashboard" component={withDesktopShell(DashboardScreen)} />
       <Stack.Screen name="registre" component={withDesktopShell(RegisterScreen)} />
       <Stack.Screen name="profile" component={withDesktopShell(EmptyScreen)} />
-      <Stack.Screen name="travels" component={withDesktopShell(EmptyScreen)} />
+      <Stack.Screen name="travels" component={withDesktopShell(TripsHomeDesktopScreen)} />
       <Stack.Screen name="budgets" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="debts" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="goals" component={withDesktopShell(EmptyScreen)} />
