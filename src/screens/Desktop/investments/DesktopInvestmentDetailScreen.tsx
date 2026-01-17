@@ -20,6 +20,7 @@ import { textStyles } from "../../../theme/typography";
 
 import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
 import DesktopInvestmentValuationModal from "../../../components/DesktopInvestmentValuationModal";
+import { KpiCard } from "../../../components/KpiCard";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
@@ -175,202 +176,27 @@ function useUiScale() {
   return { s, px, fs, width };
 }
 
-function SectionCard({
+/** Encabezado sección (sin cajita) — estilo Dashboard */
+function SectionTitle({
   title,
   right,
-  children,
-  noPadding,
   px,
   fs,
 }: {
   title: string;
   right?: React.ReactNode;
-  children: React.ReactNode;
-  noPadding?: boolean;
   px: (n: number) => number;
   fs: (n: number) => number;
 }) {
   return (
-    <View
-      style={{
-        backgroundColor: "white",
-        borderRadius: px(12),
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        padding: noPadding ? 0 : px(16),
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOpacity: 0.03,
-        shadowRadius: px(10),
-        shadowOffset: { width: 0, height: px(6) },
-      }}
-    >
-      <View
-        style={{
-          paddingHorizontal: noPadding ? px(16) : 0,
-          paddingTop: noPadding ? px(16) : 0,
-          paddingBottom: px(10),
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: px(10),
-        }}
-      >
-        <Text style={[textStyles.labelMuted, { fontSize: fs(12) }]}>{title}</Text>
-        {!!right && <View>{right}</View>}
-      </View>
-
-      <View style={{ paddingHorizontal: noPadding ? px(16) : 0, paddingBottom: noPadding ? px(16) : 0 }}>
-        {children}
-      </View>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(12) }}>
+      <Text style={[textStyles.labelMuted, { fontSize: fs(12), color: "#64748B", letterSpacing: 0.4 }]}>{title}</Text>
+      {!!right && <View>{right}</View>}
     </View>
   );
 }
 
-/** =========================
- * Operations helpers
- * ========================= */
-type InvestmentOperationType = "transfer_in"|"transfer_out"|"buy"|"sell"|"swap_in"|"swap_out";
-
-type InvestmentOperationFromApi = {
-  id: number;
-  userId?: number;
-  assetId: number;
-  type: InvestmentOperationType;
-  date?: string | null;
-  amount: number;
-  fee?: number | null;
-  transactionId?: number | null;
-  swapGroupId?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  active?: boolean;
-};
-
-type BackendOpType = "transfer_in"|"transfer_out"|"buy"|"sell"|"swap_in"|"swap_out";
-
-function opLabel(t: BackendOpType) {
-  switch (t) {
-    case "transfer_in": return "Aportación";
-    case "transfer_out": return "Retirada";
-    case "buy": return "Compra";
-    case "sell": return "Venta";
-    case "swap_in": return "Swap (entrada)";
-    case "swap_out": return "Swap (salida)";
-  }
-}
-
-
-function opSignedAmount(op: InvestmentOperationFromApi) {
-  const amount = Math.abs(Number(op.amount || 0));
-  const fee = Math.abs(Number(op.fee || 0));
-
-  switch (op.type) {
-    case "transfer_in":
-    case "buy":
-      // entra dinero a inversión (cash sale)
-      return amount + fee;
-
-    case "transfer_out":
-    case "sell":
-      // sale dinero de inversión (cash entra)
-      return -(amount - fee);
-
-    // swaps no afectan cash
-    case "swap_in":
-    case "swap_out":
-    default:
-      return 0;
-  }
-}
-
-function opIso(op: InvestmentOperationFromApi) {
-  return op.date || op.createdAt || "";
-}
-
-type Tone = "neutral" | "success" | "danger";
-
-function opTone(t?: string | null): Tone {
-  if (t === "buy" || t === "deposit") return "success";
-  if (t === "sell" || t === "withdraw") return "danger";
-  return "neutral";
-}
-
-/** =========================
- * UI components
- * ========================= */
-function StatCard({
-  title,
-  value,
-  icon,
-  tone = "neutral",
-  subtitle,
-  px,
-  fs,
-}: {
-  title: string;
-  value: string;
-  subtitle?: React.ReactNode;
-  icon: keyof typeof Ionicons.glyphMap;
-  tone?: "neutral" | "success" | "danger" | "info";
-  px: (n: number) => number;
-  fs: (n: number) => number;
-}) {
-  const paletteTone = {
-    neutral: { accent: "#000000", iconBg: "#F1F5F9", iconFg: "#000000", title: "#94A3B8" },
-    info: { accent: "#3B82F6", iconBg: "rgba(59,130,246,0.12)", iconFg: "#2563EB", title: "#94A3B8" },
-    success: { accent: "#22C55E", iconBg: "rgba(34,197,94,0.12)", iconFg: "#16A34A", title: "#94A3B8" },
-    danger: { accent: "#EF4444", iconBg: "rgba(239,68,68,0.12)", iconFg: "#DC2626", title: "#94A3B8" },
-  }[tone];
-
-  return (
-    <View
-      style={{
-        flex: 1,
-        minWidth: px(230),
-        backgroundColor: "white",
-        borderRadius: px(12),
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOpacity: 0.04,
-        shadowRadius: px(12),
-        shadowOffset: { width: 0, height: px(6) },
-      }}
-    >
-      <View style={{ flexDirection: "row", flex: 1 }}>
-        <View style={{ width: px(4), backgroundColor: paletteTone.accent }} />
-        <View style={{ flex: 1, padding: px(16) }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: px(10) }}>
-            <Text style={[textStyles.labelMuted, { fontSize: fs(11), color: paletteTone.title, letterSpacing: 0.6 }]} numberOfLines={1}>
-              {title}
-            </Text>
-            <View
-              style={{
-                width: px(34),
-                height: px(34),
-                borderRadius: px(10),
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: paletteTone.iconBg,
-              }}
-            >
-              <Ionicons name={icon} size={px(18)} color={paletteTone.iconFg} />
-            </View>
-          </View>
-
-          <Text style={[textStyles.numberLG, { marginTop: px(12), fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]} numberOfLines={1}>
-            {value}
-          </Text>
-
-          {!!subtitle && <View style={{ marginTop: px(6) }}>{subtitle}</View>}
-        </View>
-      </View>
-    </View>
-  );
-}
-
+/** Top toolbar button — igual vibe Dashboard */
 function TopButton({
   icon,
   label,
@@ -392,25 +218,53 @@ function TopButton({
       onHoverIn={Platform.OS === "web" ? () => setHover(true) : undefined}
       onHoverOut={Platform.OS === "web" ? () => setHover(false) : undefined}
       style={{
-        height: px(38),
+        height: px(40),
         paddingHorizontal: label ? px(12) : 0,
-        width: label ? undefined : px(38),
-        borderRadius: px(10),
+        width: label ? undefined : px(40),
+        borderRadius: px(12),
+        backgroundColor: hover ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.90)",
         borderWidth: 1,
-        borderColor: "#E5E7EB",
-        backgroundColor: hover ? "#F8FAFC" : "white",
+        borderColor: "rgba(148,163,184,0.25)",
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         gap: label ? px(8) : 0,
       }}
     >
-      <Ionicons name={icon} size={px(18)} color="#64748B" />
-      {!!label && <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "800", color: "#64748B" }]}>{label}</Text>}
+      <Ionicons name={icon} size={px(18)} color="#475569" />
+      {!!label && <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "600", color: "#475569" }]}>{label}</Text>}
     </Pressable>
   );
 }
 
+/** Soft card (Dashboard style) */
+function SoftCard({
+  children,
+  px,
+  pad = 16,
+}: {
+  children: React.ReactNode;
+  px: (n: number) => number;
+  pad?: number;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: "white",
+        borderRadius: px(16),
+        padding: px(pad),
+        shadowColor: "#0B1220",
+        shadowOpacity: 0.06,
+        shadowRadius: px(18),
+        shadowOffset: { width: 0, height: px(10) },
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** Segmented (Dashboard-ish) */
 function SegmentedRange({
   value,
   onChange,
@@ -431,7 +285,7 @@ function SegmentedRange({
   ];
 
   return (
-    <View style={{ flexDirection: "row", backgroundColor: "rgba(15,23,42,0.06)", padding: px(4), borderRadius: px(12), height: px(44) }}>
+    <View style={{ flexDirection: "row", backgroundColor: "rgba(15,23,42,0.06)", padding: px(4), borderRadius: px(12), height: px(40) }}>
       {items.map((x) => {
         const active = value === x.key;
         return (
@@ -440,14 +294,18 @@ function SegmentedRange({
             activeOpacity={0.9}
             onPress={() => onChange(x.key)}
             style={{
-              paddingHorizontal: px(14),
+              paddingHorizontal: px(12),
               alignItems: "center",
               justifyContent: "center",
               borderRadius: px(10),
-              backgroundColor: active ? "rgba(15,23,42,0.10)" : "transparent",
+              backgroundColor: active ? "white" : "transparent",
+              shadowColor: active ? "#0B1220" : "transparent",
+              shadowOpacity: active ? 0.08 : 0,
+              shadowRadius: px(10),
+              shadowOffset: { width: 0, height: px(6) },
             }}
           >
-            <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: active ? "900" : "800", color: active ? "#0F172A" : "#64748B" }]}>
+            <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: active ? "800" : "700", color: active ? "#0F172A" : "#64748B" }]}>
               {x.label}
             </Text>
           </TouchableOpacity>
@@ -455,6 +313,75 @@ function SegmentedRange({
       })}
     </View>
   );
+}
+
+/** =========================
+ * Operations helpers
+ * ========================= */
+type InvestmentOperationType = "transfer_in" | "transfer_out" | "buy" | "sell" | "swap_in" | "swap_out";
+
+type InvestmentOperationFromApi = {
+  id: number;
+  userId?: number;
+  assetId: number;
+  type: InvestmentOperationType;
+  date?: string | null;
+  amount: number;
+  fee?: number | null;
+  transactionId?: number | null;
+  swapGroupId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  active?: boolean;
+};
+
+type BackendOpType = "transfer_in" | "transfer_out" | "buy" | "sell" | "swap_in" | "swap_out";
+
+function opLabel(t: BackendOpType) {
+  switch (t) {
+    case "transfer_in":
+      return "Aportación";
+    case "transfer_out":
+      return "Retirada";
+    case "buy":
+      return "Compra";
+    case "sell":
+      return "Venta";
+    case "swap_in":
+      return "Swap (entrada)";
+    case "swap_out":
+      return "Swap (salida)";
+  }
+}
+
+function opSignedAmount(op: InvestmentOperationFromApi) {
+  const amount = Math.abs(Number(op.amount || 0));
+  const fee = Math.abs(Number(op.fee || 0));
+
+  switch (op.type) {
+    case "transfer_in":
+    case "buy":
+      return amount + fee;
+    case "transfer_out":
+    case "sell":
+      return -(amount - fee);
+    case "swap_in":
+    case "swap_out":
+    default:
+      return 0;
+  }
+}
+
+function opIso(op: InvestmentOperationFromApi) {
+  return op.date || op.createdAt || "";
+}
+
+type Tone = "neutral" | "success" | "danger";
+
+function opTone(t?: string | null): Tone {
+  if (t === "buy" || t === "deposit" || t === "transfer_in") return "success";
+  if (t === "sell" || t === "withdraw" || t === "transfer_out") return "danger";
+  return "neutral";
 }
 
 /** ===== Chart ===== */
@@ -496,7 +423,7 @@ function SparkLine({ series, height }: { series: SeriesPoint[]; height: number }
     <View style={{ width: "100%", height }}>
       <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
         <Defs>
-          <LinearGradient id="areaGradDesktop" x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id="areaGradDesktopDetail" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={colors.primary} stopOpacity="0.18" />
             <Stop offset="1" stopColor={colors.primary} stopOpacity="0.02" />
           </LinearGradient>
@@ -510,7 +437,7 @@ function SparkLine({ series, height }: { series: SeriesPoint[]; height: number }
         />
         <Path d={`M ${padX} ${H - padY} L ${W - padX} ${H - padY}`} stroke="#EEF2F7" strokeWidth="2" />
 
-        {areaPath ? <Path d={areaPath} fill="url(#areaGradDesktop)" /> : null}
+        {areaPath ? <Path d={areaPath} fill="url(#areaGradDesktopDetail)" /> : null}
         <Path d={path} stroke={colors.primary} strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
         {last ? (
@@ -572,44 +499,43 @@ function PanelTable({
       style={{
         flex: 1,
         backgroundColor: "white",
-        borderRadius: px(12),
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderRadius: px(16),
+        paddingTop: px(10),
         overflow: "hidden",
-        shadowColor: "#000",
-        shadowOpacity: 0.02,
-        shadowRadius: px(8),
-        shadowOffset: { width: 0, height: px(4) },
+        shadowColor: "#0B1220",
+        shadowOpacity: 0.06,
+        shadowRadius: px(18),
+        shadowOffset: { width: 0, height: px(10) },
       }}
     >
-      <View style={{ paddingHorizontal: px(16), paddingTop: px(14), paddingBottom: px(10) }}>
+      <View style={{ paddingHorizontal: px(16), paddingTop: px(8), paddingBottom: px(10) }}>
         <Text style={[textStyles.h2, { fontSize: fs(13), fontWeight: "900", color: "#0F172A" }]}>{title}</Text>
       </View>
+
+      <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.20)" }} />
 
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: "#FAFAFB",
-          borderTopWidth: 1,
-          borderTopColor: "#EEF2F7",
+          backgroundColor: "rgba(15,23,42,0.03)",
           borderBottomWidth: 1,
-          borderBottomColor: "#EEF2F7",
+          borderBottomColor: "rgba(148,163,184,0.20)",
           paddingHorizontal: px(16),
           paddingVertical: px(9),
         }}
       >
-        <Text style={[textStyles.labelMuted, { flex: leftFlex, fontSize: fs(10.5) }]} numberOfLines={1}>
+        <Text style={[textStyles.labelMuted, { flex: leftFlex, fontSize: fs(10.5), color: "#64748B" }]} numberOfLines={1}>
           {leftHeader}
         </Text>
 
         {hasMiddle ? (
-          <Text style={[textStyles.labelMuted, { flex: midFlex, fontSize: fs(10.5), textAlign: "center" }]} numberOfLines={1}>
+          <Text style={[textStyles.labelMuted, { flex: midFlex, fontSize: fs(10.5), textAlign: "center", color: "#64748B" }]} numberOfLines={1}>
             {middleHeader}
           </Text>
         ) : null}
 
-        <Text style={[textStyles.labelMuted, { flex: rightFlex, fontSize: fs(10.5), textAlign: "right" }]} numberOfLines={1}>
+        <Text style={[textStyles.labelMuted, { flex: rightFlex, fontSize: fs(10.5), textAlign: "right", color: "#64748B" }]} numberOfLines={1}>
           {rightHeader}
         </Text>
       </View>
@@ -637,11 +563,11 @@ function PanelTable({
                     paddingHorizontal: px(16),
                     paddingVertical: px(12),
                     borderBottomWidth: idx === rows.length - 1 ? 0 : 1,
-                    borderBottomColor: "#F1F5F9",
+                    borderBottomColor: "rgba(148,163,184,0.16)",
                     backgroundColor: "white",
                     opacity: pressed ? 0.92 : 1,
                   },
-                  clickable && isWeb && hovered ? { backgroundColor: "#F8FAFC" } : null,
+                  clickable && isWeb && hovered ? { backgroundColor: "rgba(15,23,42,0.03)" } : null,
                 ]}
               >
                 <View style={{ flex: leftFlex, paddingRight: px(12) }}>
@@ -705,7 +631,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
   const assetId: number | undefined = route?.params?.assetId;
 
   const { px, fs, width } = useUiScale();
-  const WIDE = width >= 1100;
+  const WIDE = width >= 1120;
   const CHART_H = px(280);
 
   const [loading, setLoading] = useState(true);
@@ -808,7 +734,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
 
   const headerTitle = asset ? `${asset.name}${asset.symbol ? ` (${String(asset.symbol).toUpperCase()})` : ""}` : "Detalle del activo";
 
-  /** ✅ Valoraciones: SIMPLE, sin badge/subtitle (ya es obvio que son valoraciones) */
+  /** ✅ Valoraciones */
   const valuationsRows: PanelRow[] = useMemo(() => {
     const list = [...valuations]
       .filter((v) => (v.active ?? true))
@@ -825,14 +751,13 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
       right: formatMoney(Number(v.value || 0), currency),
       rightTone: "neutral",
       onPress: () => {
-        // abrir en modo editar (si tu modal lo soporta)
         setEditingValuationId(v.id);
         setValuationOpen(true);
       },
     }));
   }, [valuations, currency, assetId]);
 
-  /** ✅ Operaciones: orden correcto por fecha y columna central de tipo */
+  /** ✅ Operaciones */
   const operationsRows: PanelRow[] = useMemo(() => {
     if (!assetId) return [];
 
@@ -869,46 +794,34 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
 
   if (!assetId) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background ?? "#F8FAFC", padding: px(22), justifyContent: "center" }}>
-        <Text style={[textStyles.bodyMuted, { fontSize: fs(13), fontWeight: "800", color: "#94A3B8" }]}>Falta assetId en la navegación.</Text>
+      <View style={{ flex: 1, backgroundColor: "#F6F8FC", padding: px(22), justifyContent: "center" }}>
+        <Text style={[textStyles.bodyMuted, { fontSize: fs(13), fontWeight: "700", color: "#94A3B8" }]}>Falta assetId en la navegación.</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background ?? "#F8FAFC" }}>
+    <View style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: px(22), paddingTop: px(18), paddingBottom: px(90) }}
+        contentContainerStyle={{
+          paddingHorizontal: px(22),
+          paddingTop: px(18),
+          paddingBottom: px(90),
+          maxWidth: px(1400),
+          width: "100%",
+          alignSelf: "center",
+        }}
       >
-        {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: px(14) }}>
-          <View style={{ flex: 1, paddingRight: px(12) }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-              <View
-                style={{
-                  width: px(40),
-                  height: px(40),
-                  borderRadius: px(12),
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: "white",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name={typeIcon(asset?.type || "custom")} size={px(18)} color="#64748B" />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text style={[textStyles.h1, { fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]} numberOfLines={2}>
-                  {headerTitle}
-                </Text>
-                <Text style={[textStyles.bodyMuted, { marginTop: px(4), fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
-                  {loading ? "Cargando…" : `Última valoración: ${stats.last}`}
-                </Text>
-              </View>
-            </View>
+        {/* ===== Top toolbar (Dashboard style) ===== */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(14), marginBottom: px(14) }}>
+          <View style={{ flex: 1 }}>
+            <Text style={[textStyles.h1, { fontSize: fs(22), color: "#0F172A", fontWeight: "900" }]} numberOfLines={2}>
+              {headerTitle}
+            </Text>
+            <Text style={[textStyles.bodyMuted, { marginTop: px(4), fontSize: fs(12), color: "#64748B", fontWeight: "700" }]} numberOfLines={1}>
+              {loading ? "Cargando…" : `Última valoración: ${stats.last}`}
+            </Text>
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
@@ -918,7 +831,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
               icon="cash-outline"
               label="Valorar"
               onPress={() => {
-                setEditingValuationId(null); // crear nueva
+                setEditingValuationId(null);
                 setValuationOpen(true);
               }}
               px={px}
@@ -928,48 +841,42 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* KPI */}
+        {/* ===== KPI row (KpiCard) ===== */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
-          <StatCard
+          <KpiCard
             title="VALOR ACTUAL"
             value={loading ? "—" : formatMoney(stats.currentValue, currency)}
-            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>Valor de mercado</Text>}
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>Valor de mercado</Text>}
             icon="wallet-outline"
-            tone="neutral"
+            variant="premium"
             px={px}
             fs={fs}
           />
 
-          <StatCard
+          <KpiCard
             title="INVERTIDO"
             value={loading ? "—" : formatMoney(stats.invested, currency)}
-            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>Capital aportado</Text>}
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>Capital aportado</Text>}
             icon="add-circle-outline"
             tone="info"
             px={px}
             fs={fs}
           />
 
-          <StatCard
+          <KpiCard
             title="P/L"
             value={loading ? "—" : formatMoney(stats.pnl, currency)}
-            subtitle={
-              loading ? null : (
-                <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>
-                  <Text style={{ color: pnlColor, fontWeight: "900" }}>{stats.pnl >= 0 ? "Ganancia" : "Pérdida"}</Text>
-                </Text>
-              )
-            }
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>{stats.pnl >= 0 ? "Ganancia total" : "Pérdida total"}</Text>}
             icon="stats-chart-outline"
             tone={pnlTone(stats.pnl) as any}
             px={px}
             fs={fs}
           />
 
-          <StatCard
+          <KpiCard
             title="% P/L"
             value={loading ? "—" : formatPct(stats.pnl, stats.invested)}
-            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]} numberOfLines={1}>Rentabilidad</Text>}
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>Rentabilidad</Text>}
             icon="trending-up-outline"
             tone={pnlTone(stats.pnl) as any}
             px={px}
@@ -977,46 +884,50 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
           />
         </View>
 
-        <View style={{ marginTop: px(16), gap: px(12) }}>
-          {/* Chart + Info */}
-          <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
-            <View style={{ flex: 1, minWidth: WIDE ? px(680) : undefined }}>
-              <SectionCard title="Evolución" right={<SegmentedRange value={range} onChange={setRange} px={px} fs={fs} />} px={px} fs={fs}>
-                <View style={{ height: CHART_H, justifyContent: "center" }}>
-                  {loading ? (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    </View>
-                  ) : filteredSeries.length < 2 ? (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>
-                        No hay suficientes puntos para dibujar la gráfica (mínimo 2).
-                      </Text>
-                    </View>
-                  ) : (
-                    <SparkLine series={filteredSeries} height={CHART_H} />
-                  )}
-                </View>
-
-                {!loading && filteredSeries.length >= 2 ? (
-                  <View style={{ marginTop: px(10), flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
-                      {range === "1m" ? formatDayShort(filteredSeries[0].date) : formatMonthShort(filteredSeries[0].date)}
-                    </Text>
-                    <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
-                      {range === "1m" ? formatDayShort(filteredSeries[filteredSeries.length - 1].date) : formatMonthShort(filteredSeries[filteredSeries.length - 1].date)}
+        {/* ===== Charts + Info ===== */}
+        <View style={{ marginTop: px(12), flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
+          <View style={{ flex: 1, minWidth: WIDE ? px(680) : undefined }}>
+            <SoftCard px={px} pad={16}>
+              <SectionTitle title="Evolución" right={<SegmentedRange value={range} onChange={setRange} px={px} fs={fs} />} px={px} fs={fs} />
+              <View style={{ marginTop: px(10), height: CHART_H, justifyContent: "center" }}>
+                {loading ? (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : filteredSeries.length < 2 ? (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }]}>
+                      No hay suficientes puntos para dibujar la gráfica (mínimo 2).
                     </Text>
                   </View>
-                ) : null}
-              </SectionCard>
-            </View>
+                ) : (
+                  <SparkLine series={filteredSeries} height={CHART_H} />
+                )}
+              </View>
 
-            <View style={{ width: WIDE ? px(420) : "100%" }}>
-              <SectionCard title="Información" px={px} fs={fs}>
+              {!loading && filteredSeries.length >= 2 ? (
+                <View style={{ marginTop: px(10), flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
+                    {range === "1m" ? formatDayShort(filteredSeries[0].date) : formatMonthShort(filteredSeries[0].date)}
+                  </Text>
+                  <Text style={[textStyles.caption, { fontSize: fs(11), color: "#94A3B8", fontWeight: "800" }]}>
+                    {range === "1m"
+                      ? formatDayShort(filteredSeries[filteredSeries.length - 1].date)
+                      : formatMonthShort(filteredSeries[filteredSeries.length - 1].date)}
+                  </Text>
+                </View>
+              ) : null}
+            </SoftCard>
+          </View>
+
+          <View style={{ width: WIDE ? px(420) : "100%" }}>
+            <SoftCard px={px} pad={16}>
+              <SectionTitle title="Información" px={px} fs={fs} />
+              <View style={{ marginTop: px(10) }}>
                 {loading ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : !asset ? (
-                  <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>Sin datos.</Text>
+                  <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }]}>Sin datos.</Text>
                 ) : (
                   <View style={{ gap: px(10) }}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
@@ -1024,14 +935,14 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
                       <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]}>{typeLabel(asset.type)}</Text>
                     </View>
 
-                    <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+                    <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.20)" }} />
 
                     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
                       <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Moneda</Text>
                       <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]}>{asset.currency}</Text>
                     </View>
 
-                    <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+                    <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.20)" }} />
 
                     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
                       <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>P/L</Text>
@@ -1040,7 +951,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
 
                     {asset.initialInvested ? (
                       <>
-                        <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+                        <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.20)" }} />
                         <View style={{ flexDirection: "row", justifyContent: "space-between", gap: px(12) }}>
                           <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Invertido inicialmente</Text>
                           <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]}>{formatMoney(stats.initialInvested, currency)}</Text>
@@ -1050,48 +961,46 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
 
                     {asset.description?.trim() ? (
                       <>
-                        <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+                        <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.20)" }} />
                         <View style={{ gap: px(6) }}>
                           <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]}>Descripción</Text>
-                          <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "700", color: "#334155", lineHeight: fs(18) }]}>
-                            {asset.description}
-                          </Text>
+                          <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "700", color: "#334155", lineHeight: fs(18) }]}>{asset.description}</Text>
                         </View>
                       </>
                     ) : null}
                   </View>
                 )}
-              </SectionCard>
-            </View>
+              </View>
+            </SoftCard>
           </View>
+        </View>
 
-          {/* Bottom lists */}
-          <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
-            <PanelTable
-              title="Valoraciones"
-              leftHeader="Fecha"
-              rightHeader="Valor"
-              rows={loading ? [] : valuationsRows}
-              emptyText={loading ? "Cargando…" : "No hay valoraciones."}
-              px={px}
-              fs={fs}
-            />
+        {/* ===== Bottom lists ===== */}
+        <View style={{ marginTop: px(12), flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
+          <PanelTable
+            title="Valoraciones"
+            leftHeader="Fecha"
+            rightHeader="Valor"
+            rows={loading ? [] : valuationsRows}
+            emptyText={loading ? "Cargando…" : "No hay valoraciones."}
+            px={px}
+            fs={fs}
+          />
 
-            <PanelTable
-              title="Operaciones"
-              leftHeader="Fecha"
-              middleHeader="Tipo"
-              rightHeader="Importe"
-              rows={loading ? [] : operationsRows}
-              emptyText={loading ? "Cargando…" : "No hay operaciones."}
-              px={px}
-              fs={fs}
-            />
-          </View>
+          <PanelTable
+            title="Operaciones"
+            leftHeader="Fecha"
+            middleHeader="Tipo"
+            rightHeader="Importe"
+            rows={loading ? [] : operationsRows}
+            emptyText={loading ? "Cargando…" : "No hay operaciones."}
+            px={px}
+            fs={fs}
+          />
         </View>
       </ScrollView>
 
-      {/* MODALS: fuera del ScrollView */}
+      {/* MODALS */}
       <DesktopInvestmentFormModal
         visible={editOpen}
         assetId={assetId}
@@ -1110,7 +1019,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
         visible={valuationOpen}
         assetId={assetId}
         currency={currency}
-        // @ts-ignore si aún no has añadido la prop en el modal
+        // @ts-ignore
         editingValuationId={editingValuationId}
         onClose={() => {
           setValuationOpen(false);

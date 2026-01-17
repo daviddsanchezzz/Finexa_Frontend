@@ -21,52 +21,59 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+const [hydrated, setHydrated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+useEffect(() => {
+  let cancelled = false;
 
-    const bootstrap = async () => {
-      if (!cancelled) setHydrated(true);
+  const bootstrap = async () => {
+    try {
+      if (!cancelled) setCheckingSession(true);
 
       const refreshToken = await storage.getItem("refresh_token");
       if (!refreshToken) return;
 
-      try {
-        if (!cancelled) setCheckingSession(true);
+      const refreshRes = await plainApi.post("/auth/refresh", { refresh_token: refreshToken });
 
-        // Refresh SIN interceptores
-        const refreshRes = await plainApi.post("/auth/refresh", { refresh_token: refreshToken });
+      const newAccessToken = refreshRes.data?.access_token;
+      const newRefreshToken = refreshRes.data?.refresh_token;
 
-        const newAccessToken = refreshRes.data?.access_token;
-        const newRefreshToken = refreshRes.data?.refresh_token;
+      if (!newAccessToken) throw new Error("No access_token");
 
-        if (!newAccessToken) throw new Error("No access_token");
+      await storage.setItem("access_token", newAccessToken);
+      if (newRefreshToken) await storage.setItem("refresh_token", newRefreshToken);
 
-        await storage.setItem("access_token", newAccessToken);
-        if (newRefreshToken) await storage.setItem("refresh_token", newRefreshToken);
+      api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
 
-        api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
+      // Cargar usuario (robusto)
+      const meRes = await api.get("/auth/me");
 
-        // Cargar usuario
-        const meRes = await api.get("/auth/me");
-        if (!cancelled) setUser(meRes.data.user);
-      } catch {
-        await storage.removeItem("access_token");
-        await storage.removeItem("refresh_token");
-        delete api.defaults.headers.common["Authorization"];
-        if (!cancelled) setUser(null);
-      } finally {
-        if (!cancelled) setCheckingSession(false);
+      // OJO: aquí normalizamos estructura
+      const u = meRes.data?.user ?? meRes.data;
+      if (u?.email) {
+        if (!cancelled) setUser(u);
+      } else {
+        throw new Error("Invalid /auth/me payload");
       }
-    };
+    } catch (e) {
+      await storage.removeItem("access_token");
+      await storage.removeItem("refresh_token");
+      delete api.defaults.headers.common["Authorization"];
+      if (!cancelled) setUser(null);
+    } finally {
+      if (!cancelled) {
+        setCheckingSession(false);
+        setHydrated(true); // ✅ aquí, al final
+      }
+    }
+  };
 
-    bootstrap();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  bootstrap();
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const login = async (email: string, password: string) => {
     const res = await api.post("/auth/login", { email, password });

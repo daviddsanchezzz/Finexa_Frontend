@@ -36,11 +36,51 @@ function formatEuro(n: number) {
 type Wallet = {
   id: number;
   name: string;
+  emoji?: string;
   balance?: number;
   currentBalance?: number;
   amount?: number;
   total?: number;
 };
+
+function Divider() {
+  return <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.18)" }} />;
+}
+
+function SmallButton({
+  label,
+  onPress,
+  icon,
+}: {
+  label: string;
+  onPress: () => void;
+  icon: keyof typeof Ionicons.glyphMap;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      style={{
+        flex: 1,
+        height: 44,
+        borderRadius: 16,
+        backgroundColor: "rgba(15,23,42,0.05)",
+        borderWidth: 1,
+        borderColor: "rgba(148,163,184,0.22)",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: 8,
+        paddingHorizontal: 12,
+      }}
+    >
+      <Ionicons name={icon} size={16} color="#475569" />
+      <Text style={{ fontSize: 13, fontWeight: "900", color: "#475569" }} numberOfLines={1}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export function WalletPickerModal({
   visible,
@@ -49,6 +89,8 @@ export function WalletPickerModal({
   onClose,
   onSelect,
   onClear,
+  onEditWallets,
+  onViewTransfers,
 }: {
   visible: boolean;
   wallets: Wallet[];
@@ -56,24 +98,29 @@ export function WalletPickerModal({
   onClose: () => void;
   onSelect: (wallet: Wallet) => void;
   onClear: () => void;
+
+  /** NUEVO: navegación/acciones externas */
+  onEditWallets: () => void;
+  onViewTransfers: () => void;
 }) {
   const [query, setQuery] = useState("");
 
+  const list = useMemo(() => (Array.isArray(wallets) ? wallets : []), [wallets]);
+
+  const totalWallets = useMemo(
+    () => list.reduce((acc, w) => acc + getWalletBalance(w), 0),
+    [list]
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = Array.isArray(wallets) ? wallets : [];
     if (!q) return list;
     return list.filter((w) => String(w.name ?? "").toLowerCase().includes(q));
-  }, [wallets, query]);
+  }, [list, query]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => getWalletBalance(b) - getWalletBalance(a));
   }, [filtered]);
-
-  const totalWallets = useMemo(
-    () => (Array.isArray(wallets) ? wallets.reduce((acc, w) => acc + getWalletBalance(w), 0) : 0),
-    [wallets]
-  );
 
   const handleSelect = useCallback(
     (w: Wallet) => {
@@ -92,94 +139,96 @@ export function WalletPickerModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {/* Backdrop (oscurece TODO, como DateTimeFilterModal) */}
       <Pressable
         onPress={onClose}
         style={{
           flex: 1,
-          backgroundColor: "rgba(15, 23, 42, 0.45)",
+          backgroundColor: "rgba(2, 6, 23, 0.55)",
           justifyContent: "center",
           alignItems: "center",
-          padding: 20,
+          padding: 18,
         }}
       >
-        {/* Card (stop propagation) */}
         <Pressable
           onPress={() => {}}
           style={{
-            width: "min(560px, 96vw)" as any,
+            width: "min(660px, 96vw)" as any,
             backgroundColor: "white",
-            borderRadius: 18,
+            borderRadius: 22,
             borderWidth: 1,
-            borderColor: "#E5E7EB",
+            borderColor: "rgba(148,163,184,0.35)",
             overflow: "hidden",
-            shadowColor: "#000",
-            shadowOpacity: Platform.OS === "web" ? 0.06 : 0.14,
-            shadowRadius: 18,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 6,
+            shadowColor: "#0B1220",
+            shadowOpacity: Platform.OS === "web" ? 0.10 : 0.18,
+            shadowRadius: 26,
+            shadowOffset: { width: 0, height: 14 },
+            elevation: 8,
           }}
         >
-          {/* Header (igual vibe que datetimepicker) */}
-          <View
-            style={{
-              padding: 14,
-              borderBottomWidth: 1,
-              borderBottomColor: "#E5E7EB",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A" }}>
-                Seleccionar cartera
-              </Text>
-              <Text style={{ marginTop: 2, fontSize: 12, color: "#64748B" }}>
-                Total (todas): {formatEuro(totalWallets)}
-              </Text>
+          {/* Header */}
+          <View style={{ padding: 16, paddingBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A" }}>
+                  Seleccionar cartera
+                </Text>
+                <Text style={{ marginTop: 3, fontSize: 12, fontWeight: "700", color: "#64748B" }}>
+                  Busca y selecciona una cartera
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onClose}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 14,
+                  backgroundColor: "rgba(255,255,255,0.85)",
+                  borderWidth: 1,
+                  borderColor: "rgba(148,163,184,0.35)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="close" size={18} color="#0F172A" />
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={onClose}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 14,
-                backgroundColor: "#F8FAFC",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="close" size={18} color="#0F172A" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Body */}
-          <View style={{ padding: 14 }}>
-            {/* Search (como en tu modal, pero más cercano al datetimepicker) */}
+            {/* Search */}
             <View
               style={{
-                height: 44,
-                borderRadius: 14,
+                marginTop: 12,
+                height: 46,
+                borderRadius: 16,
                 borderWidth: 1,
-                borderColor: "#E5E7EB",
-                backgroundColor: "#F8FAFC",
+                borderColor: "rgba(148,163,184,0.30)",
+                backgroundColor: "rgba(15,23,42,0.03)",
                 flexDirection: "row",
                 alignItems: "center",
                 paddingHorizontal: 12,
                 gap: 10,
               }}
             >
-              <Ionicons name="search-outline" size={18} color="#64748B" />
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 14,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "rgba(37,99,235,0.10)",
+                  borderWidth: 1,
+                  borderColor: "rgba(37,99,235,0.16)",
+                }}
+              >
+                <Ionicons name="search-outline" size={18} color={colors.primary} />
+              </View>
+
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Buscar cartera…"
+                placeholder="Buscar cartera..."
                 placeholderTextColor="#94A3B8"
                 style={{
                   flex: 1,
@@ -189,6 +238,7 @@ export function WalletPickerModal({
                   paddingVertical: 0,
                 }}
               />
+
               {!!query && (
                 <TouchableOpacity
                   activeOpacity={0.9}
@@ -197,9 +247,9 @@ export function WalletPickerModal({
                     width: 34,
                     height: 34,
                     borderRadius: 14,
-                    backgroundColor: "white",
+                    backgroundColor: "rgba(255,255,255,0.9)",
                     borderWidth: 1,
-                    borderColor: "#E5E7EB",
+                    borderColor: "rgba(148,163,184,0.30)",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
@@ -208,75 +258,98 @@ export function WalletPickerModal({
                 </TouchableOpacity>
               )}
             </View>
+          </View>
 
-            {/* "Todas las carteras" destacado */}
+          {/* Total / Todas (protagonista) */}
+          <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
             <TouchableOpacity
-              activeOpacity={0.92}
+              activeOpacity={0.9}
               onPress={handleClear}
               style={{
-                marginTop: 12,
-                borderRadius: 16,
+                borderRadius: 20,
                 borderWidth: 1,
-                borderColor: selectedWalletId === null ? "rgba(37,99,235,0.35)" : "#E5E7EB",
-                backgroundColor: selectedWalletId === null ? "rgba(37,99,235,0.08)" : "white",
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
+                borderColor: selectedWalletId === null ? "rgba(37,99,235,0.35)" : "rgba(37,99,235,0.22)",
+                backgroundColor: "rgba(37,99,235,0.10)",
+                paddingVertical: 14,
+                paddingHorizontal: 14,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 14,
-                    backgroundColor: "rgba(37,99,235,0.10)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: 1,
-                    borderColor: "rgba(37,99,235,0.20)",
-                  }}
-                >
-                  <Ionicons name="layers-outline" size={18} color={colors.primary} />
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 18,
+                      backgroundColor: "rgba(255,255,255,0.85)",
+                      borderWidth: 1,
+                      borderColor: "rgba(37,99,235,0.20)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons name="layers-outline" size={20} color={colors.primary} />
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ fontSize: 14, fontWeight: "900", color: colors.primary, letterSpacing: 0.2 }}
+                      numberOfLines={1}
+                    >
+                      Todas las carteras
+                    </Text>
+                    <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: "rgba(37,99,235,0.75)" }}>
+                      Total consolidado
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
-                    Todas las carteras
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ fontSize: 18, fontWeight: "950" as any, color: colors.primary }} numberOfLines={1}>
+                    {formatEuro(totalWallets)}
                   </Text>
-                  <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: "#64748B" }}>
-                    Ver el total consolidado
-                  </Text>
+                  {selectedWalletId === null ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                      <Text style={{ fontSize: 11, fontWeight: "900", color: colors.primary }}>ACTIVA</Text>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                      <Text style={{ fontSize: 11, fontWeight: "900", color: "rgba(37,99,235,0.85)" }}>
+                        Seleccionar
+                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(37,99,235,0.65)" />
+                    </View>
+                  )}
                 </View>
               </View>
-
-              {selectedWalletId === null ? (
-                <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
-              ) : (
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-              )}
             </TouchableOpacity>
+          </View>
 
-            {/* List */}
+          <Divider />
+
+          {/* Lista */}
+          <View style={{ padding: 16, paddingTop: 12 }}>
+            <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B", marginBottom: 10 }}>
+              Carteras
+            </Text>
+
             <ScrollView
               showsVerticalScrollIndicator={false}
-              style={{ maxHeight: 360, marginTop: 12 }}
+              style={{ maxHeight: 360 }}
               contentContainerStyle={{ paddingBottom: 6 }}
             >
               {sorted.length === 0 ? (
                 <View
                   style={{
-                    borderRadius: 16,
+                    borderRadius: 18,
                     borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    backgroundColor: "#F8FAFC",
+                    borderColor: "rgba(148,163,184,0.25)",
+                    backgroundColor: "rgba(15,23,42,0.02)",
                     padding: 14,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
                     No hay resultados
                   </Text>
                   <Text style={{ marginTop: 4, fontSize: 11, fontWeight: "700", color: "#64748B" }}>
@@ -294,85 +367,101 @@ export function WalletPickerModal({
                       activeOpacity={0.92}
                       onPress={() => handleSelect(w)}
                       style={{
-                        borderRadius: 16,
+                        borderRadius: 18,
                         borderWidth: 1,
-                        borderColor: active ? "rgba(37,99,235,0.35)" : "#E5E7EB",
+                        borderColor: active ? "rgba(37,99,235,0.38)" : "rgba(148,163,184,0.20)",
                         backgroundColor: active ? "rgba(37,99,235,0.08)" : "white",
                         paddingVertical: 12,
                         paddingHorizontal: 12,
-                        marginBottom: 8,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
+                        marginBottom: 10,
                       }}
                     >
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-                        <View
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 14,
-                            borderWidth: 1,
-                            borderColor: "#E5E7EB",
-                            backgroundColor: "#F8FAFC",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Ionicons
-                            name="wallet-outline"
-                            size={18}
-                            color={active ? colors.primary : "#64748B"}
-                          />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}
-                            numberOfLines={1}
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        {/* Left: emoji + nombre */}
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 16,
+                              borderWidth: 1,
+                              borderColor: active ? "rgba(37,99,235,0.25)" : "rgba(148,163,184,0.25)",
+                              backgroundColor: active ? "rgba(37,99,235,0.10)" : "rgba(15,23,42,0.03)",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
                           >
+                            <Text style={{ fontSize: 18 }}>{w.emoji ?? "👛"}</Text>
+                          </View>
+
+                          <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
                             {w.name}
                           </Text>
-                          <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: "#64748B" }}>
+                        </View>
+
+                        {/* Right: cantidad (como móvil) + icon */}
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                          <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
                             {formatEuro(bal)}
                           </Text>
+
+                          {active ? (
+                            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                          ) : (
+                            <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                          )}
                         </View>
                       </View>
-
-                      {active ? (
-                        <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
-                      ) : (
-                        <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                      )}
                     </TouchableOpacity>
                   );
                 })
               )}
             </ScrollView>
+
+            {/* Espacio para que no “choque” con el footer */}
+            <View style={{ height: 10 }} />
           </View>
 
-          {/* Footer (parecido a DateTime: acción principal a la derecha) */}
+          {/* Footer con botones (como móvil) */}
           <View
             style={{
               padding: 14,
               borderTopWidth: 1,
-              borderTopColor: "#E5E7EB",
-              flexDirection: "row",
-              justifyContent: "flex-end",
+              borderTopColor: "rgba(148,163,184,0.18)",
               backgroundColor: "white",
             }}
           >
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <SmallButton
+                label="Editar carteras"
+                icon="create-outline"
+                onPress={() => {
+                  onClose();
+                  onEditWallets();
+                }}
+              />
+              <SmallButton
+                label="Ver transferencias"
+                icon="swap-horizontal-outline"
+                onPress={() => {
+                  onClose();
+                  onViewTransfers();
+                }}
+              />
+            </View>
+
             <TouchableOpacity
               onPress={onClose}
               activeOpacity={0.9}
               style={{
-                paddingVertical: 10,
-                paddingHorizontal: 14,
-                borderRadius: 12,
-                backgroundColor: "#F1F5F9",
+                marginTop: 10,
+                height: 44,
+                borderRadius: 16,
+                backgroundColor: "rgba(15,23,42,0.05)",
                 borderWidth: 1,
-                borderColor: "#E2E8F0",
+                borderColor: "rgba(148,163,184,0.22)",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>Cerrar</Text>

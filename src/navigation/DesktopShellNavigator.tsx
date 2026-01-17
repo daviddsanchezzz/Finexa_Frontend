@@ -1,13 +1,16 @@
 // src/navigation/DesktopShellNavigator.tsx
 import React, { useMemo, useCallback, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable } from "react-native";
+import { View, Text, ScrollView, Image, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { CommonActions } from "@react-navigation/native";
+
 import { useAuth } from "../context/AuthContext";
+import { textStyles } from "../theme/typography";
 
 import DashboardScreen from "../screens/Desktop/dashboard/DashboardScreen";
 import RegisterScreen from "../screens/Desktop/register/RegisterScreen";
+import TripsHomeDesktopScreen from "../screens/Desktop/travel/TripsHomeDesktopScreen";
 import DesktopInvestmentsScreen from "../screens/Desktop/investments/DesktopInvestmentsScreen";
 import DesktopInvestmentDetailScreen from "../screens/Desktop/investments/DesktopInvestmentDetailScreen";
 
@@ -17,8 +20,8 @@ import {
   CreateTxPrefill,
   EditTxData,
 } from "../context/CreateTxModalContext";
-import { textStyles } from "../theme/typography";
-import TripsHomeDesktopScreen from "../screens/Desktop/travel/TripsHomeDesktopScreen";
+
+import InitialsAvatar from "../components/InitialsAvatar";
 
 type DesktopRouteKey =
   | "dashboard"
@@ -53,15 +56,33 @@ type NavItem = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
-type NavSection = {
-  title: string;
-  items: NavItem[];
-};
-
 type PressableStateWeb = { pressed: boolean; hovered?: boolean; focused?: boolean };
 
 const Stack = createNativeStackNavigator<DesktopStackParamList>();
 const EmptyScreen = () => <View style={{ flex: 1, backgroundColor: "#F8FAFC" }} />;
+
+/** UI constants (más “black” como la referencia) */
+const UI = {
+  bg: "#F8FAFC",
+  surface: "#FFFFFF",
+  border: "#E2E8F0",
+
+  // “negro” pro
+  text: "#0B1220",
+  muted: "#6B7280",
+  muted2: "#9CA3AF",
+
+  // tu primario (se usa en activo)
+  primary: "#2563EB",
+
+  // estados
+  hover: "rgba(15,23,42,0.04)",
+  activeBg: "rgba(15,23,42,0.08)",
+
+  radius: 12,
+  itemH: 40,
+  padX: 12,
+};
 
 function DesktopShellLayout({
   children,
@@ -72,8 +93,10 @@ function DesktopShellLayout({
   navigation: any;
   routeKey: DesktopRouteKey;
 }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
   const [collapsed, setCollapsed] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const [isCreateTxOpen, setIsCreateTxOpen] = useState(false);
   const [createTxPrefill, setCreateTxPrefill] = useState<
@@ -85,7 +108,6 @@ function DesktopShellLayout({
       }
     | undefined
   >(undefined);
-
   const [editTx, setEditTx] = useState<EditTxData | null>(null);
 
   const openCreateTx = useCallback((prefill?: CreateTxPrefill) => {
@@ -102,68 +124,85 @@ function DesktopShellLayout({
 
   const openEditTx = useCallback((tx: EditTxData) => {
     setEditTx(tx);
-
     setCreateTxPrefill({
       walletId: tx.wallet?.id,
       type: tx.type,
       date: tx.date,
       assetId: tx.asset?.id ?? undefined,
     });
-
     setIsCreateTxOpen(true);
   }, []);
 
-  const sections: NavSection[] = useMemo(
+  // ✅ LISTA PLANA (sin secciones)
+  const items: NavItem[] = useMemo(
     () => [
-      {
-        title: "",
-        items: [{ key: "dashboard", label: "Dashboard", icon: "grid-outline" }],
-      },
-      {
-        title: "GESTIÓN",
-        items: [
-          { key: "registre", label: "Registros", icon: "file-tray-full-outline" },
-          { key: "investments", label: "Inversiones", icon: "trending-up-outline" },
-          { key: "budgets", label: "Presupuestos", icon: "pie-chart-outline" },
-          { key: "debts", label: "Deudas", icon: "receipt-outline" },
-          { key: "goals", label: "Objetivos", icon: "flag-outline" },
-          { key: "travels", label: "Viajes", icon: "airplane-outline" },
-          { key: "reports", label: "Reportes", icon: "document-text-outline" },
-        ],
-      },
-      {
-        title: "CUENTA",
-        items: [
-          { key: "profile", label: "Perfil", icon: "person-outline" },
-          { key: "settings", label: "Ajustes", icon: "settings-outline" },
-        ],
-      },
+      { key: "dashboard", label: "Dashboard", icon: "grid-outline" },
+      { key: "registre", label: "Registros", icon: "file-tray-full-outline" },
+      { key: "investments", label: "Inversiones", icon: "trending-up-outline" },
+      { key: "budgets", label: "Presupuestos", icon: "pie-chart-outline" },
+      { key: "debts", label: "Deudas", icon: "receipt-outline" },
+      { key: "goals", label: "Objetivos", icon: "flag-outline" },
+      { key: "travels", label: "Viajes", icon: "airplane-outline" },
+      { key: "reports", label: "Reportes", icon: "document-text-outline" },
     ],
     []
   );
 
-  const flatItems = useMemo(() => sections.flatMap((s) => s.items), [sections]);
-  const activeLabel = flatItems.find((n) => n.key === routeKey)?.label ?? "Finexa";
-
   const go = useCallback(
-    (key: DesktopRouteKey) => navigation.dispatch(CommonActions.navigate({ name: key })),
+    (key: DesktopRouteKey) => {
+      setProfileMenuOpen(false);
+      navigation.dispatch(CommonActions.navigate({ name: key }));
+    },
     [navigation]
   );
 
   const handleLogout = useCallback(async () => {
     try {
+      setProfileMenuOpen(false);
       await logout();
     } catch (e) {
       console.error("Error al cerrar sesión", e);
     }
   }, [logout]);
 
+  /** Ghost icon button (sin borde permanente) */
+  const GhostIconButton = ({
+    icon,
+    onPress,
+    show,
+  }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    onPress: () => void;
+    show?: boolean;
+  }) => {
+    if (show === false) return null;
+
+    return (
+      <Pressable
+        onPress={onPress}
+        style={(s: PressableStateWeb) => ({
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: s.hovered ? UI.hover : "transparent",
+        })}
+      >
+        <Ionicons name={icon} size={18} color={UI.text} />
+      </Pressable>
+    );
+  };
+
   const NavRow = ({ item, isActive }: { item: NavItem; isActive: boolean }) => {
     const [hover, setHover] = useState(false);
 
-    const bg = isActive ? "#F1F5F9" : hover ? "#F8FAFC" : "transparent";
-    const fg = isActive ? "#0F172A" : "#64748B";
-    const icon = isActive ? "#0F172A" : "#64748B";
+    // ✅ estilo “negro” como referencia:
+    // - texto e icono casi negro incluso no activo
+    // - activo: bg suave + un pelín más oscuro
+    const bg = isActive ? UI.activeBg : hover ? UI.hover : "transparent";
+    const fg = UI.text;
+    const ic = UI.text;
 
     return (
       <Pressable
@@ -171,23 +210,25 @@ function DesktopShellLayout({
         onHoverIn={() => setHover(true)}
         onHoverOut={() => setHover(false)}
         style={{
+          height: UI.itemH,
+          borderRadius: UI.radius,
+          paddingHorizontal: UI.padX,
           flexDirection: "row",
           alignItems: "center",
-          borderRadius: 8,
-          paddingVertical: 10,
-          paddingHorizontal: collapsed ? 10 : 12,
+          justifyContent: collapsed ? "center" : "flex-start",
           backgroundColor: bg,
         }}
       >
-        <Ionicons name={item.icon} size={17} color={icon} />
+        <Ionicons name={item.icon} size={23} color={ic} />
+
         {!collapsed && (
           <Text
             style={[
               textStyles.body,
               {
-                marginLeft: 10,
-                fontSize: 12.5,
-                fontWeight: isActive ? "800" : "600",
+                marginLeft: 14,
+                fontSize: 16,
+                fontWeight: "600",
                 color: fg,
               },
             ]}
@@ -200,210 +241,230 @@ function DesktopShellLayout({
     );
   };
 
+  const FooterRow = ({
+    label,
+    icon,
+    active,
+    onPress,
+  }: {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    active: boolean;
+    onPress: () => void;
+  }) => {
+    const [hover, setHover] = useState(false);
+
+    const bg = active ? UI.activeBg : hover ? UI.hover : "transparent";
+    const fg = UI.text;
+    const ic = UI.text;
+
+    return (
+      <Pressable
+        onPress={onPress}
+        onHoverIn={() => setHover(true)}
+        onHoverOut={() => setHover(false)}
+        style={{
+          height: UI.itemH,
+          borderRadius: UI.radius,
+          paddingHorizontal: UI.padX,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "flex-start",
+          backgroundColor: bg,
+        }}
+      >
+        <Ionicons name={icon} size={18} color={ic} />
+
+        {!collapsed && (
+          <Text
+            style={[textStyles.body, { marginLeft: 10, fontSize: 13, fontWeight: "600", color: fg }]}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+        )}
+      </Pressable>
+    );
+  };
+
   return (
     <CreateTxModalProvider value={{ openCreateTx, openEditTx, closeCreateTx }}>
-      <View style={{ flex: 1, flexDirection: "row", backgroundColor: "#F8FAFC" }}>
-        {/* Sidebar */}
+      <View style={{ flex: 1, flexDirection: "row", backgroundColor: UI.bg }}>
+        {/* ===== Sidebar ===== */}
         <View
           style={{
-            width: collapsed ? 76 : 240,
-            backgroundColor: "white",
+            width: collapsed ? 72 : 256,
+            backgroundColor: UI.surface,
             borderRightWidth: 1,
-            borderRightColor: "#E5E7EB",
+            borderRightColor: UI.border,
             paddingHorizontal: 12,
             paddingTop: 12,
             paddingBottom: 12,
           }}
         >
-          {/* Header sidebar */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+          {/* Header: logo + actions */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 10,
+              gap: 6,
+            }}
+          >
+            {/* Logo */}
             <View
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                backgroundColor: "#F8FAFC",
+                width: 36,
+                height: 36,
                 alignItems: "center",
                 justifyContent: "center",
-                overflow: "hidden",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                marginRight: collapsed ? 0 : 10,
               }}
             >
               <Image
                 source={require("../../assets/finex_logo.png")}
-                style={{ width: 20, height: 20, resizeMode: "contain" }}
+                style={{ width: 28, height: 28, resizeMode: "contain" }}
               />
             </View>
 
-            {!collapsed && (
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>Finexa</Text>
-              </View>
-            )}
+            {/* spacer */}
+            <View style={{ flex: 1 }} />
 
-            <Pressable
-              onPress={() => setCollapsed((v) => !v)}
-              style={(s: PressableStateWeb) => ({
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                backgroundColor: s.hovered ? "#F8FAFC" : "white",
-                alignItems: "center",
-                justifyContent: "center",
-                marginLeft: collapsed ? 8 : 0,
-              })}
-            >
-              <Ionicons
-                name={collapsed ? "chevron-forward" : "chevron-back"}
-                size={18}
-                color="#0F172A"
-              />
-            </Pressable>
+            {/* Collapse */}
+            <GhostIconButton
+              icon={collapsed ? "chevron-forward" : "chevron-back"}
+              onPress={() => {
+                setProfileMenuOpen(false);
+                setCollapsed((v) => !v);
+              }}
+            />
+
+            {/* Plus (solo abierto) */}
+            {!collapsed && <GhostIconButton icon="add" onPress={() => openCreateTx()} />}
           </View>
 
-          {/* Menú */}
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 10 }}>
-            {sections.map((section) => (
-              <View key={section.title || "root"} style={{ marginBottom: 10 }}>
-                {!!section.title && !collapsed && (
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "800",
-                      color: "#94A3B8",
-                      letterSpacing: 0.8,
-                      marginTop: 8,
-                      marginBottom: 6,
-                      paddingHorizontal: 2,
-                    }}
-                  >
-                    {section.title}
-                  </Text>
-                )}
+          {/* Menu */}
+<ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 12 }}>
+  <View style={{ gap: 12 }}>
+    {items.map((item) => (
+      <NavRow
+        key={item.key}
+        item={item}
+        isActive={routeKey === item.key}
+      />
+    ))}
+  </View>
+</ScrollView>
 
-                <View style={{ gap: 4 }}>
-                  {section.items.map((item) => (
-                    <NavRow key={item.key} item={item} isActive={routeKey === item.key} />
-                  ))}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
+          {/* Footer */}
+          <View style={{ borderTopWidth: 1, borderTopColor: UI.border, paddingTop: 10, gap: 6 }}>
+            <FooterRow
+              label="Ajustes"
+              icon="settings-outline"
+              active={routeKey === "settings"}
+              onPress={() => go("settings")}
+            />
 
-          {/* Logout */}
-          <View style={{ borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 10 }}>
-            <Pressable
-              onPress={handleLogout}
-              style={(s: PressableStateWeb) => ({
-                borderRadius: 8,
-                backgroundColor: s.hovered ? "#F8FAFC" : "transparent",
-                paddingVertical: 10,
-                paddingHorizontal: collapsed ? 10 : 12,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: collapsed ? "center" : "flex-start",
-              })}
-            >
-              <Ionicons name="log-out-outline" size={17} color="#64748B" />
-              {!collapsed && (
-                <Text
-                  style={[
-                    textStyles.body,
-                    { marginLeft: 10, fontSize: 14, fontWeight: "600", color: "#64748B" },
-                  ]}
-                >
-                  Cerrar sesión
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Main */}
-        <View style={{ flex: 1 }}>
-          {/* Topbar */}
-          <View
-            style={{
-              height: 56,
-              backgroundColor: "white",
-              borderBottomWidth: 1,
-              borderBottomColor: "#E5E7EB",
-              paddingHorizontal: 18,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Text style={[textStyles.h2, { fontSize: 18, fontWeight: "700", color: "#0F172A" }]}>
-              {activeLabel}
-            </Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {/* Profile row + dropdown */}
+            <View style={{ position: "relative" }}>
               <Pressable
-                onPress={() => openCreateTx()}
+                onPress={() => {
+                  if (!collapsed) setProfileMenuOpen((v) => !v);
+                }}
                 style={(s: PressableStateWeb) => ({
-                  height: 34,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: s.hovered ? "#F8FAFC" : "white",
+                  height: 52,
+                  borderRadius: UI.radius,
+                  paddingHorizontal: UI.padX,
+                  backgroundColor: s.hovered ? UI.hover : "transparent",
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 8,
+                  gap: 10,
                 })}
               >
-                <Ionicons name="add" size={18} color="#0F172A" />
-                <Text style={[textStyles.body, { fontSize: 12.5, fontWeight: "600", color: "#0F172A" }]}>
-                  Nueva transacción
-                </Text>
+                <InitialsAvatar name={user?.name} email={user?.email} size={32} />
+
+                {!collapsed && (
+                  <>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[textStyles.body, { fontSize: 13, fontWeight: "600", color: UI.text }]}
+                        numberOfLines={1}
+                      >
+                        {user?.name ?? "Mi cuenta"}
+                      </Text>
+
+                      <Text style={[textStyles.caption, { fontSize: 11, color: UI.muted }]} numberOfLines={1}>
+                        {user?.email ?? ""}
+                      </Text>
+                    </View>
+
+                    <Ionicons
+                      name={profileMenuOpen ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color={UI.muted2}
+                    />
+                  </>
+                )}
               </Pressable>
 
-              {[
-                { name: "search-outline" as const, color: "#64748B" },
-                { name: "notifications-outline" as const, color: "#64748B" },
-              ].map((b) => (
-                <Pressable
-                  key={b.name}
-                  style={(s: PressableStateWeb) => ({
-                    width: 34,
-                    height: 34,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    backgroundColor: s.hovered ? "#F8FAFC" : "white",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  })}
-                >
-                  <Ionicons name={b.name} size={18} color={b.color} />
-                </Pressable>
-              ))}
+              {/* Dropdown */}
+              {!collapsed && profileMenuOpen && (
+                <>
+                  {/* overlay cerrar (web) */}
+                  {Platform.OS === "web" && (
+                    <Pressable
+                      onPress={() => setProfileMenuOpen(false)}
+                      style={{
+                        position: "fixed" as any,
+                        inset: 0,
+                        backgroundColor: "transparent",
+                        zIndex: 999,
+                      }}
+                    />
+                  )}
 
-              <Pressable
-                style={(s: PressableStateWeb) => ({
-                  width: 34,
-                  height: 34,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: s.hovered ? "#F8FAFC" : "#F1F5F9",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                })}
-              >
-                <Ionicons name="person" size={18} color="#64748B" />
-              </Pressable>
+                  <View
+                    style={{
+                      position: "absolute",
+                      bottom: 58,
+                      left: 0,
+                      right: 0,
+                      backgroundColor: UI.surface,
+                      borderRadius: UI.radius,
+                      borderWidth: 1,
+                      borderColor: UI.border,
+                      shadowColor: "#000",
+                      shadowOpacity: 0.10,
+                      shadowRadius: 18,
+                      shadowOffset: { width: 0, height: 12 },
+                      overflow: "hidden",
+                      zIndex: 1000,
+                    }}
+                  >
+                    <Pressable
+                      onPress={handleLogout}
+                      style={(s: PressableStateWeb) => ({
+                        height: 44,
+                        paddingHorizontal: 12,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                        backgroundColor: s.hovered ? UI.hover : UI.surface,
+                      })}
+                    >
+                      <Ionicons name="log-out-outline" size={18} color={UI.text} />
+                      <Text style={[textStyles.body, { fontSize: 13, fontWeight: "600", color: UI.text }]}>
+                        Cerrar sesión
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
             </View>
           </View>
-
-          <View style={{ flex: 1 }}>{children}</View>
         </View>
+
+        {/* ===== Main ===== */}
+        <View style={{ flex: 1 }}>{children}</View>
 
         <CreateTransactionModal
           visible={isCreateTxOpen}
@@ -420,7 +481,6 @@ function DesktopShellLayout({
 function withDesktopShell(Component: React.ComponentType<any>) {
   return function Wrapped(props: any) {
     const name = props.route?.name as string;
-
     const routeKey: DesktopRouteKey =
       name === "DesktopInvestmentDetail" ? "investments" : (name as DesktopRouteKey);
 
@@ -434,9 +494,7 @@ function withDesktopShell(Component: React.ComponentType<any>) {
 
 export default function DesktopShellNavigator() {
   return (
-    <Stack.Navigator
-      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#F8FAFC" } }}
-    >
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: UI.bg } }}>
       <Stack.Screen name="dashboard" component={withDesktopShell(DashboardScreen)} />
       <Stack.Screen name="registre" component={withDesktopShell(RegisterScreen)} />
       <Stack.Screen name="profile" component={withDesktopShell(EmptyScreen)} />
@@ -445,10 +503,7 @@ export default function DesktopShellNavigator() {
       <Stack.Screen name="debts" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="goals" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="investments" component={withDesktopShell(DesktopInvestmentsScreen)} />
-      <Stack.Screen
-        name="DesktopInvestmentDetail"
-        component={withDesktopShell(DesktopInvestmentDetailScreen)}
-      />
+      <Stack.Screen name="DesktopInvestmentDetail" component={withDesktopShell(DesktopInvestmentDetailScreen)} />
       <Stack.Screen name="reports" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="settings" component={withDesktopShell(EmptyScreen)} />
     </Stack.Navigator>

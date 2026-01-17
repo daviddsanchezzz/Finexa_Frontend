@@ -19,11 +19,12 @@ import { colors } from "../../../theme/theme";
 import PieChartComponent from "../../../components/PieChart";
 import DesktopPeriodChart from "../../../components/DesktopPeriodChart";
 import DesktopDateTimeFilterModal from "../../../components/DesktopDateTimeFilterModal";
-import DesktopTransactionsList from "../../../components/DesktopTransactionsList"; 
 import { WalletPickerModal } from "../../../components/WalletPickerModal";
 
 import { textStyles, typography } from "../../../theme/typography";
 import { useCreateTxModal } from "../../../context/CreateTxModalContext";
+import DesktopTransactionsTable from "../../../components/DesktopTransactionsTable";
+import { KpiCard } from "../../../components/KpiCard";
 
 type GraphType = "expense" | "income";
 type RangeType = "week" | "month" | "year" | "all";
@@ -212,174 +213,31 @@ function useUiScale() {
   return { s, px, fs, width };
 }
 
-/** ======= KPI CARD ======= */
-function StatCard({
-  title,
-  value,
-  icon,
-  tone = "neutral",
-  subtitle,
-  px,
-  fs,
-}: {
-  title: string;
-  value: string;
-  subtitle?: React.ReactNode;
-  icon: keyof typeof Ionicons.glyphMap;
-  tone?: "neutral" | "success" | "danger" | "info";
-  px: (n: number) => number;
-  fs: (n: number) => number;
-}) {
-  const palette = {
-    neutral: {
-      accent: "#000000",
-      iconBg: "#F1F5F9",
-      iconFg: "#000000",
-      title: "#94A3B8",
-    },
-    info: {
-      accent: "#3B82F6",
-      iconBg: "rgba(59,130,246,0.12)",
-      iconFg: "#2563EB",
-      title: "#94A3B8",
-    },
-    success: {
-      accent: "#22C55E",
-      iconBg: "rgba(34,197,94,0.12)",
-      iconFg: "#16A34A",
-      title: "#94A3B8",
-    },
-    danger: {
-      accent: "#EF4444",
-      iconBg: "rgba(239,68,68,0.12)",
-      iconFg: "#DC2626",
-      title: "#94A3B8",
-    },
-  }[tone];
-
-  return (
-    <View
-      style={{
-        flex: 1,
-        minWidth: px(230),
-        backgroundColor: "white",
-        borderRadius: px(12),
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOpacity: 0.04,
-        shadowRadius: px(12),
-        shadowOffset: { width: 0, height: px(6) },
-      }}
-    >
-      <View style={{ flexDirection: "row", flex: 1 }}>
-        <View style={{ width: px(4), backgroundColor: palette.accent }} />
-
-        <View style={{ flex: 1, padding: px(16) }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: px(10),
-            }}
-          >
-            <Text
-              style={[
-                textStyles.labelMuted,
-                { fontSize: fs(11), color: palette.title, letterSpacing: 0.6 },
-              ]}
-              numberOfLines={1}
-            >
-              {title}
-            </Text>
-
-            <View
-              style={{
-                width: px(34),
-                height: px(34),
-                borderRadius: px(10),
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: palette.iconBg,
-              }}
-            >
-              <Ionicons name={icon} size={px(18)} color={palette.iconFg} />
-            </View>
-          </View>
-
-          <Text
-            style={[
-              textStyles.numberLG,
-              { marginTop: px(12), fontSize: fs(22), fontWeight: "900", color: "#0F172A" },
-            ]}
-            numberOfLines={1}
-          >
-            {value}
-          </Text>
-
-          {!!subtitle && <View style={{ marginTop: px(6) }}>{subtitle}</View>}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/** UI reusable card */
-function SectionCard({
+/** Encabezado sección (sin cajita) */
+function SectionTitle({
   title,
   right,
-  children,
-  noPadding,
   px,
   fs,
 }: {
   title: string;
   right?: React.ReactNode;
-  children: React.ReactNode;
-  noPadding?: boolean;
   px: (n: number) => number;
   fs: (n: number) => number;
 }) {
   return (
     <View
       style={{
-        backgroundColor: "white",
-        borderRadius: px(12),
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        padding: noPadding ? 0 : px(16),
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOpacity: 0.03,
-        shadowRadius: px(10),
-        shadowOffset: { width: 0, height: px(6) },
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: px(12),
       }}
     >
-      <View
-        style={{
-          paddingHorizontal: noPadding ? px(16) : 0,
-          paddingTop: noPadding ? px(16) : 0,
-          paddingBottom: px(10),
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: px(10),
-        }}
-      >
-        <Text style={[textStyles.labelMuted2, { fontSize: fs(12) }]}>{title}</Text>
-        {!!right && <View>{right}</View>}
-      </View>
-
-      <View
-        style={{
-          paddingHorizontal: noPadding ? px(16) : 0,
-          paddingBottom: noPadding ? px(16) : 0,
-        }}
-      >
-        {children}
-      </View>
+      <Text style={[textStyles.labelMuted, { fontSize: fs(12), color: "#64748B", letterSpacing: 0.4 }]}>
+        {title}
+      </Text>
+      {!!right && <View>{right}</View>}
     </View>
   );
 }
@@ -408,7 +266,7 @@ function Segmented({
         backgroundColor: "rgba(15,23,42,0.06)",
         padding: px(4),
         borderRadius: px(12),
-        height: px(40), // un pelín más compacto
+        height: px(40),
       }}
     >
       {items.map((x) => {
@@ -423,7 +281,11 @@ function Segmented({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: px(10),
-              backgroundColor: active ? "rgba(15,23,42,0.10)" : "transparent",
+              backgroundColor: active ? "white" : "transparent",
+              shadowColor: active ? "#0B1220" : "transparent",
+              shadowOpacity: active ? 0.08 : 0,
+              shadowRadius: px(10),
+              shadowOffset: { width: 0, height: px(6) },
             }}
           >
             <Text
@@ -431,7 +293,7 @@ function Segmented({
                 textStyles.label,
                 {
                   fontSize: fs(12),
-                  fontWeight: active ? "900" : "800",
+                  fontWeight: active ? "800" : "700",
                   color: active ? "#0F172A" : "#64748B",
                 },
               ]}
@@ -445,7 +307,7 @@ function Segmented({
   );
 }
 
-/** ======= TOP BUTTON: FIX hovered ======= */
+/** Top toolbar button */
 function TopButton({
   icon,
   label,
@@ -467,22 +329,22 @@ function TopButton({
       onHoverIn={() => setHover(true)}
       onHoverOut={() => setHover(false)}
       style={{
-        height: px(38),
+        height: px(40),
         paddingHorizontal: label ? px(12) : 0,
-        width: label ? undefined : px(38),
-        borderRadius: px(10),
+        width: label ? undefined : px(40),
+        borderRadius: px(12),
+        backgroundColor: hover ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.90)",
         borderWidth: 1,
-        borderColor: "#E5E7EB",
-        backgroundColor: hover ? "#F8FAFC" : "white",
+        borderColor: "rgba(148,163,184,0.25)",
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         gap: label ? px(8) : 0,
       }}
     >
-      <Ionicons name={icon} size={px(18)} color="#64748B" />
+      <Ionicons name={icon} size={px(18)} color="#475569" />
       {!!label && (
-        <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "800", color: "#64748B" }]}>
+        <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "600", color: "#475569" }]}>
           {label}
         </Text>
       )}
@@ -490,7 +352,7 @@ function TopButton({
   );
 }
 
-/** Selector compacto Gastos/Ingresos */
+/** Selector Gastos/Ingresos */
 function GraphTypePill({
   value,
   onChange,
@@ -502,17 +364,7 @@ function GraphTypePill({
   px: (n: number) => number;
   fs: (n: number) => number;
 }) {
-  const Item = ({
-    k,
-    label,
-    icon,
-    activeBg,
-  }: {
-    k: GraphType;
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    activeBg: string;
-  }) => {
+  const Item = ({ k, label, icon }: { k: GraphType; label: string; icon: keyof typeof Ionicons.glyphMap }) => {
     const active = value === k;
     return (
       <TouchableOpacity
@@ -520,11 +372,13 @@ function GraphTypePill({
         onPress={() => onChange(k)}
         style={{
           flex: 1,
-          height: px(36), // MÁS PEQUEÑO
-          borderRadius: px(10),
-          borderWidth: 1,
-          borderColor: active ? "rgba(0,0,0,0.10)" : "transparent",
-          backgroundColor: active ? activeBg : "transparent",
+          height: px(36),
+          borderRadius: px(12),
+          backgroundColor: active ? "white" : "transparent",
+          shadowColor: active ? "#0B1220" : "transparent",
+          shadowOpacity: active ? 0.08 : 0,
+          shadowRadius: px(10),
+          shadowOffset: { width: 0, height: px(6) },
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
@@ -537,7 +391,7 @@ function GraphTypePill({
             textStyles.label,
             {
               fontSize: fs(11),
-              fontWeight: active ? "900" : "800",
+              fontWeight: active ? "800" : "700",
               color: active ? "#0F172A" : "#64748B",
             },
           ]}
@@ -554,12 +408,12 @@ function GraphTypePill({
         flexDirection: "row",
         backgroundColor: "rgba(15,23,42,0.06)",
         padding: px(3),
-        borderRadius: px(10),
-        width: px(240), // MÁS PEQUEÑO
+        borderRadius: px(14),
+        width: px(230),
       }}
     >
-      <Item k="expense" label="Gastos" icon="arrow-down-outline" activeBg="rgba(239,68,68,0.14)" />
-      <Item k="income" label="Ingresos" icon="arrow-up-outline" activeBg="rgba(34,197,94,0.14)" />
+      <Item k="expense" label="Gastos" icon="arrow-down-outline" />
+      <Item k="income" label="Ingresos" icon="arrow-up-outline" />
     </View>
   );
 }
@@ -572,6 +426,37 @@ function daysBetweenInclusive(fromISO: string | null, toISO: string | null) {
   b.setHours(0, 0, 0, 0);
   const diff = Math.round((b.getTime() - a.getTime()) / 86400000);
   return Math.max(1, diff + 1);
+}
+
+/** Header sticky para la sección de transacciones */
+function StickyTxHeader({
+  title,
+  right,
+  px,
+  fs,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  return (
+    <View
+      style={{
+        position: "sticky" as any,
+        top: 0,
+        zIndex: 20,
+        backgroundColor: "#F6F8FC",
+        paddingTop: px(10),
+        paddingBottom: px(10),
+      }}
+    >
+      <View style={{ paddingHorizontal: px(2) }}>
+        <SectionTitle title={title} right={right} px={px} fs={fs} />
+      </View>
+      <View style={{ marginTop: px(10), height: 1, backgroundColor: "rgba(148,163,184,0.20)" }} />
+    </View>
+  );
 }
 
 export default function DashboardScreen({ navigation }: any) {
@@ -598,13 +483,10 @@ export default function DashboardScreen({ navigation }: any) {
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
 
   const { px, fs, width } = useUiScale();
-  const WIDE = width >= 1100;
 
-const { openCreateTx } = useCreateTxModal();
-const { openEditTx } = useCreateTxModal();
+  const { openEditTx } = useCreateTxModal();
 
-  // MISMA ALTURA PARA LAS DOS CARDS DE GRÁFICAS
-  const CHART_H = px(250);
+  const CHART_H = px(280);
 
   useEffect(() => {
     const { from, to, label, type } = initCurrentMonth();
@@ -695,8 +577,6 @@ const { openEditTx } = useCreateTxModal();
   const balancePeriod = summary?.balance ?? 0;
   const savingsRate = summary?.savingsRate ?? 0;
 
-  const _periodDays = useMemo(() => daysBetweenInclusive(dateFrom, dateTo), [dateFrom, dateTo]);
-
   const txByType = useMemo(
     () => transactions.filter((t) => t.type === graphType),
     [transactions, graphType]
@@ -761,73 +641,110 @@ const { openEditTx } = useCreateTxModal();
   }, [filteredTransactions, showAllTx]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background ?? "#F8FAFC" }}>
+    <View style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: px(22),
           paddingTop: px(18),
           paddingBottom: px(90),
+          maxWidth: px(1400),
+          width: "100%",
+          alignSelf: "center",
         }}
       >
-        {/* ===== Header ===== */}
+        {/* ===== Top toolbar ===== */}
         <View
           style={{
             flexDirection: "row",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "space-between",
+            gap: px(14),
             marginBottom: px(14),
           }}
         >
-          <View>
-            <Text style={[textStyles.h1, { fontSize: fs(22), fontWeight: "900", color: "#0F172A" }]}>
-              {dateLabel || "—"}
-            </Text>
-            <Text
-              style={[
-                textStyles.bodyMuted,
-                { marginTop: px(4), fontSize: fs(12), color: "#94A3B8", fontWeight: "700" },
-              ]}
-            >
+          <View style={{ flex: 1 }}>
+            <Text style={[textStyles.h1, { fontSize: fs(22), color: "#0F172A" }]}>{dateLabel || "—"}</Text>
+            <Text style={[textStyles.bodyMuted, { marginTop: px(4), fontSize: fs(12), color: "#64748B" }]}>
               {selectedWallet ? selectedWallet.name : "Todas las carteras"}
             </Text>
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
             <TopButton icon="calendar-outline" label="Fechas" onPress={() => setDateModalVisible(true)} px={px} fs={fs} />
-            <TopButton icon="wallet-outline" label={selectedWallet ? "Cartera" : "Carteras"} onPress={() => setWalletModalVisible(true)} px={px} fs={fs} />
+            <TopButton
+              icon="wallet-outline"
+              label={selectedWallet ? "Cartera" : "Carteras"}
+              onPress={() => setWalletModalVisible(true)}
+              px={px}
+              fs={fs}
+            />
             <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
           </View>
+
+          {Platform.OS === "web" && (
+            <View
+              style={{
+                height: px(40),
+                width: px(360),
+                borderRadius: px(14),
+                borderWidth: 1,
+                borderColor: "rgba(148,163,184,0.25)",
+                backgroundColor: "rgba(255,255,255,0.90)",
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: px(12),
+                gap: px(8),
+              }}
+            >
+              <Ionicons name="search-outline" size={px(16)} color="#64748B" />
+              {/* @ts-ignore */}
+              <input
+                value={txQuery}
+                onChange={(e: any) => setTxQuery(e?.target?.value ?? "")}
+                placeholder="Buscar transacciones..."
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  fontSize: fs(13),
+                  fontFamily: typography.family.base,
+                  fontWeight: 600,
+                  background: "transparent",
+                  color: "#0F172A",
+                }}
+              />
+              {!!txQuery && (
+                <TouchableOpacity activeOpacity={0.9} onPress={() => setTxQuery("")}>
+                  <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* ===== KPI row ===== */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
-          <StatCard
+          <KpiCard
             title="PATRIMONIO TOTAL"
             value={loading ? "—" : formatEuro(netWorth)}
             subtitle={
-              <Text
-                style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]}
-                numberOfLines={1}
-              >
+              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                 {selectedWallet ? "Balance de la cartera" : "Suma de balances de carteras"}
               </Text>
             }
             icon="briefcase-outline"
-            tone="neutral"
+            variant="premium"
             px={px}
             fs={fs}
           />
 
-          <StatCard
+          <KpiCard
             title="BALANCE"
             value={loading ? "—" : formatEuro(balancePeriod)}
             subtitle={
               loading ? null : (
-                <Text
-                  style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]}
-                  numberOfLines={1}
-                >
+                <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                   Ahorro:{" "}
                   <Text style={{ color: balancePeriod >= 0 ? "#16A34A" : "#DC2626", fontWeight: "900" }}>
                     {formatPercent(savingsRate)}
@@ -841,14 +758,11 @@ const { openEditTx } = useCreateTxModal();
             fs={fs}
           />
 
-          <StatCard
+          <KpiCard
             title="INGRESOS"
             value={loading ? "—" : formatEuro(totalIncome)}
             subtitle={
-              <Text
-                style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]}
-                numberOfLines={1}
-              >
+              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                 {dateLabel || ""}
               </Text>
             }
@@ -858,14 +772,11 @@ const { openEditTx } = useCreateTxModal();
             fs={fs}
           />
 
-          <StatCard
+          <KpiCard
             title="GASTOS"
             value={loading ? "—" : formatEuro(totalExpenses)}
             subtitle={
-              <Text
-                style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "700" }]}
-                numberOfLines={1}
-              >
+              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                 {dateLabel || ""}
               </Text>
             }
@@ -876,296 +787,160 @@ const { openEditTx } = useCreateTxModal();
           />
         </View>
 
-        <View style={{ marginTop: px(14), gap: px(12) }}>
-          {/* Selector Gastos | Ingresos (compacto) */}
-          <View style={{ flexDirection: "row", justifyContent: "flex-start" }}>
-            <GraphTypePill value={graphType} onChange={setGraphType} px={px} fs={fs} />
-          </View>
+        {/* ===== Controls row ===== */}
+        <View style={{ marginTop: px(14), flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <GraphTypePill value={graphType} onChange={setGraphType} px={px} fs={fs} />
+        </View>
 
-          {/* Main layout */}
-          <View style={{ flexDirection: WIDE ? "row" : "column", gap: px(12), alignItems: "flex-start" }}>
-            {/* LEFT */}
-            <View style={{ flex: 1, minWidth: px(680), gap: px(12) }}>
-              {/* Gráfica evolución (altura fija REAL) */}
-              <SectionCard
-                title={graphType === "expense" ? "Evolución de gastos" : "Evolución de ingresos"}
-                right={<Segmented value={rangeType} onChange={setRangeType} px={px} fs={fs} />}
-                px={px}
-                fs={fs}
-              >
-                <View style={{ height: CHART_H }}>
-                  {loading ? (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    </View>
-                  ) : (
-                    <DesktopPeriodChart data={bars as any} labels={barLabels as any} height={CHART_H} />
-                  )}
+        {/* ===== Charts row (sin “Top categories”) ===== */}
+        <View style={{ marginTop: px(12), flexDirection: width >= 1120 ? "row" : "column", gap: px(12) }}>
+          {/* Evolución */}
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "white",
+              borderRadius: px(16),
+              padding: px(16),
+              shadowColor: "#0B1220",
+              shadowOpacity: 0.06,
+              shadowRadius: px(18),
+              shadowOffset: { width: 0, height: px(10) },
+            }}
+          >
+            <SectionTitle
+              title={graphType === "expense" ? "Evolución de gastos" : "Evolución de ingresos"}
+              right={<Segmented value={rangeType} onChange={setRangeType} px={px} fs={fs} />}
+              px={px}
+              fs={fs}
+            />
+            <View style={{ marginTop: px(10), height: CHART_H }}>
+              {loading ? (
+                <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
                 </View>
-              </SectionCard>
-
-              {/* Transacciones (altura libre) */}
-              <SectionCard
-                title="Transacciones del periodo"
-                noPadding
-                px={px}
-                fs={fs}
-                right={
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
-                    {selectedCategoryName && (
-                      <TouchableOpacity
-                        activeOpacity={0.9}
-                        onPress={() => setSelectedCategoryName(null)}
-                        style={{
-                          height: px(34),
-                          paddingHorizontal: px(10),
-                          borderRadius: 999,
-                          backgroundColor: "rgba(15,23,42,0.06)",
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: px(6),
-                          maxWidth: px(240),
-                        }}
-                      >
-                        <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: "900" }]} numberOfLines={1}>
-                          {selectedCategoryName}
-                        </Text>
-                        <Ionicons name="close" size={px(14)} color="#0F172A" />
-                      </TouchableOpacity>
-                    )}
-
-                    {Platform.OS === "web" && (
-                      <View
-                        style={{
-                          height: px(34),
-                          width: px(300),
-                          borderRadius: px(12),
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          backgroundColor: "white",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          paddingHorizontal: px(10),
-                          gap: px(8),
-                        }}
-                      >
-                        <Ionicons name="search-outline" size={px(16)} color="#64748B" />
-                        {/* @ts-ignore */}
-                        <input
-                          value={txQuery}
-                          onChange={(e: any) => setTxQuery(e?.target?.value ?? "")}
-                          placeholder="Buscar transacciones..."
-                          style={{
-                            flex: 1,
-                            border: "none",
-                            outline: "none",
-                            fontSize: fs(13),
-                            fontFamily: typography.family.base,
-                            fontWeight: 600,
-                            background: "transparent",
-                            color: "#0F172A",
-                          }}
-                        />
-                        {!!txQuery && (
-                          <TouchableOpacity activeOpacity={0.9} onPress={() => setTxQuery("")}>
-                            <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                }
-              >
-                {loading ? (
-                  <View style={{ padding: px(16), alignItems: "center", justifyContent: "center" }}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                  </View>
-                ) : filteredTransactions.length === 0 ? (
-                  <View style={{ padding: px(16) }}>
-                    <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>
-                      No hay transacciones que coincidan con los filtros.
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                    <View style={{ paddingBottom: px(10) }}>
-<DesktopTransactionsList
-  transactions={txPreview}
-  onDeleted={fetchAll}
-  navigation={navigation}
-  backgroundColor={"transparent"}
-  onEditTx={(tx) => openEditTx(tx)}
-/>
-
-                    </View>
-
-                    {filteredTransactions.length > 18 && (
-                      <View style={{ paddingHorizontal: px(16), paddingBottom: px(16) }}>
-                        <TouchableOpacity
-                          activeOpacity={0.9}
-                          onPress={() => setShowAllTx((v) => !v)}
-                          style={{
-                            height: px(42),
-                            borderRadius: px(12),
-                            borderWidth: 1,
-                            borderColor: "#E5E7EB",
-                            backgroundColor: "#F8FAFC",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: px(8),
-                          }}
-                        >
-                          <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: colors.primary }]}>
-                            {showAllTx ? "Ver menos" : `Ver todas (${filteredTransactions.length})`}
-                          </Text>
-                          <Ionicons
-                            name={showAllTx ? "chevron-up-outline" : "chevron-down-outline"}
-                            size={px(16)}
-                            color={colors.primary}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </>
-                )}
-              </SectionCard>
-            </View>
-
-            {/* RIGHT */}
-            <View style={{ width: WIDE ? px(420) : "100%", gap: px(12) }}>
-              {/* Pie (MISMA ALTURA REAL) */}
-              <SectionCard title="Distribución por categorías" px={px} fs={fs}>
-                <View style={{ height: CHART_H }}>
-                  {loading ? (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    </View>
-                  ) : (
-                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                      <PieChartComponent
-                        mode={graphType}
-                        data={pieData as any}
-                        incomes={totalIncome}
-                        expenses={totalExpenses}
-                      />
-                    </View>
-                  )}
-                </View>
-              </SectionCard>
-
-              {/* Categorías (altura libre, sin scroll interno) */}
-              <SectionCard title="Categorías" px={px} fs={fs}>
-                {loading ? (
-                  <View style={{ padding: px(16), alignItems: "center", justifyContent: "center" }}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  </View>
-                ) : (graphType === "expense" ? expenses : incomes).length === 0 ? (
-                  <View style={{ paddingBottom: px(6) }}>
-                    <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>
-                      No hay datos para este periodo.
-                    </Text>
-                  </View>
-                ) : (
-                  <View>
-                    {(graphType === "expense" ? expenses : incomes).slice(0, 10).map((c, idx) => {
-                      const denom = graphType === "expense" ? totalExpenses : totalIncome;
-                      const pct = denom > 0 ? (c.amount / denom) * 100 : 0;
-                      const selected = selectedCategoryName === c.name;
-
-                      return (
-                        <TouchableOpacity
-                          key={`${graphType}-${c.name}-${idx}`}
-                          activeOpacity={0.85}
-                          onPress={() => {
-                            setSelectedCategoryName((prev) => (prev === c.name ? null : c.name));
-                            setShowAllTx(true);
-                          }}
-                          onLongPress={() =>
-                            navigation.navigate("CategoryTransactions", {
-                              categoryName: c.name,
-                              categoryEmoji: c.emoji,
-                              categoryColor: c.color,
-                              type: graphType,
-                              dateFrom,
-                              dateTo,
-                              walletId: selectedWallet?.id ?? undefined,
-                            })
-                          }
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            paddingVertical: px(10),
-                            borderTopWidth: idx === 0 ? 0 : 1,
-                            borderTopColor: "#E5E7EB",
-                            gap: px(10),
-                            backgroundColor: selected ? "rgba(37,99,235,0.08)" : "transparent",
-                            borderRadius: px(12),
-                            paddingHorizontal: px(10),
-                          }}
-                        >
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: px(10), flex: 1 }}>
-                            <View
-                              style={{
-                                width: px(36),
-                                height: px(36),
-                                borderRadius: px(12),
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: c.color,
-                              }}
-                            >
-                              <Text style={[textStyles.number, { fontSize: fs(16), fontWeight: "900" }]}>{c.emoji}</Text>
-                            </View>
-
-                            <View style={{ flex: 1 }}>
-                              <Text style={[textStyles.body, { fontSize: fs(13), fontWeight: "900" }]} numberOfLines={1}>
-                                {c.name}
-                              </Text>
-                              <Text style={[textStyles.caption, { marginTop: px(2), fontSize: fs(11) }]}>
-                                {formatPercent(pct)} · x{c.count}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <Text style={[textStyles.number, { fontSize: fs(13), fontWeight: "900" }]}>
-                            {formatEuro(c.amount)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    {(graphType === "expense" ? expenses : incomes).length > 10 && (
-                      <TouchableOpacity
-                        activeOpacity={0.9}
-                        onPress={() => navigation?.navigate?.("statistics")}
-                        style={{
-                          marginTop: px(10),
-                          height: px(42),
-                          borderRadius: px(12),
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          backgroundColor: "#F8FAFC",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: px(8),
-                        }}
-                      >
-                        <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: colors.primary }]}>
-                          Ver todas
-                        </Text>
-                        <Ionicons name="arrow-forward-outline" size={px(16)} color={colors.primary} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </SectionCard>
+              ) : (
+                <DesktopPeriodChart data={bars as any} labels={barLabels as any} height={CHART_H} />
+              )}
             </View>
           </View>
+
+          {/* Donut */}
+          <View
+            style={{
+              width: width >= 1120 ? px(420) : "100%",
+              backgroundColor: "white",
+              borderRadius: px(16),
+              padding: px(16),
+              shadowColor: "#0B1220",
+              shadowOpacity: 0.06,
+              shadowRadius: px(18),
+              shadowOffset: { width: 0, height: px(10) },
+            }}
+          >
+            <SectionTitle title="Distribución por categorías" px={px} fs={fs} />
+            <View style={{ marginTop: px(10), height: CHART_H, alignItems: "center", justifyContent: "center" }}>
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <PieChartComponent
+                  mode={graphType}
+                  data={pieData as any}
+                  incomes={totalIncome}
+                  expenses={totalExpenses}
+                />
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* ===== Transacciones a TODO ANCHO: tabla sobre el fondo + header sticky + divider ===== */}
+        <View style={{ marginTop: px(16) }}>
+          <StickyTxHeader
+            title="Transacciones del periodo"
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
+                {selectedCategoryName && (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setSelectedCategoryName(null)}
+                    style={{
+                      height: px(34),
+                      paddingHorizontal: px(10),
+                      borderRadius: 999,
+                      backgroundColor: "rgba(37,99,235,0.08)",
+                      borderWidth: 1,
+                      borderColor: "rgba(37,99,235,0.18)",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: px(6),
+                      maxWidth: px(260),
+                    }}
+                  >
+                    <Text style={[textStyles.label, { fontSize: fs(12), fontWeight: "900", color: "#0F172A" }]} numberOfLines={1}>
+                      {selectedCategoryName}
+                    </Text>
+                    <Ionicons name="close" size={px(14)} color="#0F172A" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            }
+            px={px}
+            fs={fs}
+          />
+
+          {/* Tabla directamente sobre el fondo */}
+          {loading ? (
+            <View style={{ paddingVertical: px(24), alignItems: "center", justifyContent: "center" }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : filteredTransactions.length === 0 ? (
+            <View style={{ paddingVertical: px(16) }}>
+              <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }]}>
+                No hay transacciones que coincidan con los filtros.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View style={{ paddingTop: px(10) }}>
+                <DesktopTransactionsTable
+                  transactions={txPreview}
+                  onEditTx={(tx) => openEditTx(tx)}
+                  onDeleteTx={(tx) => {
+                    // tu lógica existente
+                  }}
+                />
+              </View>
+
+              {filteredTransactions.length > 18 && (
+                <View style={{ paddingTop: px(12) }}>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setShowAllTx((v) => !v)}
+                    style={{
+                      height: px(44),
+                      borderRadius: px(14),
+                      borderWidth: 1,
+                      borderColor: "rgba(148,163,184,0.25)",
+                      backgroundColor: "rgba(15,23,42,0.04)",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: px(8),
+                    }}
+                  >
+                    <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#2563EB" }]}>
+                      {showAllTx ? "Ver menos" : `Ver todas (${filteredTransactions.length})`}
+                    </Text>
+                    <Ionicons
+                      name={showAllTx ? "chevron-up-outline" : "chevron-down-outline"}
+                      size={px(16)}
+                      color="#2563EB"
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -1184,19 +959,16 @@ const { openEditTx } = useCreateTxModal();
         }}
       />
 
-      <WalletPickerModal
-        visible={walletModalVisible}
-        wallets={wallets}
-        selectedWalletId={selectedWallet?.id ?? null}
-        onClose={() => setWalletModalVisible(false)}
-        onClear={() => setSelectedWallet(null)}
-        onSelect={(w) => {
-          setSelectedWallet(w);
-          setTxQuery("");
-          setSelectedCategoryName(null);
-          setShowAllTx(false);
-        }}
-      />
+<WalletPickerModal
+  visible={walletModalVisible}
+  wallets={wallets}
+  selectedWalletId={selectedWallet?.id ?? null}
+  onClose={() => setWalletModalVisible(false)}
+  onClear={() => setSelectedWallet(null)}
+  onSelect={(w) => setSelectedWallet(w)}
+  onEditWallets={() => navigation.navigate("Wallets")}
+  onViewTransfers={() => navigation.navigate("Transfers")}
+/>
     </View>
   );
 }
