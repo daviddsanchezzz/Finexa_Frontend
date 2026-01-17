@@ -51,6 +51,21 @@ interface TripUI {
   year?: number | null;
 }
 
+type TripsSummaryDto = {
+  daysToNextTrip: number | null;
+  nextTrip: {
+    id: number;
+    name: string;
+    startDate: string | null;
+  } | null;
+
+  visitedCountries: number;
+  pendingCountries: number;
+  visitedPct: number;     // 0..100
+  totalCountries: number; // 249
+};
+
+
 /** ===== Utils ===== */
 function formatEuro(n: number) {
   const v = Number.isFinite(n) ? n : 0;
@@ -822,14 +837,18 @@ return (
     onDropTrip={onDropTrip!}
     onDragOverLane={(l) => onDragOverLane?.(l)}
     onDragLeaveLane={() => onDragLeaveLane?.(lane)}
-    style={{
-      width: px(360),
-      borderRadius: px(14),
-      backgroundColor: "rgba(255,255,255,0.60)",
-      borderWidth: 1,
-      borderColor: isDragOver ? "rgba(37,99,235,0.55)" : "rgba(148,163,184,0.18)",
-      padding: px(12),
-    }}
+style={{
+  width: px(360),
+  borderRadius: px(14),
+  backgroundColor: "rgba(255,255,255,0.60)",
+  borderWidth: 1,
+  borderColor: isDragOver ? "rgba(37,99,235,0.55)" : "rgba(148,163,184,0.18)",
+  padding: px(12),
+
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+}}
   >
       {/* header row */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(10) }}>
@@ -854,14 +873,21 @@ return (
 
       <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.16)", marginTop: px(10), marginBottom: px(10) }} />
 
-      {loading ? (
-        <View style={{ paddingVertical: px(20), alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="small" color={colors.primary} />
-        </View>
-      ) : (
-        <View style={{ gap: px(10) }}>{children}</View>
-      )}
-    </DropZone>
+    {loading ? (
+      <View style={{ paddingVertical: px(20), alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    ) : (
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }} // ✅ el contenido scrollea aquí
+        contentContainerStyle={{ gap: px(10), paddingBottom: px(2) }}
+      >
+        {children}
+      </ScrollView>
+    )}
+  </DropZone>
+
   );
 }
 
@@ -881,6 +907,22 @@ export default function TripsBoardScreen({ navigation }: any) {
 
   const draggingIdRef = useRef<number | null>(null);
   const [dragOverLane, setDragOverLane] = useState<TripLane | null>(null);
+
+  const [summary, setSummary] = useState<TripsSummaryDto | null>(null);
+const [summaryLoading, setSummaryLoading] = useState(true);
+
+const fetchSummary = useCallback(async () => {
+  try {
+    setSummaryLoading(true);
+    const res = await api.get("/trips/summary");
+    setSummary(res.data as TripsSummaryDto);
+  } catch (e) {
+    console.error("❌ Error al obtener summary:", e);
+    setSummary(null);
+  } finally {
+    setSummaryLoading(false);
+  }
+}, []);
 
   const fetchTrips = useCallback(async () => {
     try {
@@ -914,6 +956,7 @@ export default function TripsBoardScreen({ navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       fetchTrips();
+      fetchSummary();
     }, [fetchTrips])
   );
 
@@ -943,15 +986,6 @@ export default function TripsBoardScreen({ navigation }: any) {
     const wishlistSorted = [...wishlist].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es"));
 
     return { seen: seenSorted, planning: planningSorted, wishlist: wishlistSorted };
-  }, [filteredTrips]);
-
-  const summary = useMemo(() => {
-    const totalCost = filteredTrips.reduce((s, t) => s + (t.cost || 0), 0);
-    const seenCount = filteredTrips.filter((t) => t.lane === "seen").length;
-    const planningCount = filteredTrips.filter((t) => t.lane === "planning").length;
-    const wishlistCount = filteredTrips.filter((t) => t.lane === "wishlist").length;
-
-    return { totalCost, seenCount, planningCount, wishlistCount, totalCount: filteredTrips.length };
   }, [filteredTrips]);
 
   const openEditTrip = useCallback(
@@ -1028,18 +1062,18 @@ export default function TripsBoardScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: px(22),
-          paddingTop: px(18),
-          paddingBottom: px(90),
-          maxWidth: px(1440),
-          width: "100%",
-          alignSelf: "center",
-        }}
-      >
+  <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
+    <View
+      style={{
+        flex: 1,
+        paddingHorizontal: px(22),
+        paddingTop: px(18),
+        paddingBottom: px(18),
+        maxWidth: px(1440),
+        width: "100%",
+        alignSelf: "center",
+      }}
+    >
         {/* ===== Title + KPIs ===== */}
         <View
           style={{
@@ -1058,28 +1092,50 @@ export default function TripsBoardScreen({ navigation }: any) {
           </View>
         </View>
 
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
-          <KpiCard
-            title="TOTAL GASTADO"
-            value={loading ? "—" : formatEuro(summary.totalCost)}
-            icon="cash-outline"
-            tone="info"
-            variant="premium"
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>
-                En {summary.totalCount} viajes
-              </Text>
-            }
-            px={px}
-            fs={fs}
-          />
+<View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
+  {/* KPI destacado */}
+  <KpiCard
+    title="PRÓXIMO VIAJE"
+    value={summaryLoading ? "—" : (summary?.daysToNextTrip ?? null) === null ? "—" : `${summary!.daysToNextTrip} días`}
+    icon="calendar-number-outline"
+    tone="info"
+    variant="premium"
+    subtitle={
+      <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>
+        {summaryLoading ? "—" : (summary?.daysToNextTrip ?? null) === null ? "Sin viajes próximos" : `${summary?.nextTrip.name}`}
+      </Text>
+    }
+    px={px}
+    fs={fs}
+  />
 
-          <KpiCard title="ORGANIZANDO" value={loading ? "—" : `${summary.planningCount}`} icon="calendar-outline" tone="success" px={px} fs={fs} />
+  <KpiCard
+    title="PAÍSES VISITADOS"
+    value={summaryLoading ? "—" : `${summary?.visitedCountries ?? 0}`}
+    icon="checkmark-circle-outline"
+    tone="success"
+    px={px}
+    fs={fs}
+  />
 
-          <KpiCard title="POR VISITAR" value={loading ? "—" : `${summary.wishlistCount}`} icon="bookmark-outline" tone="neutral" px={px} fs={fs} />
+  <KpiCard
+    title="PENDIENTES"
+    value={summaryLoading ? "—" : `${summary?.pendingCountries ?? 0}`}
+    icon="time-outline"
+    tone="neutral"
+    px={px}
+    fs={fs}
+  />
 
-          <KpiCard title="VISTOS" value={loading ? "—" : `${summary.seenCount}`} icon="checkmark-done-outline" tone="danger" px={px} fs={fs} />
-        </View>
+  <KpiCard
+    title="% VISITADOS"
+    value={summaryLoading ? "—" : `${summary?.visitedPct ?? 0}%`}
+    icon="pie-chart-outline"
+    tone="danger"
+    px={px}
+    fs={fs}
+  />
+</View>
 
         {/* ===== Toolbar ===== */}
         <View
@@ -1159,8 +1215,13 @@ export default function TripsBoardScreen({ navigation }: any) {
         </View>
 
         {/* ===== Kanban ===== */}
-        <View style={{ marginTop: px(14) }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: px(14), paddingBottom: px(6) }}>
+        <View style={{ marginTop: px(14), flex: 1 }}>
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    style={{ flex: 1 }}
+    contentContainerStyle={{ gap: px(14), paddingBottom: px(6) }}
+  >
             <KanbanColumnLikeShot
               title="Por visitar"
               tone="neutral"
@@ -1218,7 +1279,7 @@ export default function TripsBoardScreen({ navigation }: any) {
                     trip={trip}
                     px={px}
                     fs={fs}
-                    onOpenDetail={() => navigation.navigate("TripDetail", { tripId: trip.id })}
+                    onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
                     onEdit={() => openEditTrip(trip.id)}
                     onDelete={() => deleteTrip(trip.id)}
                     onDragStartTrip={handleDragStartTrip}
@@ -1251,7 +1312,7 @@ export default function TripsBoardScreen({ navigation }: any) {
                     trip={trip}
                     px={px}
                     fs={fs}
-                    onOpenDetail={() => navigation.navigate("TripDetail", { tripId: trip.id })}
+                    onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
                     onEdit={() => openEditTrip(trip.id)}
                     onDelete={() => deleteTrip(trip.id)}
                     onDragStartTrip={handleDragStartTrip}
@@ -1267,7 +1328,7 @@ export default function TripsBoardScreen({ navigation }: any) {
             </Text>
           )}
         </View>
-      </ScrollView>
+      </View>
 
       <DesktopTripModal
         visible={tripModalOpen}

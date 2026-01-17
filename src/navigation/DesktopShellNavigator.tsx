@@ -22,6 +22,7 @@ import {
 } from "../context/CreateTxModalContext";
 
 import InitialsAvatar from "../components/InitialsAvatar";
+import TripDetailDesktopScreen from "../screens/Desktop/travel/TripDetailDesktopScreen";
 
 type DesktopRouteKey =
   | "dashboard"
@@ -46,7 +47,7 @@ export type DesktopStackParamList = {
   investments: undefined;
   reports: undefined;
   settings: undefined;
-
+  TripDetailDesktop: { tripId: number }; // ✅ AÑADIR
   DesktopInvestmentDetail: { assetId: number };
 };
 
@@ -481,8 +482,13 @@ function DesktopShellLayout({
 function withDesktopShell(Component: React.ComponentType<any>) {
   return function Wrapped(props: any) {
     const name = props.route?.name as string;
+
     const routeKey: DesktopRouteKey =
-      name === "DesktopInvestmentDetail" ? "investments" : (name as DesktopRouteKey);
+      name === "DesktopInvestmentDetail"
+        ? "investments"
+        : name === "TripsDetailDesktop"
+        ? "travels"
+        : (name as DesktopRouteKey);
 
     return (
       <DesktopShellLayout navigation={props.navigation} routeKey={routeKey}>
@@ -504,6 +510,7 @@ export default function DesktopShellNavigator() {
       <Stack.Screen name="goals" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="investments" component={withDesktopShell(DesktopInvestmentsScreen)} />
       <Stack.Screen name="DesktopInvestmentDetail" component={withDesktopShell(DesktopInvestmentDetailScreen)} />
+      <Stack.Screen name="TripDetailDesktop" component={withDesktopShell(TripDetailDesktopScreen)} />
       <Stack.Screen name="reports" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="settings" component={withDesktopShell(EmptyScreen)} />
     </Stack.Navigator>
