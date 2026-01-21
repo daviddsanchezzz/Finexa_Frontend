@@ -88,8 +88,8 @@ function formatMoney(n: number, currency = "EUR") {
 }
 
 function formatPct(pnl: number, invested: number) {
-  if (!invested) return "0,0%";
-  return `${((pnl / invested) * 100).toFixed(1).replace(".", ",")}%`;
+  if (!invested) return "0,00%";
+  return `${((pnl / invested) * 100).toFixed(2).replace(".", ",")}%`;
 }
 
 function formatShortDate(iso: string) {
@@ -605,19 +605,7 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
         {/* ===== Charts row (Dashboard style: 2 cards) ===== */}
         <View style={{ marginTop: px(12), flexDirection: WIDE ? "row" : "column", gap: px(12) }}>
           <View style={{ flex: 1, minWidth: WIDE ? px(680) : undefined }}>
-            <SoftCard px={px} pad={16}>
-              <SectionTitle
-                title="Evolución del portfolio"
-                right={
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-                    <Text style={[textStyles.bodyMuted, { fontSize: fs(12), color: "#64748B", fontWeight: "700" }]}>Rango</Text>
-                    {/* el panel ya renderiza su control interno; esto es solo label */}
-                  </View>
-                }
-                px={px}
-                fs={fs}
-              />
-              <View style={{ marginTop: px(10) }}>
+              <View>
                 <PortfolioChartsPanel
                   points={timeline}
                   loading={timelineLoading}
@@ -628,7 +616,6 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
                   chartHeight={CHART_H}
                 />
               </View>
-            </SoftCard>
           </View>
 
           <View style={{ width: WIDE ? px(420) : "100%" }}>

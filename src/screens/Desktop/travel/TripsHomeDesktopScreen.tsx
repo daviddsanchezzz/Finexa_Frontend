@@ -664,50 +664,86 @@ return (
         {trip.name}
       </Text>
 
-      {/* bottom row */}
+{/* bottom row */}
+<View
+  style={{
+    marginTop: px(10),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: px(10),
+  }}
+>
+  {/* LEFT: date + year */}
+  <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
+    {hasSomeDate && (
       <View
         style={{
-          marginTop: px(10),
           flexDirection: "row",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: px(10),
+          gap: px(8),
+          paddingHorizontal: px(10),
+          height: px(28),
+          borderRadius: 999,
+          backgroundColor: "rgba(15,23,42,0.08)",
         }}
       >
-        {/* date pill (only if some date exists) */}
-        
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: px(8),
-              paddingHorizontal: px(10),
-              height: px(28),
-              borderRadius: 999,
-              backgroundColor: "rgba(15,23,42,0.08)",
-            }}
-          >
-            <Ionicons name="calendar-outline" size={px(14)} color="#475569" />
-            <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#0F172A" }}>{dateLabel}</Text>
-          </View>
-        
-
-        <View style={{ flexDirection: "row", alignItems: "center", gap: px(6) }}>
-          {!!contLabel && (
-            <HoverIcon icon="earth-outline" tooltip={contLabel} px={px} fs={fs} onOpenChange={setMetaOpen} />
-          )}
-
-          {!!yearLabel && (
-            <HoverIcon icon="calendar-clear-outline" tooltip={`${yearLabel}`} px={px} fs={fs} onOpenChange={setMetaOpen} />
-          )}
-
-          {trip.lane === "seen" && (trip.cost || 0) > 0 && (
-            <HoverIcon icon="cash-outline" tooltip={`${formatEuro(trip.cost || 0)}`} px={px} fs={fs} onOpenChange={setMetaOpen} />
-          )}
-
-          <CountryHoverFlag code={trip.destination} px={px} fs={fs} onOpenChange={setMetaOpen} />
-        </View>
+        <Ionicons name="calendar-outline" size={px(14)} color="#475569" />
+        <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#0F172A" }}>
+          {dateLabel}
+        </Text>
       </View>
+    )}
+
+    {!!yearLabel && (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: px(10),
+          height: px(28),
+          borderRadius: 999,
+          backgroundColor: "rgba(15,23,42,0.08)",
+        }}
+      >
+        <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#0F172A" }}>
+          {yearLabel}
+        </Text>
+      </View>
+    )}
+  </View>
+
+  {/* RIGHT: meta icons */}
+  <View style={{ flexDirection: "row", alignItems: "center", gap: px(6) }}>
+    {!!contLabel && (
+      <HoverIcon
+        icon="earth-outline"
+        tooltip={contLabel}
+        px={px}
+        fs={fs}
+        onOpenChange={setMetaOpen}
+      />
+    )}
+
+    {trip.lane === "seen" && (trip.cost || 0) > 0 && (
+      <HoverIcon
+        icon="cash-outline"
+        tooltip={`${formatEuro(trip.cost || 0)}`}
+        px={px}
+        fs={fs}
+        onOpenChange={setMetaOpen}
+      />
+    )}
+
+    <CountryHoverFlag
+      code={trip.destination}
+      px={px}
+      fs={fs}
+      onOpenChange={setMetaOpen}
+    />
+  </View>
+</View>
+
     </Pressable>
   </Draggable>
   );

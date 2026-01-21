@@ -21,26 +21,11 @@ import api from "../../../../api/api";
 import TripPlanningSection from "./components/TripPlanningSection";
 import TripLogisticsSection from "./components/TripLogisticaSection";
 import TripExpensesSection from "./components/TripExpensesSection";
+import { TripPlanItemType } from "../../../../types/enums/travel";
 
 type TripStatus = "upcoming" | "ongoing" | "past";
 
 // Alineado con el enum de Prisma + "activity" legacy
-type TripPlanItemType =
-  | "flight"
-  | "accommodation"
-  | "transport"
-  | "taxi"
-  | "museum"
-  | "monument"
-  | "viewpoint"
-  | "free_tour"
-  | "concert"
-  | "bar_party"
-  | "beach"
-  | "restaurant"
-  | "shopping"
-  | "other"
-  | "activity";
 
 type TxType = "income" | "expense" | "transfer";
 

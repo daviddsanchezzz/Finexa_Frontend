@@ -94,8 +94,8 @@ function formatMoney(n: number, currency = "EUR") {
   });
 }
 function formatPct(pnl: number, invested: number) {
-  if (!invested) return "0,0%";
-  return `${((pnl / invested) * 100).toFixed(1).replace(".", ",")}%`;
+  if (!invested) return "0,00%";
+  return `${((pnl / invested) * 100).toFixed(2).replace(".", ",")}%`;
 }
 function parseISO(iso: string) {
   return new Date(iso).getTime();
