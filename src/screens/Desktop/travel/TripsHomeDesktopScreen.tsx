@@ -20,6 +20,50 @@ import { textStyles, typography } from "../../../theme/typography";
 import { DesktopTripModal, TripFromApi as TripEdit } from "../../../components/DesktopTripModal";
 import { KpiCard } from "../../../components/KpiCard";
 
+type BoardMode = "status" | "continent" | "year";
+type KanbanTone =
+  | "neutral"
+  | "blue"
+  | "green"
+  | "purple"
+  | "orange"
+  | "pink"
+  | "teal";
+
+type ContinentKey =
+  | "europe"
+  | "africa"
+  | "asia"
+  | "north_america"
+  | "south_america"
+  | "oceania"
+  | "antarctica"
+  | "unknown";
+
+type ContinentStat = {
+  continent: ContinentKey;
+  visitedCountries: number;
+  totalCountries: number;
+  pct: number;
+  trips: number;
+};
+
+type ContinentsStatsDto = ContinentStat[]; // 👈 ahora es array
+
+
+type KanbanColumnModel = {
+  id: string;           // "wishlist" | "planning" | "seen" | "europe" | "2024" ...
+  title: string;
+  tone: KanbanTone;
+  trips: TripUI[];
+  droppable: boolean;   // solo true en status
+  count: number;
+  subcount?: string; // texto extra a mostrar al lado del count
+};
+
+const UNKNOWN_CONTINENT_ID = "unknown";
+const UNKNOWN_YEAR_ID = "unknown";
+
 /** ===== Types ===== */
 type TripLane = "seen" | "planning" | "wishlist";
 
@@ -77,6 +121,16 @@ function formatEuro(n: number) {
   });
 }
 
+function uniqueCountryCount(trips: TripUI[]) {
+  const set = new Set(
+    trips
+      .map((t) => (t.destination || "").trim().toUpperCase())
+      .filter(Boolean)
+  );
+  return set.size;
+}
+
+
 function norm(s: string) {
   return (s || "")
     .toLowerCase()
@@ -103,12 +157,14 @@ function formatDateRange(startISO?: string | null, endISO?: string | null) {
   return `${startStr} · ${endStr}`;
 }
 
+
+
 function continentLabel(c?: string | null) {
   const v = (c || "").toLowerCase();
   if (v === "europe") return "Europa";
   if (v === "africa") return "África";
   if (v === "asia") return "Asia";
-  if (v === "america" || v === "north_america") return "América";
+  if (v === "america" || v === "north_america") return "Norteamérica";
   if (v === "south_america") return "Sudamérica";
   if (v === "oceania") return "Oceanía";
   return c ? c : "";
@@ -138,19 +194,22 @@ function Pill({
   leftIcon,
 }: {
   label: string;
-  tone?: "neutral" | "blue" | "green" | "red";
+  tone?: KanbanTone; // ✅ aquí
   px: (n: number) => number;
   fs: (n: number) => number;
   leftIcon?: keyof typeof Ionicons.glyphMap;
 }) {
-  const map = {
-    neutral: { bg: "rgba(15,23,42,0.06)", fg: "#0F172A" },
-    blue: { bg: "rgba(37,99,235,0.10)", fg: "#2563EB" },
-    green: { bg: "rgba(16,185,129,0.12)", fg: "#059669" },
-    red: { bg: "rgba(239,68,68,0.12)", fg: "#DC2626" },
-  } as const;
+const map = {
+  neutral: { bg: "rgba(15,23,42,0.06)", fg: "#0F172A" },
+  blue:    { bg: "rgba(37,99,235,0.10)", fg: "#2563EB" },
+  green:   { bg: "rgba(16,185,129,0.12)", fg: "#059669" },
+  purple:  { bg: "rgba(139,92,246,0.12)", fg: "#7C3AED" },
+  orange:  { bg: "rgba(249,115,22,0.14)", fg: "#EA580C" },
+  pink:    { bg: "rgba(236,72,153,0.12)", fg: "#DB2777" },
+  teal:    { bg: "rgba(20,184,166,0.12)", fg: "#0D9488" },
+} as const;
 
-  const c = map[tone];
+  const c = map[tone ?? "neutral"];
   return (
     <View
       style={{
@@ -168,6 +227,44 @@ function Pill({
     </View>
   );
 }
+function toneForContinent(id: string): KanbanTone {
+  switch ((id || "").toLowerCase()) {
+    case "europe":
+      return "blue";
+    case "asia":
+      return "purple";
+    case "africa":
+      return "orange";
+    case "north_america":
+      return "blue";
+    case "america":
+      return "green";
+    case "south_america":
+      return "pink";
+    case "oceania":
+      return "teal";
+    case "antarctica":
+      return "neutral";
+    default:
+      return "neutral";
+  }
+}
+
+const YEAR_TONES: KanbanTone[] = [
+  "blue",
+  "green",
+  "purple",
+  "orange",
+  "teal",
+  "pink",
+];
+
+function toneForYear(key: string, index: number): KanbanTone {
+  if (key === "unknown") return "neutral";
+  return YEAR_TONES[index % YEAR_TONES.length];
+}
+
+
 
 function IconButton({
   icon,
@@ -292,6 +389,8 @@ function BoardSearchBar({
     </View>
   );
 }
+
+
 
 /** ===== Mini dropdown menu (3 dots) ===== */
 function stop(e: any) {
@@ -750,35 +849,42 @@ return (
 }
 
 function DropZone({
-  lane,
+  columnId,
   children,
   onDropTrip,
-  onDragOverLane,
-  onDragLeaveLane,
+  onDragOver,
+  onDragLeave,
   style,
+  enabled,
 }: {
-  lane: TripLane;
+  columnId: string;
   children: React.ReactNode;
-  onDropTrip: (tripId: number, lane: TripLane) => void;
-  onDragOverLane: (lane: TripLane) => void;
-  onDragLeaveLane: () => void;
+  onDropTrip?: (tripId: number, columnId: string) => void;
+  onDragOver?: (columnId: string) => void;
+  onDragLeave?: () => void;
   style: any;
+  enabled?: boolean;
 }) {
   if (Platform.OS === "web") {
     // @ts-ignore
     return (
       <div
         onDragOver={(e) => {
+          if (!enabled) return;
           e.preventDefault();
-          onDragOverLane(lane);
+          onDragOver?.(columnId);
         }}
-        onDragLeave={() => onDragLeaveLane()}
+        onDragLeave={() => {
+          if (!enabled) return;
+          onDragLeave?.();
+        }}
         onDrop={(e) => {
+          if (!enabled) return;
           e.preventDefault();
           const raw = e.dataTransfer?.getData("text/plain");
           const tripId = Number(raw);
-          if (Number.isFinite(tripId) && tripId > 0) onDropTrip(tripId, lane);
-          onDragLeaveLane();
+          if (Number.isFinite(tripId) && tripId > 0) onDropTrip?.(tripId, columnId);
+          onDragLeave?.();
         }}
         style={style}
       >
@@ -837,61 +943,80 @@ function Draggable({
 function KanbanColumnLikeShot({
   title,
   tone,
-  lane,
+  columnId,
   count,
+  subcount,
   children,
   loading,
   px,
   fs,
   onDropTrip,
   isDragOver,
-  onDragOverLane,
-  onDragLeaveLane,
+  onDragOverColumn,
+  onDragLeaveColumn,
+  droppable,
 }: {
   title: string;
-  tone: "neutral" | "blue" | "green";
-  lane: TripLane;
+tone: KanbanTone;
+  columnId: string;
   count: number;
+  subcount?: string;
   children: React.ReactNode;
   loading: boolean;
   px: (n: number) => number;
   fs: (n: number) => number;
-  onDropTrip?: (tripId: number, lane: TripLane) => void;
+  onDropTrip?: (tripId: number, columnId: string) => void;
   isDragOver?: boolean;
-  onDragOverLane?: (lane: TripLane) => void;
-  onDragLeaveLane?: (lane: TripLane) => void;
+  onDragOverColumn?: (columnId: string) => void;
+  onDragLeaveColumn?: () => void;
+  droppable: boolean;
 }) {
-  const headerPill = useMemo(() => {
-    if (tone === "blue") return <Pill label={title} tone="blue" leftIcon="radio-button-on-outline" px={px} fs={fs} />;
-    if (tone === "green") return <Pill label={title} tone="green" leftIcon="checkmark-circle-outline" px={px} fs={fs} />;
-    return <Pill label={title} tone="neutral" leftIcon="time-outline" px={px} fs={fs} />;
-  }, [tone, title, px, fs]);
+const headerPill = useMemo(() => {
+  const icon =
+    tone === "green"
+      ? "checkmark-circle-outline"
+      : tone === "blue"
+      ? "radio-button-on-outline"
+      : "time-outline";
 
-return (
-  <DropZone
-    lane={lane}
-    onDropTrip={onDropTrip!}
-    onDragOverLane={(l) => onDragOverLane?.(l)}
-    onDragLeaveLane={() => onDragLeaveLane?.(lane)}
-style={{
-  width: px(360),
-  borderRadius: px(14),
-  backgroundColor: "rgba(255,255,255,0.60)",
-  borderWidth: 1,
-  borderColor: isDragOver ? "rgba(37,99,235,0.55)" : "rgba(148,163,184,0.18)",
-  padding: px(12),
+  return <Pill label={title} tone={tone} leftIcon={icon} px={px} fs={fs} />;
+}, [tone, title, px, fs]);
 
-  height: "100%",
-  display: "flex",
-  flexDirection: "column",
-}}
-  >
-      {/* header row */}
+  return (
+    <DropZone
+      columnId={columnId}
+      enabled={droppable}
+      onDropTrip={onDropTrip}
+      onDragOver={onDragOverColumn}
+      onDragLeave={onDragLeaveColumn}
+      style={{
+        width: px(360),
+        borderRadius: px(14),
+        backgroundColor: "transparent",
+        borderWidth: 1,
+        borderColor: isDragOver ? "rgba(37,99,235,0.55)" : "transparent",
+        padding: px(12),
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(10) }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-          {headerPill}
-          <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#64748B" }}>{count}</Text>
-        </View>
+<View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
+  {headerPill}
+
+<View>
+  {!subcount ? (
+    <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#64748B" }}>
+      {count}
+    </Text>
+  ) : (
+    <Text style={{ fontSize: fs(11), fontWeight: "700", color: "#64748B" }}>
+      {subcount}
+    </Text>
+  )}
+</View>
+</View>
 
         <TouchableOpacity
           activeOpacity={0.9}
@@ -901,6 +1026,7 @@ style={{
             borderRadius: px(10),
             alignItems: "center",
             justifyContent: "center",
+            opacity: 0.6,
           }}
         >
           <Ionicons name="ellipsis-horizontal" size={px(18)} color="#94A3B8" />
@@ -909,28 +1035,96 @@ style={{
 
       <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.16)", marginTop: px(10), marginBottom: px(10) }} />
 
-    {loading ? (
-      <View style={{ paddingVertical: px(20), alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="small" color={colors.primary} />
-      </View>
-    ) : (
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={{ flex: 1 }} // ✅ el contenido scrollea aquí
-        contentContainerStyle={{ gap: px(10), paddingBottom: px(2) }}
-      >
-        {children}
-      </ScrollView>
-    )}
-  </DropZone>
-
+      {loading ? (
+        <View style={{ paddingVertical: px(20), alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ gap: px(10), paddingBottom: px(2) }}
+        >
+          {children}
+        </ScrollView>
+      )}
+    </DropZone>
   );
 }
+
+function BoardModeSelector({
+  value,
+  onChange,
+  px,
+  fs,
+}: {
+  value: "status" | "continent" | "year";
+  onChange: (v: "status" | "continent" | "year") => void;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+}) {
+  const Btn = ({
+    id,
+    label,
+    icon,
+  }: {
+    id: "status" | "continent" | "year";
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+  }) => {
+    const active = value === id;
+    return (
+      <Pressable
+        onPress={() => onChange(id)}
+        style={({ hovered, pressed }) => [
+          {
+            height: px(34),
+            paddingHorizontal: px(12),
+            borderRadius: px(12),
+            flexDirection: "row",
+            alignItems: "center",
+            gap: px(8),
+            backgroundColor: active ? "#0F172A" : "transparent",
+            opacity: pressed ? 0.95 : 1,
+          },
+          Platform.OS === "web" && hovered && !active ? { backgroundColor: "rgba(15,23,42,0.06)" } : null,
+        ]}
+      >
+        <Ionicons name={icon} size={px(16)} color={active ? "white" : "#475569"} />
+        <Text style={{ fontSize: fs(12), fontWeight: "700", color: active ? "white" : "#0F172A" }}>
+          {label}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: px(6),
+        padding: px(4),
+        borderRadius: px(14),
+        backgroundColor: "white",
+        borderWidth: 1,
+        borderColor: "rgba(148,163,184,0.22)",
+      }}
+    >
+      <Btn id="status" label="Estado" icon="albums-outline" />
+      <Btn id="continent" label="Continente" icon="earth-outline" />
+      <Btn id="year" label="Año" icon="calendar-outline" />
+    </View>
+  );
+}
+
 
 /** ===== Screen ===== */
 export default function TripsBoardScreen({ navigation }: any) {
   const { px, fs, width } = useUiScale();
   const WIDE = width >= 1200;
+
+  const [boardMode, setBoardMode] = useState<BoardMode>("status");
 
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState<TripUI[]>([]);
@@ -942,10 +1136,32 @@ export default function TripsBoardScreen({ navigation }: any) {
   const [deleteBusy, setDeleteBusy] = useState<number | null>(null);
 
   const draggingIdRef = useRef<number | null>(null);
-  const [dragOverLane, setDragOverLane] = useState<TripLane | null>(null);
+const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const [summary, setSummary] = useState<TripsSummaryDto | null>(null);
 const [summaryLoading, setSummaryLoading] = useState(true);
+
+const [continentStats, setContinentStats] = useState<ContinentsStatsDto | null>(null);
+const [continentStatsLoading, setContinentStatsLoading] = useState(false);
+
+const fetchContinentsStats = useCallback(async () => {
+  try {
+    setContinentStatsLoading(true);
+    const res = await api.get("/trips/continents-stats");
+    setContinentStats(res.data as ContinentsStatsDto);
+  } catch (e) {
+    console.error("❌ Error al obtener continents-stats:", e);
+    setContinentStats(null);
+  } finally {
+    setContinentStatsLoading(false);
+  }
+}, []);
+
+const continentStatsMap = useMemo(() => {
+  const m = new Map<string, ContinentStat>();
+  for (const row of continentStats ?? []) m.set(row.continent, row);
+  return m;
+}, [continentStats]);
 
 const fetchSummary = useCallback(async () => {
   try {
@@ -993,8 +1209,17 @@ const fetchSummary = useCallback(async () => {
     useCallback(() => {
       fetchTrips();
       fetchSummary();
-    }, [fetchTrips])
+      fetchContinentsStats();
+    }, [fetchTrips, fetchSummary, fetchContinentsStats])
   );
+
+const uniqueCountries = new Set(
+  trips
+    .map((t) => (t.destination || "").trim().toUpperCase())
+    .filter(Boolean)
+);
+const uniqueCount = uniqueCountries.size;
+
 
   const filteredTrips = useMemo(() => {
     const needle = norm(q);
@@ -1023,6 +1248,116 @@ const fetchSummary = useCallback(async () => {
 
     return { seen: seenSorted, planning: planningSorted, wishlist: wishlistSorted };
   }, [filteredTrips]);
+
+  const columns = useMemo<KanbanColumnModel[]>(() => {
+if (boardMode === "status") {
+  return [
+    { id: "wishlist", title: "Por visitar", tone: "neutral", trips: lanes.wishlist, droppable: true, count: lanes.wishlist.length },
+    { id: "planning", title: "Organizando", tone: "blue", trips: lanes.planning, droppable: true, count: lanes.planning.length },
+    { id: "seen", title: "Vistos", tone: "green", trips: lanes.seen, droppable: true, count: lanes.seen.length },
+  ];
+}
+
+  // continent / year: solo vistos
+  const seenTrips = filteredTrips.filter((t) => t.lane === "seen");
+
+if (boardMode === "continent") {
+  const order = [
+    "europe",
+    "africa",
+    "asia",
+    "north_america",
+    "south_america",
+    "oceania",
+  ];
+
+
+
+  const groups = new Map<string, TripUI[]>();
+  for (const t of seenTrips) {
+    const key = (t.continent || "").toLowerCase().trim() || UNKNOWN_CONTINENT_ID;
+    groups.set(key, [...(groups.get(key) ?? []), t]);
+  }
+
+  // ✅ crea columnas para TODOS los continentes (aunque tengan 0)
+  const cols = order.map((k) => {
+    const trips = (groups.get(k) ?? []).slice().sort((a, b) => {
+      const A = isValidISODate(a.endDate) ? new Date(a.endDate!).getTime() : 0;
+      const B = isValidISODate(b.endDate) ? new Date(b.endDate!).getTime() : 0;
+      return B - A;
+    });
+
+    const st = continentStatsMap.get(k);
+const visited = st?.visitedCountries ?? uniqueCountryCount(trips);
+const total = st?.totalCountries ?? 0;
+const pct = st?.pct ?? (total > 0 ? Math.round((visited / total) * 100) : 0);
+
+// ✅ lo que se verá como "31/52 · 67%"
+const label = total > 0 ? `${visited}/${total} · ${pct}%` : `${visited}/—`;
+
+
+    return {
+      id: k,
+      title: k === UNKNOWN_CONTINENT_ID ? "Sin continente" : continentLabel(k),
+      tone: toneForContinent(k),
+      trips,
+      droppable: false,
+  count: trips.length,        // o lo que quieras como número principal
+  subcount: label,            // ✅ "31/52 · 67%"
+
+    };
+  });
+
+  // ✅ ordena de más a menos por cantidad, y deja "Sin continente" al final
+  cols.sort((a, b) => {
+    if (a.id === UNKNOWN_CONTINENT_ID) return 1;
+    if (b.id === UNKNOWN_CONTINENT_ID) return -1;
+    return b.trips.length - a.trips.length;
+  });
+
+  return cols;
+}
+
+  // boardMode === "year"
+  const groups = new Map<string, TripUI[]>();
+  for (const t of seenTrips) {
+    const y =
+      typeof t.year === "number"
+        ? t.year
+        : isValidISODate(t.startDate)
+        ? new Date(t.startDate!).getFullYear()
+        : null;
+
+    const key = y != null ? String(y) : UNKNOWN_YEAR_ID;
+    groups.set(key, [...(groups.get(key) ?? []), t]);
+  }
+
+  const years = Array.from(groups.keys())
+    .filter((k) => k !== UNKNOWN_YEAR_ID)
+    .map((k) => Number(k))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => b - a); // DESC
+
+  const orderedKeys = [...years.map(String), ...(groups.has(UNKNOWN_YEAR_ID) ? [UNKNOWN_YEAR_ID] : [])];
+
+return orderedKeys.map((k, idx) => {
+  const trips = (groups.get(k) ?? []).slice().sort((a, b) => {
+    const A = isValidISODate(a.endDate) ? new Date(a.endDate!).getTime() : 0;
+    const B = isValidISODate(b.endDate) ? new Date(b.endDate!).getTime() : 0;
+    return B - A;
+  });
+
+  return {
+    id: k,
+    title: k === UNKNOWN_YEAR_ID ? "Sin año" : k,
+    tone: toneForYear(k, idx),
+    trips,
+    droppable: false,
+    count: trips.length, // ✅ viajes
+  };
+});
+}, [boardMode, lanes, filteredTrips, continentStatsMap]);
+
 
   const openEditTrip = useCallback(
     async (tripId: number) => {
@@ -1087,15 +1422,24 @@ const fetchSummary = useCallback(async () => {
     draggingIdRef.current = tripId > 0 ? tripId : null;
   }, []);
 
-  const handleDropTrip = useCallback(
-    (tripId: number, toLane: TripLane) => {
-      const current = trips.find((t) => t.id === tripId);
-      if (!current) return;
-      if (current.lane === toLane) return;
-      updateTripStatus(tripId, toLane);
-    },
-    [trips, updateTripStatus]
-  );
+const handleDropTrip = useCallback(
+  (tripId: number, columnId: string) => {
+    if (boardMode !== "status") return;
+
+    const toLane = columnId as TripLane;
+    const current = trips.find((t) => t.id === tripId);
+    if (!current) return;
+    if (current.lane === toLane) return;
+    updateTripStatus(tripId, toLane);
+  },
+  [boardMode, trips, updateTripStatus]
+);
+
+useEffect(() => {
+  setDragOverId(null);
+  draggingIdRef.current = null;
+}, [boardMode]);
+
 
   return (
   <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
@@ -1215,23 +1559,8 @@ const fetchSummary = useCallback(async () => {
                   <Text style={{ fontSize: fs(12), fontWeight: "900", color: "#0F172A" }}>+</Text>
                 </View>
               </Pressable>
+<BoardModeSelector value={boardMode} onChange={setBoardMode} px={px} fs={fs} />
 
-              <View
-                style={{
-                  height: px(36),
-                  paddingHorizontal: px(12),
-                  borderRadius: px(14),
-                  backgroundColor: "white",
-                  borderWidth: 1,
-                  borderColor: "rgba(148,163,184,0.22)",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: px(8),
-                }}
-              >
-                <Ionicons name="person-circle-outline" size={px(18)} color="#0F172A" />
-                <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#0F172A" }}>Mis viajes</Text>
-              </View>
             </View>
           </View>
 
@@ -1258,104 +1587,43 @@ const fetchSummary = useCallback(async () => {
     style={{ flex: 1 }}
     contentContainerStyle={{ gap: px(14), paddingBottom: px(6) }}
   >
-            <KanbanColumnLikeShot
-              title="Por visitar"
-              tone="neutral"
-              lane="wishlist"
-              count={lanes.wishlist.length}
-              loading={loading}
-              px={px}
-              fs={fs}
-              onDropTrip={handleDropTrip}
-              isDragOver={dragOverLane === "wishlist"}
-              onDragOverLane={(l) => setDragOverLane(l)}
-              onDragLeaveLane={() => setDragOverLane(null)}
-            >
-              {lanes.wishlist.length === 0 ? (
-                <View style={{ borderRadius: px(12), backgroundColor: "rgba(15,23,42,0.04)", padding: px(12) }}>
-                  <Text style={{ fontSize: fs(12), fontWeight: "900", color: "#94A3B8" }}>No hay viajes aquí.</Text>
-                </View>
-              ) : (
-                lanes.wishlist.map((trip) => (
-                  <TripKanbanCard
-                    key={trip.id}
-                    trip={trip}
-                    px={px}
-                    fs={fs}
-                    onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
-                    onEdit={() => openEditTrip(trip.id)}
-                    onDelete={() => deleteTrip(trip.id)}
-                    onDragStartTrip={handleDragStartTrip}
-                  />
-                ))
-              )}
-            </KanbanColumnLikeShot>
-
-            <KanbanColumnLikeShot
-              title="Organizando"
-              tone="blue"
-              lane="planning"
-              count={lanes.planning.length}
-              loading={loading}
-              px={px}
-              fs={fs}
-              onDropTrip={handleDropTrip}
-              isDragOver={dragOverLane === "planning"}
-              onDragOverLane={(l) => setDragOverLane(l)}
-              onDragLeaveLane={() => setDragOverLane(null)}
-            >
-              {lanes.planning.length === 0 ? (
-                <View style={{ borderRadius: px(12), backgroundColor: "rgba(15,23,42,0.04)", padding: px(12) }}>
-                  <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }}>No hay viajes aquí.</Text>
-                </View>
-              ) : (
-                lanes.planning.map((trip) => (
-                  <TripKanbanCard
-                    key={trip.id}
-                    trip={trip}
-                    px={px}
-                    fs={fs}
-                    onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
-                    onEdit={() => openEditTrip(trip.id)}
-                    onDelete={() => deleteTrip(trip.id)}
-                    onDragStartTrip={handleDragStartTrip}
-                  />
-                ))
-              )}
-            </KanbanColumnLikeShot>
-
-            <KanbanColumnLikeShot
-              title="Vistos"
-              tone="green"
-              lane="seen"
-              count={lanes.seen.length}
-              loading={loading}
-              px={px}
-              fs={fs}
-              onDropTrip={handleDropTrip}
-              isDragOver={dragOverLane === "seen"}
-              onDragOverLane={(l) => setDragOverLane(l)}
-              onDragLeaveLane={() => setDragOverLane(null)}
-            >
-              {lanes.seen.length === 0 ? (
-                <View style={{ borderRadius: px(12), backgroundColor: "rgba(15,23,42,0.04)", padding: px(12) }}>
-                  <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }}>No hay viajes aquí.</Text>
-                </View>
-              ) : (
-                lanes.seen.map((trip) => (
-                  <TripKanbanCard
-                    key={trip.id}
-                    trip={trip}
-                    px={px}
-                    fs={fs}
-                    onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
-                    onEdit={() => openEditTrip(trip.id)}
-                    onDelete={() => deleteTrip(trip.id)}
-                    onDragStartTrip={handleDragStartTrip}
-                  />
-                ))
-              )}
-            </KanbanColumnLikeShot>
+{columns.map((col) => (
+  <KanbanColumnLikeShot
+    key={col.id}
+    title={col.title}
+    tone={col.tone}
+    columnId={col.id}
+    count={col.count}
+    subcount={col.subcount}
+    loading={loading}
+    px={px}
+    fs={fs}
+    droppable={col.droppable}
+    onDropTrip={handleDropTrip}
+    isDragOver={dragOverId === col.id}
+    onDragOverColumn={(id) => setDragOverId(id)}
+    onDragLeaveColumn={() => setDragOverId(null)}
+  >
+    {col.trips.length === 0 ? (
+      <View style={{ borderRadius: px(12), backgroundColor: "rgba(15,23,42,0.04)", padding: px(12) }}>
+        <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }}>No hay viajes aquí.</Text>
+      </View>
+    ) : (
+      col.trips.map((trip) => (
+        <TripKanbanCard
+          key={trip.id}
+          trip={trip}
+          px={px}
+          fs={fs}
+          onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
+          onEdit={() => openEditTrip(trip.id)}
+          onDelete={() => deleteTrip(trip.id)}
+          onDragStartTrip={boardMode === "status" ? handleDragStartTrip : undefined}
+        />
+      ))
+    )}
+  </KanbanColumnLikeShot>
+))}
           </ScrollView>
 
           {!!deleteBusy && (

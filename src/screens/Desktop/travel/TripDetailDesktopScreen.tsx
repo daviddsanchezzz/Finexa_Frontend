@@ -16,6 +16,7 @@ import { BudgetSectionPanel } from "../../../components/TripDetailDesktop/Budget
 import { BudgetCategoryType, FlightProvider, PaymentStatus, TripPlanItemType } from "../../../types/enums/travel";
 import { SummarySectionPanel } from "../../../components/TripDetailDesktop/SummarySectionPanel";
 import { Ionicons } from "@expo/vector-icons";
+import { PlanItemEditorModal } from "../../../components/TripDetailDesktop/PlanItemEditorModal";
 
 
 type FlightDetails = {
@@ -113,6 +114,23 @@ export default function TripDetailDesktopScreen({ navigation }: any) {
 
   const [addOpen, setAddOpen] = useState(false);
   const [addPresetDate, setAddPresetDate] = useState<string | null>(null);
+
+const [editorOpen, setEditorOpen] = useState(false);
+const [editingItem, setEditingItem] = useState<TripPlanItem | null>(null);
+const [editorPresetDate, setEditorPresetDate] = useState<string | null>(null);
+
+const openCreateModal = useCallback((presetDate?: string | null) => {
+  setEditingItem(null);
+  setEditorPresetDate(presetDate ?? null);
+  setEditorOpen(true);
+}, []);
+
+const openEditModal = useCallback((item: TripPlanItem) => {
+  setEditorPresetDate(null);
+  setEditingItem(item);
+  setEditorOpen(true);
+}, []);
+
 
   const [transportMenuOpen, setTransportMenuOpen] = useState(false);
 const [selectedTransportItem, setSelectedTransportItem] = useState<any | null>(null);
@@ -596,6 +614,18 @@ return (
       px={px}
       fs={fs}
     />
+
+<PlanItemEditorModal
+  tripId={tripId}
+  visible={editorOpen}
+  editingItem={editingItem}
+  presetDate={editorPresetDate}
+  onClose={() => setEditorOpen(false)}
+  onCreatedOrUpdated={() => fetchTrip()}
+  onDeleted={() => fetchTrip()}
+  px={px}
+  fs={fs}
+/>
 
 
   </View>

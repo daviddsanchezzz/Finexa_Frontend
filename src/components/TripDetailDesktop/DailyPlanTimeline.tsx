@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, Platform, ScrollView, useWindowDimensions } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, Pressable, Platform, ScrollView, useWindowDimensions , Modal} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { TripPlanItem } from "../../screens/Desktop/travel/TripDetailDesktopScreen";
 import { formatEuro, safeDate, UI } from "./ui";
@@ -239,24 +239,154 @@ const toNum = (v: any) => {
 };
 
 
+
 const metaFor = (type: string) => TYPE_META[type] ?? TYPE_META.other;
+
+
+function KebabMenu({
+  px,
+  fs,
+  onEdit,
+  onDelete,
+}: {
+  px: (n: number) => number;
+  fs: (n: number) => number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const anchorRef = useRef<View>(null);
+
+  const openMenu = () => {
+    if (Platform.OS === "web") {
+      anchorRef.current?.measureInWindow?.((x, y, w, h) => {
+        setPos({ x, y, w, h });
+        setOpen(true);
+      });
+    } else {
+      setPos({ x: 0, y: 0, w: 0, h: 0 });
+      setOpen(true);
+    }
+  };
+
+  const closeMenu = () => setOpen(false);
+
+  return (
+    <View ref={anchorRef} collapsable={false} style={{ position: "relative" }}>
+      <Pressable
+        onPress={(e: any) => {
+          e?.stopPropagation?.();
+          openMenu();
+        }}
+        style={({ pressed, hovered }) => [
+          {
+            width: px(22),
+            height: px(22),
+            borderRadius: px(5),
+            backgroundColor: "transparent",
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: "transparent",
+            opacity: pressed ? 0.92 : 1,
+          },
+          Platform.OS === "web" && hovered ? { backgroundColor: "rgba(15,23,42,0.09)" } : null,
+        ]}
+      >
+        <Ionicons name="ellipsis-horizontal" size={px(18)} color={UI.text} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={closeMenu}>
+        <Pressable
+          onPress={(e: any) => {
+            e?.stopPropagation?.();
+            closeMenu();
+          }}
+          style={{ flex: 1, backgroundColor: "transparent" }}
+        >
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              ...(Platform.OS === "web" && pos
+                ? ({
+                    left: pos.x + pos.w - px(140),
+                    top: pos.y + pos.h + px(8),
+                  } as any)
+                : ({
+                    right: px(22),
+                    top: px(120),
+                  } as any)),
+              width: px(140),
+              borderRadius: px(14),
+              backgroundColor: "white",
+              borderWidth: 1,
+              borderColor: "rgba(226,232,240,0.95)",
+              shadowColor: "#000",
+              shadowOpacity: 0.12,
+              shadowRadius: 20,
+              shadowOffset: { width: 0, height: 12 },
+              overflow: "hidden",
+              zIndex: 999999,
+              elevation: 30,
+            }}
+          >
+            <Pressable
+              onPress={(e: any) => {
+                e?.stopPropagation?.();
+                closeMenu();
+                onEdit();
+              }}
+              style={({ pressed, hovered }) => [
+                { paddingVertical: px(10), paddingHorizontal: px(12), opacity: pressed ? 0.9 : 1 },
+                Platform.OS === "web" && hovered ? { backgroundColor: "rgba(241,245,249,1)" } : null,
+              ]}
+            >
+              <Text style={{ fontSize: fs(13), fontWeight: "700", color: UI.text }}>Editar</Text>
+            </Pressable>
+
+            <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.9)" }} />
+
+            <Pressable
+              onPress={(e: any) => {
+                e?.stopPropagation?.();
+                closeMenu();
+                onDelete();
+              }}
+              style={({ pressed, hovered }) => [
+                { paddingVertical: px(10), paddingHorizontal: px(12), opacity: pressed ? 0.9 : 1 },
+                Platform.OS === "web" && hovered ? { backgroundColor: "rgba(254,242,242,1)" } : null,
+              ]}
+            >
+              <Text style={{ fontSize: fs(13), fontWeight: "800", color: "rgba(239,68,68,1)" }}>
+                Eliminar
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
 
 function ActivityRow({
   item,
   px,
   fs,
   onPress,
+  onEdit,
+  onDelete,
 }: {
   item: TripPlanItem;
   px: (n: number) => number;
   fs: (n: number) => number;
   onPress: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
-const meta =
-  TYPE_META[item.type] ??
-  TYPE_META.other!;
-const time = fmtTimeRangeSameDay(item.startAt, item.endAt);
-  const costN = toNum(item.cost);
+  const meta = TYPE_META[item.type] ?? TYPE_META.other!;
+  const time = fmtTimeRangeSameDay(item.startAt, item.endAt);
 
   return (
     <Pressable
@@ -307,25 +437,30 @@ const time = fmtTimeRangeSameDay(item.startAt, item.endAt);
         )}
       </View>
 
-      {/* Right meta (time + cost) */}
+      {/* Right meta (kebab + time) */}
       <View style={{ alignItems: "flex-end", paddingLeft: px(10), minWidth: px(72) }}>
-        {!!time && <Text style={{ fontSize: fs(12), fontWeight: "700", color: UI.muted2 }}>{time}</Text>}
+        {/* Kebab arriba derecha */}
+        <View style={{ marginTop: -px(6), marginRight: -px(6) }}>
+          <KebabMenu
+            px={px}
+            fs={fs}
+            onEdit={() => onEdit()}
+            onDelete={() => onDelete()}
+          />
+        </View>
 
-        {costN != null && (
-          <Text
-            style={{
-              marginTop: px(6),
-              fontSize: fs(12),
-              fontWeight: "700",
-            }}
-          >
-            {formatEuro(costN)}
+        {/* Hora debajo */}
+        {!!time && (
+          <Text style={{ marginTop: px(4), fontSize: fs(12), fontWeight: "700", color: UI.muted2 }}>
+            {time}
           </Text>
         )}
       </View>
     </Pressable>
   );
 }
+
+
 
 function EmptyDayCard({ px, fs, onAdd }: { px: (n: number) => number; fs: (n: number) => number; onAdd: () => void }) {
   return (
@@ -484,9 +619,17 @@ export function DailyPlanTimeline({
                 style={{ maxHeight: LIST_MAX_H }}
                 contentContainerStyle={{ paddingBottom: px(8), gap: px(12) }}
               >
-                {dayItems.map((it) => (
-                  <ActivityRow key={it.id} item={it} px={px} fs={fs} onPress={() => onPressItem(it)} />
-                ))}
+{dayItems.map((it) => (
+  <ActivityRow
+    key={it.id}
+    item={it}
+    px={px}
+    fs={fs}
+    onPress={() => onPressItem(it)}
+    onEdit={() => onPressItem(it)} // o abrir tu modal de edición
+    onDelete={() => console.log("delete", it.id)} // tu handler real
+  />
+))}
               </ScrollView>
             )}
           </View>

@@ -14,27 +14,29 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
 
 const N8N_WEBHOOK_URL =
-  "https://n8n.srv877053.hstgr.cloud/webhook-test/finexa-chat";
+  "https://n8n.srv877053.hstgr.cloud/webhook-test/finexa-ai";
 
 // AJUSTA ESTO A TU TAB BAR EN WEB (64/72/80 suelen cuadrar)
 const WEB_TABBAR_HEIGHT = 92;
 
 type ChatMessage = {
-  id: number;
+  id: string;
   from: "user" | "ai";
   text: string;
 };
 
+const uid = () => `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+
 export default function AIChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: 1,
+      id: uid(),
       from: "ai",
       text: "¡Hola! Soy Finexa Assistant 🤖\nPronto podré ayudarte con tus gastos, presupuestos y más.",
     },
-    { id: 2, from: "user", text: "¿Puedes ayudarme a analizar mis gastos?" },
+    { id: uid(), from: "user", text: "¿Puedes ayudarme a analizar mis gastos?" },
     {
-      id: 3,
+      id: uid(),
       from: "ai",
       text: "¡Claro! 📊\nEn cuanto conecte mis funciones, podré mostrarte estadísticas, alertas y recomendaciones personalizadas.",
     },
@@ -58,56 +60,95 @@ export default function AIChatScreen() {
     scrollToEnd(true);
   }, [messages.length, scrollToEnd]);
 
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
+const sendMessage = async () => {
+  const text = input.trim();
+  if (!text || loading) return;
 
-    setLoading(true);
-    setInput("");
+  setLoading(true);
+  setInput("");
 
-    const userMessage: ChatMessage = { id: Date.now(), from: "user", text };
-    const thinkingId = Date.now() + 1;
+  const thinkingId = uid();
 
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-      { id: thinkingId, from: "ai", text: "Pensando..." },
-    ]);
+  setMessages((prev) => [
+    ...prev,
+    { id: uid(), from: "user", text },
+    { id: thinkingId, from: "ai", text: "Pensando..." },
+  ]);
 
-    try {
-      const res = await fetch(N8N_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
-      let aiText = "No he recibido respuesta del asistente 🤔";
-      try {
-        const data = await res.json();
-        aiText = data?.reply || data?.data?.reply || aiText;
-      } catch {}
+    const res = await fetch(N8N_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+      signal: controller.signal,
+    });
 
-      setMessages((prev) => {
-        const withoutThinking = prev.filter((m) => m.id !== thinkingId);
-        return [...withoutThinking, { id: Date.now() + 2, from: "ai", text: aiText }];
-      });
-    } catch (e) {
-      setMessages((prev) => {
-        const withoutThinking = prev.filter((m) => m.id !== thinkingId);
-        return [
-          ...withoutThinking,
-          {
-            id: Date.now() + 3,
-            from: "ai",
-            text: "Ha habido un problema al conectar con el asistente 😥\nInténtalo de nuevo.",
-          },
-        ];
-      });
-    } finally {
-      setLoading(false);
-      scrollToEnd(true);
+    clearTimeout(timeout);
+
+    const status = res.status;
+    const contentType = res.headers.get("content-type") || "";
+    const raw = await res.text(); // SIEMPRE texto primero
+
+    // Si hay error HTTP, lo mostramos tal cual (para ver 404/502/html/etc.)
+    if (!res.ok) {
+      throw new Error(
+        `HTTP ${status} | content-type: ${contentType}\n` +
+          `${raw.slice(0, 600)}`
+      );
     }
-  };
+
+    let aiText = "";
+
+    // Intento JSON
+try {
+  const data = raw ? JSON.parse(raw) : null;
+
+  // Caso A: n8n devuelve { reply: "..." }
+  if (data && typeof data === "object") {
+    aiText = data?.reply ?? data?.data?.reply ?? aiText;
+  }
+  // Caso B: n8n devuelve "texto" (JSON string)
+  else if (typeof data === "string" && data.trim()) {
+    aiText = data.trim();
+  }
+  // Caso C: no hay nada útil
+  else if (raw?.trim()) {
+    aiText = raw.trim();
+  }
+} catch {
+  // Caso D: texto plano
+  if (raw?.trim()) aiText = raw.trim();
+}
+
+    // Si sigue vacío, mostramos diagnóstico (esto te dirá si raw venía vacío)
+    if (!aiText) {
+      aiText =
+        `Respuesta vacía.\nHTTP ${status} | content-type: ${contentType}\n` +
+        `RAW:\n${raw.slice(0, 600) || "(vacío)"}`;
+    }
+
+    setMessages((prev) => {
+      const withoutThinking = prev.filter((m) => m.id !== thinkingId);
+      return [...withoutThinking, { id: uid(), from: "ai", text: aiText }];
+    });
+  } catch (e: any) {
+    const msg =
+      e?.name === "AbortError"
+        ? "Tiempo de espera agotado (20s)."
+        : `Error:\n${String(e?.message || e)}`;
+
+    setMessages((prev) => {
+      const withoutThinking = prev.filter((m) => m.id !== thinkingId);
+      return [...withoutThinking, { id: uid(), from: "ai", text: msg }];
+    });
+  } finally {
+    setLoading(false);
+    scrollToEnd(true);
+  }
+};
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -146,12 +187,20 @@ export default function AIChatScreen() {
           </Text>
         </View>
 
-        {loading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+        {loading ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : null}
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1, minHeight: 0 }} // minHeight:0 ayuda MUCHO en web con flex/scroll
-        behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined}
+        behavior={
+          Platform.OS === "ios"
+            ? "padding"
+            : Platform.OS === "android"
+            ? "height"
+            : undefined
+        }
       >
         {/* MENSAJES */}
         <ScrollView
@@ -244,6 +293,11 @@ export default function AIChatScreen() {
               }}
               multiline
               onFocus={() => scrollToEnd(true)}
+              onSubmitEditing={() => {
+                // En multiline, en algunos entornos no dispara como esperas.
+                // Pero en Android suele ser útil si el teclado lo permite.
+                if (Platform.OS !== "web") sendMessage();
+              }}
             />
 
             <TouchableOpacity
@@ -257,7 +311,9 @@ export default function AIChatScreen() {
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor:
-                  !input.trim() || loading ? `${colors.primary}20` : colors.primary,
+                  !input.trim() || loading
+                    ? `${colors.primary}20`
+                    : colors.primary,
               }}
               activeOpacity={0.85}
             >
