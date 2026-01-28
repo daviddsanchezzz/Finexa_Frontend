@@ -20,7 +20,6 @@ import { textStyles, typography } from "../../../theme/typography";
 
 import PieChartComponent from "../../../components/PieChart";
 import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
-import DesktopMonthlyPerformanceTable from "../../../components/DesktopMonthlyPerformanceTable";
 import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
 import DesktopInvestmentOperationModal, { InvestmentAssetLite } from "../../../components/DesktopInvestmentOperationModal";
 import DesktopInvestmentValuationModal2, { ValuationAssetLite } from "../../../components/DesktopInvestmentValuationModal2";
@@ -76,6 +75,109 @@ const palette = [
   "#EC4899",
   "#64748B",
 ];
+
+// ✅ Añade esto en tu DesktopInvestmentsScreen.tsx (mismo archivo)
+// - Incluye fetch de /investments/snapshots
+// - Renderiza la tabla "Rendimiento mensual" con estilo Dashboard
+// - Usa los campos: monthStart, startValue, endValue, cashflowNet, profit, returnPct
+
+type PortfolioSnapshotRow = {
+  monthStart: string; // ISO
+  currency: string;
+  startValue: number | null;
+  endValue: number;
+  cashflowNet: number;
+  profit: number;
+  returnPct: number | null; // ratio (0.05 => 5%)
+};
+
+function formatMonthYear(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  // "ENE 2026"
+  const m = d
+    .toLocaleDateString("es-ES", { month: "short" })
+    .replace(".", "")
+    .toUpperCase();
+  const y = d.getFullYear();
+  return `${m} ${y}`;
+}
+
+function toneColor(value: number) {
+  if (value > 0) return "#16A34A";
+  if (value < 0) return "#DC2626";
+  return "#64748B";
+}
+
+function formatPctRatio(p: number | null | undefined) {
+  if (p == null || !Number.isFinite(p)) return "—";
+  return `${(p * 100).toFixed(2).replace(".", ",")}%`;
+}
+
+function PerformanceRow({
+  row,
+  idx,
+  px,
+  fs,
+  currency,
+}: {
+  row: PortfolioSnapshotRow;
+  idx: number;
+  px: (n: number) => number;
+  fs: (n: number) => number;
+  currency: string;
+}) {
+  const profitColor = toneColor(Number(row.profit || 0));
+  const pctColor = toneColor(Number(row.returnPct || 0));
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        borderBottomWidth: 1,
+        borderBottomColor: "rgba(148,163,184,0.16)",
+        backgroundColor: idx % 2 === 0 ? "white" : "rgba(2,6,23,0.01)",
+      }}
+    >
+      <Td flex={1.2} px={px}>
+        <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "800", color: "#0F172A" }]} numberOfLines={1}>
+          {formatMonthYear(row.monthStart)}
+        </Text>
+      </Td>
+
+      <Td flex={1.3} align="right" px={px}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "800", color: "#0F172A" }]}>
+          {formatMoney(Number(row.startValue ?? 0), currency)}
+        </Text>
+      </Td>
+
+      <Td flex={1.3} align="right" px={px}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "800", color: "#0F172A" }]}>
+          {formatMoney(Number(row.endValue ?? 0), currency)}
+        </Text>
+      </Td>
+
+      <Td flex={1.1} align="right" px={px}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "800", color: toneColor(Number(row.cashflowNet || 0)) }]}>
+          {formatMoney(Number(row.cashflowNet ?? 0), currency)}
+        </Text>
+      </Td>
+
+      <Td flex={1.1} align="right" px={px}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "900", color: profitColor }]}>
+          {formatMoney(Number(row.profit ?? 0), currency)}
+        </Text>
+      </Td>
+
+      <Td flex={0.9} align="right" px={px}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "900", color: pctColor }]}>
+          {formatPctRatio(row.returnPct)}
+        </Text>
+      </Td>
+    </View>
+  );
+}
+
 
 function formatMoney(n: number, currency = "EUR") {
   const v = Number.isFinite(n) ? n : 0;
@@ -319,6 +421,46 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
   const [opsOpen, setOpsOpen] = useState(false);
   const [valuationOpen, setValuationOpen] = useState(false);
 
+  // ✅ Dentro de DesktopInvestmentsScreen component (arriba, con el resto de states)
+const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
+const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+
+// Sugerencia: últimos 24 meses (puedes cambiarlo)
+const fetchSnapshots = async () => {
+  setSnapshotsLoading(true);
+  try {
+    const to = new Date();
+    const from = new Date(to);
+    from.setMonth(from.getMonth() - 24);
+
+    // API: /investments/snapshots?from=...&to=...
+    const res = await api.get(
+      `/investments/snapshots?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
+    );
+
+    const rows = (res.data || []) as any[];
+    // asegúrate que el backend devuelve monthStart, startValue, endValue, cashflowNet, profit, returnPct, currency
+    const mapped: PortfolioSnapshotRow[] = rows.map((r) => ({
+      monthStart: String(r.monthStart),
+      currency: String(r.currency || "EUR"),
+      startValue: r.startValue == null ? null : Number(r.startValue),
+      endValue: Number(r.endValue ?? 0),
+      cashflowNet: Number(r.cashflowNet ?? 0),
+      profit: Number(r.profit ?? 0),
+      returnPct: r.returnPct == null ? null : Number(r.returnPct),
+    }));
+
+    // orden asc por monthStart para tabla
+    mapped.sort((a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime());
+    setSnapshots(mapped);
+  } catch (e) {
+    console.error("❌ Error cargando snapshots:", e);
+    setSnapshots([]);
+  } finally {
+    setSnapshotsLoading(false);
+  }
+};
+
   const openOps = useCallback(() => setOpsOpen(true), []);
   const closeOps = useCallback(() => setOpsOpen(false), []);
   const openValuation = useCallback(() => setValuationOpen(true), []);
@@ -369,14 +511,19 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
     try {
       setLoading(true);
       setTimelineLoading(true);
+        setSnapshotsLoading(true);
+
       await Promise.all([fetchSummary(), fetchTimeline(range)]);
     } catch (e) {
       console.error("❌ Error cargando investments desktop:", e);
       setSummary(null);
       setTimeline([]);
+          setSnapshots([]);
+
     } finally {
       setLoading(false);
       setTimelineLoading(false);
+        setSnapshotsLoading(false);
     }
   }, [range]);
 
@@ -801,9 +948,44 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
           <View style={{ marginTop: px(12) }}>
             <SoftCard px={px} pad={16}>
               <SectionTitle title="Rendimiento mensual" px={px} fs={fs} />
-              <View style={{ marginTop: px(10) }}>
-                <DesktopMonthlyPerformanceTable px={px} fs={fs} currency={currency} defaultRange="12M" />
-              </View>
+<View style={{ marginTop: px(10) }}>
+  {snapshotsLoading ? (
+    <View style={{ paddingVertical: px(18), alignItems: "center", justifyContent: "center" }}>
+      <ActivityIndicator size="small" color={colors.primary} />
+    </View>
+  ) : snapshots.length === 0 ? (
+    <View style={{ paddingVertical: px(10) }}>
+      <Text style={[textStyles.bodyMuted, { fontSize: fs(12), fontWeight: "600", color: "#94A3B8" }]}>
+        Aún no hay cierres mensuales (snapshots).
+      </Text>
+    </View>
+  ) : (
+    <View style={{ marginTop: px(10), borderRadius: px(14), overflow: "hidden", borderWidth: 1, borderColor: "rgba(148,163,184,0.20)" }}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: "row",
+          borderBottomWidth: 1,
+          borderBottomColor: "rgba(148,163,184,0.20)",
+          backgroundColor: "rgba(15,23,42,0.03)",
+        }}
+      >
+        <Th label="MES" flex={1.2} px={px} fs={fs} />
+        <Th label="INICIO" align="right" flex={1.3} px={px} fs={fs} />
+        <Th label="FIN" align="right" flex={1.3} px={px} fs={fs} />
+        <Th label="CASHFLOW" align="right" flex={1.1} px={px} fs={fs} />
+        <Th label="RENTAB. (€)" align="right" flex={1.1} px={px} fs={fs} />
+        <Th label="RENTAB. (%)" align="right" flex={0.9} px={px} fs={fs} />
+      </View>
+
+      {/* Rows */}
+      {snapshots.map((row, idx) => (
+        <PerformanceRow key={row.monthStart} row={row} idx={idx} px={px} fs={fs} currency={currency} />
+      ))}
+    </View>
+  )}
+</View>
+
             </SoftCard>
           </View>
         </View>
