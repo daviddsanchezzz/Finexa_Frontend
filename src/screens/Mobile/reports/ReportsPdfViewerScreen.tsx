@@ -1,12 +1,6 @@
+// src/screens/Reports/ReportsPdfViewerScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Platform,
-} from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../../api/api";
@@ -14,8 +8,14 @@ import { colors } from "../../../theme/theme";
 import { storage } from "../../../utils/storage";
 
 // En web NO hay WebView. En iOS/Android sí.
-const WebViewNative =
-  Platform.OS === "web" ? null : require("react-native-webview").WebView;
+const WebViewNative = Platform.OS === "web" ? null : require("react-native-webview").WebView;
+
+function isMobileWeb() {
+  if (Platform.OS !== "web") return false;
+  // RN-web corre en browser: navigator existe
+  const ua = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
+  return /iPhone|iPad|iPod|Android/i.test(ua);
+}
 
 export default function ReportsPdfViewerScreen({ navigation, route }: any) {
   const { path, title } = route.params as { path: string; title: string };
@@ -23,7 +23,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
   const [token, setToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
 
-  // Web: URL del blob para mostrar en iframe
+  // Web: URL del blob para mostrar/abrir
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
 
@@ -58,9 +58,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
 
         const res = await fetch(url, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) {
@@ -71,11 +69,14 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
 
-        // Limpieza si ya había uno anterior
         setBlobUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return objectUrl;
         });
+
+        // Si quieres auto-abrir en móvil web (puede ser bloqueado por el navegador):
+        // if (isMobileWeb()) window.open(objectUrl, "_blank");
+
       } catch (e: any) {
         Alert.alert("Error", e?.message || "No se pudo cargar el PDF");
       } finally {
@@ -93,7 +94,6 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         });
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, token]);
 
   const Header = (
@@ -158,8 +158,10 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
     );
   }
 
-  // ✅ WEB: iframe con blobUrl
+  // ✅ WEB
   if (Platform.OS === "web") {
+    const mobileWeb = isMobileWeb();
+
     return (
       <SafeAreaView className="flex-1 bg-background">
         {Header}
@@ -184,7 +186,31 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
           </View>
         )}
 
-        {!loadingPdf && blobUrl && (
+        {/* WEB MÓVIL: NO iframe (visor embebido falla) */}
+        {!loadingPdf && blobUrl && mobileWeb && (
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-text font-extrabold text-[16px] text-center">
+              Abrir informe
+            </Text>
+            <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2 leading-5">
+              En móvil, el visor de PDF embebido suele impedir zoom/paginación.
+              Ábrelo en una pestaña nueva.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => window.open(blobUrl, "_blank")}
+              activeOpacity={0.85}
+              className="mt-4 bg-primary rounded-2xl py-4 px-5 items-center"
+            >
+              <Text className="text-white font-extrabold text-[15px]">
+                Abrir PDF
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* WEB DESKTOP: iframe */}
+        {!loadingPdf && blobUrl && !mobileWeb && (
           <View style={{ flex: 1 }}>
             <iframe
               src={blobUrl}
@@ -206,6 +232,9 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
           uri: url,
           headers: { Authorization: `Bearer ${token}` },
         }}
+        // Opcional: mejoras UX
+        // startInLoadingState
+        // renderLoading={() => <ActivityIndicator style={{ marginTop: 20 }} />}
       />
     </SafeAreaView>
   );
