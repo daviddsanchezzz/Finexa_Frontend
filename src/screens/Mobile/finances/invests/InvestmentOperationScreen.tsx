@@ -46,6 +46,14 @@ const moneyToNumber = (s: string) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+const decimalToNumber = (s: string) => {
+  // admite "1.234,5678" o "1234,5678" o "1234.5678"
+  const v = (s || "").trim().replace(/\./g, "").replace(",", ".");
+  if (!v) return NaN;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+};
+
 function formatMoney(n: any, currency = "EUR") {
   const v = Number.isFinite(Number(n)) ? Number(n) : 0;
   try {
@@ -186,6 +194,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   const [toAsset, setToAsset] = useState<InvestmentAssetLite | null>(null);
 
   const [amount, setAmount] = useState("");
+  const [quantity, setQuantity] = useState(""); // ✅ Participaciones (opcional)
   const [fee, setFee] = useState("");
   const [amountOut, setAmountOut] = useState("");
   const [amountIn, setAmountIn] = useState("");
@@ -228,11 +237,9 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   }, [mode]);
 
   const fetchAssets = useCallback(async () => {
-    // Ajusta este endpoint si tu backend usa otro path.
     const res = await api.get("/investments/assets");
     const list: InvestmentAssetLite[] = Array.isArray(res.data) ? res.data : res.data?.assets ?? [];
-    const onlyActive = (list || []).filter((a) => (a.active ?? true));
-    // orden: nombre
+    const onlyActive = (list || []).filter((a) => a.active ?? true);
     onlyActive.sort((a, b) => String(a.name).localeCompare(String(b.name)));
     setAssets(onlyActive);
     return onlyActive;
@@ -276,6 +283,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
       setSelectedWallet(walletList[0] || null);
 
       setAmount("");
+      setQuantity("");
       setFee("");
       setAmountOut("");
       setAmountIn("");
@@ -290,6 +298,12 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     const feeN = fee.trim() ? moneyToNumber(fee) : 0;
     if (fee.trim() && !Number.isFinite(feeN)) return false;
     if (Number.isFinite(feeN) && feeN < 0) return false;
+
+    // ✅ quantity opcional pero si viene, debe ser decimal > 0
+    if (quantity.trim()) {
+      const qN = decimalToNumber(quantity);
+      if (!Number.isFinite(qN) || qN <= 0) return false;
+    }
 
     if (mode === "swap") {
       if (!fromAsset || !toAsset) return false;
@@ -313,7 +327,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     if (!amount || !Number.isFinite(amtN) || amtN <= 0) return false;
 
     return true;
-  }, [amount, amountIn, amountOut, fee, fromAsset, loading, mode, saving, selectedAsset, selectedWallet, toAsset]);
+  }, [amount, amountIn, amountOut, fee, fromAsset, loading, mode, saving, selectedAsset, selectedWallet, toAsset, quantity]);
 
   const handleSubmit = useCallback(async () => {
     if (!canSave) return;
@@ -327,6 +341,9 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
       const feeN = fee.trim() ? moneyToNumber(fee) : 0;
       if (fee.trim() && !Number.isFinite(feeN)) return;
 
+      const qtyN = quantity.trim() ? decimalToNumber(quantity) : undefined;
+      if (quantity.trim() && (!Number.isFinite(qtyN as number) || (qtyN as number) <= 0)) return;
+
       if (mode === "swap") {
         const outN = moneyToNumber(amountOut);
         const inN = amountIn.trim() ? moneyToNumber(amountIn) : outN;
@@ -339,6 +356,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
           fee: feeN || 0,
           date,
           description: desc,
+          ...(qtyN !== undefined ? { quantity: qtyN } : {}),
         });
 
         navigation.goBack();
@@ -346,7 +364,14 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
       }
 
       const amtN = moneyToNumber(amount);
-      const baseBody: any = { amount: amtN, fee: feeN || 0, date, description: desc };
+
+      const baseBody: any = {
+        amount: amtN,
+        fee: feeN || 0,
+        date,
+        description: desc,
+        ...(qtyN !== undefined ? { quantity: qtyN } : {}),
+      };
 
       if (mode === "buy") {
         await api.post(`/investments/${selectedAsset!.id}/buy`, { ...baseBody, fromWalletId: selectedWallet!.id });
@@ -361,7 +386,6 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
       navigation.goBack();
     } catch (e: any) {
       console.error("InvestmentOperationScreen submit error:", e?.response?.data || e);
-      // Aquí puedes enchufar tu toast / inline error si lo usas en otras pantallas.
     } finally {
       setSaving(false);
     }
@@ -378,6 +402,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     selectedAsset,
     selectedWallet,
     toAsset,
+    quantity,
   ]);
 
   const bootstrap = useCallback(async () => {
@@ -406,7 +431,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
 
       if (next === "swap") {
         if (!fromAsset && selectedAsset) setFromAsset(selectedAsset);
-        setSelectedWallet(null); // no aplica
+        setSelectedWallet(null);
       } else {
         if (!selectedWallet && wallets.length) setSelectedWallet(wallets[0]);
         if (!selectedAsset && assets.length) setSelectedAsset(assets[0]);
@@ -423,11 +448,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        {/* Scroll desde debajo del header */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
-        >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
           {/* Top summary */}
           <View
             style={{
@@ -575,6 +596,35 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
                     />
                     <Text style={{ fontSize: 20, fontWeight: "900", color: "#94A3B8", marginLeft: 10 }}>€</Text>
                   </View>
+
+                  {/* ✅ Quantity (Participaciones) debajo del amount */}
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", marginTop: 12 }}>
+                    Participaciones (opcional)
+                  </Text>
+                  <View
+                    style={{
+                      marginTop: 6,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                      backgroundColor: "white",
+                      paddingHorizontal: 12,
+                      height: 46,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="calculator-outline" size={16} color="#94A3B8" />
+                    <TextInput
+                      value={quantity}
+                      onChangeText={(t) => setQuantity(t.replace(".", ","))}
+                      placeholder=""
+                      placeholderTextColor="#94A3B8"
+                      inputMode="decimal"
+                      style={{ marginLeft: 10, flex: 1, fontSize: 14, fontWeight: "800", color: "#0F172A" }}
+                      returnKeyType="done"
+                    />
+                  </View>
                 </>
               )}
             </View>
@@ -622,9 +672,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
                   }}
                 >
                   <Ionicons name="refresh" size={16} color={colors.primary} />
-                  <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
-                    Actualizar
-                  </Text>
+                  <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Actualizar</Text>
                 </TouchableOpacity>
               }
             >
@@ -820,14 +868,8 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
               gap: 10,
             }}
           >
-            {saving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Ionicons name="checkmark-outline" size={20} color="white" />
-            )}
-            <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>
-              Ejecutar operación
-            </Text>
+            {saving ? <ActivityIndicator color="white" /> : <Ionicons name="checkmark-outline" size={20} color="white" />}
+            <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>Ejecutar operación</Text>
           </TouchableOpacity>
 
           {!canSave && !loading ? (

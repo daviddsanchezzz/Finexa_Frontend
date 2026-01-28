@@ -54,10 +54,23 @@ const moneyToNumber = (s: string) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+const decimalToNumber = (s: string) => {
+  // admite "1.234,5678" -> 1234.5678
+  const v = (s || "").trim().replace(/\./g, "").replace(",", ".");
+  if (!v) return NaN;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+};
+
 function formatMoney(n: any, currency = "EUR") {
   const v = Number.isFinite(Number(n)) ? Number(n) : 0;
   try {
-    return v.toLocaleString("es-ES", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return v.toLocaleString("es-ES", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   } catch {
     return `${v.toFixed(2)} ${currency}`;
   }
@@ -109,7 +122,7 @@ function Chip({
         style={{
           marginLeft: leftIcon ? 8 : 0,
           fontSize: 12,
-          fontWeight: "900",
+          fontWeight: active ? "700" : "600",
           color: active ? tint?.text ?? "#0F172A" : "#475569",
         }}
         numberOfLines={1}
@@ -123,9 +136,11 @@ function Chip({
 function Section({
   title,
   right,
+  subtitle,
   children,
 }: {
   title: string;
+  subtitle?: string;
   right?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -140,15 +155,15 @@ function Section({
         marginTop: 10,
       }}
     >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 10,
-        }}
-      >
-        <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>{title}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{title}</Text>
+          {!!subtitle ? (
+            <Text style={{ marginTop: 2, fontSize: 12, fontWeight: "600", color: "#CBD5E1" }} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
         {right}
       </View>
       {children}
@@ -181,7 +196,7 @@ export default function DesktopInvestmentOperationModal({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-const [opType, setOpType] = useState<OperationType>("buy");
+  const [opType, setOpType] = useState<OperationType>("buy");
 
   // Wallets cash desde backend
   const [wallets, setWallets] = useState<WalletLite[]>([]);
@@ -196,10 +211,11 @@ const [opType, setOpType] = useState<OperationType>("buy");
   const [toAsset, setToAsset] = useState<InvestmentAssetLite | null>(null);
 
   // Inputs
-  const [amount, setAmount] = useState(""); // cantidad principal (buy/sell/deposit/withdraw)
-  const [fee, setFee] = useState(""); // comisión
-  const [amountOut, setAmountOut] = useState(""); // swap: salida
-  const [amountIn, setAmountIn] = useState(""); // swap: entrada (opcional)
+  const [amount, setAmount] = useState("");
+  const [fee, setFee] = useState("");
+  const [quantity, setQuantity] = useState(""); // ✅ Participaciones (decimal opcional)
+  const [amountOut, setAmountOut] = useState("");
+  const [amountIn, setAmountIn] = useState("");
   const [description, setDescription] = useState("");
 
   const amountRef = useRef<any>(null);
@@ -215,22 +231,22 @@ const [opType, setOpType] = useState<OperationType>("buy");
     []
   );
 
-const opMeta = useMemo(() => {
-  switch (opType) {
-    case "buy":
-      return { title: "Comprar", subtitle: "Cash → inversión (wallet origen cash)" };
-    case "sell":
-      return { title: "Vender", subtitle: "Inversión → cash (wallet destino cash)" };
-    case "transfer_in":
-      return { title: "Aportar", subtitle: "Cash → inversión (aporte/entrada)" };
-    case "transfer_out":
-      return { title: "Retirar", subtitle: "Inversión → cash (retirada/salida)" };
-    case "swap":
-      return { title: "Swap", subtitle: "Activo A → Activo B (sin wallets en v1)" };
-    default:
-      return { title: "Operación", subtitle: "" };
-  }
-}, [opType]);
+  const opMeta = useMemo(() => {
+    switch (opType) {
+      case "buy":
+        return { title: "Comprar", subtitle: "Cash → inversión (wallet origen cash)" };
+      case "sell":
+        return { title: "Vender", subtitle: "Inversión → cash (wallet destino cash)" };
+      case "transfer_in":
+        return { title: "Aportar", subtitle: "Cash → inversión (aporte/entrada)" };
+      case "transfer_out":
+        return { title: "Retirar", subtitle: "Inversión → cash (retirada/salida)" };
+      case "swap":
+        return { title: "Swap", subtitle: "Activo A → Activo B (sin wallets en v1)" };
+      default:
+        return { title: "Operación", subtitle: "" };
+    }
+  }, [opType]);
 
   const fetchWallets = useCallback(async () => {
     try {
@@ -258,7 +274,6 @@ const opMeta = useMemo(() => {
 
   const resetForm = useCallback(() => {
     setOpType("buy");
-
     setSelectedWallet(null);
 
     const def = defaultAssetId ? assets.find((a) => a.id === defaultAssetId) || null : null;
@@ -268,6 +283,7 @@ const opMeta = useMemo(() => {
 
     setAmount("");
     setFee("");
+    setQuantity("");
     setAmountOut("");
     setAmountIn("");
     setDescription("");
@@ -281,117 +297,143 @@ const opMeta = useMemo(() => {
       resetForm();
 
       const w = await fetchWallets();
-      // autoselección: primera wallet cash si existe
       if (w?.length) setSelectedWallet(w[0]);
 
       setLoading(false);
 
-      // focus cantidad (web)
       setTimeout(() => {
         amountRef.current?.focus?.();
       }, 50);
     })();
   }, [visible, resetForm, fetchWallets]);
 
-const canSave = useMemo(() => {
-  if (loading || saving) return false;
-
-  const feeN = fee.trim() ? moneyToNumber(fee) : 0;
-  if (fee.trim() && !Number.isFinite(feeN)) return false;
-  if (Number.isFinite(feeN) && feeN < 0) return false;
-
-  if (opType === "swap") {
-    if (!fromAsset || !toAsset) return false;
-    if (fromAsset.id === toAsset.id) return false;
-
-    const outN = moneyToNumber(amountOut);
-    if (!amountOut || !Number.isFinite(outN) || outN <= 0) return false;
-
-    if (amountIn.trim()) {
-      const inN = moneyToNumber(amountIn);
-      if (!Number.isFinite(inN) || inN <= 0) return false;
-    }
-    return true;
-  }
-
-  if (!selectedAsset) return false;
-  if (!selectedWallet) return false;
-
-  const amtN = moneyToNumber(amount);
-  if (!amount || !Number.isFinite(amtN) || amtN <= 0) return false;
-
-  return true;
-}, [loading, saving, fee, opType, fromAsset, toAsset, amountOut, amountIn, selectedAsset, selectedWallet, amount]);
-
-const handleSubmit = useCallback(async () => {
-  if (!canSave) return;
-
-  try {
-    setSaving(true);
-
-    const date = new Date().toISOString();
-    const desc = description.trim() || undefined;
+  const canSave = useMemo(() => {
+    if (loading || saving) return false;
 
     const feeN = fee.trim() ? moneyToNumber(fee) : 0;
-    if (fee.trim() && !Number.isFinite(feeN)) return;
+    if (fee.trim() && !Number.isFinite(feeN)) return false;
+    if (Number.isFinite(feeN) && feeN < 0) return false;
+
+    if (quantity.trim()) {
+      const qN = decimalToNumber(quantity);
+      if (!Number.isFinite(qN) || qN <= 0) return false;
+    }
 
     if (opType === "swap") {
-      const outN = moneyToNumber(amountOut);
-      const inN = amountIn.trim() ? moneyToNumber(amountIn) : outN;
+      if (!fromAsset || !toAsset) return false;
+      if (fromAsset.id === toAsset.id) return false;
 
-      await api.post("/investments/swap", {
-        fromAssetId: fromAsset!.id,
-        toAssetId: toAsset!.id,
-        amountOut: outN,
-        amountIn: inN,
+      const outN = moneyToNumber(amountOut);
+      if (!amountOut || !Number.isFinite(outN) || outN <= 0) return false;
+
+      if (amountIn.trim()) {
+        const inN = moneyToNumber(amountIn);
+        if (!Number.isFinite(inN) || inN <= 0) return false;
+      }
+      return true;
+    }
+
+    if (!selectedAsset) return false;
+    if (!selectedWallet) return false;
+
+    const amtN = moneyToNumber(amount);
+    if (!amount || !Number.isFinite(amtN) || amtN <= 0) return false;
+
+    return true;
+  }, [
+    loading,
+    saving,
+    fee,
+    quantity,
+    opType,
+    fromAsset,
+    toAsset,
+    amountOut,
+    amountIn,
+    selectedAsset,
+    selectedWallet,
+    amount,
+  ]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!canSave) return;
+
+    try {
+      setSaving(true);
+
+      const date = new Date().toISOString();
+      const desc = description.trim() || undefined;
+
+      const feeN = fee.trim() ? moneyToNumber(fee) : 0;
+      if (fee.trim() && !Number.isFinite(feeN)) return;
+
+      const quantityN = quantity.trim() ? decimalToNumber(quantity) : undefined;
+      if (quantity.trim() && !Number.isFinite(quantityN as number)) return;
+
+      if (opType === "swap") {
+        const outN = moneyToNumber(amountOut);
+        const inN = amountIn.trim() ? moneyToNumber(amountIn) : outN;
+
+        await api.post("/investments/swap", {
+          fromAssetId: fromAsset!.id,
+          toAssetId: toAsset!.id,
+          amountOut: outN,
+          amountIn: inN,
+          fee: feeN || 0,
+          date,
+          description: desc,
+          ...(quantityN !== undefined ? { quantity: quantityN } : {}),
+        });
+
+        onSaved();
+        onClose();
+        return;
+      }
+
+      const amtN = moneyToNumber(amount);
+
+      const baseBody: any = {
+        amount: amtN,
         fee: feeN || 0,
         date,
         description: desc,
-      });
+        ...(quantityN !== undefined ? { quantity: quantityN } : {}),
+      };
+
+      if (opType === "buy") {
+        await api.post(`/investments/${selectedAsset!.id}/buy`, { ...baseBody, fromWalletId: selectedWallet!.id });
+      } else if (opType === "transfer_in") {
+        await api.post(`/investments/${selectedAsset!.id}/deposit`, { ...baseBody, fromWalletId: selectedWallet!.id });
+      } else if (opType === "sell") {
+        await api.post(`/investments/${selectedAsset!.id}/sell`, { ...baseBody, toWalletId: selectedWallet!.id });
+      } else if (opType === "transfer_out") {
+        await api.post(`/investments/${selectedAsset!.id}/withdraw`, { ...baseBody, toWalletId: selectedWallet!.id });
+      }
 
       onSaved();
       onClose();
-      return;
+    } catch (e: any) {
+      console.error("DesktopInvestmentOperationModal submit error:", e?.response?.data || e);
+    } finally {
+      setSaving(false);
     }
+  }, [
+    canSave,
+    opType,
+    amount,
+    fee,
+    quantity,
+    description,
+    amountOut,
+    amountIn,
+    fromAsset,
+    toAsset,
+    selectedAsset,
+    selectedWallet,
+    onSaved,
+    onClose,
+  ]);
 
-    const amtN = moneyToNumber(amount);
-    const baseBody: any = { amount: amtN, fee: feeN || 0, date, description: desc };
-
-    // IMPORTANTE: aquí mantienes tus endpoints tal cual
-    if (opType === "buy") {
-      await api.post(`/investments/${selectedAsset!.id}/buy`, { ...baseBody, fromWalletId: selectedWallet!.id });
-    } else if (opType === "transfer_in") {
-      await api.post(`/investments/${selectedAsset!.id}/deposit`, { ...baseBody, fromWalletId: selectedWallet!.id });
-    } else if (opType === "sell") {
-      await api.post(`/investments/${selectedAsset!.id}/sell`, { ...baseBody, toWalletId: selectedWallet!.id });
-    } else if (opType === "transfer_out") {
-      await api.post(`/investments/${selectedAsset!.id}/withdraw`, { ...baseBody, toWalletId: selectedWallet!.id });
-    }
-
-    onSaved();
-    onClose();
-  } catch (e: any) {
-    console.error("DesktopInvestmentOperationModal submit error:", e?.response?.data || e);
-  } finally {
-    setSaving(false);
-  }
-}, [
-  canSave,
-  opType,
-  amount,
-  fee,
-  description,
-  amountOut,
-  amountIn,
-  fromAsset,
-  toAsset,
-  selectedAsset,
-  selectedWallet,
-  onSaved,
-  onClose,
-]);
-
-  // Keyboard web: ESC / Ctrl+Enter
   useEffect(() => {
     if (!visible || !isWeb) return;
     const onKeyDown = (e: any) => {
@@ -411,105 +453,6 @@ const handleSubmit = useCallback(async () => {
     if (opType === "sell" || opType === "transfer_out") return "Wallet destino (cash)";
     return "Wallet (cash)";
   }, [opType]);
-
-  const AmountCard = (
-    <View
-      style={{
-        width: 340,
-        backgroundColor: "white",
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        padding: 12,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", alignSelf: "flex-start" }}>
-        {opType === "swap" ? "Cantidad (swap)" : "Cantidad"}
-      </Text>
-
-      {opType === "swap" ? (
-        <View style={{ width: "100%", marginTop: 8 }}>
-          <View style={{ marginBottom: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>Salida</Text>
-            <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 4 }}>
-              <TextInput
-                value={amountOut}
-                onChangeText={(t) => setAmountOut(t.replace(".", ","))}
-                placeholder="0,00"
-                placeholderTextColor="#CBD5E1"
-                inputMode="decimal"
-                style={{
-                  fontSize: 34,
-                  fontWeight: "900",
-                  color: "#0F172A",
-                  textAlign: "left",
-                  width: 190,
-                  paddingVertical: 6,
-                }}
-                onSubmitEditing={() => {
-                  if (canSave && !saving) handleSubmit();
-                }}
-                blurOnSubmit={false}
-              />
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>
-                €
-              </Text>
-            </View>
-          </View>
-
-          <View>
-            <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>Entrada (opcional)</Text>
-            <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 4 }}>
-              <TextInput
-                value={amountIn}
-                onChangeText={(t) => setAmountIn(t.replace(".", ","))}
-                placeholder="Si vacío = salida"
-                placeholderTextColor="#CBD5E1"
-                inputMode="decimal"
-                style={{
-                  fontSize: 22,
-                  fontWeight: "900",
-                  color: "#0F172A",
-                  textAlign: "left",
-                  width: 190,
-                  paddingVertical: 6,
-                }}
-              />
-              <Text style={{ fontSize: 18, fontWeight: "900", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>
-                €
-              </Text>
-            </View>
-          </View>
-        </View>
-      ) : (
-        <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 4 }}>
-          <TextInput
-            ref={amountRef}
-            value={amount}
-            onChangeText={(t) => setAmount(t.replace(".", ","))}
-            placeholder="0,00"
-            placeholderTextColor="#CBD5E1"
-            inputMode="decimal"
-            style={{
-              fontSize: 44,
-              fontWeight: "900",
-              color: "#0F172A",
-              textAlign: "center",
-              width: 190,
-              paddingVertical: 6,
-            }}
-            onSubmitEditing={() => {
-              if (canSave && !saving) handleSubmit();
-            }}
-            blurOnSubmit={false}
-          />
-          <Text style={{ fontSize: 26, fontWeight: "900", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>€</Text>
-        </View>
-      )}
-    </View>
-  );
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -578,7 +521,12 @@ const handleSubmit = useCallback(async () => {
                 <Ionicons name="flash" size={18} color={colors.primary} />
               </View>
               <View>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{opMeta.title}</Text>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{opMeta.title}</Text>
+                {!!opMeta.subtitle ? (
+                  <Text style={{ marginTop: 2, fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>
+                    {opMeta.subtitle}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
@@ -598,14 +546,13 @@ const handleSubmit = useCallback(async () => {
                     flexDirection: "row",
                     alignItems: "center",
                     marginRight: 10,
+                    opacity: !canSave ? 0.9 : 1,
                   },
                   noOutline,
                 ]}
               >
                 {saving ? <ActivityIndicator /> : <Ionicons name="checkmark" size={18} color="#0F172A" />}
-                <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
-                  Ejecutar
-                </Text>
+                <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>Ejecutar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -636,61 +583,156 @@ const handleSubmit = useCallback(async () => {
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingBottom: 18 }}>
-              {/* TOP: Modo + Cantidad */}
-              <View style={{ flexDirection: "row", alignItems: "stretch" }}>
-                <View
-                  style={{
-                    flex: 1,
-                    backgroundColor: "white",
-                    borderRadius: 18,
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    padding: 12,
-                    marginRight: 10,
-                    minWidth: 320,
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", marginBottom: 10 }}>
-                    Operación
-                  </Text>
+              {/* TOP: operación + importe (sin estirar altura a lo loco) */}
+              <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                {/* Operación */}
+                <View style={{ flex: 1, marginRight: 10, minWidth: 320 }}>
+                  <Section title="Operación">
+                    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                      {[
+                        { label: "Comprar", value: "buy" as const, icon: "cart" as const, tint: tints.buy },
+                        { label: "Vender", value: "sell" as const, icon: "cash" as const, tint: tints.sell },
+                        { label: "Swap", value: "swap" as const, icon: "swap-horizontal" as const, tint: tints.swap },
+                      ].map((opt) => {
+                        const active = opType === opt.value;
+                        return (
+                          <View key={opt.value} style={{ marginRight: 8, marginBottom: 8 }}>
+                            <Chip
+                              label={opt.label}
+                              leftIcon={opt.icon}
+                              active={active}
+                              tint={opt.tint}
+                              onPress={() => {
+                                setOpType(opt.value);
 
-                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
- {[
-  { label: "Comprar",   value: "buy" as const,         icon: "cart" as const,            tint: tints.buy },
-  { label: "Vender",    value: "sell" as const,        icon: "cash" as const,            tint: tints.sell },
-  { label: "Aportar",   value: "transfer_in" as const, icon: "arrow-down" as const,      tint: tints.deposit },
-  { label: "Retirar",   value: "transfer_out" as const,icon: "arrow-up" as const,        tint: tints.withdraw },
-  { label: "Swap",      value: "swap" as const,        icon: "swap-horizontal" as const, tint: tints.swap },
-].map((opt) => {
-  const active = opType === opt.value;
-  return (
-    <View key={opt.value} style={{ marginRight: 8, marginBottom: 8 }}>
-      <Chip
-        label={opt.label}
-        leftIcon={opt.icon}
-        active={active}
-        tint={opt.tint}
-        onPress={() => {
-          setOpType(opt.value);
-
-          if (opt.value === "swap") {
-            if (!fromAsset && selectedAsset) setFromAsset(selectedAsset);
-            setSelectedWallet(null); // no aplica
-          } else {
-            if (!selectedWallet && wallets.length) setSelectedWallet(wallets[0]);
-            if (!selectedAsset && assets.length) setSelectedAsset(assets[0]);
-          }
-        }}
-      />
-    </View>
-  );
-})}
-
-                  </View>
-
+                                if (opt.value === "swap") {
+                                  if (!fromAsset && selectedAsset) setFromAsset(selectedAsset);
+                                  setSelectedWallet(null);
+                                } else {
+                                  if (!selectedWallet && wallets.length) setSelectedWallet(wallets[0]);
+                                  if (!selectedAsset && assets.length) setSelectedAsset(assets[0]);
+                                }
+                              }}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </Section>
                 </View>
 
-                {AmountCard}
+                {/* Importe + participaciones (misma columna, compacto) */}
+                <View style={{ width: 340 }}>
+                  <Section title={opType === "swap" ? "Cantidad (swap)" : "Cantidad"}>
+                    {opType === "swap" ? (
+                      <View style={{ width: "100%" }}>
+                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Salida</Text>
+                        <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 6 }}>
+                          <TextInput
+                            value={amountOut}
+                            onChangeText={(t) => setAmountOut(t.replace(".", ","))}
+                            placeholder="0,00"
+                            placeholderTextColor="#CBD5E1"
+                            inputMode="decimal"
+                            style={{
+                              fontSize: 34,
+                              fontWeight: "700",
+                              color: "#0F172A",
+                              textAlign: "left",
+                              width: 210,
+                              paddingVertical: 6,
+                            }}
+                            onSubmitEditing={() => {
+                              if (canSave && !saving) handleSubmit();
+                            }}
+                            blurOnSubmit={false}
+                          />
+                          <Text style={{ fontSize: 20, fontWeight: "700", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>
+                            €
+                          </Text>
+                        </View>
+
+                        <View style={{ marginTop: 10 }}>
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Entrada (opcional)</Text>
+                          <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 6 }}>
+                            <TextInput
+                              value={amountIn}
+                              onChangeText={(t) => setAmountIn(t.replace(".", ","))}
+                              placeholder="Si vacío = salida"
+                              placeholderTextColor="#CBD5E1"
+                              inputMode="decimal"
+                              style={{
+                                fontSize: 22,
+                                fontWeight: "700",
+                                color: "#0F172A",
+                                textAlign: "left",
+                                width: 210,
+                                paddingVertical: 6,
+                              }}
+                            />
+                            <Text style={{ fontSize: 18, fontWeight: "700", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>
+                              €
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 4 }}>
+                        <TextInput
+                          ref={amountRef}
+                          value={amount}
+                          onChangeText={(t) => setAmount(t.replace(".", ","))}
+                          placeholder="0,00"
+                          placeholderTextColor="#CBD5E1"
+                          inputMode="decimal"
+                          style={{
+                            fontSize: 44,
+                            fontWeight: "700",
+                            color: "#0F172A",
+                            textAlign: "left",
+                            width: 220,
+                            paddingVertical: 6,
+                          }}
+                          onSubmitEditing={() => {
+                            if (canSave && !saving) handleSubmit();
+                          }}
+                          blurOnSubmit={false}
+                        />
+                        <Text style={{ fontSize: 22, fontWeight: "700", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>
+                          €
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Participaciones dentro del mismo bloque para evitar “huecos” */}
+                    <View style={{ marginTop: 12 }}>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Participaciones (opcional)</Text>
+                      <View
+                        style={{
+                          marginTop: 6,
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: "#E5E7EB",
+                          backgroundColor: "white",
+                          paddingHorizontal: 12,
+                          height: 42,
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Ionicons name="calculator" size={16} color="#94A3B8" />
+                        <TextInput
+                          value={quantity}
+                          onChangeText={(t) => setQuantity(t.replace(".", ","))}
+                          placeholder=""
+                          placeholderTextColor="#94A3B8"
+                          inputMode="decimal"
+                          style={{ marginLeft: 10, flex: 1, fontSize: 13, fontWeight: "600", color: "#0F172A" }}
+                        />
+                      </View>
+                    </View>
+                  </Section>
+                </View>
               </View>
 
               {/* Wallet (solo si NO swap) */}
@@ -716,7 +758,7 @@ const handleSubmit = useCallback(async () => {
                       ]}
                     >
                       <Ionicons name="refresh" size={16} color={colors.primary} />
-                      <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Actualizar</Text>
+                      <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>Actualizar</Text>
                     </TouchableOpacity>
                   }
                 >
@@ -730,7 +772,7 @@ const handleSubmit = useCallback(async () => {
                         backgroundColor: "rgba(245,158,11,0.10)",
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "900", color: "#92400E" }}>{walletError}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#92400E" }}>{walletError}</Text>
                     </View>
                   ) : (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -829,7 +871,7 @@ const handleSubmit = useCallback(async () => {
                 </Section>
               )}
 
-              {/* Comisión + Nota */}
+              {/* Comisión + Nota (más “ligero” de peso y sin tanto aire) */}
               <View style={{ flexDirection: "row", marginTop: 10 }}>
                 <View style={{ width: 340, marginRight: 10 }}>
                   <Section title="Comisión (opcional)">
@@ -852,12 +894,12 @@ const handleSubmit = useCallback(async () => {
                         placeholder="0,00"
                         placeholderTextColor="#94A3B8"
                         inputMode="decimal"
-                        style={{ marginLeft: 10, flex: 1, fontSize: 13, fontWeight: "800", color: "#0F172A" }}
+                        style={{ marginLeft: 10, flex: 1, fontSize: 13, fontWeight: "600", color: "#0F172A" }}
                       />
-                      <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>€</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>€</Text>
                     </View>
 
-                    <Text style={{ marginTop: 8, fontSize: 12, fontWeight: "800", color: "#94A3B8" }}>
+                    <Text style={{ marginTop: 8, fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>
                       La comisión se suma al coste (buy/deposit) o se descuenta del ingreso (sell/withdraw).
                     </Text>
                   </Section>
@@ -871,7 +913,7 @@ const handleSubmit = useCallback(async () => {
                         onChangeText={setDescription}
                         placeholder="Ej: ajuste por comisiones / rebalanceo"
                         placeholderTextColor="#94A3B8"
-                        style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}
+                        style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}
                       />
                     </View>
                   </Section>
