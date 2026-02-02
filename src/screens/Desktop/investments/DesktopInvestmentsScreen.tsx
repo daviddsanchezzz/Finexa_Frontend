@@ -140,37 +140,37 @@ function PerformanceRow({
       }}
     >
       <Td flex={1.2} px={px}>
-        <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "800", color: "#0F172A" }]} numberOfLines={1}>
+        <Text style={[textStyles.body, { fontSize: fs(12), fontWeight: "700", color: "#0F172A" }]} numberOfLines={1}>
           {formatMonthYear(row.monthStart)}
         </Text>
       </Td>
 
       <Td flex={1.3} align="right" px={px}>
-        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "800", color: "#0F172A" }]}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: "#0F172A" }]}>
           {formatMoney(Number(row.startValue ?? 0), currency)}
         </Text>
       </Td>
 
       <Td flex={1.3} align="right" px={px}>
-        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "800", color: "#0F172A" }]}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: "#0F172A" }]}>
           {formatMoney(Number(row.endValue ?? 0), currency)}
         </Text>
       </Td>
 
       <Td flex={1.1} align="right" px={px}>
-        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "800", color: toneColor(Number(row.cashflowNet || 0)) }]}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: toneColor(Number(row.cashflowNet || 0)) }]}>
           {formatMoney(Number(row.cashflowNet ?? 0), currency)}
         </Text>
       </Td>
 
       <Td flex={1.1} align="right" px={px}>
-        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "900", color: profitColor }]}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: profitColor }]}>
           {formatMoney(Number(row.profit ?? 0), currency)}
         </Text>
       </Td>
 
       <Td flex={0.9} align="right" px={px}>
-        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "900", color: pctColor }]}>
+        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: pctColor }]}>
           {formatPctRatio(row.returnPct)}
         </Text>
       </Td>
@@ -513,7 +513,7 @@ const fetchSnapshots = async () => {
       setTimelineLoading(true);
         setSnapshotsLoading(true);
 
-      await Promise.all([fetchSummary(), fetchTimeline(range)]);
+      await Promise.all([fetchSummary(), fetchTimeline(range), fetchSnapshots()]);
     } catch (e) {
       console.error("❌ Error cargando investments desktop:", e);
       setSummary(null);
