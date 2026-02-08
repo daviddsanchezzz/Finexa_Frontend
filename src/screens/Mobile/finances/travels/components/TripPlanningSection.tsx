@@ -1,14 +1,6 @@
 // src/screens/Trips/components/TripPlanningSection.redesign.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  Modal,
-  Platform,
-  useWindowDimensions,
-} from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, ScrollView, Pressable, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
@@ -44,8 +36,6 @@ export interface TripPlanItem {
   id: number;
   type: TripPlanItemType;
   title: string;
-  // Desktop usa day + startAt/endAt; en móvil tenías date + startTime/endTime.
-  // Aquí soportamos ambas variantes sin romper.
   day?: string | null; // YYYY-MM-DD o ISO
   date?: string | null; // ISO
   startAt?: string | null; // ISO o "HH:MM"
@@ -63,18 +53,20 @@ type TripLike = { startDate?: string | null; endDate?: string | null };
 
 interface TripPlanningSectionProps {
   tripId: number;
-  trip?: TripLike; // <-- pásalo desde TripDetail para igualar desktop
+  trip?: TripLike;
   planItems: TripPlanItem[];
   onRefresh?: () => void;
-  onDeleteItem?: (id: number) => void; // opcional: si no lo pasas, hace console.log
+  onDeleteItem?: (id: number) => void;
 }
 
 const UI = {
   text: "#0B1220",
-  muted: "rgba(100,116,139,1)", // slate-500
-  muted2: "rgba(148,163,184,1)", // slate-400
-  border: "rgba(226,232,240,0.95)",
-  bgSoft: "rgba(248,250,252,1)", // slate-50
+  // un poco más oscuros para legibilidad
+  muted: "rgba(71,85,105,0.92)", // slate-600
+  muted2: "rgba(100,116,139,0.9)", // slate-500
+  border: "rgba(148,163,184,0.45)",
+  rail: "rgba(148,163,184,0.32)",
+  surface: "white",
 };
 
 type TypeMeta = {
@@ -89,151 +81,151 @@ const TYPE_META: Partial<Record<TripPlanItemType, TypeMeta>> = {
     icon: "airplane-outline",
     accent: "#2563EB",
     badgeBg: "rgba(37,99,235,0.10)",
-    badgeBorder: "rgba(37,99,235,0.22)",
+    badgeBorder: "rgba(37,99,235,0.25)",
   },
   accommodation: {
     icon: "bed-outline",
     accent: "#16A34A",
     badgeBg: "rgba(22,163,74,0.10)",
-    badgeBorder: "rgba(22,163,74,0.22)",
+    badgeBorder: "rgba(22,163,74,0.25)",
   },
   transport_destination: {
     icon: "bus-outline",
     accent: "#0EA5E9",
     badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.22)",
+    badgeBorder: "rgba(14,165,233,0.25)",
   },
   transport_local: {
     icon: "bus-outline",
     accent: "#0EA5E9",
     badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.22)",
+    badgeBorder: "rgba(14,165,233,0.25)",
   },
   transport: {
     icon: "bus-outline",
     accent: "#0EA5E9",
     badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.22)",
+    badgeBorder: "rgba(14,165,233,0.25)",
   },
   taxi: {
     icon: "car-sport-outline",
     accent: "#0EA5E9",
     badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.22)",
+    badgeBorder: "rgba(14,165,233,0.25)",
   },
   museum: {
     icon: "library-outline",
     accent: "#A855F7",
     badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.22)",
+    badgeBorder: "rgba(168,85,247,0.25)",
   },
   monument: {
     icon: "business-outline",
     accent: "#A855F7",
     badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.22)",
+    badgeBorder: "rgba(168,85,247,0.25)",
   },
   viewpoint: {
     icon: "eye-outline",
     accent: "#A855F7",
     badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.22)",
+    badgeBorder: "rgba(168,85,247,0.25)",
   },
   free_tour: {
     icon: "walk-outline",
     accent: "#A855F7",
     badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.22)",
+    badgeBorder: "rgba(168,85,247,0.25)",
   },
   guided_tour: {
     icon: "map-outline",
     accent: "#A855F7",
     badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.22)",
+    badgeBorder: "rgba(168,85,247,0.25)",
   },
   concert: {
     icon: "musical-notes-outline",
     accent: "#F97316",
     badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.22)",
+    badgeBorder: "rgba(249,115,22,0.25)",
   },
   sport: {
     icon: "football-outline",
     accent: "#F97316",
     badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.22)",
+    badgeBorder: "rgba(249,115,22,0.25)",
   },
   bar_party: {
     icon: "wine-outline",
     accent: "#F97316",
     badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.22)",
+    badgeBorder: "rgba(249,115,22,0.25)",
   },
   nightlife: {
     icon: "moon-outline",
     accent: "#F97316",
     badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.22)",
+    badgeBorder: "rgba(249,115,22,0.25)",
   },
   beach: {
     icon: "sunny-outline",
     accent: "#EAB308",
     badgeBg: "rgba(234,179,8,0.10)",
-    badgeBorder: "rgba(234,179,8,0.22)",
+    badgeBorder: "rgba(234,179,8,0.25)",
   },
   hike: {
     icon: "trail-sign-outline",
     accent: "#22C55E",
     badgeBg: "rgba(34,197,94,0.10)",
-    badgeBorder: "rgba(34,197,94,0.22)",
+    badgeBorder: "rgba(34,197,94,0.25)",
   },
   restaurant: {
     icon: "restaurant-outline",
     accent: "#EF4444",
     badgeBg: "rgba(239,68,68,0.10)",
-    badgeBorder: "rgba(239,68,68,0.22)",
+    badgeBorder: "rgba(239,68,68,0.25)",
   },
   cafe: {
     icon: "cafe-outline",
     accent: "#EF4444",
     badgeBg: "rgba(239,68,68,0.10)",
-    badgeBorder: "rgba(239,68,68,0.22)",
+    badgeBorder: "rgba(239,68,68,0.25)",
   },
   market: {
     icon: "storefront-outline",
     accent: "#EF4444",
     badgeBg: "rgba(239,68,68,0.10)",
-    badgeBorder: "rgba(239,68,68,0.22)",
+    badgeBorder: "rgba(239,68,68,0.25)",
   },
   shopping: {
     icon: "cart-outline",
     accent: "#64748B",
     badgeBg: "rgba(100,116,139,0.10)",
-    badgeBorder: "rgba(100,116,139,0.22)",
+    badgeBorder: "rgba(100,116,139,0.25)",
   },
   day_trip: {
     icon: "bus-outline",
     accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.08)",
-    badgeBorder: "rgba(148,163,184,0.22)",
+    badgeBg: "rgba(15,23,42,0.06)",
+    badgeBorder: "rgba(148,163,184,0.28)",
   },
   activity: {
     icon: "flash-outline",
     accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.08)",
-    badgeBorder: "rgba(148,163,184,0.22)",
+    badgeBg: "rgba(15,23,42,0.06)",
+    badgeBorder: "rgba(148,163,184,0.28)",
   },
   expense: {
     icon: "receipt-outline",
     accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.08)",
-    badgeBorder: "rgba(148,163,184,0.22)",
+    badgeBg: "rgba(15,23,42,0.06)",
+    badgeBorder: "rgba(148,163,184,0.28)",
   },
   other: {
     icon: "options-outline",
     accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.08)",
-    badgeBorder: "rgba(148,163,184,0.22)",
+    badgeBg: "rgba(15,23,42,0.06)",
+    badgeBorder: "rgba(148,163,184,0.28)",
   },
 };
 
@@ -299,150 +291,42 @@ const fmtTimeRangeSameDay = (start?: string | null, end?: string | null) => {
   return sameIsoDay(start, end) ? `${s} - ${e}` : s;
 };
 
-function KebabMenu({
-  onEdit,
-  onDelete,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<View>(null);
-  const [pos, setPos] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-
-  const openMenu = () => {
-    if (Platform.OS === "web") {
-      anchorRef.current?.measureInWindow?.((x, y, w, h) => {
-        setPos({ x, y, w, h });
-        setOpen(true);
-      });
-    } else {
-      setPos(null);
-      setOpen(true);
-    }
-  };
-
-  const close = () => setOpen(false);
-
-  return (
-    <View ref={anchorRef} collapsable={false}>
-      <Pressable
-        onPress={(e: any) => {
-          e?.stopPropagation?.();
-          openMenu();
-        }}
-        hitSlop={10}
-        style={({ pressed }) => ({
-          width: 28,
-          height: 28,
-          borderRadius: 10,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: pressed ? "rgba(15,23,42,0.06)" : "transparent",
-        })}
-      >
-        <Ionicons name="ellipsis-horizontal" size={18} color={UI.muted} />
-      </Pressable>
-
-      <Modal transparent visible={open} animationType="fade" onRequestClose={close}>
-        <Pressable onPress={close} style={{ flex: 1, backgroundColor: "rgba(2,6,23,0.08)" }}>
-          <View
-            pointerEvents="box-none"
-            style={{
-              position: "absolute",
-              ...(Platform.OS === "web" && pos
-                ? ({ left: pos.x + pos.w - 168, top: pos.y + pos.h + 8 } as any)
-                : ({ right: 16, bottom: 26 } as any)),
-              width: 168,
-              borderRadius: 16,
-              backgroundColor: "white",
-              borderWidth: 1,
-              borderColor: UI.border,
-              shadowColor: "#000",
-              shadowOpacity: 0.12,
-              shadowRadius: 18,
-              shadowOffset: { width: 0, height: 10 },
-              overflow: "hidden",
-            }}
-          >
-            <Pressable
-              onPress={() => {
-                close();
-                onEdit();
-              }}
-              style={({ pressed }) => ({
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                backgroundColor: pressed ? "rgba(241,245,249,1)" : "white",
-              })}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "800", color: UI.text }}>Editar</Text>
-            </Pressable>
-
-            <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.9)" }} />
-
-            <Pressable
-              onPress={() => {
-                close();
-                onDelete();
-              }}
-              style={({ pressed }) => ({
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                backgroundColor: pressed ? "rgba(254,242,242,1)" : "white",
-              })}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "900", color: "rgba(239,68,68,1)" }}>
-                Eliminar
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-    </View>
-  );
-}
-
-function EmptyDayCard({
-  onPress,
-}: {
-  onPress: () => void;
-}) {
+function EmptyDayCard({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        borderRadius: 18,
+        borderRadius: 14,
         borderWidth: 1,
         borderStyle: "dashed",
-        borderColor: "rgba(148,163,184,0.45)",
-        backgroundColor: "rgba(255,255,255,0.70)",
-        padding: 16,
+        borderColor: UI.border,
+        backgroundColor: UI.surface,
+        padding: 12,
         alignItems: "center",
         justifyContent: "center",
-        gap: 10,
+        gap: 8,
         opacity: pressed ? 0.95 : 1,
       })}
     >
       <View
         style={{
-          width: 36,
-          height: 36,
+          width: 30,
+          height: 30,
           borderRadius: 999,
           borderWidth: 1,
-          borderColor: "rgba(148,163,184,0.45)",
+          borderColor: UI.border,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "white",
+          backgroundColor: UI.surface,
         }}
       >
-        <Ionicons name="add" size={18} color={UI.muted} />
+        <Ionicons name="add" size={16} color={UI.muted2} />
       </View>
 
-      <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted, textAlign: "center" }}>
-        No hay actividades planificadas para este día todavía.
+      <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, textAlign: "center" }}>
+        No hay actividades para este día todavía.
       </Text>
-      <Text style={{ fontSize: 12, fontWeight: "900", color: colors.primary }}>
+      <Text style={{ fontSize: 11, fontWeight: "900", color: colors.primary }}>
         Explorar sugerencias
       </Text>
     </Pressable>
@@ -452,19 +336,15 @@ function EmptyDayCard({
 function ActivityCard({
   item,
   onPress,
-  onEdit,
-  onDelete,
 }: {
   item: TripPlanItem;
   onPress: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
 }) {
   const meta = TYPE_META[item.type] ?? TYPE_META.other ?? {
     icon: "options-outline",
     accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.08)",
-    badgeBorder: "rgba(148,163,184,0.22)",
+    badgeBg: "rgba(15,23,42,0.06)",
+    badgeBorder: UI.border,
   };
 
   const start = item.startAt ?? item.startTime ?? null;
@@ -475,27 +355,24 @@ function ActivityCard({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        backgroundColor: "white",
-        borderRadius: 18,
+        backgroundColor: UI.surface,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: UI.border,
-        padding: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
         flexDirection: "row",
         alignItems: "flex-start",
-        gap: 12,
+        gap: 10,
         opacity: pressed ? 0.97 : 1,
-        shadowColor: "#000",
-        shadowOpacity: 0.03,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
       })}
     >
       {/* Icon badge */}
       <View
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 14,
+          width: 34,
+          height: 34,
+          borderRadius: 12,
           backgroundColor: meta.badgeBg,
           borderWidth: 1,
           borderColor: meta.badgeBorder,
@@ -504,18 +381,18 @@ function ActivityCard({
           marginTop: 1,
         }}
       >
-        <Ionicons name={meta.icon} size={18} color={meta.accent} />
+        <Ionicons name={meta.icon} size={16} color={meta.accent} />
       </View>
 
       {/* Main */}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={2}>
+        <Text style={{ fontSize: 12, fontWeight: "900", color: UI.text }} numberOfLines={2}>
           {item.title}
         </Text>
 
         {!!(item.location || item.notes) && (
           <Text
-            style={{ marginTop: 4, fontSize: 12, fontWeight: "700", color: UI.muted }}
+            style={{ marginTop: 3, fontSize: 11, fontWeight: "700", color: UI.muted2 }}
             numberOfLines={2}
           >
             {item.location || ""}
@@ -525,18 +402,14 @@ function ActivityCard({
         )}
       </View>
 
-      {/* Right meta */}
-      <View style={{ alignItems: "flex-end", paddingLeft: 8, minWidth: 78 }}>
-        <View style={{ marginTop: -6, marginRight: -6 }}>
-          <KebabMenu onEdit={onEdit} onDelete={onDelete} />
-        </View>
-
-        {!!time && (
-          <Text style={{ marginTop: 6, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>
+      {/* Right meta (hora) */}
+      {!!time && (
+        <View style={{ alignItems: "flex-end", paddingLeft: 6, minWidth: 64 }}>
+          <Text style={{ marginTop: 1, fontSize: 11, fontWeight: "900", color: UI.muted }}>
             {time}
           </Text>
-        )}
-      </View>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -545,11 +418,10 @@ export default function TripPlanningSectionRedesign({
   tripId,
   trip,
   planItems,
-  onDeleteItem,
 }: TripPlanningSectionProps) {
   const navigation = useNavigation<any>();
   const { height } = useWindowDimensions();
-  const LIST_MAX_H = Math.max(280, Math.round(height * 0.62));
+  const LIST_MAX_H = Math.max(220, Math.round(height * 0.56));
 
   const handleCreate = (dateISO?: string) => {
     navigation.navigate("TripPlanForm", { tripId, presetDay: dateISO || "" });
@@ -559,19 +431,17 @@ export default function TripPlanningSectionRedesign({
     navigation.navigate("TripPlanForm", { tripId, planItem: item });
   };
 
-  // 1) Filtrado: como desktop, excluimos accommodation; dejamos items sin fecha para "Sin fecha"
+  // 1) Filtrado: excluimos accommodation; dejamos items sin fecha para "Sin fecha"
   const planningItems = useMemo(
     () => planItems.filter((i) => i.type !== "accommodation"),
     [planItems]
   );
 
-  // 2) Days: preferimos trip.startDate/endDate (como desktop). Si no hay, inferimos del planning.
+  // 2) Days: preferimos trip.startDate/endDate. Si no hay, inferimos del planning.
   const days = useMemo(() => {
     const byTrip = trip?.startDate && trip?.endDate ? daysBetween(trip.startDate, trip.endDate) : [];
-
     if (byTrip.length) return byTrip;
 
-    // fallback: inferimos min/max en base a items con day/date válida
     const dated = planningItems
       .map((i) => isoDay(i.day ?? i.date ?? null))
       .filter((d): d is string => !!d);
@@ -581,14 +451,13 @@ export default function TripPlanningSectionRedesign({
     return daysBetween(sorted[0], sorted[sorted.length - 1]);
   }, [trip?.startDate, trip?.endDate, planningItems]);
 
-  // 3) Agrupar por día (YYYY-MM-DD) + NO_DATE
+  // 3) Agrupar por día + NO_DATE
   const byDate = useMemo(() => {
     const map: Record<string, TripPlanItem[]> = {};
     for (const it of planningItems) {
       const k = isoDay(it.day ?? it.date ?? null) ?? NO_DATE;
       (map[k] ||= []).push(it);
     }
-    // Orden por startTime/startAt (si no hay, al final) y título
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
         const as = fmtTime(a.startAt ?? a.startTime ?? null) || "99:99";
@@ -600,7 +469,6 @@ export default function TripPlanningSectionRedesign({
     return map;
   }, [planningItems]);
 
-  // 4) Días visibles: days + (Sin fecha si hay items)
   const hasNoDate = (byDate[NO_DATE]?.length ?? 0) > 0;
   const dayKeys = useMemo(() => {
     const base = days.length ? days : [];
@@ -608,7 +476,6 @@ export default function TripPlanningSectionRedesign({
     return hasNoDate ? [...base, NO_DATE] : base;
   }, [days, hasNoDate]);
 
-  // 5) Selección
   const [selectedDay, setSelectedDay] = useState<string>(dayKeys[0] ?? NO_DATE);
 
   useEffect(() => {
@@ -624,17 +491,17 @@ export default function TripPlanningSectionRedesign({
   const isNoDate = selectedDay === NO_DATE;
   const dayNumber = isNoDate ? null : Math.max(1, dayKeys.findIndex((d) => d === selectedDay) + 1);
 
-  // Empty global
   const hasAny = planningItems.length > 0;
+
   if (!hasAny) {
     return (
       <View style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28 }}
+          contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 22 }}
         >
-          <View style={{ marginTop: 36, alignItems: "center", paddingHorizontal: 18 }}>
-            <Text style={{ textAlign: "center", color: UI.muted2, fontSize: 12, fontWeight: "700", marginBottom: 12 }}>
+          <View style={{ marginTop: 28, alignItems: "center", paddingHorizontal: 14 }}>
+            <Text style={{ textAlign: "center", color: UI.muted2, fontSize: 11, fontWeight: "700", marginBottom: 10 }}>
               Aún no tienes nada en el planning de este viaje.
             </Text>
 
@@ -644,17 +511,17 @@ export default function TripPlanningSectionRedesign({
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                paddingVertical: 10,
-                paddingHorizontal: 14,
-                borderRadius: 18,
+                paddingVertical: 9,
+                paddingHorizontal: 12,
+                borderRadius: 14,
                 backgroundColor: "rgba(37,99,235,0.10)",
                 borderWidth: 1,
                 borderColor: "rgba(37,99,235,0.22)",
                 opacity: pressed ? 0.95 : 1,
               })}
             >
-              <Ionicons name="add-outline" size={18} color={colors.primary} />
-              <Text style={{ marginLeft: 8, fontSize: 13, fontWeight: "900", color: "rgba(30,64,175,1)" }}>
+              <Ionicons name="add-outline" size={16} color={colors.primary} />
+              <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: "rgba(30,64,175,1)" }}>
                 Añadir primer plan
               </Text>
             </Pressable>
@@ -666,35 +533,36 @@ export default function TripPlanningSectionRedesign({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Day selector (chips tipo card) */}
-      <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6 }}>
+      {/* Day selector */}
+      <View style={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: 4 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 6, gap: 10 }}
+          contentContainerStyle={{ paddingVertical: 4, gap: 8 }}
         >
           {dayKeys.map((d, idx) => {
             const active = d === selectedDay;
             const noDate = d === NO_DATE;
+
             return (
               <Pressable
                 key={d}
                 onPress={() => setSelectedDay(d)}
                 style={({ pressed }) => ({
-                  height: 46,
-                  minWidth: 118,
-                  paddingHorizontal: 12,
-                  borderRadius: 16,
-                  backgroundColor: active ? "rgba(37,99,235,0.10)" : "white",
+                  height: 40,
+                  minWidth: 104,
+                  paddingHorizontal: 10,
+                  borderRadius: 14,
+                  backgroundColor: active ? "rgba(37,99,235,0.12)" : UI.surface,
                   borderWidth: 1,
-                  borderColor: active ? "rgba(37,99,235,0.25)" : UI.border,
+                  borderColor: active ? "rgba(37,99,235,0.32)" : UI.border,
                   justifyContent: "center",
                   opacity: pressed ? 0.96 : 1,
                 })}
               >
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: "900",
                     color: active ? colors.primary : UI.text,
                   }}
@@ -702,7 +570,11 @@ export default function TripPlanningSectionRedesign({
                 >
                   {noDate ? "Sin fecha" : `Día ${idx + 1}`}
                 </Text>
-                <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: UI.muted }} numberOfLines={1}>
+
+                <Text
+                  style={{ marginTop: 1, fontSize: 10, fontWeight: "700", color: active ? "rgba(37,99,235,0.85)" : UI.muted2 }}
+                  numberOfLines={1}
+                >
                   {noDate ? "Items sin día" : fmtDayTitle(d)}
                 </Text>
               </Pressable>
@@ -714,25 +586,25 @@ export default function TripPlanningSectionRedesign({
       {/* Timeline + content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 22 }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 18 }}
       >
         {/* Header */}
-        <View style={{ marginTop: 6, marginBottom: 12, flexDirection: "row", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-          <Text style={{ fontSize: 18, fontWeight: "900", color: UI.text }}>
+        <View style={{ marginTop: 4, marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
             {isNoDate ? "Día: Sin fecha" : `Día ${dayNumber}:`}
           </Text>
           {!isNoDate && (
-            <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2 }}>
               {fmtDayTitle(selectedDay)}
             </Text>
           )}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-          {/* timeline rail */}
-          <View style={{ width: 20, alignItems: "center" }}>
-            <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: UI.text, marginTop: 8 }} />
-            <View style={{ width: 2, backgroundColor: UI.border, flex: 1, minHeight: 140, marginTop: 6 }} />
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+          {/* rail */}
+          <View style={{ width: 16, alignItems: "center" }}>
+            <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: UI.text, marginTop: 6 }} />
+            <View style={{ width: 2, backgroundColor: UI.rail, flex: 1, minHeight: 110, marginTop: 6 }} />
           </View>
 
           {/* list */}
@@ -740,37 +612,31 @@ export default function TripPlanningSectionRedesign({
             {dayItems.length === 0 ? (
               <EmptyDayCard onPress={() => handleCreate(isNoDate ? "" : selectedDay)} />
             ) : (
-              <View style={{ maxHeight: LIST_MAX_H, gap: 12 }}>
+              <View style={{ maxHeight: LIST_MAX_H, gap: 10 }}>
                 {dayItems.map((it) => (
-                  <ActivityCard
-                    key={it.id}
-                    item={it}
-                    onPress={() => handleEdit(it)}
-                    onEdit={() => handleEdit(it)}
-                    onDelete={() => (onDeleteItem ? onDeleteItem(it.id) : console.log("delete", it.id))}
-                  />
+                  <ActivityCard key={it.id} item={it} onPress={() => handleEdit(it)} />
                 ))}
               </View>
             )}
 
             {/* Bottom add button */}
-            <View style={{ marginTop: 16 }}>
+            <View style={{ marginTop: 12 }}>
               <Pressable
                 onPress={() => handleCreate(isNoDate ? "" : selectedDay)}
                 style={({ pressed }) => ({
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
-                  paddingVertical: 11,
-                  borderRadius: 18,
+                  paddingVertical: 9,
+                  borderRadius: 14,
                   backgroundColor: "rgba(248,250,252,1)",
                   borderWidth: 1,
                   borderColor: UI.border,
                   opacity: pressed ? 0.96 : 1,
                 })}
               >
-                <Ionicons name="add-outline" size={18} color={UI.muted} />
-                <Text style={{ marginLeft: 8, fontSize: 13, fontWeight: "900", color: UI.muted }}>
+                <Ionicons name="add-outline" size={16} color={UI.muted2} />
+                <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>
                   Añadir al planning
                 </Text>
               </Pressable>

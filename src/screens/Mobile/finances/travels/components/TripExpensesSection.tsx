@@ -81,7 +81,7 @@ const UI = {
   text: "#0B1220",
   muted: "#64748B",
   muted2: "#94A3B8",
-  border: "rgba(148,163,184,0.28)",
+  border: "rgba(148,163,184,0.26)",
   card: "#FFFFFF",
 };
 
@@ -189,7 +189,7 @@ function iconForPlanItem(item: TripPlanItem, fallback: keyof typeof Ionicons.gly
 function ProgressBar({ pct, accent }: { pct: number; accent: string }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
-    <View style={{ height: 6, borderRadius: 999, backgroundColor: "rgba(15,23,42,0.08)", overflow: "hidden" }}>
+    <View style={{ height: 5, borderRadius: 999, backgroundColor: "rgba(15,23,42,0.08)", overflow: "hidden" }}>
       <View style={{ height: "100%", width: `${clamped}%`, backgroundColor: accent }} />
     </View>
   );
@@ -214,9 +214,9 @@ function PaymentChip({
         onToggle();
       }}
       style={({ pressed }) => ({
-        marginTop: 6,
-        paddingHorizontal: 10,
-        height: 22,
+        marginTop: 5,
+        paddingHorizontal: 9,
+        height: 20,
         borderRadius: 999,
         borderWidth: 1,
         borderColor: isPaid ? "rgba(22,163,74,0.35)" : "rgba(220,38,38,0.35)",
@@ -227,15 +227,15 @@ function PaymentChip({
         opacity: disabled ? 0.6 : pressed ? 0.92 : 1,
       })}
     >
-      <Ionicons name={isPaid ? "checkmark-circle-outline" : "time-outline"} size={14} color={isPaid ? "#16A34A" : "#DC2626"} />
-      <Text style={{ fontSize: 10, fontWeight: "900", color: isPaid ? "#16A34A" : "#DC2626" }}>
+      <Ionicons name={isPaid ? "checkmark-circle-outline" : "time-outline"} size={13} color={isPaid ? "#16A34A" : "#DC2626"} />
+      <Text style={{ fontSize: 9, fontWeight: "900", color: isPaid ? "#16A34A" : "#DC2626" }}>
         {isPaid ? "Pagado" : "Pendiente"}
       </Text>
     </Pressable>
   );
 }
 
-/** ====== KPI card (horizontal, con barra) ====== */
+/** ====== KPI card (horizontal, compacta, con barra) ====== */
 function CategoryKpiCard({
   def,
   spent,
@@ -255,26 +255,26 @@ function CategoryKpiCard({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        width: 170,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 18,
+        width: 160,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        borderRadius: 16,
         backgroundColor: UI.card,
         borderWidth: active ? 1.4 : 1,
         borderColor: active ? colors.primary : UI.border,
         shadowColor: "#0B1220",
-        shadowOpacity: 0.06,
+        shadowOpacity: 0.05,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 6 },
         opacity: pressed ? 0.95 : 1,
       })}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
         <View
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 14,
+            width: 30,
+            height: 30,
+            borderRadius: 12,
             backgroundColor: def.badgeBg,
             alignItems: "center",
             justifyContent: "center",
@@ -282,24 +282,24 @@ function CategoryKpiCard({
             borderColor: "rgba(148,163,184,0.22)",
           }}
         >
-          <Ionicons name={def.icon} size={16} color={def.accent} />
+          <Ionicons name={def.icon} size={15} color={def.accent} />
         </View>
 
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontSize: 12, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+          <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }} numberOfLines={1}>
             {def.label}
           </Text>
-          <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
-            {totalSpent > 0 ? `${pct.toFixed(0)}% del total` : "—"}
+          <Text style={{ marginTop: 2, fontSize: 10, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
+            {totalSpent > 0 ? `${pct.toFixed(0)}%` : "—"}
           </Text>
         </View>
       </View>
 
-      <Text style={{ marginTop: 10, fontSize: 14, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+      <Text style={{ marginTop: 9, fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
         {formatEuro(spent)}
       </Text>
 
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: 7 }}>
         <ProgressBar pct={pct} accent={def.accent} />
       </View>
     </Pressable>
@@ -324,6 +324,8 @@ function ExpenseRow({
   const dateBase = item.startAt || item.day || item.date || item.startTime || null;
   const dateLabel = dateBase ? formatDateShort(dateBase) : "";
   const timeLabel = item.startAt ? formatTimeShort(item.startAt) : item.startTime ? formatTimeShort(item.startTime) : "";
+
+  const meta = [dateLabel, timeLabel].filter(Boolean).join(" · ");
 
   const itemStatus = item.paymentStatus ?? PaymentStatus.pending;
   const [savingPay, setSavingPay] = useState(false);
@@ -357,44 +359,44 @@ function ExpenseRow({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 16,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        borderRadius: 14,
         backgroundColor: pressed ? "rgba(148,163,184,0.10)" : "transparent",
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        gap: 10,
       })}
     >
       <View
         style={{
-          width: 42,
-          height: 42,
-          borderRadius: 14,
+          width: 36,
+          height: 36,
+          borderRadius: 13,
           backgroundColor: def.badgeBg,
           alignItems: "center",
           justifyContent: "center",
           borderWidth: 1,
-          borderColor: "rgba(148,163,184,0.22)",
+          borderColor: "rgba(148,163,184,0.20)",
         }}
       >
-        <Ionicons name={rowIcon} size={18} color={def.accent} />
+        <Ionicons name={rowIcon} size={16} color={def.accent} />
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
           {item.title || "Gasto"}
         </Text>
 
-        <Text style={{ marginTop: 2, fontSize: 12, fontWeight: "800", color: UI.muted }} numberOfLines={1}>
-          {def.label}
-          {dateLabel ? ` • ${dateLabel}` : ""}
-          {timeLabel ? ` • ${timeLabel}` : ""}
-        </Text>
+        {!!meta ? (
+          <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
       </View>
 
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
+        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
         {onSetPaymentStatus ? (
           <PaymentChip status={itemStatus} disabled={!canToggle || savingPay} onToggle={togglePayment} />
         ) : null}
@@ -406,21 +408,19 @@ function ExpenseRow({
 export default function TripExpensesSection({
   tripId,
   planItems,
-  budget, // no se usa en esta versión (lo dejamos por compatibilidad)
+  budget, // no se usa en esta versión (compatibilidad)
   onPressItem,
   onSetPaymentStatus,
 }: Props) {
   const navigation = useNavigation<any>();
-
   const [cat, setCat] = useState<BudgetCategoryType | null>(null);
 
   const entries = useMemo(() => {
     const withCost = (planItems || []).filter((i) => safeNumber(i.cost) > 0);
-    // más reciente primero
     return [...withCost].sort((a, b) => {
       const da = (a.startAt || a.day || a.date || a.startTime || "") as any;
       const db = (b.startAt || b.day || b.date || b.startTime || "") as any;
-      return String(db).localeCompare(String(da));
+      return String(db).localeCompare(String(da)); // DESC
     });
   }, [planItems]);
 
@@ -457,7 +457,7 @@ export default function TripExpensesSection({
   if (entries.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-6">
-        <Ionicons name="receipt-outline" size={24} color="#94A3B8" />
+        <Ionicons name="receipt-outline" size={22} color="#94A3B8" />
         <Text className="text-center text-gray-400 mt-3 text-sm">
           Aún no hay costes asignados en el planning de este viaje.
         </Text>
@@ -467,17 +467,14 @@ export default function TripExpensesSection({
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24, paddingTop: 12 }}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22, paddingTop: 10 }}>
         {/* KPI horizontal (solo cards con barra) */}
         {visibleKpis.length > 0 ? (
-          <View style={{ marginBottom: 12 }}>
+          <View style={{ marginBottom: 10 }}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 14, gap: 12, paddingVertical: 6 }}
+              contentContainerStyle={{ paddingHorizontal: 14, gap: 10, paddingVertical: 6 }}
             >
               {visibleKpis.map((def) => (
                 <CategoryKpiCard
@@ -498,10 +495,10 @@ export default function TripExpensesSection({
           style={{
             marginHorizontal: 14,
             backgroundColor: UI.card,
-            borderRadius: 20,
+            borderRadius: 18,
             borderWidth: 1,
             borderColor: UI.border,
-            paddingVertical: 8,
+            paddingVertical: 6,
           }}
         >
           {filtered.map((it, idx) => (
@@ -515,7 +512,7 @@ export default function TripExpensesSection({
                 }}
               />
               {idx < filtered.length - 1 ? (
-                <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 62 }} />
+                <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 56 }} />
               ) : null}
             </View>
           ))}
