@@ -26,9 +26,9 @@ interface TripPlanItem {
   id: number;
   type: TripPlanItemType;
   title: string;
-  date?: string | null;
   location?: string | null;
   notes?: string | null;
+  startAt?: string | null; // ISO date string
 }
 
 interface Props {
@@ -73,8 +73,8 @@ const formatShortDate = (iso?: string | null) => {
 
 const sortByDate = (items: TripPlanItem[]) => {
   return [...items].sort((a, b) => {
-    const da = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
-    const db = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
+    const da = a.startAt ? new Date(a.startAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const db = b.startAt ? new Date(b.startAt).getTime() : Number.MAX_SAFE_INTEGER;
     if (da !== db) return da - db;
     return a.title.localeCompare(b.title);
   });
@@ -92,11 +92,11 @@ const splitUpcomingPast = (items: TripPlanItem[]) => {
   const past: TripPlanItem[] = [];
 
   items.forEach((item) => {
-    if (!item.date) {
+    if (!item.startAt) {
       upcoming.push(item);
       return;
     }
-    const t = new Date(item.date).getTime();
+    const t = new Date(item.startAt).getTime();
     if (isNaN(t) || t >= startOfToday) {
       upcoming.push(item);
     } else {
@@ -226,7 +226,7 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
               Fecha
             </Text>
             <Text className="text-[11px] font-medium text-gray-700 text-right">
-              {formatDate(item.date || null)}
+              {formatDate(item.startAt || null)}
             </Text>
           </View>
         </View>

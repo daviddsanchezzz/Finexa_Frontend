@@ -24,9 +24,6 @@ import TripExpensesSection from "./components/TripExpensesSection";
 import { TripPlanItemType } from "../../../../types/enums/travel";
 
 type TripStatus = "upcoming" | "ongoing" | "past";
-
-// Alineado con el enum de Prisma + "activity" legacy
-
 type TxType = "income" | "expense" | "transfer";
 
 interface Tx {
@@ -72,18 +69,18 @@ export interface TripPlanItem {
 interface TripFromApi {
   id: number;
   name: string;
-  destination?: string | null;
+  destination?: string | null; // ejemplo: "IT"
   startDate: string;
   endDate: string;
   emoji?: string | null;
   color?: string | null;
-  companions?: string[];
+  companions?: string[]; // (ya no se muestra)
   transactions?: Tx[];
   planItems?: TripPlanItem[];
   cost: number | null;
 }
 
-type TripTab = "expenses" | "planning" | "info";
+type TripTab = "summary" | "expenses" | "planning" | "info";
 
 const getTripStatus = (trip: { startDate: string; endDate: string }): TripStatus => {
   const today = new Date();
@@ -129,12 +126,33 @@ const formatDateRange = (start: string, end: string) => {
   return `${startStr} - ${endStr}`;
 };
 
+// ===== helpers país (IT -> 🇮🇹 + Italia) =====
+function cca2ToFlagEmoji(code?: string | null) {
+  const c = (code || "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "🏳️";
+  const A = 0x1f1e6;
+  const chars = [...c].map((ch) => String.fromCodePoint(A + (ch.charCodeAt(0) - 65)));
+  return chars.join("");
+}
+
+function countryNameEs(code?: string | null) {
+  const c = (code || "").trim().toUpperCase();
+  if (!c) return "";
+  try {
+    // Intl.DisplayNames suele funcionar en RN moderno; si no, fallback al propio código
+    const dn = new Intl.DisplayNames(["es-ES"], { type: "region" });
+    return dn.of(c) || c;
+  } catch {
+    return c;
+  }
+}
+
 export default function TripDetailScreen({ route, navigation }: any) {
   const { tripId } = route.params || {};
 
   const [trip, setTrip] = useState<TripFromApi | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TripTab>("expenses");
+  const [tab, setTab] = useState<TripTab>("summary");
 
   // Exportar PDF
   const [exportModalVisible, setExportModalVisible] = useState(false);
@@ -187,14 +205,11 @@ export default function TripDetailScreen({ route, navigation }: any) {
     return diffDays > 0 ? diffDays : 0;
   }, [trip]);
 
-  const companionsLabel = useMemo(() => {
-    if (!trip || !trip.companions || trip.companions.length === 0) {
-      return "Sin compañeros añadidos";
-    }
-    return trip.companions.join(", ");
-  }, [trip]);
-
   const planItems: TripPlanItem[] = trip?.planItems || [];
+
+  const countryCode = (trip?.destination || "").trim().toUpperCase() || null;
+  const countryLabel = countryCode ? countryNameEs(countryCode) : "Sin destino";
+  const countryFlag = cca2ToFlagEmoji(countryCode);
 
   // =========================
   // EXPORTAR PDF
@@ -213,10 +228,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
       const { pdfUrl, base64, fileName } = res.data || {};
 
       if (pdfUrl) {
-        // Backend devuelve URL pública del PDF
         await Linking.openURL(pdfUrl);
       } else if (base64) {
-        // Guardar / abrir PDF a partir de base64 sin depender de Expo FS/Sharing
         const safeFileName =
           fileName && fileName.trim().length > 0
             ? fileName.replace(/[^a-zA-Z0-9_\-\.]/g, "_")
@@ -234,7 +247,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
               const blob = new Blob([byteArray], { type: "application/pdf" });
               const url = URL.createObjectURL(blob);
 
-              // Abrir en nueva pestaña
               window.open(url, "_blank");
               setTimeout(() => URL.revokeObjectURL(url), 60_000);
             } else {
@@ -242,13 +254,9 @@ export default function TripDetailScreen({ route, navigation }: any) {
             }
           } catch (e) {
             console.error("❌ Error al abrir PDF en web:", e);
-            Alert.alert(
-              "Error al abrir PDF",
-              "No se ha podido abrir el archivo en el navegador."
-            );
+            Alert.alert("Error al abrir PDF", "No se ha podido abrir el archivo en el navegador.");
           }
         } else {
-          // iOS / Android: abrir como data URL
           try {
             const dataUrl = `data:application/pdf;base64,${base64}`;
             const supported = await Linking.canOpenURL(dataUrl);
@@ -263,10 +271,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
             }
           } catch (e) {
             console.error("❌ Error al abrir PDF en nativo:", e);
-            Alert.alert(
-              "Error al abrir PDF",
-              "No se ha podido abrir el archivo en el dispositivo."
-            );
+            Alert.alert("Error al abrir PDF", "No se ha podido abrir el archivo en el dispositivo.");
           }
         }
       } else {
@@ -295,15 +300,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="px-5 pt-3 pb-2 flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ paddingRight: 12, paddingVertical: 4 }}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 12, paddingVertical: 4 }}>
             <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-900">
-            Detalle de viaje
-          </Text>
+          <Text className="text-lg font-semibold text-gray-900">Detalle de viaje</Text>
         </View>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.primary} />
@@ -316,21 +316,14 @@ export default function TripDetailScreen({ route, navigation }: any) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="px-5 pt-3 pb-2 flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ paddingRight: 12, paddingVertical: 4 }}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 12, paddingVertical: 4 }}>
             <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-900">
-            Detalle de viaje
-          </Text>
+          <Text className="text-lg font-semibold text-gray-900">Detalle de viaje</Text>
         </View>
 
         <View className="flex-1 justify-center items-center px-5">
-          <Text className="text-gray-400 text-center">
-            No se ha encontrado la información del viaje.
-          </Text>
+          <Text className="text-gray-400 text-center">No se ha encontrado la información del viaje.</Text>
         </View>
       </SafeAreaView>
     );
@@ -345,31 +338,19 @@ export default function TripDetailScreen({ route, navigation }: any) {
       {/* HEADER */}
       <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ paddingRight: 10, paddingVertical: 4 }}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 10, paddingVertical: 4 }}>
             <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
 
-          <Text className="text-lg font-semibold text-gray-900">
-            Detalle de viaje
-          </Text>
+          <Text className="text-lg font-semibold text-gray-900">Detalle de viaje</Text>
         </View>
 
         <View className="flex-row items-center">
           <TouchableOpacity
-            onPress={() =>
-              navigation.navigate("TripForm", {
-                editTrip: trip,
-              })
-            }
+            onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
             style={{ paddingHorizontal: 8, paddingVertical: 4 }}
           >
-            <Text
-              className="text-[14px] font-semibold"
-              style={{ color: colors.primary }}
-            >
+            <Text className="text-[14px] font-semibold" style={{ color: colors.primary }}>
               Editar
             </Text>
           </TouchableOpacity>
@@ -378,10 +359,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
             onPress={() => setExportModalVisible(true)}
             style={{ paddingHorizontal: 8, paddingVertical: 4 }}
           >
-            <Text
-              className="text-[14px] font-semibold"
-              style={{ color: colors.primary }}
-            >
+            <Text className="text-[14px] font-semibold" style={{ color: colors.primary }}>
               Exportar
             </Text>
           </TouchableOpacity>
@@ -404,7 +382,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
             elevation: 4,
           }}
         >
-          <View className="flex-row justify-between items-start mb-3">
+          {/* TOP ROW: flag + country + name | status */}
+          <View className="flex-row justify-between items-start mb-10">
             <View className="flex-row items-center flex-1 pr-3">
               <View
                 style={{
@@ -416,18 +395,15 @@ export default function TripDetailScreen({ route, navigation }: any) {
                   backgroundColor: "rgba(255,255,255,0.16)",
                 }}
               >
-                <Text style={{ fontSize: 26 }}>{trip.emoji || "✈️"}</Text>
+                <Text style={{ fontSize: 26 }}>{countryFlag}</Text>
               </View>
 
               <View style={{ marginLeft: 12, flex: 1 }}>
                 <Text
-                  style={{
-                    fontSize: 12,
-                    color: "rgba(255,255,255,0.75)",
-                  }}
+                  style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}
                   numberOfLines={1}
                 >
-                  {trip.destination || "Sin destino especificado"}
+                  {countryLabel}
                 </Text>
                 <Text
                   style={{
@@ -452,98 +428,42 @@ export default function TripDetailScreen({ route, navigation }: any) {
                   backgroundColor: statusStyle.bg,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: "600",
-                    color: statusStyle.color,
-                  }}
-                >
+                <Text style={{ fontSize: 11, fontWeight: "600", color: statusStyle.color }}>
                   {statusStyle.label}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* FECHAS + DÍAS */}
-          <View style={{ marginBottom: 10 }}>
-            <Text
-              style={{
-                fontSize: 12,
-                color: "rgba(255,255,255,0.75)",
-                marginBottom: 3,
-              }}
-            >
-              Fechas del viaje
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: "white",
-              }}
-            >
-              {formatDateRange(trip.startDate, trip.endDate)}{" "}
-              {days > 0 && (
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: "rgba(255,255,255,0.8)",
-                    fontWeight: "400",
-                  }}
-                >
-                  · {days} día{days === 1 ? "" : "s"}
-                </Text>
-              )}
-            </Text>
-          </View>
-
-          {/* GASTO / COMPIS */}
-          <View style={{ marginTop: 4 }}>
-            <View className="flex-row justify-between mb-2">
-              <View>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: "rgba(255,255,255,0.8)",
-                  }}
-                >
-                  Total gastado
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "white",
-                    marginTop: 2,
-                  }}
-                >
-                  {formatEuro(trip.cost || 0)}
-                </Text>
-              </View>
-
-              {trip.companions && trip.companions.length > 0 && (
-                <View style={{ alignItems: "flex-end", maxWidth: 140 }}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: "rgba(255,255,255,0.8)",
-                    }}
-                  >
-                    Compañeros
+          {/* FECHAS + TOTAL (total arriba derecha debajo del status) */}
+          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.75)",
+                  marginBottom: 3,
+                }}
+              >
+                Fechas del viaje
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "white" }}>
+                {formatDateRange(trip.startDate, trip.endDate)}{" "}
+                {days > 0 && (
+                  <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", fontWeight: "400" }}>
+                    · {days} día{days === 1 ? "" : "s"}
                   </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: "white",
-                      marginTop: 2,
-                    }}
-                    numberOfLines={2}
-                  >
-                    {companionsLabel}
-                  </Text>
-                </View>
-              )}
+                )}
+              </Text>
+            </View>
+
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.80)" }}>
+                Total gastado
+              </Text>
+              <Text style={{ fontSize: 16, fontWeight: "800", color: "white", marginTop: 2 }}>
+                {formatEuro(trip.cost || 0)}
+              </Text>
             </View>
           </View>
         </View>
@@ -552,8 +472,9 @@ export default function TripDetailScreen({ route, navigation }: any) {
         <View className="mb-3">
           <View className="flex-row rounded-2xl bg-slate-50 p-1">
             {[
+              { key: "summary" as TripTab, label: "Resumen" },
               { key: "expenses" as TripTab, label: "Gastos" },
-              { key: "planning" as TripTab, label: "Planning" },
+              { key: "planning" as TripTab, label: "Planificación" },
               { key: "info" as TripTab, label: "Logística" },
             ].map((opt) => {
               const active = tab === opt.key;
@@ -578,6 +499,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                       fontWeight: "600",
                       color: active ? colors.primary : "#6B7280",
                     }}
+                    numberOfLines={1}
                   >
                     {opt.label}
                   </Text>
@@ -589,28 +511,52 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
         {/* CONTENIDO POR TAB */}
         <View style={{ flex: 1 }}>
+          {tab === "summary" && (
+            <View style={{ flex: 1, backgroundColor: "transparent" }}>
+              {/* Resumen (placeholder limpio, sin inventar datos) */}
+              <View
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: 18,
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: "rgba(148,163,184,0.22)",
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#0B1220" }}>
+                  Resumen del viaje
+                </Text>
+
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ color: "#64748B", fontWeight: "600" }}>Destino</Text>
+                    <Text style={{ color: "#0B1220", fontWeight: "700" }}>{countryLabel}</Text>
+                  </View>
+
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ color: "#64748B", fontWeight: "600" }}>Días</Text>
+                    <Text style={{ color: "#0B1220", fontWeight: "700" }}>{days}</Text>
+                  </View>
+
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ color: "#64748B", fontWeight: "600" }}>Total gastado</Text>
+                    <Text style={{ color: "#0B1220", fontWeight: "800" }}>{formatEuro(trip.cost || 0)}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+
           {tab === "expenses" && (
-            <TripExpensesSection
-              tripId={trip.id}
-              planItems={planItems}
-              budget={null}
-            />
+            <TripExpensesSection tripId={trip.id} planItems={planItems} budget={null} />
           )}
 
           {tab === "planning" && (
-            <TripPlanningSection
-              tripId={trip.id}
-              planItems={planItems}
-              onRefresh={fetchTrip}
-            />
+            <TripPlanningSection tripId={trip.id} planItems={planItems} onRefresh={fetchTrip} />
           )}
 
           {tab === "info" && (
-            <TripLogisticsSection
-              tripId={trip.id}
-              planItems={planItems}
-              onRefresh={fetchTrip}
-            />
+            <TripLogisticsSection tripId={trip.id} planItems={planItems} onRefresh={fetchTrip} />
           )}
         </View>
       </View>
@@ -622,25 +568,17 @@ export default function TripDetailScreen({ route, navigation }: any) {
         animationType="fade"
         onRequestClose={() => !exporting && setExportModalVisible(false)}
       >
-        <View
-          className="flex-1 justify-center items-center px-6"
-          style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
-        >
+        <View className="flex-1 justify-center items-center px-6" style={{ backgroundColor: "rgba(0,0,0,0.35)" }}>
           <View className="w-full rounded-2xl bg-white p-5">
-            <Text className="text-base font-semibold text-gray-900 mb-1">
-              Exportar viaje
-            </Text>
+            <Text className="text-base font-semibold text-gray-900 mb-1">Exportar viaje</Text>
             <Text className="text-xs text-gray-500 mb-4">
-              Se generará un PDF con toda la información del viaje. Puedes
-              decidir si incluir también el detalle de los gastos.
+              Se generará un PDF con toda la información del viaje. Puedes decidir si incluir también el detalle de los
+              gastos.
             </Text>
 
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-sm text-gray-800">Incluir gastos</Text>
-              <Switch
-                value={includeExpenses}
-                onValueChange={setIncludeExpenses}
-              />
+              <Switch value={includeExpenses} onValueChange={setIncludeExpenses} />
             </View>
 
             <View className="flex-row justify-end">
@@ -663,9 +601,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 }}
                 disabled={exporting}
               >
-                <Text className="text-sm font-semibold text-white">
-                  {exporting ? "Generando..." : "Exportar PDF"}
-                </Text>
+                <Text className="text-sm font-semibold text-white">{exporting ? "Generando..." : "Exportar PDF"}</Text>
               </TouchableOpacity>
             </View>
           </View>

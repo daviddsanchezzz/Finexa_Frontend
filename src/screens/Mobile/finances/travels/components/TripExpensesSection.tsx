@@ -255,7 +255,7 @@ function CategoryKpiCard({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        width: 160,
+        width: 178, // 👈 un poco más ancho para que quepa “Transporte principal”
         paddingVertical: 10,
         paddingHorizontal: 10,
         borderRadius: 16,
@@ -286,9 +286,11 @@ function CategoryKpiCard({
         </View>
 
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+          {/* 👇 SIN truncar: 2 líneas máximo */}
+          <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }} numberOfLines={2}>
             {def.label}
           </Text>
+
           <Text style={{ marginTop: 2, fontSize: 10, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
             {totalSpent > 0 ? `${pct.toFixed(0)}%` : "—"}
           </Text>
@@ -415,14 +417,43 @@ export default function TripExpensesSection({
   const navigation = useNavigation<any>();
   const [cat, setCat] = useState<BudgetCategoryType | null>(null);
 
-  const entries = useMemo(() => {
-    const withCost = (planItems || []).filter((i) => safeNumber(i.cost) > 0);
-    return [...withCost].sort((a, b) => {
-      const da = (a.startAt || a.day || a.date || a.startTime || "") as any;
-      const db = (b.startAt || b.day || b.date || b.startTime || "") as any;
-      return String(db).localeCompare(String(da)); // DESC
-    });
-  }, [planItems]);
+const entries = useMemo(() => {
+  const withCost = (planItems || []).filter((i) => safeNumber(i.cost) > 0);
+
+  const toTs = (it: TripPlanItem) => {
+    // 1) Si hay fecha-hora real (startAt/startTime), úsala
+    const dt = it.startAt || it.startTime || null;
+    if (dt) {
+      const d = new Date(dt);
+      const t = d.getTime();
+      if (!Number.isNaN(t)) return t;
+    }
+
+    // 2) Si hay día (day/date), normaliza a medianoche local
+    const day = it.day || it.date || null;
+    if (day) {
+      // soporta YYYY-MM-DD o ISO
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(day) ? `${day}T00:00:00` : day;
+      const d = new Date(iso);
+      const t = d.getTime();
+      if (!Number.isNaN(t)) return t;
+    }
+
+    // 3) si no hay nada, al final
+    return 0;
+  };
+
+  return [...withCost].sort((a, b) => {
+    const ta = toTs(a);
+    const tb = toTs(b);
+
+    // DESC: más reciente primero
+    if (tb !== ta) return ta - tb;
+
+    // desempate: título
+    return (a.title || "").localeCompare(b.title || "");
+  });
+}, [planItems]);
 
   const totalsByCategory = useMemo(() => {
     const t: Record<BudgetCategoryType, number> = {
