@@ -1,238 +1,464 @@
 // src/screens/Trips/components/TripExpensesSection.tsx
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 
+// ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
+export enum BudgetCategoryType {
+  accommodation = "accommodation",
+  transport_main = "transport_main",
+  transport_local = "transport_local",
+  food = "food",
+  activities = "activities",
+  leisure = "leisure",
+  shopping = "shopping",
+  other = "other",
+}
+export enum PaymentStatus {
+  paid = "paid",
+  pending = "pending",
+}
+
 type TripPlanItemType =
   | "flight"
   | "accommodation"
+  | "transport_destination"
+  | "transport_local"
   | "transport"
   | "taxi"
   | "museum"
   | "monument"
   | "viewpoint"
   | "free_tour"
-  | "concert"
-  | "bar_party"
+  | "guided_tour"
+  | "day_trip"
+  | "hike"
   | "beach"
   | "restaurant"
+  | "cafe"
+  | "market"
+  | "concert"
+  | "sport"
+  | "bar_party"
+  | "nightlife"
   | "shopping"
   | "other"
-  | "activity";
+  | "activity"
+  | "expense";
 
 export interface TripPlanItem {
   id: number;
   type: TripPlanItemType;
   title: string;
+
   date?: string | null;
-  location?: string | null;
-  cost?: number | null;
+  day?: string | null;
+  startAt?: string | null;
   startTime?: string | null;
+
+  location?: string | null;
+  notes?: string | null;
+
+  cost?: number | null;
+
+  paymentStatus?: PaymentStatus | null;
+  expenseDetails?: { category?: BudgetCategoryType | null } | null;
+  destinationTransport?: { mode?: "train" | "bus" | "car" | "other" | null } | null;
 }
 
 interface Props {
   tripId: number;
   planItems: TripPlanItem[];
   budget: number | null;
+
+  onPressItem?: (item: TripPlanItem) => void;
+  onSetPaymentStatus?: (itemId: number, status: PaymentStatus) => Promise<void> | void;
 }
 
-// ==== GRUPOS ==== //
-type GroupId =
-  | "flights"
-  | "accommodation"
-  | "transport"
-  | "activities"
-  | "food"
-  | "shopping";
-
-interface GroupDef {
-  id: GroupId;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  types: TripPlanItemType[];
-}
-
-const GROUPS: GroupDef[] = [
-  {
-    id: "flights",
-    label: "Vuelos",
-    icon: "airplane-outline",
-    color: "#DBEAFE",
-    types: ["flight"],
-  },
-  {
-    id: "accommodation",
-    label: "Alojamiento",
-    icon: "bed-outline",
-    color: "#FEF3C7",
-    types: ["accommodation"],
-  },
-  {
-    id: "transport",
-    label: "Transporte",
-    icon: "bus-outline",
-    color: "#ECFDF3",
-    types: ["transport", "taxi"],
-  },
-  {
-    id: "activities",
-    label: "Actividades y visitas",
-    icon: "sparkles-outline",
-    color: "#F3E8FF",
-    types: [
-      "museum",
-      "monument",
-      "viewpoint",
-      "free_tour",
-      "concert",
-      "bar_party",
-      "beach",
-      "activity",
-    ],
-  },
-  {
-    id: "food",
-    label: "Comida y bebida",
-    icon: "restaurant-outline",
-    color: "#FFF7ED",
-    types: ["restaurant"],
-  },
-  {
-    id: "shopping",
-    label: "Compras y otros",
-    icon: "cart-outline",
-    color: "#F9FAFB",
-    types: ["shopping", "other"],
-  },
-];
-
-const TYPE_ICON: Record<TripPlanItemType, keyof typeof Ionicons.glyphMap> = {
-  flight: "airplane-outline",
-  accommodation: "bed-outline",
-  transport: "bus-outline",
-  taxi: "car-outline",
-  museum: "library-outline",
-  monument: "business-outline",
-  viewpoint: "eye-outline",
-  free_tour: "walk-outline",
-  concert: "musical-notes-outline",
-  bar_party: "wine-outline",
-  beach: "sunny-outline",
-  restaurant: "restaurant-outline",
-  shopping: "cart-outline",
-  other: "options-outline",
-  activity: "sparkles-outline",
+const UI = {
+  text: "#0B1220",
+  muted: "#64748B",
+  muted2: "#94A3B8",
+  border: "rgba(148,163,184,0.28)",
+  card: "#FFFFFF",
 };
 
-export default function TripExpensesSection({ tripId, planItems, budget }: Props) {
+function formatEuro(n: number) {
+  return n.toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function safeNumber(v: any) {
+  const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatDateShort(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+}
+
+function formatTimeShort(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** ====== Budget defs (8 categorías) ====== */
+type BudgetDef = {
+  key: BudgetCategoryType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  accent: string;
+  badgeBg: string;
+};
+
+const BUDGET_DEFS: BudgetDef[] = [
+  { key: BudgetCategoryType.accommodation, label: "Alojamiento", icon: "bed-outline", accent: "#22C55E", badgeBg: "rgba(34,197,94,0.12)" },
+  { key: BudgetCategoryType.transport_main, label: "Transporte principal", icon: "airplane-outline", accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)" },
+  { key: BudgetCategoryType.transport_local, label: "Transporte local", icon: "bus-outline", accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
+  { key: BudgetCategoryType.food, label: "Comida", icon: "restaurant-outline", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)" },
+  { key: BudgetCategoryType.activities, label: "Actividades / visitas", icon: "map-outline", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)" },
+  { key: BudgetCategoryType.leisure, label: "Ocio", icon: "wine-outline", accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)" },
+  { key: BudgetCategoryType.shopping, label: "Compras", icon: "bag-outline", accent: "#F59E0B", badgeBg: "rgba(245,158,11,0.12)" },
+  { key: BudgetCategoryType.other, label: "Otros / fees", icon: "pricetag-outline", accent: "#0B1220", badgeBg: "rgba(15,23,42,0.10)" },
+];
+
+/** ====== Mapping como desktop ====== */
+function categoryForItem(item: TripPlanItem): BudgetCategoryType {
+  if (item.type === "expense") {
+    const c = item.expenseDetails?.category as BudgetCategoryType | undefined | null;
+    return c ?? BudgetCategoryType.other;
+  }
+
+  const t = item.type;
+
+  if (t === "accommodation") return BudgetCategoryType.accommodation;
+  if (t === "flight" || t === "transport_destination") return BudgetCategoryType.transport_main;
+
+  if (t === "transport_local" || t === "transport" || t === "taxi") return BudgetCategoryType.transport_local;
+
+  if (t === "restaurant" || t === "cafe" || t === "market") return BudgetCategoryType.food;
+
+  if (
+    t === "museum" ||
+    t === "monument" ||
+    t === "viewpoint" ||
+    t === "free_tour" ||
+    t === "guided_tour" ||
+    t === "day_trip" ||
+    t === "hike" ||
+    t === "beach" ||
+    t === "activity"
+  ) return BudgetCategoryType.activities;
+
+  if (t === "concert" || t === "sport" || t === "bar_party" || t === "nightlife")
+    return BudgetCategoryType.leisure;
+
+  if (t === "shopping") return BudgetCategoryType.shopping;
+
+  return BudgetCategoryType.other;
+}
+
+type DestMode = "train" | "bus" | "car" | "other";
+function iconForDestinationMode(mode?: DestMode | null): keyof typeof Ionicons.glyphMap {
+  if (!mode) return "bus-outline";
+  if (mode === "train") return "train-outline";
+  if (mode === "car") return "car-outline";
+  return "bus-outline";
+}
+
+function iconForPlanItem(item: TripPlanItem, fallback: keyof typeof Ionicons.glyphMap): keyof typeof Ionicons.glyphMap {
+  if (item.type === "flight") return "airplane-outline";
+  if (item.type === "transport_destination") return iconForDestinationMode(item.destinationTransport?.mode as DestMode | undefined);
+  if (item.type === "transport_local" || item.type === "transport") return "bus-outline";
+  if (item.type === "taxi") return "car-outline";
+  if (item.type === "expense") return "receipt-outline";
+  return fallback;
+}
+
+function ProgressBar({ pct, accent }: { pct: number; accent: string }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  return (
+    <View style={{ height: 6, borderRadius: 999, backgroundColor: "rgba(15,23,42,0.08)", overflow: "hidden" }}>
+      <View style={{ height: "100%", width: `${clamped}%`, backgroundColor: accent }} />
+    </View>
+  );
+}
+
+function PaymentChip({
+  status,
+  disabled,
+  onToggle,
+}: {
+  status: PaymentStatus;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  const isPaid = status === PaymentStatus.paid;
+  return (
+    <Pressable
+      onPress={(e: any) => {
+        e?.stopPropagation?.();
+        e?.preventDefault?.();
+        if (disabled) return;
+        onToggle();
+      }}
+      style={({ pressed }) => ({
+        marginTop: 6,
+        paddingHorizontal: 10,
+        height: 22,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: isPaid ? "rgba(22,163,74,0.35)" : "rgba(220,38,38,0.35)",
+        backgroundColor: isPaid ? "rgba(22,163,74,0.10)" : "rgba(220,38,38,0.08)",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        opacity: disabled ? 0.6 : pressed ? 0.92 : 1,
+      })}
+    >
+      <Ionicons name={isPaid ? "checkmark-circle-outline" : "time-outline"} size={14} color={isPaid ? "#16A34A" : "#DC2626"} />
+      <Text style={{ fontSize: 10, fontWeight: "900", color: isPaid ? "#16A34A" : "#DC2626" }}>
+        {isPaid ? "Pagado" : "Pendiente"}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** ====== KPI card (horizontal, con barra) ====== */
+function CategoryKpiCard({
+  def,
+  spent,
+  totalSpent,
+  active,
+  onPress,
+}: {
+  def: BudgetDef;
+  spent: number;
+  totalSpent: number;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const pct = totalSpent > 0 ? (spent / totalSpent) * 100 : 0;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 170,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 18,
+        backgroundColor: UI.card,
+        borderWidth: active ? 1.4 : 1,
+        borderColor: active ? colors.primary : UI.border,
+        shadowColor: "#0B1220",
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        opacity: pressed ? 0.95 : 1,
+      })}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 14,
+            backgroundColor: def.badgeBg,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: "rgba(148,163,184,0.22)",
+          }}
+        >
+          <Ionicons name={def.icon} size={16} color={def.accent} />
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontSize: 12, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+            {def.label}
+          </Text>
+          <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
+            {totalSpent > 0 ? `${pct.toFixed(0)}% del total` : "—"}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={{ marginTop: 10, fontSize: 14, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+        {formatEuro(spent)}
+      </Text>
+
+      <View style={{ marginTop: 8 }}>
+        <ProgressBar pct={pct} accent={def.accent} />
+      </View>
+    </Pressable>
+  );
+}
+
+function ExpenseRow({
+  item,
+  onPress,
+  onSetPaymentStatus,
+}: {
+  item: TripPlanItem;
+  onPress: () => void;
+  onSetPaymentStatus?: (itemId: number, status: PaymentStatus) => Promise<void> | void;
+}) {
+  const cat = categoryForItem(item);
+  const def = BUDGET_DEFS.find((d) => d.key === cat) ?? BUDGET_DEFS[BUDGET_DEFS.length - 1];
+
+  const rowIcon = iconForPlanItem(item, def.icon);
+  const cost = safeNumber(item.cost);
+
+  const dateBase = item.startAt || item.day || item.date || item.startTime || null;
+  const dateLabel = dateBase ? formatDateShort(dateBase) : "";
+  const timeLabel = item.startAt ? formatTimeShort(item.startAt) : item.startTime ? formatTimeShort(item.startTime) : "";
+
+  const itemStatus = item.paymentStatus ?? PaymentStatus.pending;
+  const [savingPay, setSavingPay] = useState(false);
+  const canToggle = !!onSetPaymentStatus && !!item.id;
+
+  const togglePayment = async () => {
+    if (!onSetPaymentStatus || !item.id) return;
+    const next = itemStatus === PaymentStatus.paid ? PaymentStatus.pending : PaymentStatus.paid;
+
+    Alert.alert(
+      "Estado de pago",
+      next === PaymentStatus.paid ? "¿Marcar como pagado?" : "¿Marcar como pendiente?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          onPress: async () => {
+            try {
+              setSavingPay(true);
+              await onSetPaymentStatus(item.id, next);
+            } finally {
+              setSavingPay(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        backgroundColor: pressed ? "rgba(148,163,184,0.10)" : "transparent",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+      })}
+    >
+      <View
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 14,
+          backgroundColor: def.badgeBg,
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: 1,
+          borderColor: "rgba(148,163,184,0.22)",
+        }}
+      >
+        <Ionicons name={rowIcon} size={18} color={def.accent} />
+      </View>
+
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+          {item.title || "Gasto"}
+        </Text>
+
+        <Text style={{ marginTop: 2, fontSize: 12, fontWeight: "800", color: UI.muted }} numberOfLines={1}>
+          {def.label}
+          {dateLabel ? ` • ${dateLabel}` : ""}
+          {timeLabel ? ` • ${timeLabel}` : ""}
+        </Text>
+      </View>
+
+      <View style={{ alignItems: "flex-end" }}>
+        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
+        {onSetPaymentStatus ? (
+          <PaymentChip status={itemStatus} disabled={!canToggle || savingPay} onToggle={togglePayment} />
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+export default function TripExpensesSection({
+  tripId,
+  planItems,
+  budget, // no se usa en esta versión (lo dejamos por compatibilidad)
+  onPressItem,
+  onSetPaymentStatus,
+}: Props) {
   const navigation = useNavigation<any>();
 
-  const itemsWithCost = useMemo(
-    () =>
-      planItems.filter(
-        (i) => typeof i.cost === "number" && !isNaN(i.cost as number)
-      ),
-    [planItems]
-  );
+  const [cat, setCat] = useState<BudgetCategoryType | null>(null);
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  const entries = useMemo(() => {
+    const withCost = (planItems || []).filter((i) => safeNumber(i.cost) > 0);
+    // más reciente primero
+    return [...withCost].sort((a, b) => {
+      const da = (a.startAt || a.day || a.date || a.startTime || "") as any;
+      const db = (b.startAt || b.day || b.date || b.startTime || "") as any;
+      return String(db).localeCompare(String(da));
     });
+  }, [planItems]);
 
-  const formatDate = (iso?: string | null) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return !isNaN(d.getTime())
-      ? d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" })
-      : "";
-  };
-
-  const formatTime = (iso?: string | null) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return !isNaN(d.getTime())
-      ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "";
-  };
-
-  const getGroupForType = (type: TripPlanItemType): GroupId =>
-    GROUPS.find((g) => g.types.includes(type))?.id ?? "shopping";
-
-  const total = useMemo(
-    () => itemsWithCost.reduce((sum, item) => sum + (item.cost || 0), 0),
-    [itemsWithCost]
-  );
-
-  const grouped = useMemo(() => {
-    const map: Record<GroupId, { total: number; items: TripPlanItem[] }> = {
-      flights: { total: 0, items: [] },
-      accommodation: { total: 0, items: [] },
-      transport: { total: 0, items: [] },
-      activities: { total: 0, items: [] },
-      food: { total: 0, items: [] },
-      shopping: { total: 0, items: [] },
+  const totalsByCategory = useMemo(() => {
+    const t: Record<BudgetCategoryType, number> = {
+      accommodation: 0,
+      transport_main: 0,
+      transport_local: 0,
+      food: 0,
+      activities: 0,
+      leisure: 0,
+      shopping: 0,
+      other: 0,
     };
-
-    for (const item of itemsWithCost) {
-      const gId = getGroupForType(item.type);
-      map[gId].items.push(item);
-      map[gId].total += item.cost || 0;
+    for (const it of entries) {
+      const k = categoryForItem(it);
+      t[k] += safeNumber(it.cost);
     }
+    return t;
+  }, [entries]);
 
-    // ordenar items por fecha
-    (Object.keys(map) as GroupId[]).forEach((gId) =>
-      map[gId].items.sort(
-        (a, b) =>
-          (new Date(a.date || "").getTime() || 0) -
-          (new Date(b.date || "").getTime() || 0)
-      )
-    );
+  const totalSpent = useMemo(() => entries.reduce((s, it) => s + safeNumber(it.cost), 0), [entries]);
 
-    return map;
-  }, [itemsWithCost]);
-
-  const nonEmptyGroups = useMemo(
-    () =>
-      GROUPS.map((g) => ({
-        ...g,
-        total: grouped[g.id].total,
-        items: grouped[g.id].items,
-      })).filter((g) => g.items.length > 0),
-    [grouped]
+  const visibleKpis = useMemo(
+    () => BUDGET_DEFS.filter((d) => (totalsByCategory[d.key] || 0) > 0),
+    [totalsByCategory]
   );
 
-  const [activeGroupId, setActiveGroupId] = useState<GroupId | null>(null);
-  const activeGroup =
-    nonEmptyGroups.find((g) => g.id === (activeGroupId ?? nonEmptyGroups[0]?.id)) ??
-    nonEmptyGroups[0];
+  const filtered = useMemo(() => {
+    if (!cat) return entries;
+    return entries.filter((it) => categoryForItem(it) === cat);
+  }, [entries, cat]);
 
-  const expensesCount = itemsWithCost.length;
-  const averageCost = expensesCount ? total / expensesCount : 0;
-  const budgetUsedPct = budget ? Math.min((total / budget) * 100, 100) : null;
-  const remainingBudget = budget != null ? budget - total : null;
-
-  const topCategory = useMemo(() => {
-    if (!nonEmptyGroups.length || total <= 0) return null;
-    const sorted = [...nonEmptyGroups].sort((a, b) => b.total - a.total);
-    const main = sorted[0];
-    const pct = main.total > 0 ? (main.total / total) * 100 : 0;
-    return {
-      label: main.label,
-      percentage: pct,
-    };
-  }, [nonEmptyGroups, total]);
-
-  if (itemsWithCost.length === 0) {
+  if (entries.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-6">
-        <Text className="text-center text-gray-400 mt-8 text-sm">
+        <Ionicons name="receipt-outline" size={24} color="#94A3B8" />
+        <Text className="text-center text-gray-400 mt-3 text-sm">
           Aún no hay costes asignados en el planning de este viaje.
         </Text>
       </View>
@@ -240,217 +466,60 @@ export default function TripExpensesSection({ tripId, planItems, budget }: Props
   }
 
   return (
-    <View className="flex-1">
+    <View style={{ flex: 1 }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 4 }}
+        contentContainerStyle={{ paddingBottom: 24, paddingTop: 12 }}
       >
-        {/* TÍTULO DISTRIBUCIÓN */}
-        <View className="px-1 mb-1 flex-row justify-between items-center">
-          <View>
-            <Text className="text-[13px] text-gray-500">
-              Distribución por categorías
-            </Text>
-            <Text className="text-[11px] text-gray-400">
-              Toca una categoría para ver los detalles
-            </Text>
-          </View>
-          {activeGroup && (
-            <View
-              className="px-2 py-1 rounded-full"
-              style={{ backgroundColor: "#EEF2FF" }}
+        {/* KPI horizontal (solo cards con barra) */}
+        {visibleKpis.length > 0 ? (
+          <View style={{ marginBottom: 12 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 14, gap: 12, paddingVertical: 6 }}
             >
-              <Text className="text-[11px] font-semibold text-indigo-700">
-                {activeGroup.label}
-              </Text>
-            </View>
-          )}
-        </View>
+              {visibleKpis.map((def) => (
+                <CategoryKpiCard
+                  key={def.key}
+                  def={def}
+                  spent={totalsByCategory[def.key] || 0}
+                  totalSpent={totalSpent}
+                  active={cat === def.key}
+                  onPress={() => setCat((prev) => (prev === def.key ? null : def.key))}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
-        {/* CARRUSEL DE CATEGORÍAS CON BARRA */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ height: 120 }}
-          className="mb-2"
-          contentContainerStyle={{
-            paddingHorizontal: 2,
-            paddingVertical: 6,
-            alignItems: "center",
+        {/* Lista */}
+        <View
+          style={{
+            marginHorizontal: 14,
+            backgroundColor: UI.card,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: UI.border,
+            paddingVertical: 8,
           }}
         >
-          {nonEmptyGroups
-            .slice()
-            .sort((a, b) => b.total - a.total)
-            .map((group) => {
-              const isActive = activeGroup?.id === group.id;
-              const percentage = total > 0 ? (group.total / total) * 100 : 0;
-
-              return (
-                <TouchableOpacity
-                  key={group.id}
-                  onPress={() => setActiveGroupId(group.id)}
-                  activeOpacity={0.85}
-                  className="mr-3"
-                  style={{
-                    height: "100%",
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    borderRadius: 18,
-                    minWidth: 140,
-                    backgroundColor: "white",
-                    borderWidth: isActive ? 1.3 : 1,
-                    borderColor: isActive ? colors.primary : "#E5E7EB",
-                    shadowColor: "#000",
-                    shadowOpacity: 0.06,
-                    shadowRadius: 4,
-                    shadowOffset: { width: 0, height: 2 },
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <View className="flex-row items-center mb-1.5">
-                    <View
-                      className="w-7 h-7 rounded-2xl items-center justify-center mr-2"
-                      style={{ backgroundColor: group.color }}
-                    >
-                      <Ionicons
-                        name={group.icon}
-                        size={16}
-                        color={colors.primary}
-                      />
-                    </View>
-                    <Text
-                      className="text-[12px] font-semibold"
-                      numberOfLines={1}
-                    >
-                      {group.label}
-                    </Text>
-                  </View>
-
-                  <View>
-                    <Text className="text-[11px] text-gray-500">
-                      {group.items.length} gasto
-                      {group.items.length > 1 ? "s" : ""}
-                    </Text>
-                    <Text className="text-[13px] font-semibold text-gray-900 mt-0.5">
-                      {formatEuro(group.total)}
-                    </Text>
-
-                    {/* Barra de porcentaje */}
-                    <View
-                      style={{
-                        marginTop: 6,
-                        height: 5,
-                        borderRadius: 999,
-                        backgroundColor: "#F3F4F6",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <View
-                        style={{
-                          height: "100%",
-                          width: `${percentage.toFixed(0)}%`,
-                          backgroundColor: colors.primary,
-                        }}
-                      />
-                    </View>
-                    <Text className="text-[10px] text-gray-400 mt-1">
-                      {percentage.toFixed(0)}% del viaje
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-        </ScrollView>
-
-        {/* LISTA DETALLADA (TIMELINE) */}
-        {activeGroup && (
-          <View
-            className="rounded-3xl p-3"
-            style={{ backgroundColor: "white" }}
-          >
-            <View className="flex-row justify-between items-center mb-2 px-1">
-              <Text className="text-[13px] font-semibold text-gray-900">
-                Detalle de {activeGroup.label.toLowerCase()}
-              </Text>
-              <Text className="text-[11px] text-gray-500">
-                {activeGroup.items.length} movimiento
-                {activeGroup.items.length > 1 ? "s" : ""}
-              </Text>
+          {filtered.map((it, idx) => (
+            <View key={it.id ?? idx}>
+              <ExpenseRow
+                item={it}
+                onSetPaymentStatus={onSetPaymentStatus}
+                onPress={() => {
+                  onPressItem?.(it);
+                  navigation.navigate("TripPlanForm", { tripId, planItem: it });
+                }}
+              />
+              {idx < filtered.length - 1 ? (
+                <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 62 }} />
+              ) : null}
             </View>
-
-            {activeGroup.items.map((item, index) => {
-              const dateLabel = formatDate(item.date);
-              const timeLabel = formatTime(item.startTime);
-              const iconName = TYPE_ICON[item.type];
-
-              return (
-                <View key={item.id} className="flex-row mb-3">
-                  {/* Timeline left */}
-                  <View className="items-center mr-3">
-                    <View
-                      className="w-8 h-8 rounded-full items-center justify-center"
-                      style={{ backgroundColor: "#F3F4F6" }}
-                    >
-                      <Ionicons
-                        name={iconName}
-                        size={16}
-                        color={colors.primary}
-                      />
-                    </View>
-                    {index < activeGroup.items.length - 1 && (
-                      <View
-                        style={{
-                          width: 1,
-                          flex: 1,
-                          backgroundColor: "#E5E7EB",
-                          marginTop: 2,
-                        }}
-                      />
-                    )}
-                  </View>
-
-                  {/* Card clicable para editar plan */}
-                  <TouchableOpacity
-                    style={{ flex: 1 }}
-                    activeOpacity={0.9}
-                    onPress={() =>
-                      navigation.navigate("TripPlanForm", {
-                        tripId,
-                        planItem: item,
-                      })
-                    }
-                  >
-                    <View
-                      className="rounded-2xl px-3 py-2.5 mb-1"
-                      style={{ backgroundColor: "#F9FAFB" }}
-                    >
-                      <View className="flex-row justify-between items-center mb-1">
-                        <Text
-                          className="text-[13px] font-semibold text-gray-900 flex-1"
-                          numberOfLines={2}
-                        >
-                          {item.title}
-                        </Text>
-                        <View className="items-end ml-2">
-                          <Text className="text-[12px] font-semibold text-gray-900">
-                            {formatEuro(item.cost || 0)}
-                          </Text>
-                          {dateLabel && (
-                            <Text className="text-[10px] text-gray-400">
-                              {dateLabel}
-                              {timeLabel ? ` · ${timeLabel}` : ""}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        )}
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
