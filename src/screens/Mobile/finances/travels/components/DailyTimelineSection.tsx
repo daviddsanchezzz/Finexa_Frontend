@@ -46,6 +46,114 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
     other: "sparkles-outline",
 };
 
+// ===== Multi-day activity helpers =====
+
+type DayPosition = "single" | "start" | "middle" | "end";
+
+/**
+ * Extract ISO day from date string
+ */
+function isoDay(input?: string | null): string | null {
+    if (!input) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+    const d = new Date(input);
+    if (Number.isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Get all days spanned by an activity (from startTime to endTime)
+ */
+function getDaysSpanned(item: TripPlanItem): string[] {
+    const start = item.startTime || item.date;
+    const end = item.endTime;
+
+    if (!start) return ["no-date"];
+
+    const startDay = isoDay(start);
+    if (!startDay) return ["no-date"];
+
+    // If no endTime or same day, return only start day
+    const endDay = end ? isoDay(end) : null;
+    if (!endDay || endDay === startDay) {
+        return [startDay];
+    }
+
+    // Generate all days between start and end (inclusive)
+    const days: string[] = [];
+    const current = new Date(startDay + "T00:00:00");
+    const last = new Date(endDay + "T00:00:00");
+
+    while (current <= last) {
+        const dayStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+        days.push(dayStr);
+        current.setDate(current.getDate() + 1);
+    }
+
+    return days;
+}
+
+/**
+ * Determine if item is on a single day or spans multiple days, and position within span
+ */
+function getItemDayPosition(item: TripPlanItem, currentDay: string): DayPosition {
+    const start = item.startTime || item.date;
+    const end = item.endTime;
+
+    if (!start || !end) return "single";
+
+    const startDay = isoDay(start);
+    const endDay = isoDay(end);
+
+    if (!startDay || !endDay || startDay === endDay) return "single";
+
+    if (currentDay === startDay) return "start";
+    if (currentDay === endDay) return "end";
+    return "middle";
+}
+
+/**
+ * Format time for display
+ */
+function fmtTime(t?: string | null): string {
+    if (!t) return "";
+    if (/^\d{2}:\d{2}$/.test(t)) return t;
+    const d = new Date(t);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Format time range for a specific day, showing continuation indicators for multi-day activities
+ */
+function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string): string {
+    const position = getItemDayPosition(item, currentDay);
+    const start = item.startTime || item.date;
+    const end = item.endTime;
+
+    switch (position) {
+        case "single":
+            // Same day: "09:00 - 18:00"
+            const s = fmtTime(start);
+            const e = fmtTime(end);
+            if (!s) return "";
+            if (!e) return s;
+            return `${s} - ${e}`;
+
+        case "start":
+            // Start day: "09:00 →"
+            return `${fmtTime(start)} →`;
+
+        case "middle":
+            // Middle day: "← Todo el día →"
+            return "← Todo el día →";
+
+        case "end":
+            // End day: "→ 18:00"
+            return `→ ${fmtTime(end)}`;
+    }
+}
+
+
 function DayColumn({
     day,
     dayNumber,
@@ -118,9 +226,18 @@ function DayColumn({
                 ) : (
                     items.map((item, idx) => {
                         const icon = TYPE_ICONS[item.type] || "sparkles-outline";
-                        const time = item.startTime
-                            ? new Date(item.startTime).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
-                            : null;
+                        const timeRange = fmtTimeRangeForDay(item, day);
+                        const position = getItemDayPosition(item, day);
+                        const isMultiDay = position !== "single";
+
+                        // Get color based on type (simplified version)
+                        const getAccentColor = () => {
+                            if (item.type.includes("flight") || item.type.includes("transport")) return "#2563EB";
+                            if (item.type.includes("accommodation")) return "#16A34A";
+                            if (item.type.includes("museum") || item.type.includes("monument")) return "#A855F7";
+                            if (item.type.includes("restaurant") || item.type.includes("cafe")) return "#EF4444";
+                            return UI.primary;
+                        };
 
                         return (
                             <TouchableOpacity
@@ -128,45 +245,65 @@ function DayColumn({
                                 onPress={() => onPressItem(item)}
                                 style={{
                                     marginBottom: 12,
-                                    paddingLeft: 12,
-                                    borderLeftWidth: 3,
-                                    borderLeftColor: idx === 0 ? UI.primary : UI.border,
+                                    backgroundColor: "white",
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: UI.border,
+                                    overflow: "hidden",
+                                    position: "relative",
                                 }}
                                 activeOpacity={0.7}
                             >
-                                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                                {/* Multi-day indicator bar */}
+                                {isMultiDay && (
                                     <View
                                         style={{
-                                            width: 32,
-                                            height: 32,
-                                            borderRadius: 16,
-                                            backgroundColor: idx === 0 ? "rgba(37,99,235,0.15)" : "rgba(148,163,184,0.10)",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            marginRight: 10,
+                                            position: "absolute",
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: 3,
+                                            backgroundColor: getAccentColor(),
+                                            opacity: 0.7,
                                         }}
-                                    >
-                                        <Ionicons name={icon} size={16} color={idx === 0 ? UI.primary : UI.muted} />
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        {time && (
-                                            <Text style={{ fontSize: 10, fontWeight: "800", color: UI.muted, marginBottom: 2 }}>
-                                                {time}
+                                    />
+                                )}
+
+                                <View style={{ padding: 12, paddingTop: isMultiDay ? 14 : 12 }}>
+                                    <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                                        <View
+                                            style={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: 16,
+                                                backgroundColor: idx === 0 ? "rgba(37,99,235,0.15)" : "rgba(148,163,184,0.10)",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                marginRight: 10,
+                                            }}
+                                        >
+                                            <Ionicons name={icon} size={16} color={idx === 0 ? UI.primary : UI.muted} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            {timeRange && (
+                                                <Text style={{ fontSize: 10, fontWeight: "800", color: UI.muted, marginBottom: 2 }}>
+                                                    {timeRange}
+                                                </Text>
+                                            )}
+                                            <Text style={{ fontSize: 13, fontWeight: "800", color: UI.text }} numberOfLines={2}>
+                                                {item.title}
                                             </Text>
-                                        )}
-                                        <Text style={{ fontSize: 13, fontWeight: "800", color: UI.text }} numberOfLines={2}>
-                                            {item.title}
-                                        </Text>
-                                        {item.location && (
-                                            <Text style={{ fontSize: 11, fontWeight: "600", color: UI.muted, marginTop: 2 }} numberOfLines={1}>
-                                                📍 {item.location}
-                                            </Text>
-                                        )}
-                                        {item.cost != null && (
-                                            <Text style={{ fontSize: 11, fontWeight: "700", color: "#10B981", marginTop: 4 }}>
-                                                {typeof item.cost === 'number' ? item.cost.toFixed(2) : item.cost} €
-                                            </Text>
-                                        )}
+                                            {item.location && (
+                                                <Text style={{ fontSize: 11, fontWeight: "600", color: UI.muted, marginTop: 2 }} numberOfLines={1}>
+                                                    📍 {item.location}
+                                                </Text>
+                                            )}
+                                            {item.cost != null && (
+                                                <Text style={{ fontSize: 11, fontWeight: "700", color: "#10B981", marginTop: 4 }}>
+                                                    {typeof item.cost === 'number' ? item.cost.toFixed(2) : item.cost} €
+                                                </Text>
+                                            )}
+                                        </View>
                                     </View>
                                 </View>
                             </TouchableOpacity>
@@ -197,14 +334,16 @@ export default function DailyTimelineSection({
         return daysList;
     }, [trip.startDate, trip.endDate]);
 
-    // Group items by day
+    // Group items by day (including multi-day spans)
     const itemsByDay = useMemo(() => {
         const groups = new Map<string, TripPlanItem[]>();
 
         planItems.forEach((item) => {
-            const day = item.date ? item.date.split("T")[0] : "no-date";
-            if (!groups.has(day)) groups.set(day, []);
-            groups.get(day)!.push(item);
+            const days = getDaysSpanned(item);
+            days.forEach((day) => {
+                if (!groups.has(day)) groups.set(day, []);
+                groups.get(day)!.push(item);
+            });
         });
 
         // Sort items of each day by time

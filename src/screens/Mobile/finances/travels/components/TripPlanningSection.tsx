@@ -291,6 +291,88 @@ const fmtTimeRangeSameDay = (start?: string | null, end?: string | null) => {
   return sameIsoDay(start, end) ? `${s} - ${e}` : s;
 };
 
+// ===== Multi-day activity helpers =====
+
+type DayPosition = "single" | "start" | "middle" | "end";
+
+/**
+ * Get all days spanned by an activity (from startTime to endTime)
+ */
+function getDaysSpanned(item: TripPlanItem): string[] {
+  const start = item.startAt || item.startTime || item.day || item.date;
+  const end = item.endAt || item.endTime;
+
+  if (!start) return [NO_DATE];
+
+  const startDay = isoDay(start);
+  if (!startDay) return [NO_DATE];
+
+  // If no endTime or same day, return only start day
+  const endDay = end ? isoDay(end) : null;
+  if (!endDay || endDay === startDay) {
+    return [startDay];
+  }
+
+  // Generate all days between start and end (inclusive)
+  const days: string[] = [];
+  const current = new Date(startDay + "T00:00:00");
+  const last = new Date(endDay + "T00:00:00");
+
+  while (current <= last) {
+    const dayStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+    days.push(dayStr);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
+}
+
+/**
+ * Determine if item is on a single day or spans multiple days, and position within span
+ */
+function getItemDayPosition(item: TripPlanItem, currentDay: string): DayPosition {
+  const start = item.startAt || item.startTime || item.day || item.date;
+  const end = item.endAt || item.endTime;
+
+  if (!start || !end) return "single";
+
+  const startDay = isoDay(start);
+  const endDay = isoDay(end);
+
+  if (!startDay || !endDay || startDay === endDay) return "single";
+
+  if (currentDay === startDay) return "start";
+  if (currentDay === endDay) return "end";
+  return "middle";
+}
+
+/**
+ * Format time range for a specific day, showing continuation indicators for multi-day activities
+ */
+function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string): string {
+  const position = getItemDayPosition(item, currentDay);
+  const start = item.startAt || item.startTime || item.day || item.date;
+  const end = item.endAt || item.endTime;
+
+  switch (position) {
+    case "single":
+      // Same day: "09:00 - 18:00"
+      return fmtTimeRangeSameDay(start, end);
+
+    case "start":
+      // Start day: "09:00 →"
+      return `${fmtTime(start)} →`;
+
+    case "middle":
+      // Middle day: "← Todo el día →"
+      return "← Todo el día →";
+
+    case "end":
+      // End day: "→ 18:00"
+      return `→ ${fmtTime(end)}`;
+  }
+}
+
 function EmptyDayCard({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
@@ -335,9 +417,11 @@ function EmptyDayCard({ onPress }: { onPress: () => void }) {
 
 function ActivityCard({
   item,
+  currentDay,
   onPress,
 }: {
   item: TripPlanItem;
+  currentDay: string;
   onPress: () => void;
 }) {
   const meta = TYPE_META[item.type] ?? TYPE_META.other ?? {
@@ -349,7 +433,9 @@ function ActivityCard({
 
   const start = item.startAt ?? item.startTime ?? null;
   const end = item.endAt ?? item.endTime ?? null;
-  const time = fmtTimeRangeSameDay(start, end);
+  const time = fmtTimeRangeForDay(item, currentDay);
+  const position = getItemDayPosition(item, currentDay);
+  const isMultiDay = position !== "single";
 
   return (
     <Pressable
@@ -365,8 +451,25 @@ function ActivityCard({
         alignItems: "flex-start",
         gap: 10,
         opacity: pressed ? 0.97 : 1,
+        overflow: "hidden",
+        position: "relative",
       })}
     >
+      {/* Multi-day indicator bar */}
+      {isMultiDay && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            backgroundColor: meta.accent,
+            opacity: 0.7,
+          }}
+        />
+      )}
+
       {/* Icon badge */}
       <View
         style={{
@@ -451,13 +554,19 @@ export default function TripPlanningSectionRedesign({
     return daysBetween(sorted[0], sorted[sorted.length - 1]);
   }, [trip?.startDate, trip?.endDate, planningItems]);
 
-  // 3) Agrupar por día + NO_DATE
+  // 3) Agrupar por día + NO_DATE (including multi-day spans)
   const byDate = useMemo(() => {
     const map: Record<string, TripPlanItem[]> = {};
+
+    // Group items by all days they span
     for (const it of planningItems) {
-      const k = isoDay(it.day ?? it.date ?? null) ?? NO_DATE;
-      (map[k] ||= []).push(it);
+      const days = getDaysSpanned(it);
+      for (const day of days) {
+        (map[day] ||= []).push(it);
+      }
     }
+
+    // Sort items of each day by start time
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
         const as = fmtTime(a.startAt ?? a.startTime ?? null) || "99:99";
@@ -466,6 +575,7 @@ export default function TripPlanningSectionRedesign({
         return (a.title || "").localeCompare(b.title || "");
       });
     }
+
     return map;
   }, [planningItems]);
 
@@ -614,7 +724,12 @@ export default function TripPlanningSectionRedesign({
             ) : (
               <View style={{ maxHeight: LIST_MAX_H, gap: 10 }}>
                 {dayItems.map((it) => (
-                  <ActivityCard key={it.id} item={it} onPress={() => handleEdit(it)} />
+                  <ActivityCard
+                    key={it.id}
+                    item={it}
+                    currentDay={selectedDay}
+                    onPress={() => handleEdit(it)}
+                  />
                 ))}
               </View>
             )}

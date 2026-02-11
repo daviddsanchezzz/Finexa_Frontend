@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable, Platform, ScrollView, useWindowDimensions , Modal} from "react-native";
+import { View, Text, Pressable, Platform, ScrollView, useWindowDimensions, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { TripPlanItem } from "../../screens/Desktop/travel/TripDetailDesktopScreen";
 import { formatEuro, safeDate, UI } from "./ui";
@@ -242,6 +242,88 @@ const toNum = (v: any) => {
 
 const metaFor = (type: string) => TYPE_META[type] ?? TYPE_META.other;
 
+// ===== Multi-day activity helpers =====
+
+type DayPosition = "single" | "start" | "middle" | "end";
+
+/**
+ * Get all days spanned by an activity (from startTime to endTime)
+ */
+function getDaysSpanned(item: TripPlanItem): string[] {
+  const start = item.startAt || item.day;
+  const end = item.endAt;
+
+  if (!start) return [NO_DATE];
+
+  const startDay = isoDay(start);
+  if (!startDay) return [NO_DATE];
+
+  // If no endTime or same day, return only start day
+  const endDay = end ? isoDay(end) : null;
+  if (!endDay || endDay === startDay) {
+    return [startDay];
+  }
+
+  // Generate all days between start and end (inclusive)
+  const days: string[] = [];
+  const current = new Date(startDay + "T00:00:00");
+  const last = new Date(endDay + "T00:00:00");
+
+  while (current <= last) {
+    const dayStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+    days.push(dayStr);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
+}
+
+/**
+ * Determine if item is on a single day or spans multiple days, and position within span
+ */
+function getItemDayPosition(item: TripPlanItem, currentDay: string): DayPosition {
+  const start = item.startAt || item.day;
+  const end = item.endAt;
+
+  if (!start || !end) return "single";
+
+  const startDay = isoDay(start);
+  const endDay = isoDay(end);
+
+  if (!startDay || !endDay || startDay === endDay) return "single";
+
+  if (currentDay === startDay) return "start";
+  if (currentDay === endDay) return "end";
+  return "middle";
+}
+
+/**
+ * Format time range for a specific day, showing continuation indicators for multi-day activities
+ */
+function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string): string {
+  const position = getItemDayPosition(item, currentDay);
+  const start = item.startAt || item.day;
+  const end = item.endAt;
+
+  switch (position) {
+    case "single":
+      // Same day: "09:00 - 18:00"
+      return fmtTimeRangeSameDay(start, end);
+
+    case "start":
+      // Start day: "09:00 →"
+      return `${fmtTime(start)} →`;
+
+    case "middle":
+      // Middle day: "← Todo el día →"
+      return "← Todo el día →";
+
+    case "end":
+      // End day: "→ 18:00"
+      return `→ ${fmtTime(end)}`;
+  }
+}
+
 
 function KebabMenu({
   px,
@@ -311,13 +393,13 @@ function KebabMenu({
               position: "absolute",
               ...(Platform.OS === "web" && pos
                 ? ({
-                    left: pos.x + pos.w - px(140),
-                    top: pos.y + pos.h + px(8),
-                  } as any)
+                  left: pos.x + pos.w - px(140),
+                  top: pos.y + pos.h + px(8),
+                } as any)
                 : ({
-                    right: px(22),
-                    top: px(120),
-                  } as any)),
+                  right: px(22),
+                  top: px(120),
+                } as any)),
               width: px(140),
               borderRadius: px(14),
               backgroundColor: "white",
@@ -372,6 +454,7 @@ function KebabMenu({
 
 function ActivityRow({
   item,
+  currentDay,
   px,
   fs,
   onPress,
@@ -379,6 +462,7 @@ function ActivityRow({
   onDelete,
 }: {
   item: TripPlanItem;
+  currentDay: string;
   px: (n: number) => number;
   fs: (n: number) => number;
   onPress: () => void;
@@ -386,7 +470,9 @@ function ActivityRow({
   onDelete: () => void;
 }) {
   const meta = TYPE_META[item.type] ?? TYPE_META.other!;
-  const time = fmtTimeRangeSameDay(item.startAt, item.endAt);
+  const time = fmtTimeRangeForDay(item, currentDay);
+  const position = getItemDayPosition(item, currentDay);
+  const isMultiDay = position !== "single";
 
   return (
     <Pressable
@@ -402,10 +488,27 @@ function ActivityRow({
           alignItems: "flex-start",
           gap: px(12),
           opacity: pressed ? 0.96 : 1,
+          overflow: "hidden",
+          position: "relative",
         },
         Platform.OS === "web" && hovered ? { backgroundColor: "rgba(15,23,42,0.015)" } : null,
       ]}
     >
+      {/* Multi-day indicator bar */}
+      {isMultiDay && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: px(3),
+            backgroundColor: meta.accent,
+            opacity: 0.7,
+          }}
+        />
+      )}
+
       {/* Icon */}
       <View
         style={{
@@ -537,13 +640,20 @@ export function DailyPlanTimeline({
 
   const byDate = useMemo(() => {
     const map: Record<string, TripPlanItem[]> = {};
+
+    // Group items by all days they span
     for (const it of items) {
-      const k = isoDay(it.day) ?? NO_DATE;
-      (map[k] ||= []).push(it);
+      const days = getDaysSpanned(it);
+      for (const day of days) {
+        (map[day] ||= []).push(it);
+      }
     }
+
+    // Sort items of each day by start time
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => (fmtTime(a.startAt) || "").localeCompare(fmtTime(b.startAt) || ""));
     }
+
     return map;
   }, [items]);
 
@@ -619,17 +729,18 @@ export function DailyPlanTimeline({
                 style={{ maxHeight: LIST_MAX_H }}
                 contentContainerStyle={{ paddingBottom: px(8), gap: px(12) }}
               >
-{dayItems.map((it) => (
-  <ActivityRow
-    key={it.id}
-    item={it}
-    px={px}
-    fs={fs}
-    onPress={() => onPressItem(it)}
-    onEdit={() => onPressItem(it)} // o abrir tu modal de edición
-    onDelete={() => console.log("delete", it.id)} // tu handler real
-  />
-))}
+                {dayItems.map((it) => (
+                  <ActivityRow
+                    key={it.id}
+                    item={it}
+                    currentDay={selectedDay}
+                    px={px}
+                    fs={fs}
+                    onPress={() => onPressItem(it)}
+                    onEdit={() => onPressItem(it)} // o abrir tu modal de edición
+                    onDelete={() => console.log("delete", it.id)} // tu handler real
+                  />
+                ))}
               </ScrollView>
             )}
           </View>
