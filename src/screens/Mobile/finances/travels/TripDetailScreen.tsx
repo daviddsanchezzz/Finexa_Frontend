@@ -21,6 +21,7 @@ import api from "../../../../api/api";
 import TripPlanningSection from "./components/TripPlanningSection";
 import TripLogisticsSection from "./components/TripLogisticaSection";
 import TripExpensesSection from "./components/TripExpensesSection";
+import TripExpenseSummarySection from "./components/TripExpenseSummarySection";
 import { TripPlanItemType } from "../../../../types/enums/travel";
 
 type TripStatus = "upcoming" | "ongoing" | "past";
@@ -66,6 +67,27 @@ export interface TripPlanItem {
   logistics?: boolean | null;
 }
 
+export type TaskStatus = "to_do" | "done";
+
+export type TripTask = {
+  id: number;
+  tripId: number;
+  title: string;
+  status: TaskStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TripNote = {
+  id: number;
+  tripId: number;
+  title?: string | null;
+  body: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 interface TripFromApi {
   id: number;
   name: string;
@@ -77,6 +99,8 @@ interface TripFromApi {
   companions?: string[]; // (ya no se muestra)
   transactions?: Tx[];
   planItems?: TripPlanItem[];
+  tasks?: TripTask[];
+  notes?: TripNote[];
   cost: number | null;
 }
 
@@ -206,10 +230,190 @@ export default function TripDetailScreen({ route, navigation }: any) {
   }, [trip]);
 
   const planItems: TripPlanItem[] = trip?.planItems || [];
+  const tasks: TripTask[] = trip?.tasks || [];
+  const notes: TripNote[] = trip?.notes || [];
 
   const countryCode = (trip?.destination || "").trim().toUpperCase() || null;
   const countryLabel = countryCode ? countryNameEs(countryCode) : "Sin destino";
   const countryFlag = cca2ToFlagEmoji(countryCode);
+
+  // =========================
+  // TASKS CALLBACKS
+  // =========================
+
+  const createTripTask = async (title: string) => {
+    if (!tripId) return;
+    const tempId = -Math.floor(Math.random() * 1_000_000);
+    const optimistic: TripTask = {
+      id: tempId,
+      tripId,
+      title,
+      status: "to_do",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return { ...prev, tasks: [optimistic, ...(prev.tasks || [])] };
+    });
+
+    try {
+      const res = await api.post(`/trips/${tripId}/tasks`, { title });
+      setTrip((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          tasks: (prev.tasks || []).map((t) => (t.id === tempId ? res.data : t)),
+        };
+      });
+    } catch (e) {
+      console.error("❌ Error creando tarea:", e);
+      setTrip((prev) => {
+        if (!prev) return prev;
+        return { ...prev, tasks: (prev.tasks || []).filter((t) => t.id !== tempId) };
+      });
+    }
+  };
+
+  const toggleTripTask = async (taskId: number, nextStatus: TaskStatus) => {
+    if (!tripId) return;
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tasks: (prev.tasks || []).map((t) =>
+          t.id === taskId ? { ...t, status: nextStatus, updatedAt: new Date().toISOString() } : t
+        ),
+      };
+    });
+
+    try {
+      await api.patch(`/trips/${tripId}/tasks/${taskId}/toggle`);
+    } catch (e) {
+      console.error("❌ Error toggling tarea:", e);
+      fetchTrip();
+    }
+  };
+
+  const editTripTaskTitle = async (taskId: number, title: string) => {
+    if (!tripId) return;
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tasks: (prev.tasks || []).map((t) =>
+          t.id === taskId ? { ...t, title, updatedAt: new Date().toISOString() } : t
+        ),
+      };
+    });
+
+    try {
+      await api.patch(`/trips/${tripId}/tasks/${taskId}`, { title });
+    } catch (e) {
+      console.error("❌ Error editando tarea:", e);
+      fetchTrip();
+    }
+  };
+
+  const deleteTripTask = async (taskId: number) => {
+    if (!tripId) return;
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return { ...prev, tasks: (prev.tasks || []).filter((t) => t.id !== taskId) };
+    });
+
+    try {
+      await api.delete(`/trips/${tripId}/tasks/${taskId}`);
+    } catch (e) {
+      console.error("❌ Error eliminando tarea:", e);
+      fetchTrip();
+    }
+  };
+
+  // =========================
+  // NOTES CALLBACKS
+  // =========================
+
+  const createTripNote = async (note: { title?: string | null; body: string; pinned?: boolean }) => {
+    if (!tripId) return;
+    const tempId = -Math.floor(Math.random() * 1_000_000);
+    const optimistic: TripNote = {
+      id: tempId,
+      tripId,
+      title: note.title || null,
+      body: note.body,
+      pinned: note.pinned || false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return { ...prev, notes: [optimistic, ...(prev.notes || [])] };
+    });
+
+    try {
+      const res = await api.post(`/trips/${tripId}/notes`, note);
+      setTrip((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          notes: (prev.notes || []).map((n) => (n.id === tempId ? res.data : n)),
+        };
+      });
+      return res.data;
+    } catch (e) {
+      console.error("❌ Error creando nota:", e);
+      setTrip((prev) => {
+        if (!prev) return prev;
+        return { ...prev, notes: (prev.notes || []).filter((n) => n.id !== tempId) };
+      });
+    }
+  };
+
+  const updateTripNote = async (
+    noteId: number,
+    patch: Partial<Pick<TripNote, "title" | "body" | "pinned">>
+  ) => {
+    if (!tripId) return;
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notes: (prev.notes || []).map((n) =>
+          n.id === noteId ? { ...n, ...patch, updatedAt: new Date().toISOString() } : n
+        ),
+      };
+    });
+
+    try {
+      await api.patch(`/trips/${tripId}/notes/${noteId}`, patch);
+    } catch (e) {
+      console.error("❌ Error actualizando nota:", e);
+      fetchTrip();
+    }
+  };
+
+  const deleteTripNote = async (noteId: number) => {
+    if (!tripId) return;
+
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return { ...prev, notes: (prev.notes || []).filter((n) => n.id !== noteId) };
+    });
+
+    try {
+      await api.delete(`/trips/${tripId}/notes/${noteId}`);
+    } catch (e) {
+      console.error("❌ Error eliminando nota:", e);
+      fetchTrip();
+    }
+  };
 
   // =========================
   // EXPORTAR PDF
@@ -512,39 +716,19 @@ export default function TripDetailScreen({ route, navigation }: any) {
         {/* CONTENIDO POR TAB */}
         <View style={{ flex: 1 }}>
           {tab === "summary" && (
-            <View style={{ flex: 1, backgroundColor: "transparent" }}>
-              {/* Resumen (placeholder limpio, sin inventar datos) */}
-              <View
-                style={{
-                  backgroundColor: "white",
-                  borderRadius: 18,
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: "rgba(148,163,184,0.22)",
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#0B1220" }}>
-                  Resumen del viaje
-                </Text>
-
-                <View style={{ marginTop: 10, gap: 8 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ color: "#64748B", fontWeight: "600" }}>Destino</Text>
-                    <Text style={{ color: "#0B1220", fontWeight: "700" }}>{countryLabel}</Text>
-                  </View>
-
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ color: "#64748B", fontWeight: "600" }}>Días</Text>
-                    <Text style={{ color: "#0B1220", fontWeight: "700" }}>{days}</Text>
-                  </View>
-
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ color: "#64748B", fontWeight: "600" }}>Total gastado</Text>
-                    <Text style={{ color: "#0B1220", fontWeight: "800" }}>{formatEuro(trip.cost || 0)}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
+            <TripExpenseSummarySection
+              px={(n) => n}
+              fs={(n) => n}
+              tasks={tasks}
+              notes={notes}
+              onCreateTask={createTripTask}
+              onToggleTask={toggleTripTask}
+              onDeleteTask={deleteTripTask}
+              onEditTaskTitle={editTripTaskTitle}
+              onCreateNote={createTripNote}
+              onUpdateNote={updateTripNote}
+              onDeleteNote={deleteTripNote}
+            />
           )}
 
           {tab === "expenses" && (

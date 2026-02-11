@@ -1,5 +1,5 @@
-// src/screens/Trips/TripPlanFormScreen.tsx
-import React, { useState } from "react";
+// src/screens/Mobile/finances/travels/TripPlanFormScreen.tsx
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,806 +8,1297 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
 import api from "../../../../api/api";
-import { colors } from "../../../../theme/theme";
-import TripTransactionSelectorModal, {
-  TransactionForSelector,
-} from "./components/TripTransactionSelectorModal";
+import { TripPlanItemType, BudgetCategoryType, RoomType, BathroomType } from "../../../../types/enums/travel";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 
+// ==================== TYPES ====================
 
-// 👇 Este tipo debe reflejar EXACTAMENTE el enum de Prisma TripPlanItemType
-type TripPlanItemType =
-  | "flight"
-  | "accommodation"
-  | "transport"
-  | "taxi"
-  | "museum"
-  | "monument"
-  | "viewpoint"
-  | "free_tour"
-  | "concert"
-  | "bar_party"
-  | "beach"
-  | "restaurant"
-  | "shopping"
-  | "other";
-
-type PickerField =
-  | "date"
-  | "startTime"
-  | "endTime"
-  | "accommodationStart"
-  | "accommodationEnd"
-  | null;
+type MainTab = "transport" | "accommodation" | "activity" | "expense";
+type TransportSubTab = "flight" | "train" | "bus" | "car";
+type TransportKind = "principal" | "local";
+type FlightEntryMode = "autofill" | "manual";
 
 interface TripPlanFormScreenProps {
   route: any;
   navigation: any;
 }
 
-type TypeOption = {
+interface ActivityType {
   label: string;
   value: TripPlanItemType;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+// ==================== CONSTANTS ====================
+
+// Desktop color scheme
+const UI = {
+  text: "#0B1220",
+  muted: "#64748B",
+  muted2: "#94A3B8",
+  border: "rgba(226,232,240,0.95)",
+  primary: "#0B1220",
 };
 
-// 👇 Los value ahora son los del enum del backend, en inglés
-const TYPE_OPTIONS: TypeOption[] = [
-  // ——— CULTURA Y TURISMO ———
-  { label: "Museum", value: "museum", icon: "color-palette-outline" },
-  { label: "Monument", value: "monument", icon: "business-outline" },
-  { label: "Viewpoint", value: "viewpoint", icon: "eye-outline" },
-
-  // ——— OCIO / ENTRETENIMIENTO ———
-  { label: "Free tour", value: "free_tour", icon: "walk-outline" },
-  {
-    label: "Concert / event",
-    value: "concert",
-    icon: "musical-notes-outline",
-  },
-  { label: "Bar / party", value: "bar_party", icon: "wine-outline" },
-
-  // ——— NATURALEZA / AVENTURA ———
-  { label: "Beach", value: "beach", icon: "sunny-outline" },
-
-  // ——— GASTRONOMÍA ———
-  { label: "Restaurant", value: "restaurant", icon: "restaurant-outline" },
-
-  // ——— COMPRAS ———
-  { label: "Shopping", value: "shopping", icon: "cart-outline" },
-
-  // ——— LOGÍSTICA ———
-  { label: "Flight", value: "flight", icon: "airplane-outline" },
-  { label: "Accommodation", value: "accommodation", icon: "bed-outline" },
-  { label: "Transport", value: "transport", icon: "bus-outline" },
-  { label: "Taxi", value: "taxi", icon: "car-sport-outline" },
-
-  // ——— GENÉRICO ———
-  { label: "Other", value: "other", icon: "sparkles-outline" },
+const ACTIVITY_TYPES: ActivityType[] = [
+  { label: "Museo", value: TripPlanItemType.museum, icon: "color-palette-outline" },
+  { label: "Monumento", value: TripPlanItemType.monument, icon: "business-outline" },
+  { label: "Mirador", value: TripPlanItemType.viewpoint, icon: "eye-outline" },
+  { label: "Free Tour", value: TripPlanItemType.free_tour, icon: "walk-outline" },
+  { label: "Concierto", value: TripPlanItemType.concert, icon: "musical-notes-outline" },
+  { label: "Fiesta", value: TripPlanItemType.bar_party, icon: "wine-outline" },
+  { label: "Playa", value: TripPlanItemType.beach, icon: "sunny-outline" },
+  { label: "Restaurante", value: TripPlanItemType.restaurant, icon: "restaurant-outline" },
+  { label: "Compras", value: TripPlanItemType.shopping, icon: "cart-outline" },
+  { label: "Otro", value: TripPlanItemType.other, icon: "sparkles-outline" },
 ];
 
-// 👉 Helpers para gestionar el input de euros con coma y 2 decimales
-const formatEuroFromNumber = (value: number): string => {
-  if (isNaN(value)) return "";
-  // 2 decimales y coma como separador
-  return value.toFixed(2).replace(".", ",");
-};
+const EXPENSE_CATEGORIES = [
+  { label: "Transporte", value: BudgetCategoryType.transport_main, icon: "car-outline" },
+  { label: "Alojamiento", value: BudgetCategoryType.accommodation, icon: "bed-outline" },
+  { label: "Comida", value: BudgetCategoryType.food, icon: "restaurant-outline" },
+  { label: "Actividades", value: BudgetCategoryType.activities, icon: "ticket-outline" },
+  { label: "Compras", value: BudgetCategoryType.shopping, icon: "cart-outline" },
+  { label: "Ocio", value: BudgetCategoryType.leisure, icon: "game-controller-outline" },
+  { label: "Otro", value: BudgetCategoryType.other, icon: "ellipsis-horizontal-outline" },
+];
 
-const formatEuroInput = (text: string): string => {
-  if (!text) return "";
+// ==================== HELPER FUNCTIONS ====================
 
-  // Solo números, puntos y comas
-  let sanitized = text.replace(/[^0-9.,]/g, "");
+function parseCost(input: string): number | null {
+  const s = (input || "").trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  if (!isFinite(n) || n < 0) return null;
+  return n;
+}
 
-  // Convertir siempre . a ,
-  sanitized = sanitized.replace(/\./g, ",");
+function parseIntNullable(value: string): number | null {
+  const v = (value || "").trim();
+  if (!v) return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 0) return null;
+  return n;
+}
 
-  // Evitar más de una coma: si hay más, unimos todo lo que sobra
-  const parts = sanitized.split(",");
-  if (parts.length > 2) {
-    sanitized = parts[0] + "," + parts.slice(1).join("");
+function toLocalIsoMinute(d: Date) {
+  const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
+  const yyyy = d.getFullYear();
+  const mm = pad2(d.getMonth() + 1);
+  const dd = pad2(d.getDate());
+  const hh = pad2(d.getHours());
+  const mi = pad2(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+function niceLocalLabel(d: Date | null) {
+  if (!d) return "";
+  try {
+    return d.toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return toLocalIsoMinute(d);
   }
+}
 
-  let [intPart, decPart = ""] = sanitized.split(",");
+// ==================== HELPER COMPONENTS ====================
 
-  // Evitar muchos ceros a la izquierda tipo 00012
-  intPart = intPart.replace(/^0+(?=\d)/, "");
-  if (intPart === "") intPart = "0";
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoCapitalize,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  multiline?: boolean;
+}) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={UI.muted2}
+        autoCapitalize={autoCapitalize ?? "none"}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        style={{
+          height: multiline ? 80 : 42,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: UI.border,
+          paddingHorizontal: 12,
+          paddingVertical: multiline ? 12 : 0,
+          fontSize: 13,
+          fontWeight: "700",
+          color: UI.text,
+          backgroundColor: "white",
+          textAlignVertical: multiline ? "top" : "center",
+        }}
+      />
+    </View>
+  );
+}
 
-  // Máximo 2 decimales
-  if (decPart.length > 2) {
-    decPart = decPart.slice(0, 2);
-  }
+function DateTimeField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: Date | null;
+  onChange: (d: Date) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
 
-  return decPart ? `${intPart},${decPart}` : intPart;
-};
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={{
+          height: 42,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: UI.border,
+          paddingHorizontal: 12,
+          backgroundColor: "white",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ fontSize: 13, fontWeight: "700", color: value ? UI.text : UI.muted2 }}>
+          {value ? niceLocalLabel(value) : placeholder || "Seleccionar"}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color={UI.muted} />
+      </Pressable>
 
+      <CrossPlatformDateTimePicker
+        isVisible={open}
+        date={value ?? new Date()}
+        onConfirm={(d: Date) => {
+          setOpen(false);
+          onChange(d);
+        }}
+        onCancel={() => setOpen(false)}
+        mode="datetime"
+      />
+    </View>
+  );
+}
+
+function Row2({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+      {children}
+    </View>
+  );
+}
+
+function Segmented({
+  value,
+  onChange,
+  items,
+}: {
+  value: string;
+  onChange: (v: any) => void;
+  items: Array<{ key: string; label: string }>;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        borderWidth: 1,
+        borderColor: UI.border,
+        borderRadius: 14,
+        overflow: "hidden",
+        backgroundColor: "white",
+        marginBottom: 16,
+      }}
+    >
+      {items.map((it) => {
+        const active = it.key === value;
+        return (
+          <Pressable
+            key={it.key}
+            onPress={() => onChange(it.key)}
+            style={{
+              flex: 1,
+              height: 40,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: active ? UI.primary : "white",
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "900", color: active ? "white" : UI.text }}>
+              {it.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function SmallChoice({
+  icon,
+  label,
+  selected,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  selected?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flex: 1,
+        minWidth: 120,
+        borderRadius: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: selected ? "rgba(15,23,42,0.35)" : UI.border,
+        backgroundColor: selected ? UI.primary : "white",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+      }}
+    >
+      <Ionicons name={icon} size={16} color={selected ? "white" : UI.text} />
+      <Text style={{ fontSize: 13, fontWeight: "800", color: selected ? "white" : UI.text }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function PrimaryButton({
+  label,
+  disabled,
+  loading,
+  onPress,
+}: {
+  label: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      disabled={disabled || loading}
+      onPress={onPress}
+      style={{
+        opacity: disabled || loading ? 0.45 : 1,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: UI.primary,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 16,
+        flexDirection: "row",
+        gap: 10,
+      }}
+    >
+      {loading && <ActivityIndicator color="white" />}
+      <Text style={{ fontSize: 13, fontWeight: "600", color: "white" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+// ==================== MAIN COMPONENT ====================
 
 export default function TripPlanFormScreen({
   route,
   navigation,
 }: TripPlanFormScreenProps) {
-  const { tripId, planItem } = route.params || {};
+  const { tripId, planItem, presetType, presetDay } = route.params || {};
   const isEdit = !!planItem;
 
-  // Tipo inicial: si edito, cojo el que coincida con planItem.type
-  // Si hay datos viejos con "activity", los mapeamos a "other" por seguridad
-  const normalizedBackendType: TripPlanItemType =
-    planItem?.type === "activity" ? "other" : planItem?.type || "other";
+  // ==================== TAB STATE ====================
 
-  const initialTypeOption: TypeOption =
-    TYPE_OPTIONS.find((opt) => opt.value === normalizedBackendType) ||
-    TYPE_OPTIONS[0];
+  const getInitialTab = (): MainTab => {
+    if (presetType === "flight" || presetType === "transport" || presetType === "taxi") return "transport";
+    if (presetType === "accommodation") return "accommodation";
+    if (planItem?.type === "flight" || planItem?.type === "transport_destination" || planItem?.type === "transport_local") return "transport";
+    if (planItem?.type === "accommodation") return "accommodation";
+    return "activity";
+  };
 
-  const [selectedType, setSelectedType] =
-    useState<TypeOption>(initialTypeOption);
-  const baseType: TripPlanItemType = selectedType.value;
+  const getInitialTransportTab = (): TransportSubTab => {
+    if (presetType === "flight" || planItem?.type === "flight") return "flight";
+    return "train";
+  };
 
-  const isAccommodationTypeInitial = normalizedBackendType === "accommodation";
+  const [mainTab, setMainTab] = useState<MainTab>(getInitialTab());
+  const [transportTab, setTransportTab] = useState<TransportSubTab>(getInitialTransportTab());
+  const [transportKind, setTransportKind] = useState<TransportKind>("principal");
 
-  // Para actividades normales
-  const [date, setDate] = useState<Date | null>(
-    planItem?.date && !isAccommodationTypeInitial
-      ? new Date(planItem.date)
-      : null
+  // ==================== FLIGHT STATE ====================
+
+  const [flightEntryMode, setFlightEntryMode] = useState<FlightEntryMode>("manual");
+
+  // Autofill inputs
+  const [flightNumber, setFlightNumber] = useState("");
+  const [flightDate, setFlightDate] = useState<Date | null>(null);
+
+  // Manual inputs
+  const [flightAirline, setFlightAirline] = useState(planItem?.flightDetails?.airlineName || "");
+  const [flightFrom, setFlightFrom] = useState(planItem?.flightDetails?.fromIata || "");
+  const [flightTo, setFlightTo] = useState(planItem?.flightDetails?.toIata || "");
+  const [flightDep, setFlightDep] = useState<Date | null>(
+    planItem?.flightDetails?.depAt ? new Date(planItem.flightDetails.depAt) : null
   );
-  const [startTime, setStartTime] = useState<Date | null>(
-    planItem?.startTime && !isAccommodationTypeInitial
-      ? new Date(planItem.startTime)
-      : null
-  );
-  const [endTime, setEndTime] = useState<Date | null>(
-    planItem?.endTime && !isAccommodationTypeInitial
-      ? new Date(planItem.endTime)
-      : null
+  const [flightArr, setFlightArr] = useState<Date | null>(
+    planItem?.flightDetails?.arrAt ? new Date(planItem.flightDetails.arrAt) : null
   );
 
-  // Para alojamiento (solo días)
-  const [accommodationStartDate, setAccommodationStartDate] =
-    useState<Date | null>(
-      isAccommodationTypeInitial && planItem?.date
-        ? new Date(planItem.date)
-        : null
-    );
-  const [accommodationEndDate, setAccommodationEndDate] =
-    useState<Date | null>(
-      isAccommodationTypeInitial && planItem?.endTime
-        ? new Date(planItem.endTime)
-        : null
-    );
+  // ==================== TRANSPORT STATE (train/bus/car) ====================
 
-  const [title, setTitle] = useState<string>(planItem?.title ?? "");
-  const [location, setLocation] = useState<string>(planItem?.location ?? "");
-  const [notes, setNotes] = useState<string>(planItem?.notes ?? "");
+  const [company, setCompany] = useState(planItem?.destinationTransport?.company || "");
+  const [bookingRef, setBookingRef] = useState(planItem?.destinationTransport?.bookingRef || "");
+  const [from, setFrom] = useState(planItem?.destinationTransport?.from || "");
+  const [to, setTo] = useState(planItem?.destinationTransport?.to || "");
+  const [dep, setDep] = useState<Date | null>(
+    planItem?.destinationTransport?.depAt ? new Date(planItem.destinationTransport.depAt) : null
+  );
+  const [arr, setArr] = useState<Date | null>(
+    planItem?.destinationTransport?.arrAt ? new Date(planItem.destinationTransport.arrAt) : null
+  );
 
-const [cost, setCost] = useState<string>(
-  typeof planItem?.cost === "number"
-    ? formatEuroFromNumber(planItem.cost)
-    : ""
-);
+  // Shared cost
+  const [costStr, setCostStr] = useState(
+    planItem?.cost ? String(planItem.cost).replace(".", ",") : ""
+  );
+  const [currency, setCurrency] = useState("EUR");
 
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<TransactionForSelector | null>(null);
+  // ==================== ACCOMMODATION STATE ====================
 
-  const [loadingTransaction, setLoadingTransaction] = useState(false);
+  const [accName, setAccName] = useState(planItem?.accommodationDetails?.name || "");
+  const [accAddress, setAccAddress] = useState(planItem?.accommodationDetails?.address || "");
+  const [accCity, setAccCity] = useState(planItem?.accommodationDetails?.city || "");
+  const [accCountry, setAccCountry] = useState(planItem?.accommodationDetails?.country || "");
+  const [roomType, setRoomType] = useState<RoomType | null>(planItem?.accommodationDetails?.roomType || null);
+  const [bathroomType, setBathroomType] = useState<BathroomType | null>(planItem?.accommodationDetails?.bathroomType || null);
+  const [accCheckInAt, setAccCheckInAt] = useState<Date | null>(
+    planItem?.accommodationDetails?.checkInAt ? new Date(planItem.accommodationDetails.checkInAt) : null
+  );
+  const [accCheckOutAt, setAccCheckOutAt] = useState<Date | null>(
+    planItem?.accommodationDetails?.checkOutAt ? new Date(planItem.accommodationDetails.checkOutAt) : null
+  );
+  const [accGuestsStr, setAccGuestsStr] = useState(
+    planItem?.accommodationDetails?.guests ? String(planItem.accommodationDetails.guests) : ""
+  );
+  const [accRoomsStr, setAccRoomsStr] = useState(
+    planItem?.accommodationDetails?.rooms ? String(planItem.accommodationDetails.rooms) : ""
+  );
+  const [accBookingRef, setAccBookingRef] = useState(planItem?.accommodationDetails?.bookingRef || "");
+  const [accPhone, setAccPhone] = useState(planItem?.accommodationDetails?.phone || "");
+  const [accWebsite, setAccWebsite] = useState(planItem?.accommodationDetails?.website || "");
+  const [accCostStr, setAccCostStr] = useState(
+    planItem?.cost && planItem.type === "accommodation" ? String(planItem.cost).replace(".", ",") : ""
+  );
+  const [accCurrency, setAccCurrency] = useState("EUR");
+
+  // ==================== ACTIVITY STATE ====================
+
+  const [actType, setActType] = useState<TripPlanItemType>(
+    planItem?.type && ACTIVITY_TYPES.find(t => t.value === planItem.type)
+      ? planItem.type
+      : TripPlanItemType.activity
+  );
+  const [actTitle, setActTitle] = useState(planItem?.title || "");
+  const [actLocation, setActLocation] = useState(planItem?.location || "");
+  const [actStartAt, setActStartAt] = useState<Date | null>(
+    planItem?.startTime ? new Date(planItem.startTime) : presetDay ? new Date(`${presetDay}T09:00`) : null
+  );
+  const [actEndAt, setActEndAt] = useState<Date | null>(
+    planItem?.endTime ? new Date(planItem.endTime) : null
+  );
+  const [actNotes, setActNotes] = useState(planItem?.notes || "");
+  const [actCostStr, setActCostStr] = useState(
+    planItem?.cost && planItem.type !== "accommodation" && planItem.type !== "flight"
+      ? String(planItem.cost).replace(".", ",")
+      : ""
+  );
+  const [actCurrency, setActCurrency] = useState("EUR");
+
+  // ==================== EXPENSE STATE ====================
+
+  const [expTitle, setExpTitle] = useState(planItem?.title || "");
+  const [expAmountStr, setExpAmountStr] = useState(
+    planItem?.cost ? String(planItem.cost).replace(".", ",") : ""
+  );
+  const [expCurrency, setExpCurrency] = useState("EUR");
+  const [expCategory, setExpCategory] = useState<BudgetCategoryType>(BudgetCategoryType.other);
+  const [expOccurredAt, setExpOccurredAt] = useState<Date | null>(
+    planItem?.date ? new Date(planItem.date) : presetDay ? new Date(`${presetDay}T12:00`) : new Date()
+  );
+  const [expNotes, setExpNotes] = useState(planItem?.notes || "");
+
+  // ==================== COMMON STATE ====================
+
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false); // 👈 NUEVO
+  const [err, setErr] = useState<string | null>(null);
 
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerField, setPickerField] = useState<PickerField>(null);
+  // ==================== SAVE HANDLERS ====================
 
-  const [typePickerVisible, setTypePickerVisible] = useState(false);
-  const [txSelectorVisible, setTxSelectorVisible] = useState(false);
-
-  const openPicker = (field: PickerField) => {
-    setPickerField(field);
-    setPickerVisible(true);
-  };
-
-  const closePicker = () => {
-    setPickerVisible(false);
-    setPickerField(null);
-  };
-
-  const handleConfirmPicker = (value: Date) => {
-    if (pickerField === "date") {
-      setDate(value);
-    } else if (pickerField === "startTime") {
-      setStartTime(value);
-    } else if (pickerField === "endTime") {
-      setEndTime(value);
-    } else if (pickerField === "accommodationStart") {
-      setAccommodationStartDate(value);
-    } else if (pickerField === "accommodationEnd") {
-      setAccommodationEndDate(value);
-    }
-    closePicker();
-  };
-
-  const formatDate = (d: Date | null, placeholder = "Seleccionar fecha") => {
-    if (!d) return placeholder;
-    return d.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatTime = (d: Date | null, placeholder: string) => {
-    if (!d) return placeholder;
-    return d.toLocaleTimeString("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const mergeDateAndTime = (baseDate: Date | null, time: Date | null) => {
-    if (!baseDate || !time) return null;
-    const merged = new Date(baseDate);
-    merged.setHours(time.getHours(), time.getMinutes(), 0, 0);
-    return merged.toISOString();
-  };
-
-  const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert("Título requerido", "Ponle un título a la actividad.");
+  const handleSaveFlight = async () => {
+    if (!flightAirline.trim() || !flightFrom.trim() || !flightTo.trim()) {
+      Alert.alert("Error", "Por favor completa los campos obligatorios");
       return;
     }
 
-    const isAccommodation = baseType === "accommodation";
-
-    if (isAccommodation) {
-      if (!accommodationStartDate || !accommodationEndDate) {
-        Alert.alert(
-          "Fechas requeridas",
-          "Selecciona día de inicio y día de fin para el alojamiento."
-        );
-        return;
-      }
-    }
-
-    const payload: any = {
-      type: baseType, // 👈 ahora coincide con enum prisma
-      title: title.trim(),
-      location: location.trim() || null,
-      notes: notes.trim() || null,
-    };
-
-    if (isAccommodation) {
-      payload.date = accommodationStartDate!.toISOString();
-      payload.endTime = accommodationEndDate!.toISOString();
-    } else if (date) {
-      payload.date = date!.toISOString();
-
-      const startIso = mergeDateAndTime(date, startTime);
-      const endIso = mergeDateAndTime(date, endTime);
-
-      if (startIso) payload.startTime = startIso;
-      if (endIso) payload.endTime = endIso;
-    }
-
-    // coste
-    const numericCost = Number(cost.replace(",", "."));
-    if (!isNaN(numericCost) && cost !== "") {
-      payload.cost = numericCost;
-    }
-
-    // transacción vinculada
-    if (selectedTransaction?.id) {
-      payload.transactionId = selectedTransaction.id;
-      if (typeof selectedTransaction.amount === "number") {
-        payload.cost = Math.abs(selectedTransaction.amount);
-      } else {
-        const parsed = Number(selectedTransaction.amount);
-        if (!isNaN(parsed)) payload.cost = Math.abs(parsed);
-      }
-    }
-
+    setSaving(true);
+    setErr(null);
     try {
-      setSaving(true);
-      console.log("💾 Guardando plan item con payload:", payload);
-      if (isEdit && planItem?.id) {
-        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+      const payload = {
+        tripId,
+        type: TripPlanItemType.flight,
+        cost: parseCost(costStr),
+        currency,
+        flightDetails: {
+          provider: "manual",
+          airlineName: flightAirline,
+          flightNumber: flightNumber || null,
+          fromIata: flightFrom,
+          toIata: flightTo,
+          depAt: flightDep?.toISOString() || null,
+          arrAt: flightArr?.toISOString() || null,
+        },
+      };
+
+      if (isEdit) {
+        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
 
-      Alert.alert(
-        "Guardado",
-        isEdit ? "Cambios guardados." : "Elemento añadido al planning.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-    } catch (err) {
-      console.error("❌ Error al guardar plan item:", err);
-      Alert.alert(
-        "Error",
-        "No se ha podido guardar la actividad. Inténtalo de nuevo."
-      );
+      navigation.goBack();
+    } catch (error: any) {
+      console.error("Error saving flight:", error);
+      setErr(error?.response?.data?.message || "No se pudo guardar el vuelo");
+      Alert.alert("Error", "No se pudo guardar el vuelo");
     } finally {
       setSaving(false);
     }
   };
 
-  // 👇 NUEVO: eliminar plan
-const handleDelete = () => {
-  if (!isEdit || !planItem?.id) {
-    console.log("❌ No es edición o falta planItem.id");
-    return;
-  }
-  if (!tripId) {
-    console.log("❌ No hay tripId en route.params");
-    Alert.alert(
-      "Error",
-      "No se ha encontrado el viaje asociado a este plan (tripId indefinido)."
-    );
-    return;
-  }
-
-  Alert.alert(
-    "Eliminar plan",
-    "¿Seguro que quieres eliminar este elemento del viaje?",
-    [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeleting(true);
-            console.log(
-              "🗑 Eliminando plan item...",
-              `/trips/${tripId}/plan-items/${planItem.id}`
-            );
-
-            await api.delete(`/trips/${tripId}/plan-items/${planItem.id}`);
-
-            console.log("✅ Plan item eliminado correctamente");
-            navigation.goBack();
-          } catch (err) {
-            console.error("❌ Error al eliminar plan item:", err);
-            Alert.alert(
-              "Error",
-              "No se ha podido eliminar el plan. Inténtalo de nuevo."
-            );
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]
-  );
-};
-
-  const currentPickerMode =
-    pickerField === "date" ||
-    pickerField === "accommodationStart" ||
-    pickerField === "accommodationEnd"
-      ? "date"
-      : "time";
-
-  const currentPickerDate = (() => {
-    switch (pickerField) {
-      case "date":
-        return date || new Date();
-      case "startTime":
-        return startTime || new Date();
-      case "endTime":
-        return endTime || new Date();
-      case "accommodationStart":
-        return accommodationStartDate || new Date();
-      case "accommodationEnd":
-        return accommodationEndDate || new Date();
-      default:
-        return new Date();
+  const handleSaveTransport = async () => {
+    if (!from.trim() || !to.trim()) {
+      Alert.alert("Error", "Por favor completa origen y destino");
+      return;
     }
-  })();
 
-const handleSelectTransaction = (tx: TransactionForSelector) => {
-  setSelectedTransaction(tx);
+    setSaving(true);
+    setErr(null);
+    try {
+      const type = transportKind === "principal"
+        ? TripPlanItemType.transport_destination
+        : TripPlanItemType.transport_local;
 
-  const rawAmount =
-    typeof tx.amount === "number" ? tx.amount : Number(tx.amount);
+      const payload = {
+        tripId,
+        type,
+        cost: parseCost(costStr),
+        currency,
+        destinationTransport: {
+          mode: transportTab === "car" ? "car" : transportTab === "bus" ? "bus" : "train",
+          company: company || null,
+          bookingRef: bookingRef || null,
+          from,
+          to,
+          depAt: dep?.toISOString() || null,
+          arrAt: arr?.toISOString() || null,
+        },
+      };
 
-  if (!isNaN(rawAmount)) {
-    setCost(formatEuroFromNumber(Math.abs(rawAmount)));
-  }
+      if (isEdit) {
+        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+      } else {
+        await api.post(`/trips/${tripId}/plan-items`, payload);
+      }
 
-  setTxSelectorVisible(false);
-};
+      navigation.goBack();
+    } catch (error: any) {
+      console.error("Error saving transport:", error);
+      setErr(error?.response?.data?.message || "No se pudo guardar el transporte");
+      Alert.alert("Error", "No se pudo guardar el transporte");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveAccommodation = async () => {
+    if (!accName.trim()) {
+      Alert.alert("Error", "El nombre del alojamiento es obligatorio");
+      return;
+    }
+
+    setSaving(true);
+    setErr(null);
+    try {
+      const payload = {
+        tripId,
+        type: TripPlanItemType.accommodation,
+        cost: parseCost(accCostStr),
+        currency: accCurrency,
+        accommodationDetails: {
+          name: accName,
+          address: accAddress || null,
+          city: accCity || null,
+          country: accCountry || null,
+          roomType: roomType || null,
+          bathroomType: bathroomType || null,
+          checkInAt: accCheckInAt?.toISOString() || null,
+          checkOutAt: accCheckOutAt?.toISOString() || null,
+          guests: parseIntNullable(accGuestsStr),
+          rooms: parseIntNullable(accRoomsStr),
+          bookingRef: accBookingRef || null,
+          phone: accPhone || null,
+          website: accWebsite || null,
+        },
+        date: accCheckInAt?.toISOString() || null,
+        endTime: accCheckOutAt?.toISOString() || null,
+      };
+
+      if (isEdit) {
+        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+      } else {
+        await api.post(`/trips/${tripId}/plan-items`, payload);
+      }
+
+      navigation.goBack();
+    } catch (error: any) {
+      console.error("Error saving accommodation:", error);
+      setErr(error?.response?.data?.message || "No se pudo guardar el alojamiento");
+      Alert.alert("Error", "No se pudo guardar el alojamiento");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveActivity = async () => {
+    if (!actTitle.trim()) {
+      Alert.alert("Error", "El título es obligatorio");
+      return;
+    }
+
+    setSaving(true);
+    setErr(null);
+    try {
+      const payload = {
+        tripId,
+        type: actType,
+        title: actTitle,
+        location: actLocation || null,
+        startTime: actStartAt?.toISOString() || null,
+        endTime: actEndAt?.toISOString() || null,
+        notes: actNotes || null,
+        cost: parseCost(actCostStr),
+        currency: actCurrency,
+      };
+
+      if (isEdit) {
+        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+      } else {
+        await api.post(`/trips/${tripId}/plan-items`, payload);
+      }
+
+      navigation.goBack();
+    } catch (error: any) {
+      console.error("Error saving activity:", error);
+      setErr(error?.response?.data?.message || "No se pudo guardar la actividad");
+      Alert.alert("Error", "No se pudo guardar la actividad");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveExpense = async () => {
+    if (!expTitle.trim()) {
+      Alert.alert("Error", "El título es obligatorio");
+      return;
+    }
+
+    const amount = parseCost(expAmountStr);
+    if (amount === null || amount <= 0) {
+      Alert.alert("Error", "El importe debe ser mayor a 0");
+      return;
+    }
+
+    setSaving(true);
+    setErr(null);
+    try {
+      const payload = {
+        tripId,
+        type: TripPlanItemType.expense,
+        title: expTitle,
+        cost: amount,
+        currency: expCurrency,
+        date: expOccurredAt?.toISOString() || new Date().toISOString(),
+        notes: expNotes || null,
+        expenseCategory: expCategory,
+      };
+
+      if (isEdit) {
+        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+      } else {
+        await api.post(`/trips/${tripId}/plan-items`, payload);
+      }
+
+      navigation.goBack();
+    } catch (error: any) {
+      console.error("Error saving expense:", error);
+      setErr(error?.response?.data?.message || "No se pudo guardar el gasto");
+      Alert.alert("Error", "No se pudo guardar el gasto");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (mainTab === "transport") {
+      if (transportTab === "flight") {
+        handleSaveFlight();
+      } else {
+        handleSaveTransport();
+      }
+    } else if (mainTab === "accommodation") {
+      handleSaveAccommodation();
+    } else if (mainTab === "activity") {
+      handleSaveActivity();
+    } else if (mainTab === "expense") {
+      handleSaveExpense();
+    }
+  };
+
+  // ==================== RENDER ====================
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
       {/* HEADER */}
-      <View className="flex-row items-center px-4 pt-3 pb-2">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          className="mr-3 rounded-full bg-white px-2 py-1 shadow-sm"
-          activeOpacity={0.8}
-        >
-          <Ionicons name="chevron-back" size={20} color="#111827" />
-        </TouchableOpacity>
-        <View className="flex-1">
-          <Text className="text-[16px] font-semibold text-gray-900">
-            {isEdit ? "Editar elemento" : "Nuevo elemento del viaje"}
-          </Text>
-          <Text className="text-[11px] text-gray-500">
-            Añade planes, vuelos, alojamientos o actividades al viaje
-          </Text>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: "white",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 12,
+              borderWidth: 1,
+              borderColor: UI.border,
+            }}
+          >
+            <Ionicons name="close" size={20} color={UI.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: "800", color: UI.text }}>
+              {isEdit ? "Editar elemento" : "Nuevo elemento"}
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: UI.muted, marginTop: 2 }}>
+              {mainTab === "transport" && "Añade transporte al viaje"}
+              {mainTab === "accommodation" && "Añade alojamiento al viaje"}
+              {mainTab === "activity" && "Añade una actividad al viaje"}
+              {mainTab === "expense" && "Registra un gasto del viaje"}
+            </Text>
+          </View>
+        </View>
+
+        {/* MAIN TABS */}
+        <View style={{ flexDirection: "row", gap: 4 }}>
+          {[
+            { key: "transport" as MainTab, label: "Transporte", icon: "airplane-outline" },
+            { key: "accommodation" as MainTab, label: "Alojamiento", icon: "bed-outline" },
+            { key: "activity" as MainTab, label: "Actividad", icon: "sparkles-outline" },
+            { key: "expense" as MainTab, label: "Gasto", icon: "wallet-outline" },
+          ].map((tab) => {
+            const active = mainTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setMainTab(tab.key)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderBottomWidth: 3,
+                  borderBottomColor: active ? UI.primary : "transparent",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name={tab.icon as keyof typeof Ionicons.glyphMap}
+                  size={18}
+                  color={active ? UI.primary : UI.muted2}
+                  style={{ marginBottom: 4 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: active ? "800" : "600",
+                    color: active ? UI.primary : UI.muted,
+                  }}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
+      {/* CONTENT */}
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* TRANSPORT TAB */}
+        {mainTab === "transport" && (
+          <View>
+            {/* Transport Subtabs */}
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, marginTop: 8 }}>
+              {[
+                { key: "flight" as TransportSubTab, label: "Vuelo", icon: "airplane-outline" as keyof typeof Ionicons.glyphMap },
+                { key: "train" as TransportSubTab, label: "Tren", icon: "train-outline" as keyof typeof Ionicons.glyphMap },
+                { key: "bus" as TransportSubTab, label: "Bus", icon: "bus-outline" as keyof typeof Ionicons.glyphMap },
+                { key: "car" as TransportSubTab, label: "Coche", icon: "car-sport-outline" as keyof typeof Ionicons.glyphMap },
+              ].map((subtab) => (
+                <SmallChoice
+                  key={subtab.key}
+                  icon={subtab.icon}
+                  label={subtab.label}
+                  selected={transportTab === subtab.key}
+                  onPress={() => setTransportTab(subtab.key)}
+                />
+              ))}
+            </View>
 
-        {/* CARD: Tipo + fechas */}
-        <View className="rounded-3xl bg-white p-4 shadow-sm mb-4">
-          {/* Tipo */}
-          <Text className="text-[13px] font-semibold text-gray-900 mb-1">
-            Tipo
-          </Text>
-          <TouchableOpacity
-            onPress={() => setTypePickerVisible(true)}
-            activeOpacity={0.9}
-            className="rounded-2xl bg-gray-100 px-3 py-2 mb-4 flex-row items-center justify-between"
-          >
-            <View className="flex-row items-center">
-              <View className="h-7 w-7 rounded-full bg-white items-center justify-center mr-2">
-                <Ionicons
-                  name={selectedType.icon as any}
-                  size={16}
-                  color={colors.primary}
+            {/* Flight Form */}
+            {transportTab === "flight" && (
+              <View>
+                <Field
+                  label="AEROLÍNEA *"
+                  value={flightAirline}
+                  onChange={setFlightAirline}
+                  placeholder="Ej: Ryanair"
+                  autoCapitalize="words"
+                />
+
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="DESDE (IATA) *"
+                      value={flightFrom}
+                      onChange={setFlightFrom}
+                      placeholder="MAD"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="HASTA (IATA) *"
+                      value={flightTo}
+                      onChange={setFlightTo}
+                      placeholder="BCN"
+                    />
+                  </View>
+                </Row2>
+
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <DateTimeField
+                      label="SALIDA"
+                      value={flightDep}
+                      onChange={setFlightDep}
+                      placeholder="Seleccionar"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <DateTimeField
+                      label="LLEGADA"
+                      value={flightArr}
+                      onChange={setFlightArr}
+                      placeholder="Seleccionar"
+                    />
+                  </View>
+                </Row2>
+
+                <Field
+                  label="NÚMERO DE VUELO"
+                  value={flightNumber}
+                  onChange={setFlightNumber}
+                  placeholder="Ej: FR1234"
+                />
+
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="COSTE"
+                      value={costStr}
+                      onChange={setCostStr}
+                      placeholder="0,00"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="MONEDA"
+                      value={currency}
+                      onChange={setCurrency}
+                      placeholder="EUR"
+                    />
+                  </View>
+                </Row2>
+              </View>
+            )}
+
+            {/* Train/Bus/Car Form */}
+            {transportTab !== "flight" && (
+              <View>
+                <Segmented
+                  value={transportKind}
+                  onChange={setTransportKind}
+                  items={[
+                    { key: "principal", label: "Al Destino" },
+                    { key: "local", label: "Local" },
+                  ]}
+                />
+
+                <Field
+                  label="COMPAÑÍA"
+                  value={company}
+                  onChange={setCompany}
+                  placeholder={`Ej: ${transportTab === "train" ? "Renfe" : transportTab === "bus" ? "Alsa" : "Uber"}`}
+                  autoCapitalize="words"
+                />
+
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="DESDE *"
+                      value={from}
+                      onChange={setFrom}
+                      placeholder="Madrid"
+                      autoCapitalize="words"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="HASTA *"
+                      value={to}
+                      onChange={setTo}
+                      placeholder="Barcelona"
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </Row2>
+
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <DateTimeField
+                      label="SALIDA"
+                      value={dep}
+                      onChange={setDep}
+                      placeholder="Seleccionar"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <DateTimeField
+                      label="LLEGADA"
+                      value={arr}
+                      onChange={setArr}
+                      placeholder="Seleccionar"
+                    />
+                  </View>
+                </Row2>
+
+                <Field
+                  label="REFERENCIA RESERVA"
+                  value={bookingRef}
+                  onChange={setBookingRef}
+                  placeholder="Ej: ABC123"
+                />
+
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="COSTE"
+                      value={costStr}
+                      onChange={setCostStr}
+                      placeholder="0,00"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Field
+                      label="MONEDA"
+                      value={currency}
+                      onChange={setCurrency}
+                      placeholder="EUR"
+                    />
+                  </View>
+                </Row2>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ACCOMMODATION TAB */}
+        {mainTab === "accommodation" && (
+          <View style={{ marginTop: 8 }}>
+            <Field
+              label="NOMBRE *"
+              value={accName}
+              onChange={setAccName}
+              placeholder="Ej: Hotel Ritz"
+              autoCapitalize="words"
+            />
+
+            <Field
+              label="DIRECCIÓN"
+              value={accAddress}
+              onChange={setAccAddress}
+              placeholder="Calle Principal 123"
+              autoCapitalize="words"
+            />
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="CIUDAD"
+                  value={accCity}
+                  onChange={setAccCity}
+                  placeholder="Madrid"
+                  autoCapitalize="words"
                 />
               </View>
-              <View>
-                <Text className="text-[13px] text-gray-800 font-medium">
-                  {selectedType.label}
-                </Text>
-                <Text className="text-[10px] text-gray-500">
-                  Toca para cambiar el tipo de plan
-                </Text>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="PAÍS"
+                  value={accCountry}
+                  onChange={setAccCountry}
+                  placeholder="España"
+                  autoCapitalize="words"
+                />
               </View>
-            </View>
-            <Ionicons name="chevron-down-outline" size={18} color="#6B7280" />
-          </TouchableOpacity>
+            </Row2>
 
-          {/* Fecha + horario / fechas alojamiento */}
-          <Text className="text-[13px] font-semibold text-gray-900 mb-1">
-            {baseType === "accommodation"
-              ? "Fechas de alojamiento"
-              : "Fecha y horario"}
-          </Text>
-
-          {baseType === "accommodation" ? (
-            <View className="flex-row mb-1.5">
-              {/* Día inicio */}
-              <TouchableOpacity
-                onPress={() => openPicker("accommodationStart")}
-                className="flex-1 rounded-2xl px-3 py-2 bg-gray-100 flex-row items-center mr-1.5"
-                activeOpacity={0.9}
-              >
-                <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-                <Text className="text-[12px] text-gray-700 ml-2">
-                  {formatDate(accommodationStartDate, "Día inicio")}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Día fin */}
-              <TouchableOpacity
-                onPress={() => openPicker("accommodationEnd")}
-                className="flex-1 rounded-2xl px-3 py-2 bg-gray-100 flex-row items-center ml-1.5"
-                activeOpacity={0.9}
-              >
-                <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-                <Text className="text-[12px] text-gray-700 ml-2">
-                  {formatDate(accommodationEndDate, "Día fin")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View className="flex-row mb-1.5">
-              {/* Fecha */}
-              <TouchableOpacity
-                onPress={() => openPicker("date")}
-                className="flex-1 rounded-2xl px-3 py-2 bg-gray-100 flex-row items-center mr-1.5"
-                activeOpacity={0.9}
-              >
-                <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-                <Text className="text-[12px] text-gray-700 ml-2">
-                  {formatDate(date)}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Hora inicio */}
-              <TouchableOpacity
-                onPress={() => openPicker("startTime")}
-                className="flex-1 rounded-2xl px-3 py-2 bg-gray-100 flex-row items-center mx-0.75"
-                activeOpacity={0.9}
-              >
-                <Ionicons name="time-outline" size={16} color="#6B7280" />
-                <Text className="text-[12px] text-gray-700 ml-2">
-                  {formatTime(startTime, "Inicio")}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Hora fin */}
-              <TouchableOpacity
-                onPress={() => openPicker("endTime")}
-                className="flex-1 rounded-2xl px-3 py-2 bg-gray-100 flex-row items-center ml-1.5"
-                activeOpacity={0.9}
-              >
-                <Ionicons name="time-outline" size={16} color="#6B7280" />
-                <Text className="text-[12px] text-gray-700 ml-2">
-                  {formatTime(endTime, "Fin")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* CARD: Detalles */}
-        <View className="rounded-3xl bg-white p-4 shadow-sm mb-4">
-          {/* Título */}
-          <Text className="text-[13px] font-semibold text-gray-900 mb-1">
-            Título
-          </Text>
-          <View className="rounded-2xl bg-gray-100 px-3 py-2 mb-3">
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Ej. Museo Nacional, free tour por el centro…"
-              className="text-[13px] text-gray-800"
-            />
-          </View>
-
-          {/* Lugar */}
-          <Text className="text-[13px] font-semibold text-gray-900 mb-1">
-            Lugar
-          </Text>
-          <View className="rounded-2xl bg-gray-100 px-3 py-2 mb-3">
-            <TextInput
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Lugar / punto de encuentro"
-              className="text-[13px] text-gray-800"
-            />
-          </View>
-
-          {/* Notas */}
-          <Text className="text-[13px] font-semibold text-gray-900 mb-1">
-            Notas
-          </Text>
-          <View className="rounded-2xl bg-gray-100 px-3 py-2">
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Notas (código de reserva, detalles, etc.)"
-              multiline
-              className="text-[12px] text-gray-700"
-            />
-          </View>
-        </View>
-
-        {/* CARD: Coste & Transacción */}
-        <View className="rounded-3xl bg-white p-4 shadow-sm mb-2">
-          <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-[13px] font-semibold text-gray-900">
-              Coste y transacción
-            </Text>
-            <View className="rounded-full bg-emerald-50 px-2 py-0.5">
-              <Text className="text-[10px] text-emerald-700">
-                Opcional pero recomendado
-              </Text>
-            </View>
-          </View>
-
-          <View className="rounded-2xl bg-gray-100 px-3 py-2 mb-2">
-            <View className="flex-row items-center mb-1">
-              <Ionicons name="cash-outline" size={16} color="#6B7280" />
-              <TextInput
-                value={cost}
-                onChangeText={(text) => setCost(formatEuroInput(text))}
-                placeholder="Coste (opcional)"
-                keyboardType="decimal-pad"
-                className="flex-1 text-[13px] text-gray-800 ml-2"
-              />
-              <Text className="text-[11px] text-gray-500 ml-1">€</Text>
-            </View>
-          </View>
-
-          <Text className="text-[11px] text-gray-500 mb-1 mt-1">
-            O vincula una transacción (sobrescribirá el coste)
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => setTxSelectorVisible(true)}
-            className="mt-1 rounded-2xl bg-indigo-50 px-3 py-2 flex-row items-center justify-between"
-            activeOpacity={0.9}
-          >
-            <View className="flex-row items-center">
-              <View className="h-7 w-7 rounded-full bg-white items-center justify-center mr-2">
-                <Ionicons name="link-outline" size={16} color={colors.primary} />
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <DateTimeField
+                  label="CHECK-IN"
+                  value={accCheckInAt}
+                  onChange={setAccCheckInAt}
+                  placeholder="Seleccionar"
+                />
               </View>
-              <Text
-                className={`text-[12px] ${
-                  selectedTransaction ? "text-indigo-900" : "text-indigo-700"
-                }`}
-              >
-                {selectedTransaction
-                  ? selectedTransaction.description || "Transacción seleccionada"
-                  : "Seleccionar transacción"}
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward-outline"
-              size={16}
-              color="#4B5563"
+              <View style={{ flex: 1 }}>
+                <DateTimeField
+                  label="CHECK-OUT"
+                  value={accCheckOutAt}
+                  onChange={setAccCheckOutAt}
+                  placeholder="Seleccionar"
+                />
+              </View>
+            </Row2>
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="HUÉSPEDES"
+                  value={accGuestsStr}
+                  onChange={setAccGuestsStr}
+                  placeholder="2"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="HABITACIONES"
+                  value={accRoomsStr}
+                  onChange={setAccRoomsStr}
+                  placeholder="1"
+                />
+              </View>
+            </Row2>
+
+            <Field
+              label="REFERENCIA RESERVA"
+              value={accBookingRef}
+              onChange={setAccBookingRef}
+              placeholder="Ej: BKG123456"
             />
-          </TouchableOpacity>
 
-          {selectedTransaction && (
-            <View className="mt-3 bg-gray-50 rounded-2xl px-3 py-2 border border-gray-100">
-              <Text className="text-[11px] text-gray-500 mb-1">
-                Transacción seleccionada
-              </Text>
-              <Text className="text-[12px] text-gray-900 font-medium">
-                {selectedTransaction.description || "Sin descripción"}
-              </Text>
-              <Text className="text-[11px] text-gray-500 mt-1">
-                Importe:{" "}
-                <Text className="font-semibold text-gray-900">
-                  {selectedTransaction.amount} €
-                </Text>
-              </Text>
-            </View>
-          )}
-        </View>
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="COSTE TOTAL"
+                  value={accCostStr}
+                  onChange={setAccCostStr}
+                  placeholder="0,00"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="MONEDA"
+                  value={accCurrency}
+                  onChange={setAccCurrency}
+                  placeholder="EUR"
+                />
+              </View>
+            </Row2>
+          </View>
+        )}
 
-        {/* Botón guardar */}
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving || deleting}
-          className="mt-4 flex-row items-center justify-center rounded-2xl py-3"
-          style={{
-            backgroundColor: colors.primary,
-            opacity: saving || deleting ? 0.7 : 1,
-          }}
-          activeOpacity={0.9}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-outline" size={18} color="#FFFFFF" />
-              <Text className="text-[13px] text-white font-semibold ml-1.5">
-                {isEdit ? "Guardar cambios" : "Guardar en el viaje"}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* Botón eliminar (solo en edición) */}
-{isEdit && (
-  <TouchableOpacity
-    onPress={handleDelete}
-    disabled={deleting || saving}
-    className="mt-2 flex-row items-center justify-center rounded-2xl py-3"
-    style={{
-      backgroundColor: "#FEF2F2",
-      borderWidth: 1,
-      borderColor: "#FCA5A5",
-      opacity: deleting || saving ? 0.7 : 1,
-    }}
-    activeOpacity={0.9}
-  >
-    {deleting ? (
-      <ActivityIndicator size="small" color="#B91C1C" />
-    ) : (
-      <>
-        <Ionicons name="trash-outline" size={18} color="#B91C1C" />
-        <Text className="text-[13px] text-red-700 font-semibold ml-1.5">
-          Eliminar plan
-        </Text>
-      </>
-    )}
-  </TouchableOpacity>
-)}
-
-      </ScrollView>
-
-      {/* Date / Time picker */}
-{/* Date / Time picker */}
-<CrossPlatformDateTimePicker
-  isVisible={pickerVisible}
-  mode={currentPickerMode as "date" | "time" | "datetime"}
-  date={currentPickerDate}
-  onConfirm={handleConfirmPicker}
-  onCancel={closePicker}
-/>
-
-      {/* Selector de tipo */}
-      <Modal
-        visible={typePickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTypePickerVisible(false)}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setTypePickerVisible(false)}
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            paddingHorizontal: 24,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "white",
-              borderRadius: 24,
-              paddingVertical: 12,
-              maxHeight: "70%",
-            }}
-          >
-            <Text className="text-center text-[14px] font-semibold text-gray-900 mb-2">
-              Selecciona un tipo
+        {/* ACTIVITY TAB */}
+        {mainTab === "activity" && (
+          <View style={{ marginTop: 8 }}>
+            {/* Activity Type Selector */}
+            <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 10 }}>
+              TIPO DE ACTIVIDAD
             </Text>
-            <ScrollView>
-              {TYPE_OPTIONS.map((opt) => {
-                const active = opt.value === selectedType.value;
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+              {ACTIVITY_TYPES.map((type) => {
+                const active = actType === type.value;
                 return (
                   <TouchableOpacity
-                    key={opt.value}
-                    onPress={() => {
-                      setSelectedType(opt);
-                      setTypePickerVisible(false);
-                    }}
+                    key={type.value}
+                    onPress={() => setActType(type.value)}
                     style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      flexDirection: "row",
+                      width: "23%",
+                      aspectRatio: 1,
+                      borderRadius: 14,
+                      backgroundColor: active ? UI.primary : "white",
+                      borderWidth: 1,
+                      borderColor: active ? UI.primary : UI.border,
                       alignItems: "center",
-                      backgroundColor: active ? "#EEF2FF" : "transparent",
+                      justifyContent: "center",
+                      padding: 8,
                     }}
                   >
                     <Ionicons
-                      name={opt.icon as any}
-                      size={16}
-                      color={active ? colors.primary : "#6B7280"}
+                      name={type.icon}
+                      size={24}
+                      color={active ? "white" : UI.text}
+                      style={{ marginBottom: 4 }}
                     />
-                    <Text className="ml-2 text-[13px] text-gray-800">
-                      {opt.label}
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: "700",
+                        color: active ? "white" : UI.muted,
+                        textAlign: "center",
+                      }}
+                      numberOfLines={1}
+                    >
+                      {type.label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+            </View>
 
-      {/* Selector de transacción */}
-      <TripTransactionSelectorModal
-        visible={txSelectorVisible}
-        onClose={() => setTxSelectorVisible(false)}
-        onSelect={handleSelectTransaction}
-      />
+            <Field
+              label="TÍTULO *"
+              value={actTitle}
+              onChange={setActTitle}
+              placeholder="Ej: Visita al Museo del Prado"
+              autoCapitalize="sentences"
+            />
+
+            <Field
+              label="UBICACIÓN"
+              value={actLocation}
+              onChange={setActLocation}
+              placeholder="Ej: Paseo del Prado, Madrid"
+              autoCapitalize="words"
+            />
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <DateTimeField
+                  label="INICIO"
+                  value={actStartAt}
+                  onChange={setActStartAt}
+                  placeholder="Seleccionar"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <DateTimeField
+                  label="FIN"
+                  value={actEndAt}
+                  onChange={setActEndAt}
+                  placeholder="Seleccionar"
+                />
+              </View>
+            </Row2>
+
+            <Field
+              label="NOTAS"
+              value={actNotes}
+              onChange={setActNotes}
+              placeholder="Añade detalles, horarios, recordatorios..."
+              multiline
+            />
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="COSTE"
+                  value={actCostStr}
+                  onChange={setActCostStr}
+                  placeholder="0,00"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="MONEDA"
+                  value={actCurrency}
+                  onChange={setActCurrency}
+                  placeholder="EUR"
+                />
+              </View>
+            </Row2>
+          </View>
+        )}
+
+        {/* EXPENSE TAB */}
+        {mainTab === "expense" && (
+          <View style={{ marginTop: 8 }}>
+            <Field
+              label="CONCEPTO *"
+              value={expTitle}
+              onChange={setExpTitle}
+              placeholder="Ej: Cena en restaurante"
+              autoCapitalize="sentences"
+            />
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="IMPORTE *"
+                  value={expAmountStr}
+                  onChange={setExpAmountStr}
+                  placeholder="0,00"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="MONEDA"
+                  value={expCurrency}
+                  onChange={setExpCurrency}
+                  placeholder="EUR"
+                />
+              </View>
+            </Row2>
+
+            {/* Category */}
+            <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 10 }}>
+              CATEGORÍA
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+              {EXPENSE_CATEGORIES.map((cat) => {
+                const active = expCategory === cat.value;
+                return (
+                  <TouchableOpacity
+                    key={cat.value}
+                    onPress={() => setExpCategory(cat.value)}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: 12,
+                      backgroundColor: active ? UI.primary : "white",
+                      borderWidth: 1,
+                      borderColor: active ? UI.primary : UI.border,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Ionicons
+                      name={cat.icon as any}
+                      size={16}
+                      color={active ? "white" : UI.text}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color: active ? "white" : UI.text,
+                      }}
+                    >
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <DateTimeField
+              label="FECHA"
+              value={expOccurredAt}
+              onChange={setExpOccurredAt}
+              placeholder="Seleccionar fecha"
+            />
+
+            <Field
+              label="NOTAS"
+              value={expNotes}
+              onChange={setExpNotes}
+              placeholder="Añade detalles adicionales..."
+              multiline
+            />
+          </View>
+        )}
+      </ScrollView>
+
+      {/* SAVE BUTTON */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: 16,
+          backgroundColor: "white",
+          borderTopWidth: 1,
+          borderTopColor: UI.border,
+        }}
+      >
+        <PrimaryButton
+          label={isEdit ? "Guardar cambios" : "Crear elemento"}
+          loading={saving}
+          disabled={saving}
+          onPress={handleSave}
+        />
+      </View>
     </SafeAreaView>
   );
 }
