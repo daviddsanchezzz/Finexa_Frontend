@@ -638,11 +638,16 @@ export function DailyPlanTimeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days.join("|")]);
 
+  // Filter out accommodation items from planning view
+  const planningItems = useMemo(() => {
+    return items.filter((item) => item.type !== "accommodation");
+  }, [items]);
+
   const byDate = useMemo(() => {
     const map: Record<string, TripPlanItem[]> = {};
 
     // Group items by all days they span
-    for (const it of items) {
+    for (const it of planningItems) {
       const days = getDaysSpanned(it);
       for (const day of days) {
         (map[day] ||= []).push(it);
@@ -655,7 +660,7 @@ export function DailyPlanTimeline({
     }
 
     return map;
-  }, [items]);
+  }, [planningItems]);
 
   const dayItems = byDate[selectedDay] ?? [];
   const isNoDate = selectedDay === NO_DATE;
