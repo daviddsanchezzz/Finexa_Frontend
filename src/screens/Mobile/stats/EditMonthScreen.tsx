@@ -240,7 +240,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
             <TextInput
               value={income}
               onChangeText={setIncome}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
               placeholder="Ingresos manuales"
               className="border border-gray-300 rounded-xl p-3 mb-4 text-[16px]"
             />
@@ -252,7 +252,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
             <TextInput
               value={expense}
               onChangeText={setExpense}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
               placeholder="Gastos manuales"
               className="border border-gray-300 rounded-xl p-3 mb-4 text-[16px]"
             />
@@ -270,7 +270,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
               <TextInput
                 value={finalBalance}
                 onChangeText={setFinalBalance}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 placeholder="Introduce un saldo final..."
                 className="border border-gray-300 rounded-xl px-4 py-3 text-[16px] bg-white"
               />
