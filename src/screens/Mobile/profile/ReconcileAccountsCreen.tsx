@@ -168,9 +168,6 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                     <TextInput
                       value={realValues[wallet.id] ?? ""}
                       onChangeText={(v) => handleChange(wallet.id, v)}
-                      placeholder={formatEuro(teorico)
-                        .replace("€", "")
-                        .trim()}
                       keyboardType="decimal-pad"
                       className="text-[15px] text-right bg-gray-100 px-3 py-1.5 rounded-xl"
                     />
