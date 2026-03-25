@@ -413,6 +413,40 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     ]);
   };
 
+  const combinedMovements = useMemo<CombinedMovement[]>(() => {
+    const transactions = project?.transactions || [];
+    const manualEntries = project?.manualEntries || [];
+
+    const txItems: CombinedMovement[] = transactions
+      .filter((tx) => tx.type === 'income' || tx.type === 'expense')
+      .map((tx) => ({
+        source: 'transaction',
+        id: tx.id,
+        type: tx.type,
+        title: tx.description || 'Transacción sin descripción',
+        description: tx.description,
+        amount: Number(tx.amount || 0),
+        date: tx.date,
+      }));
+
+    const manualItems: CombinedMovement[] = manualEntries.map((entry) => ({
+      source: 'manual',
+      id: entry.id,
+      type: entry.type,
+      title: entry.title,
+      description: entry.description,
+      amount: Number(entry.amount || 0),
+      date: entry.date,
+      category: entry.category,
+    }));
+
+    return [...txItems, ...manualItems].sort((a, b) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      return bDate - aDate;
+    });
+  }, [project?.transactions, project?.manualEntries]);
+
   if (loading && !project) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
@@ -442,36 +476,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const balance = Number(project.financials.balance || 0);
   const balanceColor = balance >= 0 ? '#16A34A' : '#DC2626';
   const statusTone = STATUS_COLORS[project.status];
-  const combinedMovements = useMemo<CombinedMovement[]>(() => {
-    const txItems: CombinedMovement[] = project.transactions
-      .filter((tx) => tx.type === 'income' || tx.type === 'expense')
-      .map((tx) => ({
-        source: 'transaction',
-        id: tx.id,
-        type: tx.type,
-        title: tx.description || 'Transacción sin descripción',
-        description: tx.description,
-        amount: Number(tx.amount || 0),
-        date: tx.date,
-      }));
-
-    const manualItems: CombinedMovement[] = project.manualEntries.map((entry) => ({
-      source: 'manual',
-      id: entry.id,
-      type: entry.type,
-      title: entry.title,
-      description: entry.description,
-      amount: Number(entry.amount || 0),
-      date: entry.date,
-      category: entry.category,
-    }));
-
-    return [...txItems, ...manualItems].sort((a, b) => {
-      const aDate = a.date ? new Date(a.date).getTime() : 0;
-      const bDate = b.date ? new Date(b.date).getTime() : 0;
-      return bDate - aDate;
-    });
-  }, [project.transactions, project.manualEntries]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
