@@ -875,33 +875,40 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       </Modal>
 
       <Modal visible={projectMenuOpen} transparent animationType="fade" onRequestClose={() => setProjectMenuOpen(false)}>
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setProjectMenuOpen(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' }}
-        >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.24)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setProjectMenuOpen(false)} style={{ flex: 1 }} />
           <View
             style={{
-              position: 'absolute',
-              right: 20,
-              top: 58,
-              width: 176,
-              borderRadius: 14,
               backgroundColor: 'white',
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
               borderWidth: 1,
               borderColor: '#E2E8F0',
-              overflow: 'hidden',
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: 22,
             }}
           >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 99,
+                backgroundColor: '#CBD5E1',
+                marginBottom: 12,
+              }}
+            />
+
             <TouchableOpacity
               onPress={() => {
                 setProjectMenuOpen(false);
                 navigation.navigate('ProjectForm', { editProject: project });
               }}
-              className="flex-row items-center px-3 py-3 border-b border-slate-100"
+              className="flex-row items-center px-2 py-3 border-b border-slate-100"
             >
-              <Ionicons name="create-outline" size={16} color="#4F46E5" />
-              <Text className="text-[13px] font-medium text-slate-800 ml-2">Editar proyecto</Text>
+              <Ionicons name="create-outline" size={17} color="#4F46E5" />
+              <Text className="text-[14px] font-medium text-slate-800 ml-2">Editar proyecto</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -909,20 +916,20 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 setProjectMenuOpen(false);
                 handleDeleteProject();
               }}
-              className="flex-row items-center px-3 py-3"
+              className="flex-row items-center px-2 py-3"
               disabled={deletingProject}
             >
               {deletingProject ? (
                 <ActivityIndicator size="small" color="#DC2626" />
               ) : (
                 <>
-                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                  <Text className="text-[13px] font-medium text-red-600 ml-2">Eliminar proyecto</Text>
+                  <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                  <Text className="text-[14px] font-medium text-red-600 ml-2">Eliminar proyecto</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       <Modal
@@ -931,33 +938,42 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         animationType="fade"
         onRequestClose={() => setAddMovementMenuOpen(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setAddMovementMenuOpen(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' }}
-        >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.24)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setAddMovementMenuOpen(false)} style={{ flex: 1 }} />
           <View
             style={{
-              position: 'absolute',
-              right: 20,
-              top: 236,
-              width: 220,
-              borderRadius: 14,
               backgroundColor: 'white',
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
               borderWidth: 1,
               borderColor: '#E2E8F0',
-              overflow: 'hidden',
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: 22,
             }}
           >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 99,
+                backgroundColor: '#CBD5E1',
+                marginBottom: 12,
+              }}
+            />
+
+            <Text className="text-[12px] text-slate-500 mb-2">Añadir movimiento</Text>
+
             <TouchableOpacity
               onPress={() => {
                 setAddMovementMenuOpen(false);
                 openTxSelector();
               }}
-              className="flex-row items-center px-3 py-3 border-b border-slate-100"
+              className="flex-row items-center px-2 py-3 border-b border-slate-100"
             >
-              <Ionicons name="link-outline" size={16} color="#2563EB" />
-              <Text className="text-[13px] font-medium text-slate-800 ml-2">Asociar transacción</Text>
+              <Ionicons name="link-outline" size={17} color="#2563EB" />
+              <Text className="text-[14px] font-medium text-slate-800 ml-2">Asociar transacción</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -965,13 +981,13 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 setAddMovementMenuOpen(false);
                 openManualCreate();
               }}
-              className="flex-row items-center px-3 py-3"
+              className="flex-row items-center px-2 py-3"
             >
-              <Ionicons name="add-circle-outline" size={16} color="#059669" />
-              <Text className="text-[13px] font-medium text-slate-800 ml-2">Movimiento manual</Text>
+              <Ionicons name="add-circle-outline" size={17} color="#059669" />
+              <Text className="text-[14px] font-medium text-slate-800 ml-2">Movimiento manual</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
