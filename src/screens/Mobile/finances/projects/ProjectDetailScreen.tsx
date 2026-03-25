@@ -874,18 +874,18 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             </View>
           </View>
         </View>
-      </Modal>
 
-      <CrossPlatformDateTimePicker
-        isVisible={datePickerVisible}
-        mode="date"
-        date={manualForm.date}
-        onCancel={() => setDatePickerVisible(false)}
-        onConfirm={(date) => {
-          setManualForm((prev) => ({ ...prev, date }));
-          setDatePickerVisible(false);
-        }}
-      />
+        <CrossPlatformDateTimePicker
+          isVisible={datePickerVisible}
+          mode="date"
+          date={manualForm.date}
+          onCancel={() => setDatePickerVisible(false)}
+          onConfirm={(date) => {
+            setManualForm((prev) => ({ ...prev, date }));
+            setDatePickerVisible(false);
+          }}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
