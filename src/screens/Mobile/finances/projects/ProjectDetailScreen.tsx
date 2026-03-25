@@ -883,9 +883,23 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             <Text className="text-[12px] text-slate-400">No hay movimientos todavía.</Text>
           ) : (
             combinedMovements.map((item) => {
-              const amountColor = item.type === 'income' ? '#16A34A' : '#DC2626';
               const isManual = item.source === 'manual';
               const isProfitDistribution = isManual && item.entryKind === 'profit_distribution';
+              const amountColor = isProfitDistribution
+                ? '#2563EB'
+                : item.type === 'income'
+                  ? '#16A34A'
+                  : '#DC2626';
+              const iconBg = isProfitDistribution
+                ? '#EFF6FF'
+                : item.type === 'income'
+                  ? '#ECFDF3'
+                  : '#FEF2F2';
+              const iconName = isProfitDistribution
+                ? 'wallet-outline'
+                : item.type === 'income'
+                  ? 'add-outline'
+                  : 'remove-outline';
               const movementTag = isProfitDistribution
                 ? ` · Retirada${item.partnerName ? ` (${item.partnerName})` : ''}`
                 : isManual
@@ -900,14 +914,14 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                         width: 34,
                         height: 34,
                         borderRadius: 10,
-                        backgroundColor: item.type === 'income' ? '#ECFDF3' : '#FEF2F2',
+                        backgroundColor: iconBg,
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginRight: 10,
                       }}
                     >
                       <Ionicons
-                        name={item.type === 'income' ? 'add-outline' : 'remove-outline'}
+                        name={iconName}
                         size={16}
                         color={amountColor}
                       />
