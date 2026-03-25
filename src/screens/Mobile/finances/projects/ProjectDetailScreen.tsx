@@ -41,6 +41,23 @@ type ProjectManualEntry = {
   notes?: string | null;
 };
 
+type ProjectProfitDistributionLine = {
+  id: number;
+  partnerName: string;
+  amount: number;
+  percentage?: number | null;
+  notes?: string | null;
+};
+
+type ProjectProfitDistribution = {
+  id: number;
+  title?: string | null;
+  totalAmount: number;
+  date: string;
+  notes?: string | null;
+  lines: ProjectProfitDistributionLine[];
+};
+
 type ProjectDetail = {
   id: number;
   name: string;
@@ -52,6 +69,7 @@ type ProjectDetail = {
   notes?: string | null;
   transactions: ProjectTransaction[];
   manualEntries: ProjectManualEntry[];
+  profitDistributions: ProjectProfitDistribution[];
   financials: {
     transactionsIncome: number;
     transactionsExpense: number;
@@ -60,6 +78,8 @@ type ProjectDetail = {
     totalIncome: number;
     totalExpense: number;
     balance: number;
+    totalDistributed?: number;
+    retainedProfit?: number;
   };
 };
 
@@ -94,6 +114,20 @@ type CombinedMovement =
       date: string;
       category?: string | null;
     };
+
+type ProfitFormLine = {
+  partnerName: string;
+  amount: string;
+  notes: string;
+};
+
+type ProfitForm = {
+  title: string;
+  totalAmount: string;
+  date: Date;
+  notes: string;
+  lines: ProfitFormLine[];
+};
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   idea: 'Idea',
@@ -143,6 +177,20 @@ function defaultManualForm(): ManualForm {
   };
 }
 
+function defaultProfitForm(): ProfitForm {
+  return {
+    title: '',
+    totalAmount: '',
+    date: new Date(),
+    notes: '',
+    lines: [
+      { partnerName: '', amount: '', notes: '' },
+      { partnerName: '', amount: '', notes: '' },
+      { partnerName: '', amount: '', notes: '' },
+    ],
+  };
+}
+
 function SectionCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <View
@@ -176,12 +224,18 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualSaving, setManualSaving] = useState(false);
+  const [profitModalOpen, setProfitModalOpen] = useState(false);
+  const [profitSaving, setProfitSaving] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
+  const [editingDistribution, setEditingDistribution] =
+    useState<ProjectProfitDistribution | null>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
+  const [profitForm, setProfitForm] = useState<ProfitForm>(defaultProfitForm());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [profitDatePickerVisible, setProfitDatePickerVisible] = useState(false);
 
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
@@ -390,6 +444,172 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     ]);
   };
 
+  const openProfitCreate = () => {
+    setEditingDistribution(null);
+    setProfitForm(defaultProfitForm());
+    setProfitModalOpen(true);
+  };
+
+  const openProfitEdit = (distribution: ProjectProfitDistribution) => {
+    setEditingDistribution(distribution);
+    setProfitForm({
+      title: distribution.title || '',
+      totalAmount: String(distribution.totalAmount || ''),
+      date: distribution.date ? new Date(distribution.date) : new Date(),
+      notes: distribution.notes || '',
+      lines:
+        distribution.lines?.map((line) => ({
+          partnerName: line.partnerName || '',
+          amount: String(line.amount || ''),
+          notes: line.notes || '',
+        })) || [],
+    });
+    setProfitModalOpen(true);
+  };
+
+  const updateProfitLine = (
+    index: number,
+    field: keyof ProfitFormLine,
+    value: string,
+  ) => {
+    setProfitForm((prev) => {
+      const next = [...prev.lines];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, lines: next };
+    });
+  };
+
+  const addProfitLine = () => {
+    setProfitForm((prev) => ({
+      ...prev,
+      lines: [...prev.lines, { partnerName: '', amount: '', notes: '' }],
+    }));
+  };
+
+  const removeProfitLine = (index: number) => {
+    setProfitForm((prev) => ({
+      ...prev,
+      lines: prev.lines.filter((_, i) => i !== index),
+    }));
+  };
+
+  const validateProfitForm = () => {
+    const total = Number(String(profitForm.totalAmount).replace(',', '.'));
+    if (!Number.isFinite(total) || total <= 0) {
+      appAlert('Validación', 'El total del reparto debe ser mayor que 0.');
+      return false;
+    }
+
+    if (!profitForm.date || Number.isNaN(profitForm.date.getTime())) {
+      appAlert('Validación', 'La fecha del reparto es obligatoria.');
+      return false;
+    }
+
+    const cleanLines = profitForm.lines.filter(
+      (line) => line.partnerName.trim() || line.amount.trim(),
+    );
+
+    if (!cleanLines.length) {
+      appAlert('Validación', 'Debes añadir al menos un socio.');
+      return false;
+    }
+
+    for (const line of cleanLines) {
+      const amount = Number(String(line.amount).replace(',', '.'));
+      if (!line.partnerName.trim()) {
+        appAlert('Validación', 'Cada línea debe tener nombre de socio.');
+        return false;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        appAlert('Validación', `Importe inválido para ${line.partnerName || 'línea'}.`);
+        return false;
+      }
+    }
+
+    const sum = cleanLines.reduce(
+      (acc, line) => acc + Number(String(line.amount).replace(',', '.')),
+      0,
+    );
+    if (Math.round(sum * 100) !== Math.round(total * 100)) {
+      appAlert(
+        'Validación',
+        `La suma de socios (${sum.toFixed(2)}) debe coincidir con el total (${total.toFixed(2)}).`,
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  const saveProfitDistribution = async () => {
+    if (!project) return;
+    if (!validateProfitForm()) return;
+
+    const cleanLines = profitForm.lines
+      .filter((line) => line.partnerName.trim() || line.amount.trim())
+      .map((line) => ({
+        partnerName: line.partnerName.trim(),
+        amount: Number(String(line.amount).replace(',', '.')),
+        notes: line.notes.trim() || null,
+      }));
+
+    const payload = {
+      title: profitForm.title.trim() || null,
+      totalAmount: Number(String(profitForm.totalAmount).replace(',', '.')),
+      date: profitForm.date.toISOString(),
+      notes: profitForm.notes.trim() || null,
+      lines: cleanLines,
+    };
+
+    try {
+      setProfitSaving(true);
+      if (editingDistribution) {
+        await api.patch(
+          `/projects/${project.id}/profit-distributions/${editingDistribution.id}`,
+          payload,
+        );
+      } else {
+        await api.post(`/projects/${project.id}/profit-distributions`, payload);
+      }
+      setProfitModalOpen(false);
+      setEditingDistribution(null);
+      setProfitForm(defaultProfitForm());
+      fetchProject();
+    } catch (error) {
+      console.error('Error guardando reparto de beneficios:', error);
+      appAlert('Error', 'No se pudo guardar el reparto de beneficios.');
+    } finally {
+      setProfitSaving(false);
+    }
+  };
+
+  const removeProfitDistribution = (distribution: ProjectProfitDistribution) => {
+    if (!project) return;
+
+    appAlert(
+      'Eliminar reparto',
+      '¿Seguro que quieres eliminar este reparto de beneficios?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(
+                `/projects/${project.id}/profit-distributions/${distribution.id}`,
+              );
+              fetchProject();
+            } catch (error) {
+              console.error('Error eliminando reparto:', error);
+              appAlert('Error', 'No se pudo eliminar el reparto.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleDeleteProject = () => {
     if (!project) return;
 
@@ -419,7 +639,13 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     const manualEntries = project?.manualEntries || [];
 
     const txItems: CombinedMovement[] = transactions
-      .filter((tx) => tx.type === 'income' || tx.type === 'expense')
+      .filter(
+        (
+          tx,
+        ): tx is ProjectTransaction & {
+          type: 'income' | 'expense';
+        } => tx.type === 'income' || tx.type === 'expense',
+      )
       .map((tx) => ({
         source: 'transaction',
         id: tx.id,
@@ -658,6 +884,76 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           )}
         </SectionCard>
 
+        <SectionCard
+          title="Reparto de beneficios"
+          action={
+            <TouchableOpacity
+              onPress={openProfitCreate}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                backgroundColor: '#0F172A',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="add-outline" size={16} color="white" />
+            </TouchableOpacity>
+          }
+        >
+          <View className="flex-row mb-3">
+            <View className="flex-1">
+              <Text className="text-[10px] text-slate-500">Total repartido</Text>
+              <Text className="text-[13px] font-semibold text-indigo-700 mt-0.5">
+                {formatCurrency(project.financials.totalDistributed || 0)}
+              </Text>
+            </View>
+            <View className="flex-1 items-end">
+              <Text className="text-[10px] text-slate-500">Beneficio retenido</Text>
+              <Text className="text-[13px] font-semibold mt-0.5" style={{ color: balanceColor }}>
+                {formatCurrency(project.financials.retainedProfit || 0)}
+              </Text>
+            </View>
+          </View>
+
+          {!project.profitDistributions?.length ? (
+            <Text className="text-[12px] text-slate-400">No hay repartos registrados.</Text>
+          ) : (
+            project.profitDistributions.map((distribution) => (
+              <View key={distribution.id} className="py-2.5 border-b border-slate-100">
+                <View className="flex-row items-center">
+                  <View className="flex-1 pr-2">
+                    <Text className="text-[13px] text-slate-900">
+                      {distribution.title || 'Retirada de beneficios'}
+                    </Text>
+                    <Text className="text-[11px] text-slate-500">
+                      {formatDate(distribution.date)} · {distribution.lines.length} socio(s)
+                    </Text>
+                  </View>
+
+                  <Text className="text-[12px] font-semibold text-indigo-700 mr-2">
+                    {formatCurrency(distribution.totalAmount)}
+                  </Text>
+
+                  <TouchableOpacity onPress={() => openProfitEdit(distribution)} style={{ marginRight: 8 }}>
+                    <Ionicons name="create-outline" size={17} color="#64748B" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeProfitDistribution(distribution)}>
+                    <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+
+                {distribution.lines.map((line) => (
+                  <Text key={line.id} className="text-[11px] text-slate-500 ml-1 mt-1">
+                    · {line.partnerName}: {formatCurrency(line.amount)}
+                  </Text>
+                ))}
+              </View>
+            ))
+          )}
+        </SectionCard>
+
       </ScrollView>
 
       <Modal visible={txSelectorOpen} transparent animationType="slide" onRequestClose={() => setTxSelectorOpen(false)}>
@@ -870,6 +1166,142 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           onConfirm={(date) => {
             setManualForm((prev) => ({ ...prev, date }));
             setDatePickerVisible(false);
+          }}
+        />
+      </Modal>
+
+      <Modal
+        visible={profitModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setProfitModalOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16, maxHeight: '86%' }}>
+            <Text className="text-sm font-semibold text-slate-900 mb-3">
+              {editingDistribution ? 'Editar reparto de beneficios' : 'Nuevo reparto de beneficios'}
+            </Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TextInput
+                value={profitForm.title}
+                onChangeText={(text) => setProfitForm((prev) => ({ ...prev, title: text }))}
+                placeholder="Título (opcional)"
+                placeholderTextColor="#94A3B8"
+                className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
+              />
+
+              <TextInput
+                value={profitForm.totalAmount}
+                onChangeText={(text) => setProfitForm((prev) => ({ ...prev, totalAmount: text }))}
+                placeholder="Importe total *"
+                placeholderTextColor="#94A3B8"
+                keyboardType="decimal-pad"
+                className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
+              />
+
+              <TouchableOpacity
+                onPress={() => setProfitDatePickerVisible(true)}
+                className="border border-slate-200 rounded-xl px-3 py-2 mb-2"
+              >
+                <Text className="text-[13px] text-slate-900">
+                  Fecha *: {formatDate(profitForm.date.toISOString())}
+                </Text>
+              </TouchableOpacity>
+
+              <TextInput
+                value={profitForm.notes}
+                onChangeText={(text) => setProfitForm((prev) => ({ ...prev, notes: text }))}
+                placeholder="Notas (opcional)"
+                placeholderTextColor="#94A3B8"
+                multiline
+                className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
+                style={{ minHeight: 64, textAlignVertical: 'top' }}
+              />
+
+              <View className="flex-row justify-between items-center mt-1 mb-2">
+                <Text className="text-[12px] text-slate-500">Socios y reparto</Text>
+                <TouchableOpacity onPress={addProfitLine}>
+                  <Text className="text-[12px] font-semibold text-primary">+ Añadir socio</Text>
+                </TouchableOpacity>
+              </View>
+
+              {profitForm.lines.map((line, index) => (
+                <View
+                  key={`${index}-${line.partnerName}`}
+                  className="border border-slate-200 rounded-xl p-2 mb-2"
+                  style={{ backgroundColor: '#F8FAFC' }}
+                >
+                  <TextInput
+                    value={line.partnerName}
+                    onChangeText={(text) => updateProfitLine(index, 'partnerName', text)}
+                    placeholder={`Socio ${index + 1}`}
+                    placeholderTextColor="#94A3B8"
+                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
+                  />
+                  <TextInput
+                    value={line.amount}
+                    onChangeText={(text) => updateProfitLine(index, 'amount', text)}
+                    placeholder="Importe"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="decimal-pad"
+                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
+                  />
+                  <TextInput
+                    value={line.notes}
+                    onChangeText={(text) => updateProfitLine(index, 'notes', text)}
+                    placeholder="Nota (opcional)"
+                    placeholderTextColor="#94A3B8"
+                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] text-slate-900 bg-white"
+                  />
+                  {profitForm.lines.length > 1 && (
+                    <TouchableOpacity
+                      onPress={() => removeProfitLine(index)}
+                      style={{ alignSelf: 'flex-end', marginTop: 6 }}
+                    >
+                      <Text className="text-[12px] font-semibold text-red-600">Eliminar línea</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+
+            <View className="flex-row mt-3">
+              <TouchableOpacity
+                onPress={() => {
+                  setProfitModalOpen(false);
+                  setEditingDistribution(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl mr-2 items-center"
+                style={{ backgroundColor: '#F1F5F9' }}
+              >
+                <Text className="text-[13px] text-slate-700 font-semibold">Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={saveProfitDistribution}
+                disabled={profitSaving}
+                className="flex-1 py-2.5 rounded-xl ml-2 items-center"
+                style={{ backgroundColor: '#0F172A', opacity: profitSaving ? 0.7 : 1 }}
+              >
+                {profitSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-[13px] text-white font-semibold">Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <CrossPlatformDateTimePicker
+          isVisible={profitDatePickerVisible}
+          mode="date"
+          date={profitForm.date}
+          onCancel={() => setProfitDatePickerVisible(false)}
+          onConfirm={(date) => {
+            setProfitForm((prev) => ({ ...prev, date }));
+            setProfitDatePickerVisible(false);
           }}
         />
       </Modal>
