@@ -1385,7 +1385,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             <ScrollView showsVerticalScrollIndicator={false}>
               {partnersForm.map((partner, index) => (
                 <View
-                  key={`${index}-${partner.name}`}
+                  key={`partner-${index}`}
                   className="border border-slate-200 rounded-xl p-2 mb-2"
                   style={{ backgroundColor: '#F8FAFC' }}
                 >
