@@ -88,6 +88,16 @@ const MODULES: FinanceModule[] = [
     softBg: "#E0F2FE",
   },
   {
+    key: "projects",
+    title: "Proyectos",
+    subtitle: "Controla ingresos, gastos y balance por proyecto.",
+    emoji: "🧩",
+    iconName: "briefcase-outline",
+    routeName: "Projects",
+    accentColor: "#14B8A6",
+    softBg: "#E6FFFB",
+  },
+  {
     key: "recurring",
     title: "Transacciones recurrentes",
     subtitle: "Gestiona pagos programados y sus próximas ejecuciones.",
