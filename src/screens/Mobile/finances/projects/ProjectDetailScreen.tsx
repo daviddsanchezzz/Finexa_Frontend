@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Platform,
   SafeAreaView,
   ScrollView,
   Text,
@@ -178,6 +177,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualSaving, setManualSaving] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
@@ -487,6 +488,23 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           showBack={true}
         />
       </View>
+      <View style={{ position: 'absolute', right: 20, top: 22, zIndex: 30 }}>
+        <TouchableOpacity
+          onPress={() => setProjectMenuOpen(true)}
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: '#E2E8F0',
+            backgroundColor: 'white',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="ellipsis-vertical" size={16} color="#475569" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         className="flex-1 px-5"
@@ -546,22 +564,19 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         <SectionCard
           title="Movimientos del proyecto"
           action={
-            <View className="flex-row">
-              <TouchableOpacity
-                onPress={openTxSelector}
-                className="px-2.5 py-1 rounded-lg mr-2"
-                style={{ backgroundColor: '#EEF2FF' }}
-              >
-                <Text className="text-[11px] font-semibold text-primary">Asociar transacción</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={openManualCreate}
-                className="px-2.5 py-1 rounded-lg"
-                style={{ backgroundColor: '#ECFDF3' }}
-              >
-                <Text className="text-[11px] font-semibold text-emerald-700">Nuevo manual</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => setAddMovementMenuOpen(true)}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                backgroundColor: '#0F172A',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="add-outline" size={16} color="white" />
+            </TouchableOpacity>
           }
         >
           {combinedMovements.length === 0 ? (
@@ -643,34 +658,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           )}
         </SectionCard>
 
-        <SectionCard title="Gestión del proyecto">
-          <View className="flex-row">
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ProjectForm', { editProject: project })}
-              className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl mr-2"
-              style={{ backgroundColor: '#EEF2FF' }}
-            >
-              <Ionicons name="create-outline" size={15} color="#4F46E5" />
-              <Text className="text-[12px] font-semibold text-indigo-700 ml-1.5">Editar proyecto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleDeleteProject}
-              disabled={deletingProject}
-              className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl ml-2"
-              style={{ backgroundColor: '#FEF2F2', opacity: deletingProject ? 0.7 : 1 }}
-            >
-              {deletingProject ? (
-                <ActivityIndicator size="small" color="#DC2626" />
-              ) : (
-                <>
-                  <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                  <Text className="text-[12px] font-semibold text-red-600 ml-1.5">Eliminar proyecto</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </SectionCard>
       </ScrollView>
 
       <Modal visible={txSelectorOpen} transparent animationType="slide" onRequestClose={() => setTxSelectorOpen(false)}>
@@ -808,7 +795,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, amount: text }))}
               placeholder="Importe *"
               placeholderTextColor="#94A3B8"
-              keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+              keyboardType="decimal-pad"
               className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
             />
 
@@ -885,6 +872,106 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             setDatePickerVisible(false);
           }}
         />
+      </Modal>
+
+      <Modal visible={projectMenuOpen} transparent animationType="fade" onRequestClose={() => setProjectMenuOpen(false)}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setProjectMenuOpen(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' }}
+        >
+          <View
+            style={{
+              position: 'absolute',
+              right: 20,
+              top: 58,
+              width: 176,
+              borderRadius: 14,
+              backgroundColor: 'white',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              overflow: 'hidden',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setProjectMenuOpen(false);
+                navigation.navigate('ProjectForm', { editProject: project });
+              }}
+              className="flex-row items-center px-3 py-3 border-b border-slate-100"
+            >
+              <Ionicons name="create-outline" size={16} color="#4F46E5" />
+              <Text className="text-[13px] font-medium text-slate-800 ml-2">Editar proyecto</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setProjectMenuOpen(false);
+                handleDeleteProject();
+              }}
+              className="flex-row items-center px-3 py-3"
+              disabled={deletingProject}
+            >
+              {deletingProject ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  <Text className="text-[13px] font-medium text-red-600 ml-2">Eliminar proyecto</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={addMovementMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddMovementMenuOpen(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setAddMovementMenuOpen(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' }}
+        >
+          <View
+            style={{
+              position: 'absolute',
+              right: 20,
+              top: 236,
+              width: 220,
+              borderRadius: 14,
+              backgroundColor: 'white',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              overflow: 'hidden',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setAddMovementMenuOpen(false);
+                openTxSelector();
+              }}
+              className="flex-row items-center px-3 py-3 border-b border-slate-100"
+            >
+              <Ionicons name="link-outline" size={16} color="#2563EB" />
+              <Text className="text-[13px] font-medium text-slate-800 ml-2">Asociar transacción</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setAddMovementMenuOpen(false);
+                openManualCreate();
+              }}
+              className="flex-row items-center px-3 py-3"
+            >
+              <Ionicons name="add-circle-outline" size={16} color="#059669" />
+              <Text className="text-[13px] font-medium text-slate-800 ml-2">Movimiento manual</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
