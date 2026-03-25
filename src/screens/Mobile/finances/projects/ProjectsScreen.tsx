@@ -271,10 +271,6 @@ export default function ProjectsScreen({ navigation }: any) {
                     </View>
                   </View>
                 </View>
-
-                <View className="flex-row mt-3 items-center justify-end">
-                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-                </View>
               </TouchableOpacity>
             );
           })
