@@ -163,7 +163,7 @@ function SectionCard({ title, action, children }: { title: string; action?: Reac
   );
 }
 
-export default function ProjectDetailScreen({ route }: any) {
+export default function ProjectDetailScreen({ route, navigation }: any) {
   const projectId: number | undefined = route?.params?.projectId;
 
   const [loading, setLoading] = useState(false);
@@ -177,6 +177,7 @@ export default function ProjectDetailScreen({ route }: any) {
 
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualSaving, setManualSaving] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
@@ -382,6 +383,30 @@ export default function ProjectDetailScreen({ route }: any) {
           } catch (error) {
             console.error('Error eliminando movimiento manual:', error);
             appAlert('Error', 'No se pudo eliminar el movimiento manual.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteProject = () => {
+    if (!project) return;
+
+    appAlert('Eliminar proyecto', '¿Seguro que quieres eliminar este proyecto?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setDeletingProject(true);
+            await api.delete(`/projects/${project.id}`);
+            navigation.goBack();
+          } catch (error) {
+            console.error('Error eliminando proyecto:', error);
+            appAlert('Error', 'No se pudo eliminar el proyecto.');
+          } finally {
+            setDeletingProject(false);
           }
         },
       },
@@ -612,6 +637,35 @@ export default function ProjectDetailScreen({ route }: any) {
               );
             })
           )}
+        </SectionCard>
+
+        <SectionCard title="Gestión del proyecto">
+          <View className="flex-row">
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ProjectForm', { editProject: project })}
+              className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl mr-2"
+              style={{ backgroundColor: '#EEF2FF' }}
+            >
+              <Ionicons name="create-outline" size={15} color="#4F46E5" />
+              <Text className="text-[12px] font-semibold text-indigo-700 ml-1.5">Editar proyecto</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleDeleteProject}
+              disabled={deletingProject}
+              className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl ml-2"
+              style={{ backgroundColor: '#FEF2F2', opacity: deletingProject ? 0.7 : 1 }}
+            >
+              {deletingProject ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                  <Text className="text-[12px] font-semibold text-red-600 ml-1.5">Eliminar proyecto</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </SectionCard>
       </ScrollView>
 
