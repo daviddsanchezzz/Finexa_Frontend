@@ -39,23 +39,15 @@ type ProjectManualEntry = {
   date: string;
   category?: string | null;
   notes?: string | null;
+  entryKind?: 'standard' | 'profit_distribution';
+  partnerName?: string | null;
 };
 
-type ProjectProfitDistributionLine = {
+type ProjectPartner = {
   id: number;
-  partnerName: string;
-  amount: number;
-  percentage?: number | null;
-  notes?: string | null;
-};
-
-type ProjectProfitDistribution = {
-  id: number;
-  title?: string | null;
-  totalAmount: number;
-  date: string;
-  notes?: string | null;
-  lines: ProjectProfitDistributionLine[];
+  name: string;
+  percentage: number;
+  isMe: boolean;
 };
 
 type ProjectDetail = {
@@ -69,7 +61,7 @@ type ProjectDetail = {
   notes?: string | null;
   transactions: ProjectTransaction[];
   manualEntries: ProjectManualEntry[];
-  profitDistributions: ProjectProfitDistribution[];
+  partners: ProjectPartner[];
   financials: {
     transactionsIncome: number;
     transactionsExpense: number;
@@ -78,8 +70,11 @@ type ProjectDetail = {
     totalIncome: number;
     totalExpense: number;
     balance: number;
-    totalDistributed?: number;
-    retainedProfit?: number;
+    withdrawalsTotal?: number;
+    operatingExpense?: number;
+    operatingBalance?: number;
+    cashInBox?: number;
+    retainedProfit?: number; // backward compatibility
   };
 };
 
@@ -113,6 +108,8 @@ type CombinedMovement =
       amount: number;
       date: string;
       category?: string | null;
+      entryKind?: 'standard' | 'profit_distribution';
+      partnerName?: string | null;
     };
 
 type ProfitFormLine = {
@@ -127,6 +124,12 @@ type ProfitForm = {
   date: Date;
   notes: string;
   lines: ProfitFormLine[];
+};
+
+type PartnerFormItem = {
+  name: string;
+  percentage: string;
+  isMe: boolean;
 };
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -183,11 +186,7 @@ function defaultProfitForm(): ProfitForm {
     totalAmount: '',
     date: new Date(),
     notes: '',
-    lines: [
-      { partnerName: '', amount: '', notes: '' },
-      { partnerName: '', amount: '', notes: '' },
-      { partnerName: '', amount: '', notes: '' },
-    ],
+    lines: [],
   };
 }
 
@@ -226,14 +225,15 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [manualSaving, setManualSaving] = useState(false);
   const [profitModalOpen, setProfitModalOpen] = useState(false);
   const [profitSaving, setProfitSaving] = useState(false);
+  const [partnersModalOpen, setPartnersModalOpen] = useState(false);
+  const [partnersSaving, setPartnersSaving] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
-  const [editingDistribution, setEditingDistribution] =
-    useState<ProjectProfitDistribution | null>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
   const [profitForm, setProfitForm] = useState<ProfitForm>(defaultProfitForm());
+  const [partnersForm, setPartnersForm] = useState<PartnerFormItem[]>([]);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [profitDatePickerVisible, setProfitDatePickerVisible] = useState(false);
 
@@ -445,26 +445,64 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   };
 
   const openProfitCreate = () => {
-    setEditingDistribution(null);
-    setProfitForm(defaultProfitForm());
+    const partners = project?.partners || [];
+    if (!partners.length) {
+      appAlert('Socios requeridos', 'Primero configura socios y porcentajes para repartir beneficios.');
+      openPartnersEditor();
+      return;
+    }
+
+    setProfitForm({
+      title: 'Reparto de beneficios',
+      totalAmount: '',
+      date: new Date(),
+      notes: '',
+      lines: partners.map((partner) => ({
+        partnerName: partner.name,
+        amount: '',
+        notes: partner.isMe ? 'Mi parte' : '',
+      })),
+    });
     setProfitModalOpen(true);
   };
 
-  const openProfitEdit = (distribution: ProjectProfitDistribution) => {
-    setEditingDistribution(distribution);
-    setProfitForm({
-      title: distribution.title || '',
-      totalAmount: String(distribution.totalAmount || ''),
-      date: distribution.date ? new Date(distribution.date) : new Date(),
-      notes: distribution.notes || '',
-      lines:
-        distribution.lines?.map((line) => ({
-          partnerName: line.partnerName || '',
-          amount: String(line.amount || ''),
-          notes: line.notes || '',
-        })) || [],
-    });
-    setProfitModalOpen(true);
+  const openPartnersEditor = () => {
+    const base = (project?.partners || []).map((partner) => ({
+      name: partner.name,
+      percentage: String(partner.percentage),
+      isMe: !!partner.isMe,
+    }));
+
+    setPartnersForm(base.length ? base : [{ name: '', percentage: '', isMe: true }]);
+    setPartnersModalOpen(true);
+  };
+
+  const recalculateProfitLinesFromPercentages = (totalRaw: string) => {
+    const total = Number(String(totalRaw).replace(',', '.'));
+    const partners = project?.partners || [];
+    if (!Number.isFinite(total) || total <= 0 || !partners.length) return;
+
+    const rawLines = partners.map((partner) => ({
+      partnerName: partner.name,
+      amount: Number(((total * partner.percentage) / 100).toFixed(2)),
+      notes: partner.isMe ? 'Mi parte' : '',
+    }));
+
+    const sumWithoutLast = rawLines
+      .slice(0, rawLines.length - 1)
+      .reduce((acc, line) => acc + line.amount, 0);
+    if (rawLines.length > 0) {
+      rawLines[rawLines.length - 1].amount = Number((total - sumWithoutLast).toFixed(2));
+    }
+
+    setProfitForm((prev) => ({
+      ...prev,
+      lines: rawLines.map((line) => ({
+        partnerName: line.partnerName,
+        amount: String(line.amount),
+        notes: line.notes,
+      })),
+    }));
   };
 
   const updateProfitLine = (
@@ -479,20 +517,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     });
   };
 
-  const addProfitLine = () => {
-    setProfitForm((prev) => ({
-      ...prev,
-      lines: [...prev.lines, { partnerName: '', amount: '', notes: '' }],
-    }));
-  };
-
-  const removeProfitLine = (index: number) => {
-    setProfitForm((prev) => ({
-      ...prev,
-      lines: prev.lines.filter((_, i) => i !== index),
-    }));
-  };
-
   const validateProfitForm = () => {
     const total = Number(String(profitForm.totalAmount).replace(',', '.'));
     if (!Number.isFinite(total) || total <= 0) {
@@ -505,9 +529,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       return false;
     }
 
-    const cleanLines = profitForm.lines.filter(
-      (line) => line.partnerName.trim() || line.amount.trim(),
-    );
+    const cleanLines = profitForm.lines;
 
     if (!cleanLines.length) {
       appAlert('Validación', 'Debes añadir al menos un socio.');
@@ -563,16 +585,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
     try {
       setProfitSaving(true);
-      if (editingDistribution) {
-        await api.patch(
-          `/projects/${project.id}/profit-distributions/${editingDistribution.id}`,
-          payload,
-        );
-      } else {
-        await api.post(`/projects/${project.id}/profit-distributions`, payload);
-      }
+      await api.post(`/projects/${project.id}/distribute-profit`, payload);
       setProfitModalOpen(false);
-      setEditingDistribution(null);
       setProfitForm(defaultProfitForm());
       fetchProject();
     } catch (error) {
@@ -583,31 +597,76 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     }
   };
 
-  const removeProfitDistribution = (distribution: ProjectProfitDistribution) => {
+  const savePartners = async () => {
     if (!project) return;
 
-    appAlert(
-      'Eliminar reparto',
-      '¿Seguro que quieres eliminar este reparto de beneficios?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(
-                `/projects/${project.id}/profit-distributions/${distribution.id}`,
-              );
-              fetchProject();
-            } catch (error) {
-              console.error('Error eliminando reparto:', error);
-              appAlert('Error', 'No se pudo eliminar el reparto.');
-            }
-          },
-        },
-      ],
-    );
+    const clean = partnersForm
+      .filter((item) => item.name.trim() || item.percentage.trim())
+      .map((item) => ({
+        name: item.name.trim(),
+        percentage: Number(String(item.percentage).replace(',', '.')),
+        isMe: !!item.isMe,
+      }));
+
+    if (!clean.length) {
+      appAlert('Validación', 'Debes añadir al menos un socio.');
+      return;
+    }
+
+    if (clean.some((item) => !item.name)) {
+      appAlert('Validación', 'Todos los socios deben tener nombre.');
+      return;
+    }
+
+    const sum = clean.reduce((acc, item) => acc + Number(item.percentage || 0), 0);
+    if (Math.round(sum * 100) !== 10000) {
+      appAlert('Validación', `El porcentaje total debe ser 100%. Actual: ${sum.toFixed(2)}%.`);
+      return;
+    }
+
+    const meCount = clean.filter((item) => item.isMe).length;
+    if (meCount !== 1) {
+      appAlert('Validación', 'Debe existir exactamente un socio marcado como tú.');
+      return;
+    }
+
+    try {
+      setPartnersSaving(true);
+      await api.patch(`/projects/${project.id}/partners`, { partners: clean });
+      setPartnersModalOpen(false);
+      fetchProject();
+    } catch (error) {
+      console.error('Error guardando socios:', error);
+      appAlert('Error', 'No se pudo guardar la configuración de socios.');
+    } finally {
+      setPartnersSaving(false);
+    }
+  };
+
+  const updatePartnerLine = (
+    index: number,
+    field: keyof PartnerFormItem,
+    value: string | boolean,
+  ) => {
+    setPartnersForm((prev) => {
+      const next = [...prev];
+      if (field === 'isMe') {
+        next.forEach((item, i) => {
+          next[i] = { ...item, isMe: i === index };
+        });
+      } else {
+        next[index] = { ...next[index], [field]: value as string };
+      }
+      return next;
+    });
+  };
+
+  const addPartnerLine = () => {
+    setPartnersForm((prev) => [...prev, { name: '', percentage: '', isMe: false }]);
+  };
+
+  const removePartnerLine = (index: number) => {
+    setPartnersForm((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDeleteProject = () => {
@@ -665,6 +724,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       amount: Number(entry.amount || 0),
       date: entry.date,
       category: entry.category,
+      entryKind: entry.entryKind,
+      partnerName: entry.partnerName,
     }));
 
     return [...txItems, ...manualItems].sort((a, b) => {
@@ -673,6 +734,19 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       return bDate - aDate;
     });
   }, [project?.transactions, project?.manualEntries]);
+
+  const myWithdrawals = useMemo(() => {
+    const me = project?.partners?.find((partner) => partner.isMe);
+    if (!project || !me) return 0;
+
+    return (project.manualEntries || [])
+      .filter((entry) => {
+        if (entry.type !== 'expense') return false;
+        if (entry.entryKind !== 'profit_distribution') return false;
+        return String(entry.partnerName || '').trim().toLowerCase() === me.name.trim().toLowerCase();
+      })
+      .reduce((acc, entry) => acc + Number(entry.amount || 0), 0);
+  }, [project]);
 
   if (loading && !project) {
     return (
@@ -811,6 +885,12 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             combinedMovements.map((item) => {
               const amountColor = item.type === 'income' ? '#16A34A' : '#DC2626';
               const isManual = item.source === 'manual';
+              const isProfitDistribution = isManual && item.entryKind === 'profit_distribution';
+              const movementTag = isProfitDistribution
+                ? ` · Retirada${item.partnerName ? ` (${item.partnerName})` : ''}`
+                : isManual
+                  ? ' · Manual'
+                  : ' · Transacción';
 
               return (
                 <View key={`${item.source}-${item.id}`} className="py-2.5 border-b border-slate-100">
@@ -840,7 +920,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                       <Text className="text-[11px] text-slate-500">
                         {formatDate(item.date)}
                         {item.category ? ` · ${item.category}` : ''}
-                        {isManual ? ' · Manual' : ' · Transacción'}
+                        {movementTag}
                       </Text>
                     </View>
 
@@ -850,15 +930,17 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
                     {isManual ? (
                       <>
-                        <TouchableOpacity
-                          onPress={() => {
-                            const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
-                            if (manualEntry) openManualEdit(manualEntry);
-                          }}
-                          style={{ marginRight: 8 }}
-                        >
-                          <Ionicons name="create-outline" size={17} color="#64748B" />
-                        </TouchableOpacity>
+                        {!isProfitDistribution && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
+                              if (manualEntry) openManualEdit(manualEntry);
+                            }}
+                            style={{ marginRight: 8 }}
+                          >
+                            <Ionicons name="create-outline" size={17} color="#64748B" />
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                           onPress={() => {
                             const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
@@ -885,70 +967,52 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         </SectionCard>
 
         <SectionCard
-          title="Reparto de beneficios"
+          title="Socios, retiradas y caja"
           action={
-            <TouchableOpacity
-              onPress={openProfitCreate}
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 999,
-                backgroundColor: '#0F172A',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="add-outline" size={16} color="white" />
+            <TouchableOpacity onPress={openPartnersEditor}>
+              <Text className="text-[12px] font-semibold text-primary">Configurar socios</Text>
             </TouchableOpacity>
           }
         >
           <View className="flex-row mb-3">
             <View className="flex-1">
-              <Text className="text-[10px] text-slate-500">Total repartido</Text>
+              <Text className="text-[10px] text-slate-500">Retiradas</Text>
+              <Text className="text-[13px] font-semibold text-rose-600 mt-0.5">
+                {formatCurrency(project.financials.withdrawalsTotal || 0)}
+              </Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-[10px] text-slate-500">Balance operativo</Text>
               <Text className="text-[13px] font-semibold text-indigo-700 mt-0.5">
-                {formatCurrency(project.financials.totalDistributed || 0)}
+                {formatCurrency(project.financials.operatingBalance || 0)}
               </Text>
             </View>
             <View className="flex-1 items-end">
-              <Text className="text-[10px] text-slate-500">Beneficio retenido</Text>
+              <Text className="text-[10px] text-slate-500">Caja</Text>
               <Text className="text-[13px] font-semibold mt-0.5" style={{ color: balanceColor }}>
-                {formatCurrency(project.financials.retainedProfit || 0)}
+                {formatCurrency(project.financials.cashInBox || project.financials.balance || 0)}
               </Text>
             </View>
           </View>
+          <View className="mb-3 rounded-xl px-3 py-2" style={{ backgroundColor: '#F8FAFC' }}>
+            <Text className="text-[10px] text-slate-500">Mis retiradas acumuladas</Text>
+            <Text className="text-[13px] font-semibold text-slate-900 mt-0.5">{formatCurrency(myWithdrawals)}</Text>
+          </View>
 
-          {!project.profitDistributions?.length ? (
-            <Text className="text-[12px] text-slate-400">No hay repartos registrados.</Text>
+          {!project.partners?.length ? (
+            <Text className="text-[12px] text-slate-400">
+              Define los socios y porcentajes para activar el reparto de beneficios.
+            </Text>
           ) : (
-            project.profitDistributions.map((distribution) => (
-              <View key={distribution.id} className="py-2.5 border-b border-slate-100">
-                <View className="flex-row items-center">
-                  <View className="flex-1 pr-2">
-                    <Text className="text-[13px] text-slate-900">
-                      {distribution.title || 'Retirada de beneficios'}
-                    </Text>
-                    <Text className="text-[11px] text-slate-500">
-                      {formatDate(distribution.date)} · {distribution.lines.length} socio(s)
-                    </Text>
-                  </View>
-
-                  <Text className="text-[12px] font-semibold text-indigo-700 mr-2">
-                    {formatCurrency(distribution.totalAmount)}
+            project.partners.map((partner) => (
+              <View key={partner.id} className="py-2 border-b border-slate-100 flex-row items-center">
+                <View className="flex-1 pr-2">
+                  <Text className="text-[13px] text-slate-900">{partner.name}</Text>
+                  <Text className="text-[11px] text-slate-500">
+                    {partner.isMe ? 'Mi usuario' : 'Socio'}
                   </Text>
-
-                  <TouchableOpacity onPress={() => openProfitEdit(distribution)} style={{ marginRight: 8 }}>
-                    <Ionicons name="create-outline" size={17} color="#64748B" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => removeProfitDistribution(distribution)}>
-                    <Ionicons name="trash-outline" size={17} color="#DC2626" />
-                  </TouchableOpacity>
                 </View>
-
-                {distribution.lines.map((line) => (
-                  <Text key={line.id} className="text-[11px] text-slate-500 ml-1 mt-1">
-                    · {line.partnerName}: {formatCurrency(line.amount)}
-                  </Text>
-                ))}
+                <Text className="text-[13px] font-semibold text-slate-700">{partner.percentage}%</Text>
               </View>
             ))
           )}
@@ -1179,7 +1243,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
           <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16, maxHeight: '86%' }}>
             <Text className="text-sm font-semibold text-slate-900 mb-3">
-              {editingDistribution ? 'Editar reparto de beneficios' : 'Nuevo reparto de beneficios'}
+              Repartir beneficios
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -1193,12 +1257,22 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
               <TextInput
                 value={profitForm.totalAmount}
-                onChangeText={(text) => setProfitForm((prev) => ({ ...prev, totalAmount: text }))}
+                onChangeText={(text) => {
+                  setProfitForm((prev) => ({ ...prev, totalAmount: text }));
+                  recalculateProfitLinesFromPercentages(text);
+                }}
                 placeholder="Importe total *"
                 placeholderTextColor="#94A3B8"
                 keyboardType="decimal-pad"
                 className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
               />
+
+              <TouchableOpacity
+                onPress={() => recalculateProfitLinesFromPercentages(profitForm.totalAmount)}
+                style={{ alignSelf: 'flex-end', marginBottom: 8 }}
+              >
+                <Text className="text-[12px] font-semibold text-primary">Recalcular por porcentajes</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => setProfitDatePickerVisible(true)}
@@ -1221,8 +1295,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
               <View className="flex-row justify-between items-center mt-1 mb-2">
                 <Text className="text-[12px] text-slate-500">Socios y reparto</Text>
-                <TouchableOpacity onPress={addProfitLine}>
-                  <Text className="text-[12px] font-semibold text-primary">+ Añadir socio</Text>
+                <TouchableOpacity onPress={() => recalculateProfitLinesFromPercentages(profitForm.totalAmount)}>
+                  <Text className="text-[12px] font-semibold text-primary">Recalcular</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1232,13 +1306,12 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                   className="border border-slate-200 rounded-xl p-2 mb-2"
                   style={{ backgroundColor: '#F8FAFC' }}
                 >
-                  <TextInput
-                    value={line.partnerName}
-                    onChangeText={(text) => updateProfitLine(index, 'partnerName', text)}
-                    placeholder={`Socio ${index + 1}`}
-                    placeholderTextColor="#94A3B8"
-                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
-                  />
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-[13px] font-semibold text-slate-900">{line.partnerName || `Socio ${index + 1}`}</Text>
+                    <Text className="text-[11px] text-slate-500">
+                      {(project.partners || []).find((p) => p.name === line.partnerName)?.percentage || 0}%
+                    </Text>
+                  </View>
                   <TextInput
                     value={line.amount}
                     onChangeText={(text) => updateProfitLine(index, 'amount', text)}
@@ -1254,14 +1327,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                     placeholderTextColor="#94A3B8"
                     className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] text-slate-900 bg-white"
                   />
-                  {profitForm.lines.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removeProfitLine(index)}
-                      style={{ alignSelf: 'flex-end', marginTop: 6 }}
-                    >
-                      <Text className="text-[12px] font-semibold text-red-600">Eliminar línea</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               ))}
             </ScrollView>
@@ -1270,7 +1335,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
               <TouchableOpacity
                 onPress={() => {
                   setProfitModalOpen(false);
-                  setEditingDistribution(null);
                 }}
                 className="flex-1 py-2.5 rounded-xl mr-2 items-center"
                 style={{ backgroundColor: '#F1F5F9' }}
@@ -1304,6 +1368,94 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             setProfitDatePickerVisible(false);
           }}
         />
+      </Modal>
+
+      <Modal
+        visible={partnersModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPartnersModalOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16, maxHeight: '86%' }}>
+            <Text className="text-sm font-semibold text-slate-900 mb-3">
+              Configurar socios y porcentajes
+            </Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {partnersForm.map((partner, index) => (
+                <View
+                  key={`${index}-${partner.name}`}
+                  className="border border-slate-200 rounded-xl p-2 mb-2"
+                  style={{ backgroundColor: '#F8FAFC' }}
+                >
+                  <TextInput
+                    value={partner.name}
+                    onChangeText={(text) => updatePartnerLine(index, 'name', text)}
+                    placeholder={`Socio ${index + 1}`}
+                    placeholderTextColor="#94A3B8"
+                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
+                  />
+                  <TextInput
+                    value={partner.percentage}
+                    onChangeText={(text) => updatePartnerLine(index, 'percentage', text)}
+                    placeholder="% participación"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="decimal-pad"
+                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
+                  />
+                  <TouchableOpacity
+                    onPress={() => updatePartnerLine(index, 'isMe', true)}
+                    className="flex-row items-center"
+                  >
+                    <Ionicons
+                      name={partner.isMe ? 'radio-button-on' : 'radio-button-off'}
+                      size={16}
+                      color={partner.isMe ? '#2563EB' : '#94A3B8'}
+                    />
+                    <Text className="text-[12px] text-slate-700 ml-1.5">Soy yo</Text>
+                  </TouchableOpacity>
+
+                  {partnersForm.length > 1 && (
+                    <TouchableOpacity
+                      onPress={() => removePartnerLine(index)}
+                      style={{ alignSelf: 'flex-end', marginTop: 6 }}
+                    >
+                      <Text className="text-[12px] font-semibold text-red-600">Eliminar socio</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+
+              <TouchableOpacity onPress={addPartnerLine} style={{ marginTop: 2 }}>
+                <Text className="text-[12px] font-semibold text-primary">+ Añadir socio</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <View className="flex-row mt-3">
+              <TouchableOpacity
+                onPress={() => setPartnersModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl mr-2 items-center"
+                style={{ backgroundColor: '#F1F5F9' }}
+              >
+                <Text className="text-[13px] text-slate-700 font-semibold">Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={savePartners}
+                disabled={partnersSaving}
+                className="flex-1 py-2.5 rounded-xl ml-2 items-center"
+                style={{ backgroundColor: '#0F172A', opacity: partnersSaving ? 0.7 : 1 }}
+              >
+                {partnersSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-[13px] text-white font-semibold">Guardar socios</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       <Modal visible={projectMenuOpen} transparent animationType="fade" onRequestClose={() => setProjectMenuOpen(false)}>
@@ -1413,10 +1565,21 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 setAddMovementMenuOpen(false);
                 openManualCreate();
               }}
-              className="flex-row items-center px-2 py-3"
+              className="flex-row items-center px-2 py-3 border-b border-slate-100"
             >
               <Ionicons name="add-circle-outline" size={17} color="#059669" />
               <Text className="text-[14px] font-medium text-slate-800 ml-2">Movimiento manual</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setAddMovementMenuOpen(false);
+                openProfitCreate();
+              }}
+              className="flex-row items-center px-2 py-3"
+            >
+              <Ionicons name="wallet-outline" size={17} color="#7C3AED" />
+              <Text className="text-[14px] font-medium text-slate-800 ml-2">Repartir beneficios</Text>
             </TouchableOpacity>
           </View>
         </View>
