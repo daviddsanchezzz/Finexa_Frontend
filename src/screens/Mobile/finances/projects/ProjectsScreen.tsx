@@ -12,7 +12,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
 import { colors } from '../../../../theme/theme';
-import { appAlert } from '../../../../utils/appAlert';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
 type ProjectFilter = 'all' | ProjectStatus;
@@ -109,29 +108,6 @@ export default function ProjectsScreen({ navigation }: any) {
     if (filter === 'all') return projects;
     return projects.filter((project) => project.status === filter);
   }, [projects, filter]);
-
-  const handleDelete = (project: ProjectItem) => {
-    appAlert(
-      'Eliminar proyecto',
-      `¿Seguro que quieres eliminar "${project.name}"? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/projects/${project.id}`);
-              fetchProjects();
-            } catch (error) {
-              console.error('Error al eliminar proyecto:', error);
-              appAlert('Error', 'No se pudo eliminar el proyecto.');
-            }
-          },
-        },
-      ],
-    );
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -296,24 +272,8 @@ export default function ProjectsScreen({ navigation }: any) {
                   </View>
                 </View>
 
-                <View className="flex-row mt-3">
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('ProjectForm', { editProject: project })}
-                    className="flex-row items-center px-3 py-2 rounded-xl mr-2"
-                    style={{ backgroundColor: '#F1F5F9' }}
-                  >
-                    <Ionicons name="create-outline" size={14} color="#475569" />
-                    <Text className="text-[12px] font-semibold text-slate-600 ml-1">Editar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => handleDelete(project)}
-                    className="flex-row items-center px-3 py-2 rounded-xl"
-                    style={{ backgroundColor: '#FEF2F2' }}
-                  >
-                    <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                    <Text className="text-[12px] font-semibold text-red-600 ml-1">Eliminar</Text>
-                  </TouchableOpacity>
+                <View className="flex-row mt-3 items-center justify-end">
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
                 </View>
               </TouchableOpacity>
             );

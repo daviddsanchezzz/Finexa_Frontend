@@ -74,6 +74,28 @@ type ManualForm = {
   notes: string;
 };
 
+type CombinedMovement =
+  | {
+      source: 'transaction';
+      id: number;
+      type: 'income' | 'expense';
+      title: string;
+      description?: string | null;
+      amount: number;
+      date?: string | null;
+      category?: string | null;
+    }
+  | {
+      source: 'manual';
+      id: number;
+      type: EntryType;
+      title: string;
+      description?: string | null;
+      amount: number;
+      date: string;
+      category?: string | null;
+    };
+
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   idea: 'Idea',
   active: 'Activo',
@@ -395,6 +417,36 @@ export default function ProjectDetailScreen({ route }: any) {
   const balance = Number(project.financials.balance || 0);
   const balanceColor = balance >= 0 ? '#16A34A' : '#DC2626';
   const statusTone = STATUS_COLORS[project.status];
+  const combinedMovements = useMemo<CombinedMovement[]>(() => {
+    const txItems: CombinedMovement[] = project.transactions
+      .filter((tx) => tx.type === 'income' || tx.type === 'expense')
+      .map((tx) => ({
+        source: 'transaction',
+        id: tx.id,
+        type: tx.type,
+        title: tx.description || 'Transacción sin descripción',
+        description: tx.description,
+        amount: Number(tx.amount || 0),
+        date: tx.date,
+      }));
+
+    const manualItems: CombinedMovement[] = project.manualEntries.map((entry) => ({
+      source: 'manual',
+      id: entry.id,
+      type: entry.type,
+      title: entry.title,
+      description: entry.description,
+      amount: Number(entry.amount || 0),
+      date: entry.date,
+      category: entry.category,
+    }));
+
+    return [...txItems, ...manualItems].sort((a, b) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      return bDate - aDate;
+    });
+  }, [project.transactions, project.manualEntries]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -463,112 +515,98 @@ export default function ProjectDetailScreen({ route }: any) {
         </SectionCard>
 
         <SectionCard
-          title="Transacciones asociadas"
+          title="Movimientos del proyecto"
           action={
-            <TouchableOpacity onPress={openTxSelector}>
-              <Text className="text-[12px] font-semibold text-primary">Asociar</Text>
-            </TouchableOpacity>
+            <View className="flex-row">
+              <TouchableOpacity
+                onPress={openTxSelector}
+                className="px-2.5 py-1 rounded-lg mr-2"
+                style={{ backgroundColor: '#EEF2FF' }}
+              >
+                <Text className="text-[11px] font-semibold text-primary">Asociar transacción</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={openManualCreate}
+                className="px-2.5 py-1 rounded-lg"
+                style={{ backgroundColor: '#ECFDF3' }}
+              >
+                <Text className="text-[11px] font-semibold text-emerald-700">Nuevo manual</Text>
+              </TouchableOpacity>
+            </View>
           }
         >
-          {project.transactions.length === 0 ? (
-            <Text className="text-[12px] text-slate-400">No hay transacciones asociadas.</Text>
+          {combinedMovements.length === 0 ? (
+            <Text className="text-[12px] text-slate-400">No hay movimientos todavía.</Text>
           ) : (
-            project.transactions.map((tx) => {
-              const amountColor = tx.type === 'income' ? '#16A34A' : '#DC2626';
+            combinedMovements.map((item) => {
+              const amountColor = item.type === 'income' ? '#16A34A' : '#DC2626';
+              const isManual = item.source === 'manual';
+
               return (
-                <View
-                  key={tx.id}
-                  className="flex-row items-center py-2.5 border-b border-slate-100"
-                >
-                  <View style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    backgroundColor: tx.type === 'income' ? '#ECFDF3' : '#FEF2F2',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 10,
-                  }}>
-                    <Ionicons
-                      name={tx.type === 'income' ? 'arrow-up-outline' : 'arrow-down-outline'}
-                      size={15}
-                      color={amountColor}
-                    />
-                  </View>
-
-                  <View className="flex-1 pr-2">
-                    <Text className="text-[13px] text-slate-900" numberOfLines={1}>
-                      {tx.description || 'Sin descripción'}
-                    </Text>
-                    <Text className="text-[11px] text-slate-500">{formatDate(tx.date)}</Text>
-                  </View>
-
-                  <Text className="text-[12px] font-semibold mr-2" style={{ color: amountColor }}>
-                    {formatCurrency(tx.amount)}
-                  </Text>
-
-                  <TouchableOpacity onPress={() => detachTransaction(tx.id)}>
-                    <Ionicons name="close-circle-outline" size={18} color="#94A3B8" />
-                  </TouchableOpacity>
-                </View>
-              );
-            })
-          )}
-        </SectionCard>
-
-        <SectionCard
-          title="Movimientos manuales"
-          action={
-            <TouchableOpacity onPress={openManualCreate}>
-              <Text className="text-[12px] font-semibold text-primary">Nuevo</Text>
-            </TouchableOpacity>
-          }
-        >
-          {project.manualEntries.length === 0 ? (
-            <Text className="text-[12px] text-slate-400">No hay movimientos manuales.</Text>
-          ) : (
-            project.manualEntries.map((entry) => {
-              const amountColor = entry.type === 'income' ? '#16A34A' : '#DC2626';
-              return (
-                <View key={entry.id} className="py-2.5 border-b border-slate-100">
+                <View key={`${item.source}-${item.id}`} className="py-2.5 border-b border-slate-100">
                   <View className="flex-row items-center">
-                    <View style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
-                      backgroundColor: entry.type === 'income' ? '#ECFDF3' : '#FEF2F2',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                    }}>
+                    <View
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 10,
+                        backgroundColor: item.type === 'income' ? '#ECFDF3' : '#FEF2F2',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 10,
+                      }}
+                    >
                       <Ionicons
-                        name={entry.type === 'income' ? 'add-outline' : 'remove-outline'}
+                        name={item.type === 'income' ? 'add-outline' : 'remove-outline'}
                         size={16}
                         color={amountColor}
                       />
                     </View>
 
                     <View className="flex-1 pr-2">
-                      <Text className="text-[13px] text-slate-900" numberOfLines={1}>{entry.title}</Text>
+                      <Text className="text-[13px] text-slate-900" numberOfLines={1}>
+                        {item.title}
+                      </Text>
                       <Text className="text-[11px] text-slate-500">
-                        {formatDate(entry.date)}{entry.category ? ` · ${entry.category}` : ''}
+                        {formatDate(item.date)}
+                        {item.category ? ` · ${item.category}` : ''}
+                        {isManual ? ' · Manual' : ' · Transacción'}
                       </Text>
                     </View>
 
                     <Text className="text-[12px] font-semibold mr-2" style={{ color: amountColor }}>
-                      {formatCurrency(entry.amount)}
+                      {formatCurrency(item.amount)}
                     </Text>
 
-                    <TouchableOpacity onPress={() => openManualEdit(entry)} style={{ marginRight: 8 }}>
-                      <Ionicons name="create-outline" size={17} color="#64748B" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => removeManualEntry(entry)}>
-                      <Ionicons name="trash-outline" size={17} color="#DC2626" />
-                    </TouchableOpacity>
+                    {isManual ? (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
+                            if (manualEntry) openManualEdit(manualEntry);
+                          }}
+                          style={{ marginRight: 8 }}
+                        >
+                          <Ionicons name="create-outline" size={17} color="#64748B" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
+                            if (manualEntry) removeManualEntry(manualEntry);
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <TouchableOpacity onPress={() => detachTransaction(item.id)}>
+                        <Ionicons name="close-circle-outline" size={18} color="#94A3B8" />
+                      </TouchableOpacity>
+                    )}
                   </View>
 
-                  {!!entry.description && (
-                    <Text className="text-[11px] text-slate-500 ml-11 mt-1">{entry.description}</Text>
+                  {!!item.description && (
+                    <Text className="text-[11px] text-slate-500 ml-11 mt-1">{item.description}</Text>
                   )}
                 </View>
               );
