@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+ï»¿import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -110,7 +110,7 @@ export default function ProjectsScreen({ navigation }: any) {
   const handleDelete = (project: ProjectItem) => {
     appAlert(
       'Eliminar proyecto',
-      `¿Seguro que quieres eliminar "${project.name}"? Esta acción no se puede deshacer.`,
+      `Â¿Seguro que quieres eliminar "${project.name}"? Esta acciÃ³n no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -199,7 +199,7 @@ export default function ProjectsScreen({ navigation }: any) {
             style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
           >
             <Text className="text-center text-gray-400 text-sm">
-              Aún no tienes proyectos. Crea uno para empezar a medir su rentabilidad.
+              AÃºn no tienes proyectos. Crea uno para empezar a medir su rentabilidad.
             </Text>
           </View>
         ) : (
@@ -298,3 +298,4 @@ export default function ProjectsScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
+

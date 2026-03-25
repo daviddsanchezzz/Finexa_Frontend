@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+ï»¿import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   Text,
@@ -232,8 +233,8 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
       });
       fetchProject();
     } catch (error) {
-      console.error('Error desasociando transacción:', error);
-      appAlert('Error', 'No se pudo desasociar la transacción.');
+      console.error('Error desasociando transacciÃ³n:', error);
+      appAlert('Error', 'No se pudo desasociar la transacciÃ³n.');
     }
   };
 
@@ -259,23 +260,23 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
 
   const validateManualForm = () => {
     if (!manualForm.type) {
-      appAlert('Validación', 'El tipo es obligatorio.');
+      appAlert('ValidaciÃ³n', 'El tipo es obligatorio.');
       return false;
     }
 
     if (!manualForm.title.trim()) {
-      appAlert('Validación', 'El título es obligatorio.');
+      appAlert('ValidaciÃ³n', 'El tÃ­tulo es obligatorio.');
       return false;
     }
 
     const amount = Number(String(manualForm.amount).replace(',', '.'));
     if (!Number.isFinite(amount) || amount <= 0) {
-      appAlert('Validación', 'El importe debe ser mayor que 0.');
+      appAlert('ValidaciÃ³n', 'El importe debe ser mayor que 0.');
       return false;
     }
 
     if (!manualForm.date || Number.isNaN(manualForm.date.getTime())) {
-      appAlert('Validación', 'La fecha es obligatoria.');
+      appAlert('ValidaciÃ³n', 'La fecha es obligatoria.');
       return false;
     }
 
@@ -320,7 +321,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
   const removeManualEntry = (entry: ProjectManualEntry) => {
     if (!project) return;
 
-    appAlert('Eliminar movimiento', '¿Seguro que quieres eliminar este movimiento manual?', [
+    appAlert('Eliminar movimiento', 'Â¿Seguro que quieres eliminar este movimiento manual?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
@@ -464,7 +465,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                 >
                   <View className="flex-1 pr-2">
                     <Text className="text-[13px] text-gray-900" numberOfLines={1}>
-                      {tx.description || 'Sin descripción'}
+                      {tx.description || 'Sin descripciÃ³n'}
                     </Text>
                     <Text className="text-[11px] text-gray-500">{formatDate(tx.date)}</Text>
                   </View>
@@ -510,7 +511,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                       </Text>
                       <Text className="text-[11px] text-gray-500">
                         {formatDate(entry.date)}
-                        {entry.category ? ` · ${entry.category}` : ''}
+                        {entry.category ? ` Â· ${entry.category}` : ''}
                       </Text>
                     </View>
 
@@ -561,7 +562,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                 <TextInput
                   value={search}
                   onChangeText={setSearch}
-                  placeholder="Buscar por descripción"
+                  placeholder="Buscar por descripciÃ³n"
                   className="ml-2 text-[13px] flex-1 text-black"
                 />
               </View>
@@ -591,7 +592,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
 
                       <View className="flex-1 ml-2 pr-2">
                         <Text className="text-[13px] text-gray-900" numberOfLines={1}>
-                          {item.description || 'Sin descripción'}
+                          {item.description || 'Sin descripciÃ³n'}
                         </Text>
                         <Text className="text-[11px] text-gray-500">{formatDate(item.date)}</Text>
                       </View>
@@ -617,7 +618,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                 className="py-3 rounded-xl items-center"
                 style={{ backgroundColor: '#0F172A', opacity: txLoading ? 0.7 : 1 }}
               >
-                <Text className="text-sm font-semibold text-white">Guardar selección</Text>
+                <Text className="text-sm font-semibold text-white">Guardar selecciÃ³n</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -661,7 +662,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
             <TextInput
               value={manualForm.title}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, title: text }))}
-              placeholder="Título *"
+              placeholder="TÃ­tulo *"
               className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
             />
 
@@ -685,14 +686,14 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
             <TextInput
               value={manualForm.category}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, category: text }))}
-              placeholder="Categoría (opcional)"
+              placeholder="CategorÃ­a (opcional)"
               className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
             />
 
             <TextInput
               value={manualForm.description}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, description: text }))}
-              placeholder="Descripción (opcional)"
+              placeholder="DescripciÃ³n (opcional)"
               className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
             />
 
@@ -747,3 +748,4 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
     </SafeAreaView>
   );
 }
+

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+锘縤mport React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -97,22 +97,22 @@ export default function ProjectFormScreen({ navigation, route }: any) {
 
   const validate = () => {
     if (!name.trim()) {
-      appAlert('Validaci髇', 'El nombre del proyecto es obligatorio.');
+      appAlert('Validaci贸n', 'El nombre del proyecto es obligatorio.');
       return false;
     }
 
     if (!status) {
-      appAlert('Validaci髇', 'El estado del proyecto es obligatorio.');
+      appAlert('Validaci贸n', 'El estado del proyecto es obligatorio.');
       return false;
     }
 
     if (!startDate || Number.isNaN(startDate.getTime())) {
-      appAlert('Validaci髇', 'La fecha de inicio es obligatoria.');
+      appAlert('Validaci贸n', 'La fecha de inicio es obligatoria.');
       return false;
     }
 
     if (endDate && endDate < startDate) {
-      appAlert('Validaci髇', 'La fecha de fin no puede ser anterior al inicio.');
+      appAlert('Validaci贸n', 'La fecha de fin no puede ser anterior al inicio.');
       return false;
     }
 
@@ -151,7 +151,7 @@ export default function ProjectFormScreen({ navigation, route }: any) {
   const handleDelete = () => {
     if (!editProject) return;
 
-    appAlert('Eliminar proyecto', '縎eguro que quieres eliminar este proyecto?', [
+    appAlert('Eliminar proyecto', '驴Seguro que quieres eliminar este proyecto?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
@@ -212,7 +212,7 @@ export default function ProjectFormScreen({ navigation, route }: any) {
         </View>
 
         <View className="mt-5">
-          <Text className="text-[12px] text-gray-500 mb-1">Descripci髇</Text>
+          <Text className="text-[12px] text-gray-500 mb-1">Descripci贸n</Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
@@ -346,3 +346,4 @@ export default function ProjectFormScreen({ navigation, route }: any) {
     </SafeAreaView>
   );
 }
+
