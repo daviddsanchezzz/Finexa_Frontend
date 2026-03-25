@@ -29,12 +29,12 @@ type ProjectFromApi = {
   notes?: string | null;
 };
 
-const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
-  { value: 'idea', label: 'Idea' },
-  { value: 'active', label: 'Activo' },
-  { value: 'paused', label: 'Pausado' },
-  { value: 'completed', label: 'Completado' },
-  { value: 'cancelled', label: 'Cancelado' },
+const STATUS_OPTIONS: { value: ProjectStatus; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'idea', label: 'Idea', icon: 'bulb-outline' },
+  { value: 'active', label: 'Activo', icon: 'play-circle-outline' },
+  { value: 'paused', label: 'Pausado', icon: 'pause-circle-outline' },
+  { value: 'completed', label: 'Completado', icon: 'checkmark-circle-outline' },
+  { value: 'cancelled', label: 'Cancelado', icon: 'close-circle-outline' },
 ];
 
 function formatDate(date: Date) {
@@ -43,6 +43,57 @@ function formatDate(date: Date) {
     month: 'short',
     year: 'numeric',
   });
+}
+
+function InputBox({
+  icon,
+  value,
+  onChangeText,
+  placeholder,
+  multiline,
+  keyboardType,
+  minHeight,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  multiline?: boolean;
+  keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad' | 'decimal-pad';
+  minHeight?: number;
+}) {
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 16,
+        backgroundColor: '#F8FAFC',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: multiline ? 'flex-start' : 'center',
+      }}
+    >
+      <Ionicons name={icon} size={16} color="#64748B" style={{ marginTop: multiline ? 3 : 0 }} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#94A3B8"
+        multiline={multiline}
+        keyboardType={keyboardType}
+        style={{
+          flex: 1,
+          marginLeft: 8,
+          color: '#0F172A',
+          fontSize: 16,
+          minHeight: minHeight || 0,
+          textAlignVertical: multiline ? 'top' : 'center',
+        }}
+      />
+    </View>
+  );
 }
 
 export default function ProjectFormScreen({ navigation, route }: any) {
@@ -174,67 +225,85 @@ export default function ProjectFormScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 50 }}>
-          <Ionicons name="chevron-back" size={26} color="#111" />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text className="text-[17px] font-medium text-[#111]">
-            {isEditing ? 'Editar proyecto' : 'Nuevo proyecto'}
-          </Text>
-        </View>
-
-        <View style={{ minWidth: 60, alignItems: 'flex-end' }}>
-          <TouchableOpacity onPress={handleSave} disabled={saving || deleting}>
-            {saving ? (
-              <ActivityIndicator size="small" />
-            ) : (
-              <Text className="text-[15px] text-primary font-medium">Guardar</Text>
-            )}
+      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 8 }}>
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
+          <View>
+            <Text className="text-[16px] font-semibold text-slate-900">
+              {isEditing ? 'Editar proyecto' : 'Nuevo proyecto'}
+            </Text>
+            <Text className="text-[11px] text-slate-500 mt-0.5">Configuración general y fechas</Text>
+          </View>
         </View>
+
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={saving || deleting}
+          className="px-3 py-2 rounded-xl"
+          style={{ backgroundColor: '#0F172A', opacity: saving || deleting ? 0.75 : 1 }}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text className="text-white text-[12px] font-semibold">Guardar</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, paddingTop: 6 }}
       >
-        <View className="mt-6">
-          <Text className="text-[12px] text-gray-500 mb-1">Nombre *</Text>
-          <TextInput
+        <View
+          className="rounded-3xl p-4 mb-3"
+          style={{
+            borderWidth: 1,
+            borderColor: '#E2E8F0',
+            backgroundColor: 'white',
+            shadowColor: '#0F172A',
+            shadowOpacity: 0.04,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 4 },
+          }}
+        >
+          <Text className="text-[11px] text-slate-500 mb-2">INFORMACIÓN BÁSICA</Text>
+
+          <InputBox
+            icon="briefcase-outline"
             value={name}
             onChangeText={setName}
             placeholder="Ej. SaaS para restaurantes"
-            className="border-b border-gray-200 pb-2 text-[16px] text-black"
           />
+
+          <View style={{ marginTop: 10 }}>
+            <InputBox
+              icon="bookmark-outline"
+              value={type}
+              onChangeText={setType}
+              placeholder="Tipo (SaaS, evento, reforma...)"
+            />
+          </View>
+
+          <View style={{ marginTop: 10 }}>
+            <InputBox
+              icon="document-text-outline"
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Descripción breve"
+              multiline
+              minHeight={78}
+            />
+          </View>
         </View>
 
-        <View className="mt-5">
-          <Text className="text-[12px] text-gray-500 mb-1">Descripción</Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe brevemente el proyecto"
-            multiline
-            className="border border-gray-200 rounded-xl px-3 py-2 text-[14px] text-black"
-            style={{ minHeight: 72, textAlignVertical: 'top' }}
-          />
-        </View>
-
-        <View className="mt-5">
-          <Text className="text-[12px] text-gray-500 mb-1">Tipo</Text>
-          <TextInput
-            value={type}
-            onChangeText={setType}
-            placeholder="Ej. SaaS, evento, reforma"
-            className="border-b border-gray-200 pb-2 text-[14px] text-black"
-          />
-        </View>
-
-        <View className="mt-5">
-          <Text className="text-[12px] text-gray-500 mb-2">Estado *</Text>
+        <View
+          className="rounded-3xl p-4 mb-3"
+          style={{ borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: 'white' }}
+        >
+          <Text className="text-[11px] text-slate-500 mb-2">ESTADO</Text>
           <View className="flex-row flex-wrap">
             {STATUS_OPTIONS.map((option) => {
               const active = status === option.value;
@@ -242,23 +311,21 @@ export default function ProjectFormScreen({ navigation, route }: any) {
                 <TouchableOpacity
                   key={option.value}
                   onPress={() => setStatus(option.value)}
+                  className="flex-row items-center px-3 py-2 rounded-full mr-2 mb-2"
                   style={{
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 999,
                     borderWidth: 1,
-                    borderColor: active ? colors.primary : '#D1D5DB',
-                    backgroundColor: active ? '#EEF2FF' : 'white',
-                    marginRight: 8,
-                    marginBottom: 8,
+                    borderColor: active ? '#0F172A' : '#CBD5E1',
+                    backgroundColor: active ? '#0F172A' : '#fff',
                   }}
                 >
+                  <Ionicons
+                    name={option.icon}
+                    size={14}
+                    color={active ? 'white' : '#64748B'}
+                  />
                   <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '600',
-                      color: active ? colors.primary : '#6B7280',
-                    }}
+                    className="text-[12px] font-semibold ml-1.5"
+                    style={{ color: active ? 'white' : '#475569' }}
                   >
                     {option.label}
                   </Text>
@@ -268,27 +335,29 @@ export default function ProjectFormScreen({ navigation, route }: any) {
           </View>
         </View>
 
-        <View className="mt-5">
-          <Text className="text-[12px] text-gray-500 mb-2">Fechas</Text>
+        <View
+          className="rounded-3xl p-4 mb-3"
+          style={{ borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: 'white' }}
+        >
+          <Text className="text-[11px] text-slate-500 mb-2">FECHAS</Text>
+
           <View className="flex-row">
             <TouchableOpacity
               onPress={() => openDatePicker('start')}
-              className="flex-1 mr-2 p-3 rounded-xl"
-              style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
+              className="flex-1 p-3 rounded-2xl mr-2"
+              style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }}
             >
-              <Text className="text-[10px] text-gray-500">Inicio *</Text>
-              <Text className="text-[13px] font-semibold text-black mt-1">
-                {formatDate(startDate)}
-              </Text>
+              <Text className="text-[10px] text-slate-500">Inicio *</Text>
+              <Text className="text-[13px] font-semibold text-slate-900 mt-1">{formatDate(startDate)}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => openDatePicker('end')}
-              className="flex-1 ml-2 p-3 rounded-xl"
-              style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
+              className="flex-1 p-3 rounded-2xl ml-2"
+              style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }}
             >
-              <Text className="text-[10px] text-gray-500">Fin</Text>
-              <Text className="text-[13px] font-semibold text-black mt-1">
+              <Text className="text-[10px] text-slate-500">Fin</Text>
+              <Text className="text-[13px] font-semibold text-slate-900 mt-1">
                 {endDate ? formatDate(endDate) : 'Sin fecha'}
               </Text>
             </TouchableOpacity>
@@ -296,22 +365,26 @@ export default function ProjectFormScreen({ navigation, route }: any) {
 
           <TouchableOpacity
             onPress={() => setEndDate(null)}
-            className="mt-2 self-start px-3 py-1.5 rounded-full"
-            style={{ backgroundColor: '#F3F4F6' }}
+            className="self-start mt-2 px-3 py-1.5 rounded-full"
+            style={{ backgroundColor: '#F1F5F9' }}
           >
-            <Text className="text-[11px] text-gray-600">Quitar fecha fin</Text>
+            <Text className="text-[11px] text-slate-600">Quitar fecha fin</Text>
           </TouchableOpacity>
         </View>
 
-        <View className="mt-5 mb-6">
-          <Text className="text-[12px] text-gray-500 mb-1">Notas</Text>
-          <TextInput
+        <View
+          className="rounded-3xl p-4 mb-4"
+          style={{ borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: 'white' }}
+        >
+          <Text className="text-[11px] text-slate-500 mb-2">NOTAS</Text>
+          <InputBox
+            icon="chatbox-ellipses-outline"
             value={notes}
             onChangeText={setNotes}
-            placeholder="Observaciones internas del proyecto"
+            placeholder="Observaciones internas"
             multiline
-            className="border border-gray-200 rounded-xl px-3 py-2 text-[14px] text-black"
-            style={{ minHeight: 92, textAlignVertical: 'top' }}
+            minHeight={92}
+            keyboardType={Platform.OS === 'ios' ? 'default' : 'default'}
           />
         </View>
 
@@ -319,7 +392,7 @@ export default function ProjectFormScreen({ navigation, route }: any) {
           <TouchableOpacity
             onPress={handleDelete}
             disabled={deleting || saving}
-            className="items-center justify-center py-3 rounded-xl"
+            className="items-center justify-center py-3 rounded-2xl"
             style={{
               borderWidth: 1,
               borderColor: '#FECACA',
@@ -346,4 +419,3 @@ export default function ProjectFormScreen({ navigation, route }: any) {
     </SafeAreaView>
   );
 }
-

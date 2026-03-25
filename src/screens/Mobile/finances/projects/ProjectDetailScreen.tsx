@@ -82,6 +82,14 @@ const STATUS_LABELS: Record<ProjectStatus, string> = {
   cancelled: 'Cancelado',
 };
 
+const STATUS_COLORS: Record<ProjectStatus, { bg: string; text: string }> = {
+  idea: { bg: '#EEF2FF', text: '#4F46E5' },
+  active: { bg: '#ECFDF3', text: '#15803D' },
+  paused: { bg: '#FFF7ED', text: '#C2410C' },
+  completed: { bg: '#E0F2FE', text: '#0369A1' },
+  cancelled: { bg: '#FEF2F2', text: '#B91C1C' },
+};
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-ES', {
     style: 'currency',
@@ -114,7 +122,26 @@ function defaultManualForm(): ManualForm {
   };
 }
 
-export default function ProjectDetailScreen({ navigation, route }: any) {
+function SectionCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <View
+      className="rounded-3xl p-4 mb-3"
+      style={{
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        backgroundColor: 'white',
+      }}
+    >
+      <View className="flex-row justify-between items-center mb-2">
+        <Text className="text-[14px] font-semibold text-slate-900">{title}</Text>
+        {action}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+export default function ProjectDetailScreen({ route }: any) {
   const projectId: number | undefined = route?.params?.projectId;
 
   const [loading, setLoading] = useState(false);
@@ -365,11 +392,13 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
     );
   }
 
-  const balanceColor = Number(project.financials.balance || 0) >= 0 ? '#16A34A' : '#DC2626';
+  const balance = Number(project.financials.balance || 0);
+  const balanceColor = balance >= 0 ? '#16A34A' : '#DC2626';
+  const statusTone = STATUS_COLORS[project.status];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pb-3">
+      <View className="px-5 pb-2">
         <AppHeader
           title={project.name}
           showProfile={false}
@@ -384,158 +413,168 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <View
-          className="rounded-2xl p-4 mb-3"
-          style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
+          className="rounded-3xl p-4 mb-3"
+          style={{ backgroundColor: '#0F172A' }}
         >
           <View className="flex-row justify-between items-start">
             <View className="flex-1 pr-2">
-              <Text className="text-base font-semibold text-gray-900">{project.name}</Text>
+              <Text className="text-[11px] text-slate-300">BALANCE DEL PROYECTO</Text>
+              <Text className="text-white text-2xl font-semibold mt-1">{formatCurrency(balance)}</Text>
               {!!project.description && (
-                <Text className="text-xs text-gray-500 mt-1">{project.description}</Text>
+                <Text className="text-[12px] text-slate-300 mt-1" numberOfLines={2}>{project.description}</Text>
               )}
             </View>
-            <View className="px-2 py-1 rounded-full" style={{ backgroundColor: '#EEF2FF' }}>
-              <Text className="text-[11px] font-semibold text-indigo-600">
+            <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: statusTone.bg }}>
+              <Text className="text-[11px] font-semibold" style={{ color: statusTone.text }}>
                 {STATUS_LABELS[project.status]}
               </Text>
             </View>
           </View>
 
-          <Text className="text-[11px] text-gray-500 mt-2">
-            Inicio: {formatDate(project.startDate)}
-          </Text>
-          <Text className="text-[11px] text-gray-500 mt-1">
-            Fin: {formatDate(project.endDate || null)}
-          </Text>
-          {!!project.type && (
-            <Text className="text-[11px] text-gray-500 mt-1">Tipo: {project.type}</Text>
-          )}
-          {!!project.notes && (
-            <Text className="text-[11px] text-gray-500 mt-2">Notas: {project.notes}</Text>
-          )}
-        </View>
-
-        <View
-          className="rounded-2xl p-4 mb-3"
-          style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
-        >
-          <Text className="text-sm font-semibold text-gray-900 mb-2">Resumen financiero</Text>
-          <View className="flex-row">
+          <View className="flex-row mt-3">
             <View className="flex-1">
-              <Text className="text-[11px] text-gray-500">Ingresos</Text>
-              <Text className="text-sm font-semibold text-emerald-600">
+              <Text className="text-[10px] text-slate-400">Ingresos</Text>
+              <Text className="text-[13px] font-semibold text-emerald-300 mt-0.5">
                 {formatCurrency(project.financials.totalIncome || 0)}
               </Text>
             </View>
             <View className="flex-1">
-              <Text className="text-[11px] text-gray-500">Gastos</Text>
-              <Text className="text-sm font-semibold text-rose-600">
+              <Text className="text-[10px] text-slate-400">Gastos</Text>
+              <Text className="text-[13px] font-semibold text-rose-300 mt-0.5">
                 {formatCurrency(project.financials.totalExpense || 0)}
               </Text>
             </View>
-            <View className="flex-1">
-              <Text className="text-[11px] text-gray-500">Balance</Text>
-              <Text className="text-sm font-semibold" style={{ color: balanceColor }}>
-                {formatCurrency(project.financials.balance || 0)}
-              </Text>
+            <View className="flex-1 items-end">
+              <Text className="text-[10px] text-slate-400">Inicio</Text>
+              <Text className="text-[13px] font-semibold text-white mt-0.5">{formatDate(project.startDate)}</Text>
             </View>
           </View>
         </View>
 
-        <View
-          className="rounded-2xl p-4 mb-3"
-          style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
-        >
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-sm font-semibold text-gray-900">Transacciones asociadas</Text>
-            <TouchableOpacity onPress={openTxSelector}>
-              <Text className="text-xs font-semibold text-primary">Asociar</Text>
-            </TouchableOpacity>
-          </View>
+        <SectionCard title="Información">
+          {!!project.type && (
+            <Text className="text-[12px] text-slate-600 mb-1">Tipo: {project.type}</Text>
+          )}
+          <Text className="text-[12px] text-slate-600 mb-1">Inicio: {formatDate(project.startDate)}</Text>
+          <Text className="text-[12px] text-slate-600 mb-1">Fin: {formatDate(project.endDate || null)}</Text>
+          {!!project.notes && (
+            <Text className="text-[12px] text-slate-600 mt-1">Notas: {project.notes}</Text>
+          )}
+        </SectionCard>
 
+        <SectionCard
+          title="Transacciones asociadas"
+          action={
+            <TouchableOpacity onPress={openTxSelector}>
+              <Text className="text-[12px] font-semibold text-primary">Asociar</Text>
+            </TouchableOpacity>
+          }
+        >
           {project.transactions.length === 0 ? (
-            <Text className="text-xs text-gray-400">No hay transacciones asociadas.</Text>
+            <Text className="text-[12px] text-slate-400">No hay transacciones asociadas.</Text>
           ) : (
             project.transactions.map((tx) => {
               const amountColor = tx.type === 'income' ? '#16A34A' : '#DC2626';
               return (
                 <View
                   key={tx.id}
-                  className="py-2 border-b border-gray-100 flex-row items-center"
+                  className="flex-row items-center py-2.5 border-b border-slate-100"
                 >
-                  <View className="flex-1 pr-2">
-                    <Text className="text-[13px] text-gray-900" numberOfLines={1}>
-                      {tx.description || 'Sin descripción'}
-                    </Text>
-                    <Text className="text-[11px] text-gray-500">{formatDate(tx.date)}</Text>
+                  <View style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    backgroundColor: tx.type === 'income' ? '#ECFDF3' : '#FEF2F2',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 10,
+                  }}>
+                    <Ionicons
+                      name={tx.type === 'income' ? 'arrow-up-outline' : 'arrow-down-outline'}
+                      size={15}
+                      color={amountColor}
+                    />
                   </View>
 
-                  <Text className="text-[12px] font-semibold mr-3" style={{ color: amountColor }}>
+                  <View className="flex-1 pr-2">
+                    <Text className="text-[13px] text-slate-900" numberOfLines={1}>
+                      {tx.description || 'Sin descripción'}
+                    </Text>
+                    <Text className="text-[11px] text-slate-500">{formatDate(tx.date)}</Text>
+                  </View>
+
+                  <Text className="text-[12px] font-semibold mr-2" style={{ color: amountColor }}>
                     {formatCurrency(tx.amount)}
                   </Text>
 
                   <TouchableOpacity onPress={() => detachTransaction(tx.id)}>
-                    <Ionicons name="close-circle-outline" size={18} color="#9CA3AF" />
+                    <Ionicons name="close-circle-outline" size={18} color="#94A3B8" />
                   </TouchableOpacity>
                 </View>
               );
             })
           )}
-        </View>
+        </SectionCard>
 
-        <View
-          className="rounded-2xl p-4"
-          style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
-        >
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-sm font-semibold text-gray-900">Movimientos manuales</Text>
+        <SectionCard
+          title="Movimientos manuales"
+          action={
             <TouchableOpacity onPress={openManualCreate}>
-              <Text className="text-xs font-semibold text-primary">Nuevo</Text>
+              <Text className="text-[12px] font-semibold text-primary">Nuevo</Text>
             </TouchableOpacity>
-          </View>
-
+          }
+        >
           {project.manualEntries.length === 0 ? (
-            <Text className="text-xs text-gray-400">No hay movimientos manuales.</Text>
+            <Text className="text-[12px] text-slate-400">No hay movimientos manuales.</Text>
           ) : (
             project.manualEntries.map((entry) => {
               const amountColor = entry.type === 'income' ? '#16A34A' : '#DC2626';
               return (
-                <View
-                  key={entry.id}
-                  className="py-2 border-b border-gray-100"
-                >
+                <View key={entry.id} className="py-2.5 border-b border-slate-100">
                   <View className="flex-row items-center">
+                    <View style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      backgroundColor: entry.type === 'income' ? '#ECFDF3' : '#FEF2F2',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}>
+                      <Ionicons
+                        name={entry.type === 'income' ? 'add-outline' : 'remove-outline'}
+                        size={16}
+                        color={amountColor}
+                      />
+                    </View>
+
                     <View className="flex-1 pr-2">
-                      <Text className="text-[13px] text-gray-900" numberOfLines={1}>
-                        {entry.title}
-                      </Text>
-                      <Text className="text-[11px] text-gray-500">
-                        {formatDate(entry.date)}
-                        {entry.category ? ` · ${entry.category}` : ''}
+                      <Text className="text-[13px] text-slate-900" numberOfLines={1}>{entry.title}</Text>
+                      <Text className="text-[11px] text-slate-500">
+                        {formatDate(entry.date)}{entry.category ? ` · ${entry.category}` : ''}
                       </Text>
                     </View>
 
-                    <Text className="text-[12px] font-semibold mr-3" style={{ color: amountColor }}>
+                    <Text className="text-[12px] font-semibold mr-2" style={{ color: amountColor }}>
                       {formatCurrency(entry.amount)}
                     </Text>
 
                     <TouchableOpacity onPress={() => openManualEdit(entry)} style={{ marginRight: 8 }}>
-                      <Ionicons name="create-outline" size={17} color="#6B7280" />
+                      <Ionicons name="create-outline" size={17} color="#64748B" />
                     </TouchableOpacity>
-
                     <TouchableOpacity onPress={() => removeManualEntry(entry)}>
                       <Ionicons name="trash-outline" size={17} color="#DC2626" />
                     </TouchableOpacity>
                   </View>
 
                   {!!entry.description && (
-                    <Text className="text-[11px] text-gray-500 mt-1">{entry.description}</Text>
+                    <Text className="text-[11px] text-slate-500 ml-11 mt-1">{entry.description}</Text>
                   )}
                 </View>
               );
             })
           )}
-        </View>
+        </SectionCard>
       </ScrollView>
 
       <Modal visible={txSelectorOpen} transparent animationType="slide" onRequestClose={() => setTxSelectorOpen(false)}>
@@ -543,27 +582,28 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
           <View
             style={{
               backgroundColor: 'white',
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              maxHeight: '86%',
-              paddingBottom: 10,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: '85%',
+              paddingBottom: 12,
             }}
           >
             <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
-              <Text className="text-sm font-semibold text-gray-900">Asociar transacciones</Text>
+              <Text className="text-sm font-semibold text-slate-900">Asociar transacciones</Text>
               <TouchableOpacity onPress={() => setTxSelectorOpen(false)}>
                 <Ionicons name="close-outline" size={22} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
             <View className="px-4 pb-2">
-              <View className="flex-row items-center px-3 py-2 rounded-full" style={{ backgroundColor: '#F3F4F6' }}>
-                <Ionicons name="search-outline" size={16} color="#6B7280" />
+              <View className="flex-row items-center px-3 py-2 rounded-full" style={{ backgroundColor: '#F1F5F9' }}>
+                <Ionicons name="search-outline" size={16} color="#64748B" />
                 <TextInput
                   value={search}
                   onChangeText={setSearch}
                   placeholder="Buscar por descripción"
-                  className="ml-2 text-[13px] flex-1 text-black"
+                  placeholderTextColor="#94A3B8"
+                  className="ml-2 text-[16px] flex-1 text-slate-900"
                 />
               </View>
             </View>
@@ -582,7 +622,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                   return (
                     <TouchableOpacity
                       onPress={() => toggleTx(item.id)}
-                      className="px-4 py-3 border-b border-gray-100 flex-row items-center"
+                      className="px-4 py-3 border-b border-slate-100 flex-row items-center"
                     >
                       <Ionicons
                         name={checked ? 'checkbox' : 'square-outline'}
@@ -591,10 +631,10 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                       />
 
                       <View className="flex-1 ml-2 pr-2">
-                        <Text className="text-[13px] text-gray-900" numberOfLines={1}>
+                        <Text className="text-[13px] text-slate-900" numberOfLines={1}>
                           {item.description || 'Sin descripción'}
                         </Text>
-                        <Text className="text-[11px] text-gray-500">{formatDate(item.date)}</Text>
+                        <Text className="text-[11px] text-slate-500">{formatDate(item.date)}</Text>
                       </View>
 
                       <Text className="text-[12px] font-semibold" style={{ color: amountColor }}>
@@ -605,7 +645,7 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                 }}
                 ListEmptyComponent={
                   <View className="py-6 items-center">
-                    <Text className="text-xs text-gray-400">No hay transacciones para mostrar.</Text>
+                    <Text className="text-xs text-slate-400">No hay transacciones para mostrar.</Text>
                   </View>
                 }
               />
@@ -627,8 +667,8 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
 
       <Modal visible={manualModalOpen} transparent animationType="fade" onRequestClose={() => setManualModalOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 16 }}>
-            <Text className="text-sm font-semibold text-gray-900 mb-3">
+          <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16 }}>
+            <Text className="text-sm font-semibold text-slate-900 mb-3">
               {editingEntry ? 'Editar movimiento manual' : 'Nuevo movimiento manual'}
             </Text>
 
@@ -645,13 +685,13 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                       marginRight: option === 'income' ? 8 : 0,
                       borderRadius: 10,
                       borderWidth: 1,
-                      borderColor: active ? colors.primary : '#D1D5DB',
-                      backgroundColor: active ? '#EEF2FF' : 'white',
+                      borderColor: active ? '#0F172A' : '#D1D5DB',
+                      backgroundColor: active ? '#0F172A' : 'white',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: active ? colors.primary : '#6B7280' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: active ? 'white' : '#64748B' }}>
                       {option === 'income' ? 'Ingreso' : 'Gasto'}
                     </Text>
                   </TouchableOpacity>
@@ -663,22 +703,24 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
               value={manualForm.title}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, title: text }))}
               placeholder="Título *"
-              className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
+              placeholderTextColor="#94A3B8"
+              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
             />
 
             <TextInput
               value={manualForm.amount}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, amount: text }))}
               placeholder="Importe *"
+              placeholderTextColor="#94A3B8"
               keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
+              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
             />
 
             <TouchableOpacity
               onPress={() => setDatePickerVisible(true)}
-              className="border border-gray-200 rounded-xl px-3 py-2 mb-2"
+              className="border border-slate-200 rounded-xl px-3 py-2 mb-2"
             >
-              <Text className="text-[13px] text-gray-900">
+              <Text className="text-[13px] text-slate-900">
                 Fecha *: {formatDate(manualForm.date.toISOString())}
               </Text>
             </TouchableOpacity>
@@ -687,22 +729,25 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
               value={manualForm.category}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, category: text }))}
               placeholder="Categoría (opcional)"
-              className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
+              placeholderTextColor="#94A3B8"
+              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
             />
 
             <TextInput
               value={manualForm.description}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, description: text }))}
               placeholder="Descripción (opcional)"
-              className="border border-gray-200 rounded-xl px-3 py-2 text-[13px] mb-2"
+              placeholderTextColor="#94A3B8"
+              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
             />
 
             <TextInput
               value={manualForm.notes}
               onChangeText={(text) => setManualForm((prev) => ({ ...prev, notes: text }))}
               placeholder="Notas (opcional)"
+              placeholderTextColor="#94A3B8"
               multiline
-              className="border border-gray-200 rounded-xl px-3 py-2 text-[13px]"
+              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] text-slate-900"
               style={{ minHeight: 64, textAlignVertical: 'top' }}
             />
 
@@ -713,9 +758,9 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
                   setEditingEntry(null);
                 }}
                 className="flex-1 py-2.5 rounded-xl mr-2 items-center"
-                style={{ backgroundColor: '#F3F4F6' }}
+                style={{ backgroundColor: '#F1F5F9' }}
               >
-                <Text className="text-[13px] text-gray-700 font-semibold">Cancelar</Text>
+                <Text className="text-[13px] text-slate-700 font-semibold">Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -748,4 +793,3 @@ export default function ProjectDetailScreen({ navigation, route }: any) {
     </SafeAreaView>
   );
 }
-
