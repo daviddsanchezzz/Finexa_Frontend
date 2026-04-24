@@ -7,6 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -29,6 +31,7 @@ interface AssetFromApi {
   riskType?: InvestmentRiskType | null;
   currency: string;
   initialInvested: number;
+  quantity?: number | null;
   active: boolean;
   createdAt?: string | null;
   symbol?: string | null;
@@ -212,6 +215,12 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [range, setRange] = useState<RangeKey>("3m");
   const [tab, setTab] = useState<"operations" | "valuations">("operations");
 
+  type ActionTarget =
+    | { kind: "valuation"; item: ValuationFromApi }
+    | { kind: "operation"; item: InvestmentOperationFromApi }
+    | null;
+  const [actionTarget, setActionTarget] = useState<ActionTarget>(null);
+
   const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
 
   const fetchAll = useCallback(async () => {
@@ -246,6 +255,44 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   useFocusEffect(
     useCallback(() => { fetchAll(); }, [fetchAll])
   );
+
+  const handleDeleteValuation = (id: number) => {
+    Alert.alert("Eliminar valoración", "¿Seguro que quieres eliminar esta valoración?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await api.delete(`/investments/valuations/${id}`);
+            setActionTarget(null);
+            fetchAll();
+          } catch {
+            Alert.alert("Error", "No se pudo eliminar la valoración.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteSwap = (swapGroupId: string) => {
+    Alert.alert("Eliminar swap", "¿Seguro que quieres eliminar este swap?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await api.delete(`/investments/swaps/${swapGroupId}`);
+            setActionTarget(null);
+            fetchAll();
+          } catch {
+            Alert.alert("Error", "No se pudo eliminar el swap.");
+          }
+        },
+      },
+    ]);
+  };
 
   const stats = useMemo(() => {
     const invested = summaryRow?.invested ?? (asset?.initialInvested ?? 0);
@@ -762,6 +809,13 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               <MetricChip label="Riesgo"     value={riskLabel(asset.riskType)}                             icon={riskIcon(asset.riskType)} />
               <MetricChip label="Aportado"   value={formatMoney(asset.initialInvested || 0, currency)}     icon="flag-outline" />
               <MetricChip label="Moneda"     value={asset.currency}                                        icon="cash-outline" />
+              {Number(asset.quantity ?? 0) > 0 && (
+                <MetricChip
+                  label="Participaciones"
+                  value={Number(asset.quantity).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                  icon="layers-outline"
+                />
+              )}
             </View>
 
             {asset.description?.trim() ? (
@@ -836,6 +890,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     const amount = opSignedAmount(op);
                     const tone = opTone(op.type);
                     const tm = toneMeta(tone);
+                    const isSwap = !!op.swapGroupId;
                     const icon =
                       op.type === "buy"      ? "add-circle-outline"    :
                       op.type === "sell"     ? "remove-circle-outline" :
@@ -844,8 +899,10 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                                                "swap-horizontal-outline";
 
                     return (
-                      <View
+                      <TouchableOpacity
                         key={`op-${op.id}`}
+                        activeOpacity={isSwap ? 0.85 : 1}
+                        onPress={isSwap ? () => setActionTarget({ kind: "operation", item: op }) : undefined}
                         style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}
                       >
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -878,7 +935,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                             Fee: {formatMoney(Math.abs(Number(op.fee || 0)), currency)}
                           </Text>
                         ) : null}
-                      </View>
+                      </TouchableOpacity>
                     );
                   })
                 ) : (
@@ -891,7 +948,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     key={`val-${v.id}`}
                     activeOpacity={0.85}
-                    onPress={() => navigation.navigate("InvestmentValuation", { assetId, editingValuationId: v.id })}
+                    onPress={() => setActionTarget({ kind: "valuation", item: v })}
                     style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}
                   >
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -914,6 +971,122 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           </View>
         </ScrollView>
       )}
+
+      {/* ── Modal de acción (editar / eliminar) ── */}
+      <Modal
+        visible={actionTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActionTarget(null)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setActionTarget(null)}
+        >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 20,
+              paddingBottom: 36,
+            }}
+          >
+            {/* Título del modal */}
+            <View style={{ alignItems: "center", marginBottom: 20 }}>
+              <View
+                style={{
+                  width: 40, height: 4, borderRadius: 999,
+                  backgroundColor: "#E5E7EB", marginBottom: 16,
+                }}
+              />
+              <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A" }}>
+                {actionTarget?.kind === "valuation"
+                  ? `Valoración · ${actionTarget.item.date ? formatDate(actionTarget.item.date) : ""}`
+                  : `Swap · ${actionTarget?.item.date ? formatDate(actionTarget.item.date as string) : ""}`}
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B", marginTop: 4 }}>
+                {actionTarget?.kind === "valuation"
+                  ? formatMoney(Number((actionTarget.item as ValuationFromApi).value || 0), currency)
+                  : formatMoney(Math.abs(Number((actionTarget?.item as InvestmentOperationFromApi)?.amount || 0)), currency)}
+              </Text>
+            </View>
+
+            <View style={{ gap: 10 }}>
+              {/* Editar — solo para valoraciones */}
+              {actionTarget?.kind === "valuation" && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const v = actionTarget.item as ValuationFromApi;
+                    setActionTarget(null);
+                    navigation.navigate("InvestmentValuation", { assetId, editingValuationId: v.id });
+                  }}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: 12,
+                    paddingVertical: 14, paddingHorizontal: 16,
+                    borderRadius: 18, backgroundColor: "#EEF2FF",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 36, height: 36, borderRadius: 14,
+                      backgroundColor: colors.primary,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={18} color="white" />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: colors.primary }}>Editar</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Eliminar */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (actionTarget?.kind === "valuation") {
+                    handleDeleteValuation((actionTarget.item as ValuationFromApi).id);
+                  } else if (actionTarget?.kind === "operation") {
+                    const swapId = (actionTarget.item as InvestmentOperationFromApi).swapGroupId!;
+                    handleDeleteSwap(swapId);
+                  }
+                }}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 12,
+                  paddingVertical: 14, paddingHorizontal: 16,
+                  borderRadius: 18, backgroundColor: "#FEF2F2",
+                }}
+              >
+                <View
+                  style={{
+                    width: 36, height: 36, borderRadius: 14,
+                    backgroundColor: "#DC2626",
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="white" />
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: "#DC2626" }}>Eliminar</Text>
+              </TouchableOpacity>
+
+              {/* Cancelar */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setActionTarget(null)}
+                style={{
+                  paddingVertical: 14, borderRadius: 18,
+                  backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "800", color: "#64748B" }}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }

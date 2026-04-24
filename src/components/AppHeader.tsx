@@ -37,7 +37,7 @@ export default function AppHeader({
       {/* ------------------------------------- */}
       {/*      IZQUIERDA: BACK + PROFILE + TITLE */}
       {/* ------------------------------------- */}
-      <View className="flex-row items-center">
+      <View className="flex-row items-center" style={{ flex: 1, marginRight: 8 }}>
 
         {/* 🔙 Flecha atrás */}
         {showBack && (
@@ -73,7 +73,12 @@ export default function AppHeader({
 
         {/* 🏷️ Título */}
         {title && (
-          <Text className="text-[22px] font-bold text-text">
+          <Text
+            className="text-[22px] font-bold text-text"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ flex: 1 }}
+          >
             {title}
           </Text>
         )}
