@@ -27,7 +27,7 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
         if (route.name === "Stats") iconName = "podium-outline";
         if (route.name === "Add") iconName = "add-outline";
         if (route.name === "Finances") iconName = "folder-outline";
-        if (route.name === "AIChat") iconName = "chatbubble-ellipses-outline";
+        if (route.name === "Investments") iconName = "trending-up-outline";
 
         const isAddButton = route.name === "Add";
 
@@ -35,7 +35,7 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
         const extraStyle =
           route.name === "Home"
             ? { marginLeft: 0 }
-            : route.name === "AIChat"
+            : route.name === "Investments"
             ? { marginRight: 0 }
             : { marginHorizontal: 20 };
 

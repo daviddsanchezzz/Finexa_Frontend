@@ -42,10 +42,10 @@ export default function MainTabs() {
       />
 
       <Tab.Screen
-        name="AIChat"
-        options={{ tabBarLabel: "Chat" }}
+        name="Investments"
+        options={{ tabBarLabel: "Inversión" }}
         getComponent={() =>
-          require("../screens/Mobile/aiChat/AIChatScreen").default
+          require("../screens/Mobile/finances/invests/InvestmentsScreen").default
         }
       />
     </Tab.Navigator>

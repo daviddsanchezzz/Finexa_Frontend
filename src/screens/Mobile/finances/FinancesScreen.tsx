@@ -68,16 +68,6 @@ const MODULES: FinanceModule[] = [
     softBg: "#FEF2F2",
   },
   {
-    key: "investments",
-    title: "Inversión",
-    subtitle: "Sigue tu cartera y su rentabilidad.",
-    emoji: "📈",
-    iconName: "trending-up-outline",
-    routeName: "Investments",
-    accentColor: "#22C55E",
-    softBg: "#ECFDF3",
-  },
-  {
     key: "trips",
     title: "Viajes",
     subtitle: "Agrupa y analiza los gastos de viajes.",
