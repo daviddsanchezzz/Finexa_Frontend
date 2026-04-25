@@ -975,7 +975,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           elevation: 6,
         }}
       >
-        <Ionicons name="add" size={26} color="white" />
+        <Ionicons name="trending-up-outline" size={22} color="white" />
       </TouchableOpacity>
     </SafeAreaView>
   );
