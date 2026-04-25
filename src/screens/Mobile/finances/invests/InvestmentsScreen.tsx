@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useWindowDimensions,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -882,84 +883,100 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         {timelineLoading ? <View style={{ height: 10 }} /> : null}
       </ScrollView>
 
-      {/* ── FAB speed-dial ── */}
-      {fabOpen && (
+      {/* ── Modal de acciones ── */}
+      <Modal visible={fabOpen} transparent animationType="fade" onRequestClose={() => setFabOpen(false)}>
         <TouchableOpacity
-          style={{ position: "absolute", inset: 0 }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
           activeOpacity={1}
           onPress={() => setFabOpen(false)}
-        />
-      )}
-
-      <View
-        style={{
-          position: "absolute",
-          bottom: 88,
-          right: 20,
-          alignItems: "flex-end",
-          gap: 10,
-        }}
-        pointerEvents="box-none"
-      >
-        {/* Opciones expandidas */}
-        {fabOpen && fabActions.map((action) => (
-          <TouchableOpacity
-            key={action.route}
-            activeOpacity={0.9}
-            onPress={() => {
-              setFabOpen(false);
-              navigation.navigate(action.route);
-            }}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              backgroundColor: "white",
-              borderRadius: 18,
-              paddingVertical: 10,
-              paddingHorizontal: 14,
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              shadowColor: "#000",
-              shadowOpacity: 0.10,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 3 },
-              elevation: 4,
-            }}
-          >
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
             <View
               style={{
-                width: 32, height: 32, borderRadius: 10,
-                backgroundColor: "#EEF2FF",
-                alignItems: "center", justifyContent: "center",
+                backgroundColor: "white",
+                borderRadius: 28,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                width: 280,
+                shadowColor: "#000",
+                shadowOpacity: 0.15,
+                shadowRadius: 20,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 10,
               }}
             >
-              <Ionicons name={action.icon} size={16} color={colors.primary} />
-            </View>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
-              {action.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textAlign: "center", paddingVertical: 14 }}>
+                NUEVA ACCIÓN
+              </Text>
 
-        {/* Botón principal */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => setFabOpen((p) => !p)}
-          style={{
-            width: 56, height: 56, borderRadius: 28,
-            backgroundColor: colors.primary,
-            alignItems: "center", justifyContent: "center",
-            shadowColor: colors.primary,
-            shadowOpacity: 0.35,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 6,
-          }}
-        >
-          <Ionicons name={fabOpen ? "close" : "add"} size={26} color="white" />
+              {fabActions.map((action, idx) => (
+                <TouchableOpacity
+                  key={action.route}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setFabOpen(false);
+                    navigation.navigate(action.route);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 14,
+                    paddingVertical: 15,
+                    paddingHorizontal: 12,
+                    borderRadius: 18,
+                    borderTopWidth: idx === 0 ? 1 : 0,
+                    borderBottomWidth: 1,
+                    borderColor: "#F1F5F9",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40, height: 40, borderRadius: 14,
+                      backgroundColor: "#EEF2FF",
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons name={action.icon} size={18} color={colors.primary} />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
+                    {action.label}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
+                </TouchableOpacity>
+              ))}
+
+              <TouchableOpacity
+                onPress={() => setFabOpen(false)}
+                activeOpacity={0.7}
+                style={{ alignItems: "center", paddingVertical: 16 }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </View>
+      </Modal>
+
+      {/* ── FAB ── */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setFabOpen(true)}
+        style={{
+          position: "absolute",
+          bottom: 100,
+          right: 20,
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: colors.primary,
+          alignItems: "center", justifyContent: "center",
+          shadowColor: colors.primary,
+          shadowOpacity: 0.35,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 6,
+        }}
+      >
+        <Ionicons name="add" size={26} color="white" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
