@@ -403,46 +403,13 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     if (!exists) setSelectedSliceId(null);
   }, [allocation.slices, selectedSliceId]);
 
-  const CtaButton = ({
-    label,
-    icon,
-    onPress,
-    variant = "neutral",
-  }: {
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    onPress: () => void;
-    variant?: "neutral" | "primary" | "soft";
-  }) => {
-    const isPrimary = variant === "primary";
-    const isSoft = variant === "soft";
-    const bg = isPrimary ? colors.primary : isSoft ? "#EEF2FF" : "#F3F4F6";
-    const fg = isPrimary ? "white" : isSoft ? colors.primary : "#64748B";
-    const weight = isPrimary ? "800" : isSoft ? "800" : "700";
+  const [fabOpen, setFabOpen] = useState(false);
 
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        activeOpacity={0.9}
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingVertical: 12,
-          borderRadius: 18,
-          backgroundColor: bg,
-          borderWidth: 1,
-          borderColor: "#E5E7EB",
-          gap: 6,
-        }}
-      >
-        <Ionicons name={icon} size={18} color={fg} />
-        <Text style={{ fontSize: 12, fontWeight: weight as any, color: fg, textAlign: "center" }}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const fabActions = [
+    { label: "Nueva inversión",  icon: "add-outline" as const,              route: "InvestmentForm"      },
+    { label: "Nueva valoración", icon: "calendar-outline" as const,         route: "InvestmentValuation" },
+    { label: "Nueva operación",  icon: "swap-horizontal-outline" as const,   route: "InvestmentOperation" },
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -915,37 +882,83 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         {timelineLoading ? <View style={{ height: 10 }} /> : null}
       </ScrollView>
 
-      {/* ── Barra de acciones fija ── */}
+      {/* ── FAB speed-dial ── */}
+      {fabOpen && (
+        <TouchableOpacity
+          style={{ position: "absolute", inset: 0 }}
+          activeOpacity={1}
+          onPress={() => setFabOpen(false)}
+        />
+      )}
+
       <View
         style={{
-          paddingHorizontal: 20,
-          paddingVertical: 12,
-          paddingBottom: 16,
-          backgroundColor: "white",
-          borderTopWidth: 1,
-          borderTopColor: "#E5E7EB",
-          flexDirection: "row",
-          gap: 8,
+          position: "absolute",
+          bottom: 28,
+          right: 20,
+          alignItems: "flex-end",
+          gap: 10,
         }}
+        pointerEvents="box-none"
       >
-        <CtaButton
-          label={"Nueva\ninversión"}
-          icon="add-outline"
-          variant="neutral"
-          onPress={() => navigation.navigate("InvestmentForm")}
-        />
-        <CtaButton
-          label={"Nueva\nvaloración"}
-          icon="calendar-outline"
-          variant="soft"
-          onPress={() => navigation.navigate("InvestmentValuation")}
-        />
-        <CtaButton
-          label={"Nueva\noperación"}
-          icon="swap-horizontal-outline"
-          variant="neutral"
-          onPress={() => navigation.navigate("InvestmentOperation")}
-        />
+        {/* Opciones expandidas */}
+        {fabOpen && fabActions.map((action) => (
+          <TouchableOpacity
+            key={action.route}
+            activeOpacity={0.9}
+            onPress={() => {
+              setFabOpen(false);
+              navigation.navigate(action.route);
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              backgroundColor: "white",
+              borderRadius: 18,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              shadowColor: "#000",
+              shadowOpacity: 0.10,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 4,
+            }}
+          >
+            <View
+              style={{
+                width: 32, height: 32, borderRadius: 10,
+                backgroundColor: "#EEF2FF",
+                alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <Ionicons name={action.icon} size={16} color={colors.primary} />
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
+              {action.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+
+        {/* Botón principal */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setFabOpen((p) => !p)}
+          style={{
+            width: 56, height: 56, borderRadius: 28,
+            backgroundColor: colors.primary,
+            alignItems: "center", justifyContent: "center",
+            shadowColor: colors.primary,
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 6,
+          }}
+        >
+          <Ionicons name={fabOpen ? "close" : "add"} size={26} color="white" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
