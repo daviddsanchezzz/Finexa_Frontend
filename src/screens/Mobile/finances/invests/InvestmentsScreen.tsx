@@ -894,7 +894,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       <View
         style={{
           position: "absolute",
-          bottom: 28,
+          bottom: 88,
           right: 20,
           alignItems: "flex-end",
           gap: 10,
