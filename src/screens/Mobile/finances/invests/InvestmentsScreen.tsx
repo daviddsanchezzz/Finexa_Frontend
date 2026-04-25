@@ -414,8 +414,27 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pb-3">
-        <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
+      <View className="px-5 pb-3" style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={{ flex: 1 }}>
+          <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
+        </View>
+        <TouchableOpacity
+          onPress={() => setFabOpen(true)}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: "#0F172A",
+            borderRadius: 14,
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            marginBottom: 4,
+          }}
+        >
+          <Ionicons name="trending-up-outline" size={15} color="white" />
+          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -957,26 +976,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── FAB ── */}
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => setFabOpen(true)}
-        style={{
-          position: "absolute",
-          bottom: 100,
-          right: 20,
-          width: 56, height: 56, borderRadius: 28,
-          backgroundColor: colors.primary,
-          alignItems: "center", justifyContent: "center",
-          shadowColor: colors.primary,
-          shadowOpacity: 0.35,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 6,
-        }}
-      >
-        <Ionicons name="trending-up-outline" size={22} color="white" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
