@@ -19,6 +19,16 @@ import Svg, { G, Path, Circle } from "react-native-svg";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
+type PortfolioSnapshotRow = {
+  monthStart: string;
+  currency: string;
+  startValue: number | null;
+  endValue: number;
+  cashflowNet: number;
+  profit: number;
+  returnPct: number | null;
+};
+
 interface SummaryAssetFromApi {
   id: number;
   name: string;
@@ -122,6 +132,23 @@ const formatShortDate = (iso: string) =>
     year: "numeric",
   });
 
+const formatMonthYear = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const m = d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
+  return `${m} ${d.getFullYear()}`;
+};
+
+const formatPctRatio = (p: number | null | undefined) => {
+  if (p == null || !Number.isFinite(p)) return "—";
+  return `${(p * 100).toFixed(2).replace(".", ",")}%`;
+};
+
+const toneColor = (v: number) => (v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#64748B");
+const toneBg   = (v: number) => (v > 0 ? "#DCFCE7" : v < 0 ? "#FEE2E2" : "#E5E7EB");
+const toneIcon = (v: number): keyof typeof Ionicons.glyphMap =>
+  v > 0 ? "trending-up-outline" : v < 0 ? "trending-down-outline" : "remove-outline";
+
 type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
 const rangeToDays: Record<RangeKey, number> = {
@@ -223,6 +250,9 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [range, setRange] = useState<RangeKey>("ALL");
   const [selectedSliceId, setSelectedSliceId] = useState<number | null>(null);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
@@ -248,6 +278,35 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const fetchSnapshots = async () => {
+    setSnapshotsLoading(true);
+    try {
+      const to = new Date();
+      const from = new Date(to);
+      from.setMonth(from.getMonth() - 12);
+      const res = await api.get(
+        `/investments/snapshots?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
+      );
+      const rows = (res.data || []) as any[];
+      const mapped: PortfolioSnapshotRow[] = rows
+        .map((r) => ({
+          monthStart: String(r.monthStart),
+          currency: String(r.currency || "EUR"),
+          startValue: r.startValue == null ? null : Number(r.startValue),
+          endValue: Number(r.endValue ?? 0),
+          cashflowNet: Number(r.cashflowNet ?? 0),
+          profit: Number(r.profit ?? 0),
+          returnPct: r.returnPct == null ? null : Number(r.returnPct),
+        }))
+        .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
+      setSnapshots(mapped);
+    } catch {
+      setSnapshots([]);
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  };
+
   const fetchTimeline = async (rk: RangeKey) => {
     try {
       setTimelineLoading(true);
@@ -266,6 +325,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     useCallback(() => {
       fetchSummary();
       fetchTimeline(range);
+      fetchSnapshots();
     }, [range])
   );
 
@@ -645,11 +705,28 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             >
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Por activo</Text>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8" }}>Total</Text>
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
-                    {formatMoney(allocation.total, currency)}
-                  </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8" }}>Total</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
+                      {formatMoney(allocation.total, currency)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setLegendOpen((p) => !p)}
+                    activeOpacity={0.7}
+                    style={{
+                      width: 32, height: 32, borderRadius: 10,
+                      backgroundColor: "#F1F5F9",
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={legendOpen ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="#64748B"
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -668,63 +745,150 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 />
               </View>
 
-              <View style={{ marginTop: 12 }}>
-                {allocation.slices.slice(0, 8).map((s) => {
-                  const isActive = (selectedSlice?.id ?? null) === s.id;
+              {legendOpen && (
+                <View style={{ marginTop: 12 }}>
+                  {allocation.slices.slice(0, 8).map((s) => {
+                    const isActive = (selectedSlice?.id ?? null) === s.id;
 
-                  return (
-                    <TouchableOpacity
-                      key={s.id}
-                      activeOpacity={0.85}
-                      onPress={() => setSelectedSliceId((prev) => (prev === s.id ? null : s.id))}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingVertical: 10,
-                        borderBottomWidth: 1,
-                        borderBottomColor: "#F1F5F9",
-                        opacity: selectedSliceId != null ? (isActive ? 1 : 0.55) : 1,
-                      }}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
-                        <View
-                          style={{
-                            width: 10, height: 10, borderRadius: 6,
-                            backgroundColor: s.color, marginRight: 8,
-                          }}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: isActive ? "900" : "800",
-                            color: "#0F172A",
-                            flex: 1,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {s.label}
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        activeOpacity={0.85}
+                        onPress={() => setSelectedSliceId((prev) => (prev === s.id ? null : s.id))}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: "#F1F5F9",
+                          opacity: selectedSliceId != null ? (isActive ? 1 : 0.55) : 1,
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
+                          <View
+                            style={{
+                              width: 10, height: 10, borderRadius: 6,
+                              backgroundColor: s.color, marginRight: 8,
+                            }}
+                          />
+                          <Text
+                            style={{ fontSize: 12, fontWeight: isActive ? "900" : "800", color: "#0F172A", flex: 1 }}
+                            numberOfLines={1}
+                          >
+                            {s.label}
+                          </Text>
+                        </View>
+
+                        <View style={{ alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                            {(s.pct * 100).toFixed(1)}%
+                          </Text>
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }}>
+                            {formatMoney(s.value, currency)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {allocation.slices.length > 8 && (
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 10 }}>
+                      +{allocation.slices.length - 8} más…
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* ── Rendimiento mensual ── */}
+        {snapshots.length > 0 && (
+          <>
+            <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
+                Rendimiento mensual
+              </Text>
+            </View>
+
+            <View
+              style={{
+                marginHorizontal: 20,
+                backgroundColor: "white",
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                overflow: "hidden",
+                marginBottom: 10,
+              }}
+            >
+              {snapshots.map((row, idx) => {
+                const profit = Number(row.profit ?? 0);
+                const returnPct = row.returnPct;
+                const endValue = Number(row.endValue ?? 0);
+                const cashflow = Number(row.cashflowNet ?? 0);
+                const isLast = idx === snapshots.length - 1;
+
+                return (
+                  <View
+                    key={row.monthStart}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderBottomWidth: isLast ? 0 : 1,
+                      borderBottomColor: "#F1F5F9",
+                      backgroundColor: idx % 2 === 0 ? "white" : "#FAFAFA",
+                    }}
+                  >
+                    {/* Fila superior: mes + badge rentabilidad */}
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
+                        {formatMonthYear(row.monthStart)}
+                      </Text>
+
+                      <View
+                        style={{
+                          flexDirection: "row", alignItems: "center", gap: 5,
+                          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+                          backgroundColor: toneBg(profit),
+                        }}
+                      >
+                        <Ionicons name={toneIcon(profit)} size={12} color={toneColor(profit)} />
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: toneColor(profit) }}>
+                          {formatPctRatio(returnPct)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Fila inferior: fin, beneficio, flujo */}
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 8 }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 2 }}>Valor final</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+                          {formatMoney(endValue, row.currency)}
                         </Text>
                       </View>
 
-                      <View style={{ alignItems: "flex-end" }}>
-                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
-                          {(s.pct * 100).toFixed(1)}%
-                        </Text>
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }}>
-                          {formatMoney(s.value, currency)}
+                      <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 8 }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 2 }}>Beneficio</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: toneColor(profit) }} numberOfLines={1}>
+                          {profit >= 0 ? "+" : ""}{formatMoney(profit, row.currency)}
                         </Text>
                       </View>
-                    </TouchableOpacity>
-                  );
-                })}
 
-                {allocation.slices.length > 8 && (
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 10 }}>
-                    +{allocation.slices.length - 8} más…
-                  </Text>
-                )}
-              </View>
+                      {cashflow !== 0 && (
+                        <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 8 }}>
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 2 }}>Flujo neto</Text>
+                          <Text style={{ fontSize: 12, fontWeight: "900", color: toneColor(cashflow) }} numberOfLines={1}>
+                            {cashflow >= 0 ? "+" : ""}{formatMoney(cashflow, row.currency)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           </>
         )}
