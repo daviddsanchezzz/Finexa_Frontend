@@ -453,7 +453,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
         {/* HERO */}
         <View className="px-5 mb-4">
