@@ -545,27 +545,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* Acciones — 3 botones uniformes */}
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <CtaButton
-              label={"Nueva\ninversión"}
-              icon="add-outline"
-              variant="neutral"
-              onPress={() => navigation.navigate("InvestmentForm")}
-            />
-            <CtaButton
-              label={"Nueva\nvaloración"}
-              icon="calendar-outline"
-              variant="soft"
-              onPress={() => navigation.navigate("InvestmentValuation")}
-            />
-            <CtaButton
-              label={"Nueva\noperación"}
-              icon="swap-horizontal-outline"
-              variant="neutral"
-              onPress={() => navigation.navigate("InvestmentOperation")}
-            />
-          </View>
         </View>
 
         {/* LISTA */}
@@ -935,6 +914,39 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
         {timelineLoading ? <View style={{ height: 10 }} /> : null}
       </ScrollView>
+
+      {/* ── Barra de acciones fija ── */}
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+          paddingBottom: 16,
+          backgroundColor: "white",
+          borderTopWidth: 1,
+          borderTopColor: "#E5E7EB",
+          flexDirection: "row",
+          gap: 8,
+        }}
+      >
+        <CtaButton
+          label={"Nueva\ninversión"}
+          icon="add-outline"
+          variant="neutral"
+          onPress={() => navigation.navigate("InvestmentForm")}
+        />
+        <CtaButton
+          label={"Nueva\nvaloración"}
+          icon="calendar-outline"
+          variant="soft"
+          onPress={() => navigation.navigate("InvestmentValuation")}
+        />
+        <CtaButton
+          label={"Nueva\noperación"}
+          icon="swap-horizontal-outline"
+          variant="neutral"
+          onPress={() => navigation.navigate("InvestmentOperation")}
+        />
+      </View>
     </SafeAreaView>
   );
 }
