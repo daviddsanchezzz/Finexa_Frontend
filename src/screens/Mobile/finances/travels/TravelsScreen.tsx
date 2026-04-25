@@ -8,8 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   TextInput,
-  Pressable,
-  Dimensions,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -29,12 +28,10 @@ type Continent =
   | "oceania"
   | "antarctica";
 
-type KanbanTone = "neutral" | "blue" | "green" | "purple" | "orange" | "pink" | "teal";
-
 interface TripFromApi {
   id: number;
   name: string;
-  destination: string | null; // ISO2
+  destination: string | null;
   startDate: string | null;
   endDate: string | null;
   status: TripStatus;
@@ -60,7 +57,6 @@ interface TripUI {
 type TripsSummaryDto = {
   daysToNextTrip: number | null;
   nextTrip: { id: number; name: string; startDate: string | null } | null;
-
   visitedCountries: number;
   pendingCountries: number;
   visitedPct: number;
@@ -68,14 +64,8 @@ type TripsSummaryDto = {
 };
 
 type ContinentKey =
-  | "europe"
-  | "africa"
-  | "asia"
-  | "north_america"
-  | "south_america"
-  | "oceania"
-  | "antarctica"
-  | "unknown";
+  | "europe" | "africa" | "asia" | "north_america"
+  | "south_america" | "oceania" | "antarctica" | "unknown";
 
 type ContinentStat = {
   continent: ContinentKey;
@@ -87,7 +77,7 @@ type ContinentStat = {
 
 type ContinentsStatsDto = ContinentStat[];
 
-/** ===== Flags + country name ===== */
+/* ─── Flag helpers ─── */
 export function flagEmojiFromISO2(code?: string | null) {
   const c = (code || "").trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(c)) return "🌍";
@@ -99,24 +89,19 @@ export function countryNameEsFromISO2(code?: string | null) {
   if (!/^[A-Z]{2}$/.test(c)) return "—";
   try {
     // @ts-ignore
-    const dn = new Intl.DisplayNames(["es-ES"], { type: "region" });
-    return dn.of(c) || c;
-  } catch {
-    return c;
-  }
+    return new Intl.DisplayNames(["es-ES"], { type: "region" }).of(c) || c;
+  } catch { return c; }
 }
 export function twemojiFlagUrlFromISO2(code?: string | null) {
   const c = (code || "").trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(c)) return null;
   const cp1 = 0x1f1e6 + (c.charCodeAt(0) - 65);
   const cp2 = 0x1f1e6 + (c.charCodeAt(1) - 65);
-  const hex = `${cp1.toString(16)}-${cp2.toString(16)}`;
-  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${hex}.svg`;
+  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${cp1.toString(16)}-${cp2.toString(16)}.svg`;
 }
 function CountryBadge({ code, size = 20 }: { code?: string | null; size?: number }) {
   const url = twemojiFlagUrlFromISO2(code);
   const flag = flagEmojiFromISO2(code);
-
   if (Platform.OS === "web" && url) {
     // @ts-ignore
     return <img src={url} alt={code || "flag"} style={{ width: size, height: size, display: "block" }} />;
@@ -124,472 +109,60 @@ function CountryBadge({ code, size = 20 }: { code?: string | null; size?: number
   return <Text style={{ fontSize: size }}>{flag}</Text>;
 }
 
-/** ===== Utils ===== */
+/* ─── Utils ─── */
 function norm(s: string) {
-  return (s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
+  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 }
 function isValidISODate(iso?: string | null) {
   if (!iso) return false;
-  const d = new Date(iso);
-  return !Number.isNaN(d.getTime());
+  return !Number.isNaN(new Date(iso).getTime());
 }
 function formatDateRange(startISO?: string | null, endISO?: string | null) {
   if (!isValidISODate(startISO) || !isValidISODate(endISO)) return "Sin fecha";
-  const s = new Date(startISO!);
-  const e = new Date(endISO!);
   const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
-  const startStr = s.toLocaleDateString("es-ES", opts);
-  const endStr = e.toLocaleDateString("es-ES", opts);
-  return `${startStr} · ${endStr}`;
+  return `${new Date(startISO!).toLocaleDateString("es-ES", opts)} · ${new Date(endISO!).toLocaleDateString("es-ES", opts)}`;
 }
 function formatEuro(n: number) {
-  const v = Number.isFinite(n) ? n : 0;
-  return v.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  return (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
+    style: "currency", currency: "EUR",
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
   });
 }
 function continentLabel(c?: string | null) {
   const v = (c || "").toLowerCase();
-  if (v === "europe") return "Europa";
-  if (v === "africa") return "África";
-  if (v === "asia") return "Asia";
+  if (v === "europe")        return "Europa";
+  if (v === "africa")        return "África";
+  if (v === "asia")          return "Asia";
   if (v === "america" || v === "north_america") return "Norteamérica";
   if (v === "south_america") return "Sudamérica";
-  if (v === "oceania") return "Oceanía";
-  if (v === "antarctica") return "Antártida";
+  if (v === "oceania")       return "Oceanía";
+  if (v === "antarctica")    return "Antártida";
   return c ? c : "Sin continente";
 }
 function uniqueCountryCount(trips: TripUI[]) {
-  const set = new Set(trips.map((t) => (t.destination || "").trim().toUpperCase()).filter(Boolean));
-  return set.size;
-}
-function toneForContinent(id: string): KanbanTone {
-  switch ((id || "").toLowerCase()) {
-    case "europe":
-      return "blue";
-    case "asia":
-      return "purple";
-    case "africa":
-      return "orange";
-    case "north_america":
-      return "blue";
-    case "america":
-      return "green";
-    case "south_america":
-      return "pink";
-    case "oceania":
-      return "teal";
-    case "antarctica":
-      return "neutral";
-    default:
-      return "neutral";
-  }
-}
-const YEAR_TONES: KanbanTone[] = ["blue", "green", "purple", "orange", "teal", "pink"];
-function toneForYear(key: string, index: number): KanbanTone {
-  if (key === "unknown") return "neutral";
-  return YEAR_TONES[index % YEAR_TONES.length];
-}
-function toneForStatus(s: TripStatus): KanbanTone {
-  if (s === "planning") return "blue";
-  if (s === "seen") return "green";
-  return "neutral";
+  return new Set(trips.map((t) => (t.destination || "").trim().toUpperCase()).filter(Boolean)).size;
 }
 
-/** ===== Visual atoms ===== */
-function useUiScaleMobile() {
-  const { width } = Dimensions.get("window");
-  const s = useMemo(() => {
-    const raw = width / 390;
-    return Math.max(0.92, Math.min(1.08, raw));
-  }, [width]);
-  const px = useCallback((n: number) => Math.round(n * s), [s]);
-  const fs = useCallback((n: number) => Math.round(n * s), [s]);
-  return { px, fs };
-}
+/* ─── Status meta ─── */
+const STATUS_META: Record<TripStatus, { label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
+  planning:  { label: "Organizando", icon: "radio-button-on-outline", color: colors.primary, bg: "#EEF2FF" },
+  seen:      { label: "Visitado",    icon: "checkmark-circle-outline", color: "#16A34A", bg: "#DCFCE7" },
+  wishlist:  { label: "Por visitar", icon: "time-outline",             color: "#F59E0B", bg: "#FEF3C7" },
+};
 
-function SearchBar({
-  q,
-  setQ,
-  px,
-  fs,
-}: {
-  q: string;
-  setQ: (v: string) => void;
-  px: (n: number) => number;
-  fs: (n: number) => number;
-}) {
-  return (
-    <View
-      style={{
-        height: px(40),
-        borderRadius: px(14),
-        backgroundColor: "white",
-        borderWidth: 1,
-        borderColor: "rgba(148,163,184,0.22)",
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: px(12),
-        gap: px(10),
-        flex: 1,
-      }}
-    >
-      <Ionicons name="search-outline" size={px(18)} color="#64748B" />
-      <TextInput
-        value={q}
-        onChangeText={setQ}
-        placeholder="Buscar viajes…"
-        placeholderTextColor="#94A3B8"
-        style={{
-          flex: 1,
-          fontSize: fs(13),
-          fontWeight: "700",
-          color: "#0F172A",
-          paddingVertical: 0,
-        }}
-      />
-      {!!q && (
-        <Pressable onPress={() => setQ("")} style={{ padding: px(2) }}>
-          <Ionicons name="close-circle" size={px(18)} color="#94A3B8" />
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-function ModeSelector({
-  value,
-  options,
-  onChange,
-  px,
-  fs,
-}: {
-  value: string;
-  options: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[];
-  onChange: (v: string) => void;
-  px: (n: number) => number;
-  fs: (n: number) => number;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        gap: px(6),
-        padding: px(4),
-        borderRadius: px(14),
-        backgroundColor: "white",
-        borderWidth: 1,
-        borderColor: "rgba(148,163,184,0.22)",
-      }}
-    >
-      {options.map((opt) => {
-        const active = value === opt.id;
-        return (
-          <Pressable
-            key={opt.id}
-            onPress={() => onChange(opt.id)}
-            style={{
-              flex: 1,
-              height: px(34),
-              borderRadius: px(12),
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: px(8),
-              backgroundColor: active ? "#0F172A" : "transparent",
-            }}
-          >
-            <Ionicons name={opt.icon} size={px(16)} color={active ? "white" : "#475569"} />
-            <Text style={{ fontSize: fs(12), fontWeight: "900", color: active ? "white" : "#0F172A" }}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-/**
- * Single “Hero pill” (más bonita) para el KPI de Próximo Viaje.
- * - Layout desktop-like
- * - Border + shadow sutil
- * - Badge icon a la izquierda
- * - Value grande + subtitle
- */
-function HeroPill({
-  title,
-  value,
-  subtitle,
-  loading,
-  px,
-  fs,
-  onPress,
-}: {
-  title: string;
-  value: string;
-  subtitle: string;
-  loading?: boolean;
-  px: (n: number) => number;
-  fs: (n: number) => number;
-  onPress?: () => void;
-}) {
-  const Inner = (
-    <View
-      style={{
-        borderRadius: px(18),
-        backgroundColor: "white",
-        borderWidth: 1,
-        borderColor: "rgba(148,163,184,0.22)",
-        padding: px(14),
-        shadowColor: "#0B1220",
-        shadowOpacity: 0.07,
-        shadowRadius: px(18),
-        shadowOffset: { width: 0, height: px(10) },
-      }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(10) }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: px(10), flex: 1 }}>
-          <View
-            style={{
-              width: px(42),
-              height: px(42),
-              borderRadius: px(16),
-              backgroundColor: "rgba(15,23,42,0.06)",
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1,
-              borderColor: "rgba(148,163,184,0.20)",
-            }}
-          >
-            <Ionicons name="calendar-number-outline" size={px(20)} color="#0F172A" />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: fs(10), fontWeight: "900", color: "#64748B", letterSpacing: 0.6 }}>
-              {title}
-            </Text>
-
-            <View style={{ flexDirection: "row", alignItems: "baseline", gap: px(10), marginTop: px(6) }}>
-              <Text style={{ fontSize: fs(20), fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-                {loading ? "—" : value}
-              </Text>
-              <View
-                style={{
-                  height: px(22),
-                  paddingHorizontal: px(10),
-                  borderRadius: 999,
-                  backgroundColor: "rgba(37,99,235,0.10)",
-                  borderWidth: 1,
-                  borderColor: "rgba(37,99,235,0.18)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontSize: fs(11), fontWeight: "900", color: "#2563EB" }} numberOfLines={1}>
-                  Próximo
-                </Text>
-              </View>
-            </View>
-
-            <Text style={{ marginTop: px(4), fontSize: fs(12), fontWeight: "800", color: "#94A3B8" }} numberOfLines={1}>
-              {loading ? "—" : subtitle}
-            </Text>
-          </View>
-        </View>
-
-        <Ionicons name="chevron-forward" size={px(18)} color="#CBD5E1" />
-      </View>
-    </View>
-  );
-
-  if (!onPress) return Inner;
-  return <Pressable onPress={onPress}>{Inner}</Pressable>;
-}
-
-/** smaller trip card */
-function TripCardCompact({
-  trip,
-  px,
-  fs,
-  onPress,
-}: {
-  trip: TripUI;
-  px: (n: number) => number;
-  fs: (n: number) => number;
-  onPress: () => void;
-}) {
-  const hasSomeDate = isValidISODate(trip.startDate) || isValidISODate(trip.endDate);
-  const dateLabel = formatDateRange(trip.startDate, trip.endDate);
-  const yearLabel = trip.year ?? (isValidISODate(trip.startDate) ? new Date(trip.startDate!).getFullYear() : null);
-  const showSpent = trip.status === "seen" && (trip.cost || 0) > 0;
-
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        borderRadius: px(14),
-        backgroundColor: "white",
-        borderWidth: 1,
-        borderColor: "rgba(148,163,184,0.18)",
-        padding: px(10),
-        shadowColor: "#0B1220",
-        shadowOpacity: 0.035,
-        shadowRadius: px(14),
-        shadowOffset: { width: 0, height: px(8) },
-      }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(10) }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: px(10), flex: 1 }}>
-          <View
-            style={{
-              width: px(36),
-              height: px(36),
-              borderRadius: px(12),
-              backgroundColor: "rgba(15,23,42,0.06)",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CountryBadge code={trip.destination} size={px(20)} />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: fs(13), fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-              {trip.name}
-            </Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: px(6), marginTop: px(1) }}>
-              <Ionicons name="location-outline" size={px(13)} color="#94A3B8" />
-              <Text style={{ fontSize: fs(10), fontWeight: "800", color: "#64748B" }} numberOfLines={1}>
-                {countryNameEsFromISO2(trip.destination)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-{         showSpent && (
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={{ fontSize: fs(9), fontWeight: "800", color: "#94A3B8" }}>Gastado</Text>
-            <Text style={{ fontSize: fs(13), fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-              {formatEuro(trip.cost || 0)}
-            </Text>
-          </View>
-          )
-
-}
-        
-        
-      </View>
-
-      <View style={{ marginTop: px(8), flexDirection: "row", alignItems: "center", gap: px(8), flexWrap: "wrap" }}>
-        {hasSomeDate && (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: px(7),
-              paddingHorizontal: px(9),
-              height: px(26),
-              borderRadius: 999,
-              backgroundColor: "rgba(15,23,42,0.08)",
-            }}
-          >
-            <Ionicons name="calendar-outline" size={px(13)} color="#475569" />
-            <Text style={{ fontSize: fs(10), fontWeight: "900", color: "#0F172A" }}>{dateLabel}</Text>
-          </View>
-        )}
-
-        {!!yearLabel && (
-          <View
-            style={{
-              paddingHorizontal: px(9),
-              height: px(26),
-              borderRadius: 999,
-              backgroundColor: "rgba(15,23,42,0.08)",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: fs(10), fontWeight: "900", color: "#0F172A" }}>{yearLabel}</Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
-function ColumnHeader({
-  title,
-  subcount,
-  px,
-  fs,
-}: {
-  title: string;
-  subcount?: string;
-  px: (n: number) => number;
-  fs: (n: number) => number;
-}) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(10) }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-        <View
-          style={{
-            height: px(32),
-            paddingHorizontal: px(12),
-            borderRadius: 999,
-            backgroundColor: "rgba(15,23,42,0.06)",
-            borderWidth: 1,
-            borderColor: "rgba(148,163,184,0.18)",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: px(8),
-          }}
-        >
-          <Ionicons name="albums-outline" size={px(14)} color="#0F172A" />
-          <Text style={{ fontSize: fs(12), fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-            {title}
-          </Text>
-        </View>
-
-        {!!subcount && (
-          <Text style={{ fontSize: fs(11), fontWeight: "900", color: "#64748B" }} numberOfLines={1}>
-            {subcount}
-          </Text>
-        )}
-      </View>
-
-      <Ionicons name="ellipsis-horizontal" size={px(18)} color="#CBD5E1" />
-    </View>
-  );
-}
-
-/** ===== Screen ===== */
+/* ─── Screen ─── */
 export default function TripsHomeScreen({ navigation }: any) {
-  const { px, fs } = useUiScaleMobile();
-
-  const [boardMode, setBoardMode] = useState<BoardMode>("status");
-  const [q, setQ] = useState("");
-
-  // sub selectors
-  const [statusSelected, setStatusSelected] = useState<TripStatus>("planning");
+  const [boardMode, setBoardMode]             = useState<BoardMode>("status");
+  const [q, setQ]                             = useState("");
+  const [statusSelected, setStatusSelected]   = useState<TripStatus>("planning");
   const [continentSelected, setContinentSelected] = useState<string>("europe");
-  const [yearSelected, setYearSelected] = useState<string>("unknown");
+  const [yearSelected, setYearSelected]       = useState<string>("unknown");
 
-  const [loading, setLoading] = useState(true);
-  const [trips, setTrips] = useState<TripUI[]>([]);
-
-  const [summary, setSummary] = useState<TripsSummaryDto | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-
-  const [continentStats, setContinentStats] = useState<ContinentsStatsDto | null>(null);
+  const [loading, setLoading]                     = useState(true);
+  const [trips, setTrips]                         = useState<TripUI[]>([]);
+  const [summary, setSummary]                     = useState<TripsSummaryDto | null>(null);
+  const [summaryLoading, setSummaryLoading]       = useState(true);
+  const [continentStats, setContinentStats]       = useState<ContinentsStatsDto | null>(null);
   const [continentStatsLoading, setContinentStatsLoading] = useState(false);
 
   const fetchTrips = useCallback(async () => {
@@ -597,9 +170,8 @@ export default function TripsHomeScreen({ navigation }: any) {
       setLoading(true);
       const res = await api.get("/trips");
       const data: TripFromApi[] = res.data || [];
-      const mapped: TripUI[] = data.map((t) => ({
-        id: t.id,
-        name: t.name,
+      setTrips(data.map((t) => ({
+        id: t.id, name: t.name,
         destination: t.destination || "",
         startDate: t.startDate ?? null,
         endDate: t.endDate ?? null,
@@ -608,14 +180,8 @@ export default function TripsHomeScreen({ navigation }: any) {
         budget: t.budget ?? null,
         continent: t.continent ?? null,
         year: typeof t.year === "number" ? t.year : null,
-      }));
-      setTrips(mapped);
-    } catch (e) {
-      console.error("❌ Error al obtener viajes:", e);
-      setTrips([]);
-    } finally {
-      setLoading(false);
-    }
+      })));
+    } catch { setTrips([]); } finally { setLoading(false); }
   }, []);
 
   const fetchSummary = useCallback(async () => {
@@ -623,12 +189,7 @@ export default function TripsHomeScreen({ navigation }: any) {
       setSummaryLoading(true);
       const res = await api.get("/trips/summary");
       setSummary(res.data as TripsSummaryDto);
-    } catch (e) {
-      console.error("❌ Error al obtener summary:", e);
-      setSummary(null);
-    } finally {
-      setSummaryLoading(false);
-    }
+    } catch { setSummary(null); } finally { setSummaryLoading(false); }
   }, []);
 
   const fetchContinentsStats = useCallback(async () => {
@@ -636,19 +197,12 @@ export default function TripsHomeScreen({ navigation }: any) {
       setContinentStatsLoading(true);
       const res = await api.get("/trips/continents-stats");
       setContinentStats(res.data as ContinentsStatsDto);
-    } catch (e) {
-      console.error("❌ Error al obtener continents-stats:", e);
-      setContinentStats(null);
-    } finally {
-      setContinentStatsLoading(false);
-    }
+    } catch { setContinentStats(null); } finally { setContinentStatsLoading(false); }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      fetchTrips();
-      fetchSummary();
-      fetchContinentsStats();
+      fetchTrips(); fetchSummary(); fetchContinentsStats();
     }, [fetchTrips, fetchSummary, fetchContinentsStats])
   );
 
@@ -665,37 +219,28 @@ export default function TripsHomeScreen({ navigation }: any) {
   }, [trips, q]);
 
   const lanes = useMemo(() => {
-    const seen = filteredTrips.filter((t) => t.status === "seen");
+    const seen     = filteredTrips.filter((t) => t.status === "seen");
     const planning = filteredTrips.filter((t) => t.status === "planning");
     const wishlist = filteredTrips.filter((t) => t.status === "wishlist");
 
-    const planningSorted = [...planning].sort((a, b) => {
-      const A = isValidISODate(a.startDate) ? new Date(a.startDate!).getTime() : Number.POSITIVE_INFINITY;
-      const B = isValidISODate(b.startDate) ? new Date(b.startDate!).getTime() : Number.POSITIVE_INFINITY;
-      return A - B;
-    });
+    const byDate = (a: TripUI, b: TripUI, asc: boolean) => {
+      const A = isValidISODate(a.startDate) ? new Date(a.startDate!).getTime() : (asc ? Infinity : 0);
+      const B = isValidISODate(b.startDate) ? new Date(b.startDate!).getTime() : (asc ? Infinity : 0);
+      return asc ? A - B : B - A;
+    };
 
-    const seenSorted = [...seen].sort((a, b) => {
-      const A = isValidISODate(a.endDate) ? new Date(a.endDate!).getTime() : 0;
-      const B = isValidISODate(b.endDate) ? new Date(b.endDate!).getTime() : 0;
-      return B - A;
-    });
-
-    const wishlistSorted = [...wishlist].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es"));
-
-    return { seen: seenSorted, planning: planningSorted, wishlist: wishlistSorted };
+    return {
+      seen:     [...seen].sort((a, b) => byDate(a, b, false)),
+      planning: [...planning].sort((a, b) => byDate(a, b, true)),
+      wishlist: [...wishlist].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es")),
+    };
   }, [filteredTrips]);
 
   const yearKeys = useMemo(() => {
-    const seenTrips = filteredTrips.filter((t) => t.status === "seen");
     const years = new Set<string>();
-    for (const t of seenTrips) {
-      const y =
-        typeof t.year === "number"
-          ? t.year
-          : isValidISODate(t.startDate)
-          ? new Date(t.startDate!).getFullYear()
-          : null;
+    for (const t of filteredTrips.filter((t) => t.status === "seen")) {
+      const y = typeof t.year === "number" ? t.year
+        : isValidISODate(t.startDate) ? new Date(t.startDate!).getFullYear() : null;
       years.add(y != null ? String(y) : "unknown");
     }
     const arr = Array.from(years);
@@ -709,335 +254,538 @@ export default function TripsHomeScreen({ navigation }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yearKeys.join("|")]);
 
-  const boardModeOptions = useMemo(
-    () => [
-      { id: "status", label: "Estado", icon: "albums-outline" as const },
-      { id: "continent", label: "Continente", icon: "earth-outline" as const },
-      { id: "year", label: "Año", icon: "calendar-outline" as const },
-    ],
-    []
-  );
-
-  const statusOptions = useMemo(
-    () => [
-      { id: "wishlist", label: "Por visitar", icon: "time-outline" as const },
-      { id: "planning", label: "Organizando", icon: "radio-button-on-outline" as const },
-      { id: "seen", label: "Vistos", icon: "checkmark-circle-outline" as const },
-    ],
-    []
-  );
-
-  const continentOptions = useMemo(() => {
-    const order = ["europe", "africa", "asia", "north_america", "south_america", "oceania", "antarctica", "unknown"];
-    return order.map((id) => ({
-      id,
-      label: id === "unknown" ? "Sin continente" : continentLabel(id),
-      icon: "earth-outline" as const,
-      tone: toneForContinent(id),
-    }));
-  }, []);
-
-  const yearOptions = useMemo(() => {
-    return yearKeys.map((id, idx) => ({
-      id,
-      label: id === "unknown" ? "Sin año" : id,
-      icon: "calendar-outline" as const,
-      tone: toneForYear(id, idx),
-    }));
-  }, [yearKeys]);
-
-  const SubSelector = () => {
-    if (boardMode === "status") {
-      return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: px(8), paddingRight: px(6) }}>
-          {statusOptions.map((opt) => {
-            const active = statusSelected === opt.id;
-            const tone = toneForStatus(opt.id as TripStatus);
-            const fg = active ? "white" : tone === "blue" ? "#2563EB" : tone === "green" ? "#059669" : "#475569";
-
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => setStatusSelected(opt.id as TripStatus)}
-                style={{
-                  height: px(36),
-                  paddingHorizontal: px(12),
-                  borderRadius: px(14),
-                  backgroundColor: active ? "#0F172A" : "white",
-                  borderWidth: 1,
-                  borderColor: active ? "rgba(15,23,42,0.12)" : "rgba(148,163,184,0.22)",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: px(8),
-                }}
-              >
-                <Ionicons name={opt.icon} size={px(16)} color={active ? "white" : fg} />
-                <Text style={{ fontSize: fs(12), fontWeight: "900", color: active ? "white" : "#0F172A" }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      );
-    }
-
-    if (boardMode === "continent") {
-      return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: px(8), paddingRight: px(6) }}>
-          {continentOptions.map((opt) => {
-            const active = continentSelected === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => setContinentSelected(opt.id)}
-                style={{
-                  height: px(36),
-                  paddingHorizontal: px(12),
-                  borderRadius: px(14),
-                  backgroundColor: active ? "#0F172A" : "white",
-                  borderWidth: 1,
-                  borderColor: active ? "rgba(15,23,42,0.12)" : "rgba(148,163,184,0.22)",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: px(8),
-                }}
-              >
-                <Ionicons name="earth-outline" size={px(16)} color={active ? "white" : "#475569"} />
-                <Text style={{ fontSize: fs(12), fontWeight: "900", color: active ? "white" : "#0F172A" }}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      );
-    }
-
-    return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: px(8), paddingRight: px(6) }}>
-        {yearOptions.map((opt) => {
-          const active = yearSelected === opt.id;
-          return (
-            <Pressable
-              key={opt.id}
-              onPress={() => setYearSelected(opt.id)}
-              style={{
-                height: px(36),
-                paddingHorizontal: px(12),
-                borderRadius: px(14),
-                backgroundColor: active ? "#0F172A" : "white",
-                borderWidth: 1,
-                borderColor: active ? "rgba(15,23,42,0.12)" : "rgba(148,163,184,0.22)",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: px(8),
-              }}
-            >
-              <Ionicons name="calendar-outline" size={px(16)} color={active ? "white" : "#475569"} />
-              <Text style={{ fontSize: fs(12), fontWeight: "900", color: active ? "white" : "#0F172A" }}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    );
-  };
-
-  const kpiValue =
-    summaryLoading
-      ? "—"
-      : (summary?.daysToNextTrip ?? null) === null
-      ? "—"
-      : `${summary!.daysToNextTrip} días`;
-
-  const kpiSubtitle =
-    summaryLoading
-      ? "—"
-      : (summary?.daysToNextTrip ?? null) === null
-      ? "Sin viajes próximos"
-      : `${summary?.nextTrip?.name ?? ""}`;
-
   const activeColumn = useMemo(() => {
     if (boardMode === "status") {
-      const title =
-        statusSelected === "wishlist" ? "Por visitar" : statusSelected === "planning" ? "Organizando" : "Vistos";
-      const trips =
-        statusSelected === "wishlist" ? lanes.wishlist : statusSelected === "planning" ? lanes.planning : lanes.seen;
-
-      return { title, trips, subcount: undefined as string | undefined };
+      const title = statusSelected === "wishlist" ? "Por visitar" : statusSelected === "planning" ? "Organizando" : "Visitados";
+      const list  = statusSelected === "wishlist" ? lanes.wishlist : statusSelected === "planning" ? lanes.planning : lanes.seen;
+      return { title, trips: list, subcount: undefined as string | undefined };
     }
 
     if (boardMode === "continent") {
       const seenTrips = filteredTrips.filter((t) => t.status === "seen");
       const key = (continentSelected || "unknown").toLowerCase();
-
       const group = seenTrips
         .filter((t) => ((t.continent || "unknown").toLowerCase().trim() || "unknown") === key)
-        .slice()
         .sort((a, b) => {
           const A = isValidISODate(a.endDate) ? new Date(a.endDate!).getTime() : 0;
           const B = isValidISODate(b.endDate) ? new Date(b.endDate!).getTime() : 0;
           return B - A;
         });
-
       const st = continentStatsMap.get(key);
       const visited = st?.visitedCountries ?? uniqueCountryCount(group);
-      const total = st?.totalCountries ?? 0;
-      const pct = st?.pct ?? (total > 0 ? Math.round((visited / total) * 100) : 0);
-      const label = total > 0 ? `${visited}/${total} · ${pct}%` : `${visited}/—`;
-
+      const total   = st?.totalCountries ?? 0;
+      const pct     = st?.pct ?? (total > 0 ? Math.round((visited / total) * 100) : 0);
+      const label   = total > 0 ? `${visited}/${total} países · ${pct}%` : `${visited} países`;
       return { title: key === "unknown" ? "Sin continente" : continentLabel(key), trips: group, subcount: label };
     }
 
-    // year
     const seenTrips = filteredTrips.filter((t) => t.status === "seen");
     const key = yearSelected || "unknown";
-
     const group = seenTrips
       .filter((t) => {
-        const y =
-          typeof t.year === "number"
-            ? t.year
-            : isValidISODate(t.startDate)
-            ? new Date(t.startDate!).getFullYear()
-            : null;
-        const k = y != null ? String(y) : "unknown";
-        return k === key;
+        const y = typeof t.year === "number" ? t.year
+          : isValidISODate(t.startDate) ? new Date(t.startDate!).getFullYear() : null;
+        return (y != null ? String(y) : "unknown") === key;
       })
-      .slice()
       .sort((a, b) => {
         const A = isValidISODate(a.endDate) ? new Date(a.endDate!).getTime() : 0;
         const B = isValidISODate(b.endDate) ? new Date(b.endDate!).getTime() : 0;
         return B - A;
       });
-
     return { title: key === "unknown" ? "Sin año" : key, trips: group, subcount: undefined as string | undefined };
   }, [boardMode, statusSelected, continentSelected, yearSelected, lanes, filteredTrips, continentStatsMap]);
+
+  /* ─── Hero stats ─── */
+  const heroStats = useMemo(() => {
+    const seenTrips   = trips.filter((t) => t.status === "seen");
+    const totalSpent  = seenTrips.reduce((s, t) => s + (t.cost || 0), 0);
+    const totalTrips  = trips.length;
+    const seenCount   = seenTrips.length;
+    const visited     = summary?.visitedCountries ?? uniqueCountryCount(seenTrips);
+    const visitedPct  = summary?.visitedPct ?? 0;
+    return { totalSpent, totalTrips, seenCount, visited, visitedPct };
+  }, [trips, summary]);
+
+  const continentPills = useMemo(() => {
+    const order = ["europe", "africa", "asia", "north_america", "south_america", "oceania", "antarctica", "unknown"];
+    return order.map((id) => ({ id, label: id === "unknown" ? "Sin continente" : continentLabel(id) }));
+  }, []);
+
+  const statusPills = [
+    { id: "planning" as TripStatus, label: "Organizando" },
+    { id: "seen"     as TripStatus, label: "Visitados"   },
+    { id: "wishlist" as TripStatus, label: "Por visitar" },
+  ];
 
   const isEmptyAll = !loading && trips.length === 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: px(16), paddingBottom: px(8), paddingTop: px(6) }}>
+    <SafeAreaView className="flex-1 bg-background">
+      {/* Header fijo */}
+      <View className="px-5 pb-3">
         <AppHeader title="Viajes" showProfile={false} showDatePicker={false} showBack={true} />
       </View>
 
-      {/* Top content (NO vertical scroll aquí) */}
-      <View style={{ paddingHorizontal: px(16), gap: px(12) }}>
-        {/* Hero pill */}
-        <HeroPill
-          title="PRÓXIMO VIAJE"
-          value={kpiValue}
-          subtitle={kpiSubtitle}
-          loading={summaryLoading}
-          px={px}
-          fs={fs}
-          onPress={() => {
-            if (summary?.nextTrip?.id) navigation.navigate("TripDetail", { tripId: summary.nextTrip.id });
-          }}
-        />
+      {/* Hero + controles (no scroll) */}
+      <View style={{ paddingHorizontal: 20, gap: 12 }}>
 
-        {/* Toolbar */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-          <SearchBar q={q} setQ={setQ} px={px} fs={fs} />
-          <Pressable
-            onPress={() => {
-              fetchTrips();
-              fetchSummary();
-              fetchContinentsStats();
-            }}
-            style={{
-              width: px(40),
-              height: px(40),
-              borderRadius: px(14),
-              backgroundColor: "white",
-              borderWidth: 1,
-              borderColor: "rgba(148,163,184,0.22)",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name="refresh-outline" size={px(18)} color="#475569" />
-          </Pressable>
-        </View>
-
-        <ModeSelector value={boardMode} options={boardModeOptions} onChange={(v) => setBoardMode(v as BoardMode)} px={px} fs={fs} />
-        <SubSelector />
-      </View>
-
-      {/* Kanban container (ONLY vertical scroll here) */}
-      <View style={{ flex: 1, paddingHorizontal: px(16), marginTop: px(12), paddingBottom: px(12) }}>
+        {/* ── Hero card azul ── */}
         <View
           style={{
-            flex: 1,
-            borderRadius: px(16),
-            padding: px(12),
-            borderWidth: 1,
-            borderColor: "rgba(148,163,184,0.18)",
-            backgroundColor: "transparent",
+            backgroundColor: colors.primary,
+            borderRadius: 26,
+            padding: 16,
+            shadowColor: "#000",
+            shadowOpacity: 0.12,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
           }}
         >
-          <ColumnHeader title={activeColumn.title} subcount={activeColumn.subcount} px={px} fs={fs} />
-
-          <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.14)", marginTop: px(10), marginBottom: px(10) }} />
-
-          {(loading || (boardMode === "continent" && continentStatsLoading)) && trips.length === 0 ? (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <ActivityIndicator size="small" color={colors.primary} />
+          {/* Cabecera del hero */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View
+                style={{
+                  width: 42, height: 42, borderRadius: 16,
+                  backgroundColor: "rgba(255,255,255,0.16)",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>✈️</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>Mis viajes</Text>
+                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
+                  {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje" : "viajes"} en total
+                </Text>
+              </View>
             </View>
-          ) : isEmptyAll ? (
-            <View style={{ borderRadius: px(12), backgroundColor: "rgba(15,23,42,0.04)", padding: px(12) }}>
-              <Text style={{ fontSize: fs(12), fontWeight: "900", color: "#94A3B8" }}>No tienes viajes todavía.</Text>
+
+            {/* Badge % mundo */}
+            {heroStats.visitedPct > 0 && (
+              <View
+                style={{
+                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+                  backgroundColor: "rgba(255,255,255,0.18)",
+                  flexDirection: "row", alignItems: "center", gap: 4,
+                }}
+              >
+                <Ionicons name="earth-outline" size={13} color="white" />
+                <Text style={{ color: "white", fontWeight: "900", fontSize: 12 }}>
+                  {Math.round(heroStats.visitedPct * 100)}% mundo
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Valor principal */}
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
+              Países visitados
+            </Text>
+            <Text style={{ fontSize: 32, fontWeight: "900", color: "white", marginTop: 2 }}>
+              {summaryLoading ? "—" : heroStats.visited}
+            </Text>
+          </View>
+
+          {/* Dos sub-boxes */}
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+            {/* Próximo viaje */}
+            <View
+              style={{
+                flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
+                borderRadius: 18, padding: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <Ionicons name="calendar-number-outline" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>
+                  Próximo
+                </Text>
+              </View>
+              {summaryLoading ? (
+                <Text style={{ fontSize: 13, fontWeight: "900", color: "white" }}>—</Text>
+              ) : summary?.daysToNextTrip != null ? (
+                <>
+                  <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>
+                    {summary.daysToNextTrip} días
+                  </Text>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.65)", marginTop: 2 }} numberOfLines={1}>
+                    {summary.nextTrip?.name ?? ""}
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.65)" }}>
+                  Sin próximos
+                </Text>
+              )}
             </View>
-          ) : activeColumn.trips.length === 0 ? (
-            <View style={{ borderRadius: px(12), backgroundColor: "rgba(15,23,42,0.04)", padding: px(12) }}>
-              <Text style={{ fontSize: fs(12), fontWeight: "900", color: "#94A3B8" }}>
-                {boardMode === "status" ? "No hay viajes aquí." : "No hay viajes vistos en este grupo."}
+
+            {/* Total gastado */}
+            <View
+              style={{
+                flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
+                borderRadius: 18, padding: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <Ionicons name="wallet-outline" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>
+                  Gastado
+                </Text>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>
+                {formatEuro(heroStats.totalSpent)}
+              </Text>
+              <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
+                en {heroStats.seenCount} {heroStats.seenCount === 1 ? "viaje" : "viajes"}
               </Text>
             </View>
-          ) : (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: px(10), paddingBottom: px(90) }}
-            >
-              {activeColumn.trips.map((t) => (
-                <TripCardCompact
-                  key={t.id}
-                  trip={t}
-                  px={px}
-                  fs={fs}
-                  onPress={() => navigation.navigate("TripDetail", { tripId: t.id })}
-                />
-              ))}
-            </ScrollView>
-          )}
+          </View>
         </View>
+
+        {/* ── Botón nuevo viaje + buscador ── */}
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("TripForm")}
+            activeOpacity={0.9}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 8,
+              paddingVertical: 12, paddingHorizontal: 16,
+              borderRadius: 18, backgroundColor: colors.primary,
+              shadowColor: colors.primary,
+              shadowOpacity: 0.25, shadowRadius: 8,
+              shadowOffset: { width: 0, height: 3 },
+            }}
+          >
+            <Ionicons name="add-outline" size={18} color="white" />
+            <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>Nuevo viaje</Text>
+          </TouchableOpacity>
+
+          {/* Buscador */}
+          <View
+            style={{
+              flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
+              paddingHorizontal: 12, height: 46,
+              backgroundColor: "white", borderRadius: 18,
+              borderWidth: 1, borderColor: "#E5E7EB",
+            }}
+          >
+            <Ionicons name="search-outline" size={16} color="#94A3B8" />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder="Buscar…"
+              placeholderTextColor="#CBD5E1"
+              style={{ flex: 1, fontSize: 14, fontWeight: "600", color: "#0F172A", paddingVertical: 0 }}
+            />
+            {!!q && (
+              <TouchableOpacity onPress={() => setQ("")}>
+                <Ionicons name="close-circle" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* ── Mode selector ── */}
+        <View
+          style={{
+            flexDirection: "row", gap: 6, padding: 5,
+            backgroundColor: "white", borderRadius: 18,
+            borderWidth: 1, borderColor: "#E5E7EB",
+          }}
+        >
+          {([
+            { id: "status",    label: "Estado",     icon: "albums-outline" as const },
+            { id: "continent", label: "Continente", icon: "earth-outline" as const  },
+            { id: "year",      label: "Año",        icon: "calendar-outline" as const },
+          ] as { id: BoardMode; label: string; icon: keyof typeof Ionicons.glyphMap }[]).map((opt) => {
+            const active = boardMode === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setBoardMode(opt.id)}
+                activeOpacity={0.85}
+                style={{
+                  flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                  gap: 6, paddingVertical: 9, borderRadius: 14,
+                  backgroundColor: active ? colors.primary : "transparent",
+                }}
+              >
+                <Ionicons name={opt.icon} size={14} color={active ? "white" : "#64748B"} />
+                <Text style={{ fontSize: 12, fontWeight: "900", color: active ? "white" : "#64748B" }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* ── Sub-selector pills ── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+        >
+          {boardMode === "status" && statusPills.map((opt) => {
+            const active = statusSelected === opt.id;
+            const meta = STATUS_META[opt.id];
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setStatusSelected(opt.id)}
+                activeOpacity={0.85}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 6,
+                  height: 36, paddingHorizontal: 14, borderRadius: 18,
+                  backgroundColor: active ? colors.primary : "white",
+                  borderWidth: 1,
+                  borderColor: active ? colors.primary : "#E5E7EB",
+                }}
+              >
+                <Ionicons name={meta.icon} size={14} color={active ? "white" : meta.color} />
+                <Text style={{ fontSize: 13, fontWeight: "900", color: active ? "white" : "#0F172A" }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          {boardMode === "continent" && continentPills.map((opt) => {
+            const active = continentSelected === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setContinentSelected(opt.id)}
+                activeOpacity={0.85}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 6,
+                  height: 36, paddingHorizontal: 14, borderRadius: 18,
+                  backgroundColor: active ? colors.primary : "white",
+                  borderWidth: 1, borderColor: active ? colors.primary : "#E5E7EB",
+                }}
+              >
+                <Ionicons name="earth-outline" size={14} color={active ? "white" : "#64748B"} />
+                <Text style={{ fontSize: 13, fontWeight: "900", color: active ? "white" : "#0F172A" }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          {boardMode === "year" && yearKeys.map((id) => {
+            const active = yearSelected === id;
+            return (
+              <TouchableOpacity
+                key={id}
+                onPress={() => setYearSelected(id)}
+                activeOpacity={0.85}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 6,
+                  height: 36, paddingHorizontal: 14, borderRadius: 18,
+                  backgroundColor: active ? colors.primary : "white",
+                  borderWidth: 1, borderColor: active ? colors.primary : "#E5E7EB",
+                }}
+              >
+                <Ionicons name="calendar-outline" size={14} color={active ? "white" : "#64748B"} />
+                <Text style={{ fontSize: 13, fontWeight: "900", color: active ? "white" : "#0F172A" }}>
+                  {id === "unknown" ? "Sin año" : id}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* Floating Action Button */}
-      <Pressable
-        onPress={() => navigation.navigate("TripForm")}
-        style={{
-          position: "absolute",
-          right: px(16),
-          bottom: px(16),
-          width: px(56),
-          height: px(56),
-          borderRadius: 999,
-          backgroundColor: "#0F172A",
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#0B1220",
-          shadowOpacity: 0.22,
-          shadowRadius: px(18),
-          shadowOffset: { width: 0, height: px(12) },
-        }}
-      >
-        <Ionicons name="add-outline" size={px(24)} color="white" />
-      </Pressable>
+      {/* ── Lista de viajes (scroll independiente) ── */}
+      <View style={{ flex: 1, paddingHorizontal: 20, marginTop: 14 }}>
+        {/* Section header */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={{ fontSize: 13, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
+              {activeColumn.title}
+            </Text>
+            {activeColumn.trips.length > 0 && (
+              <View
+                style={{
+                  paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+                  backgroundColor: "#EEF2FF",
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "900", color: colors.primary }}>
+                  {activeColumn.trips.length}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {activeColumn.subcount ? (
+            <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B" }}>
+              {activeColumn.subcount}
+            </Text>
+          ) : null}
+        </View>
+
+        {(loading || (boardMode === "continent" && continentStatsLoading)) && trips.length === 0 ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : isEmptyAll ? (
+          /* Empty state global */
+          <View style={{ alignItems: "center", marginTop: 32, gap: 12 }}>
+            <View
+              style={{
+                width: 64, height: 64, borderRadius: 24,
+                backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 30 }}>✈️</Text>
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>Sin viajes aún</Text>
+            <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", textAlign: "center" }}>
+              Añade tu primer viaje para empezar a explorar el mundo.
+            </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("TripForm")}
+              activeOpacity={0.9}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 8,
+                paddingVertical: 12, paddingHorizontal: 20,
+                borderRadius: 18, backgroundColor: colors.primary,
+              }}
+            >
+              <Ionicons name="add-outline" size={18} color="white" />
+              <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>Añadir viaje</Text>
+            </TouchableOpacity>
+          </View>
+        ) : activeColumn.trips.length === 0 ? (
+          /* Empty state del grupo */
+          <View
+            style={{
+              padding: 16, borderRadius: 18,
+              backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB",
+              alignItems: "center", gap: 6,
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>🗺️</Text>
+            <Text style={{ fontSize: 13, fontWeight: "800", color: "#64748B", textAlign: "center" }}>
+              {boardMode === "status" ? "No hay viajes en esta categoría." : "No hay viajes visitados en este grupo."}
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ gap: 10, paddingBottom: 100 }}
+          >
+            {activeColumn.trips.map((t) => {
+              const meta      = STATUS_META[t.status];
+              const hasDate   = isValidISODate(t.startDate) || isValidISODate(t.endDate);
+              const dateLabel = formatDateRange(t.startDate, t.endDate);
+              const yearLabel = t.year ?? (isValidISODate(t.startDate) ? new Date(t.startDate!).getFullYear() : null);
+              const showSpent = t.status === "seen" && (t.cost || 0) > 0;
+
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate("TripDetail", { tripId: t.id })}
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: 18,
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderWidth: 1,
+                    borderColor: "#EEF2F7",
+                    shadowColor: "#000",
+                    shadowOpacity: 0.03,
+                    shadowRadius: 4,
+                    shadowOffset: { width: 0, height: 1 },
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    {/* Flag */}
+                    <View
+                      style={{
+                        width: 44, height: 44, borderRadius: 14,
+                        backgroundColor: "#F8FAFC",
+                        alignItems: "center", justifyContent: "center",
+                        borderWidth: 1, borderColor: "#E5E7EB",
+                      }}
+                    >
+                      <CountryBadge code={t.destination} size={24} />
+                    </View>
+
+                    {/* Info */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                        {t.name}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "600", marginTop: 1 }} numberOfLines={1}>
+                        {countryNameEsFromISO2(t.destination)}
+                      </Text>
+                    </View>
+
+                    {/* Derecha: gastado o chevron */}
+                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                      {showSpent && (
+                        <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
+                          {formatEuro(t.cost)}
+                        </Text>
+                      )}
+                      <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                    </View>
+                  </View>
+
+                  {/* Tags */}
+                  <View style={{ flexDirection: "row", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                    {/* Status badge */}
+                    <View
+                      style={{
+                        flexDirection: "row", alignItems: "center", gap: 5,
+                        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+                        backgroundColor: meta.bg,
+                      }}
+                    >
+                      <Ionicons name={meta.icon} size={11} color={meta.color} />
+                      <Text style={{ fontSize: 11, fontWeight: "800", color: meta.color }}>
+                        {meta.label}
+                      </Text>
+                    </View>
+
+                    {hasDate && (
+                      <View
+                        style={{
+                          flexDirection: "row", alignItems: "center", gap: 5,
+                          paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+                          backgroundColor: "#F1F5F9",
+                        }}
+                      >
+                        <Ionicons name="calendar-outline" size={11} color="#64748B" />
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: "#475569" }}>
+                          {dateLabel}
+                        </Text>
+                      </View>
+                    )}
+
+                    {!!yearLabel && !hasDate && (
+                      <View
+                        style={{
+                          paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+                          backgroundColor: "#F1F5F9",
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: "#475569" }}>
+                          {yearLabel}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
