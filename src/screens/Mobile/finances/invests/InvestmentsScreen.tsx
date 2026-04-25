@@ -146,8 +146,6 @@ const formatPctRatio = (p: number | null | undefined) => {
 
 const toneColor = (v: number) => (v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#64748B");
 const toneBg   = (v: number) => (v > 0 ? "#DCFCE7" : v < 0 ? "#FEE2E2" : "#E5E7EB");
-const toneIcon = (v: number): keyof typeof Ionicons.glyphMap =>
-  v > 0 ? "trending-up-outline" : v < 0 ? "trending-down-outline" : "remove-outline";
 
 type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
@@ -823,72 +821,114 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 marginBottom: 10,
               }}
             >
-              {snapshots.map((row, idx) => {
-                const profit = Number(row.profit ?? 0);
-                const returnPct = row.returnPct;
-                const endValue = Number(row.endValue ?? 0);
-                const cashflow = Number(row.cashflowNet ?? 0);
-                const isLast = idx === snapshots.length - 1;
-
-                return (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
+                <View>
+                  {/* Cabecera */}
                   <View
-                    key={row.monthStart}
                     style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 14,
-                      borderBottomWidth: isLast ? 0 : 1,
-                      borderBottomColor: "#F1F5F9",
-                      backgroundColor: idx % 2 === 0 ? "white" : "#FAFAFA",
+                      flexDirection: "row",
+                      backgroundColor: "rgba(15,23,42,0.04)",
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#E5E7EB",
                     }}
                   >
-                    {/* Fila superior: mes + badge rentabilidad */}
-                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
-                        {formatMonthYear(row.monthStart)}
-                      </Text>
-
+                    {(
+                      [
+                        { label: "MES",       w: 82,  right: false },
+                        { label: "INICIO",    w: 108, right: true  },
+                        { label: "FIN",       w: 108, right: true  },
+                        { label: "CASHFLOW",  w: 104, right: true  },
+                        { label: "BENEFICIO", w: 104, right: true  },
+                        { label: "RENT. %",   w: 80,  right: true  },
+                      ] as { label: string; w: number; right: boolean }[]
+                    ).map((col) => (
                       <View
+                        key={col.label}
                         style={{
-                          flexDirection: "row", alignItems: "center", gap: 5,
-                          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
-                          backgroundColor: toneBg(profit),
+                          width: col.w,
+                          paddingVertical: 10,
+                          paddingHorizontal: 10,
+                          alignItems: col.right ? "flex-end" : "flex-start",
                         }}
                       >
-                        <Ionicons name={toneIcon(profit)} size={12} color={toneColor(profit)} />
-                        <Text style={{ fontSize: 12, fontWeight: "900", color: toneColor(profit) }}>
-                          {formatPctRatio(returnPct)}
+                        <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.4 }}>
+                          {col.label}
                         </Text>
                       </View>
-                    </View>
+                    ))}
+                  </View>
 
-                    {/* Fila inferior: fin, beneficio, flujo */}
-                    <View style={{ flexDirection: "row", gap: 6 }}>
-                      <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 8 }}>
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 2 }}>Valor final</Text>
-                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-                          {formatMoney(endValue, row.currency)}
-                        </Text>
-                      </View>
+                  {/* Filas */}
+                  {snapshots.map((row, idx) => {
+                    const profit   = Number(row.profit ?? 0);
+                    const cashflow = Number(row.cashflowNet ?? 0);
+                    const start    = row.startValue == null ? null : Number(row.startValue);
+                    const end      = Number(row.endValue ?? 0);
+                    const isLast   = idx === snapshots.length - 1;
 
-                      <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 8 }}>
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 2 }}>Beneficio</Text>
-                        <Text style={{ fontSize: 12, fontWeight: "900", color: toneColor(profit) }} numberOfLines={1}>
-                          {profit >= 0 ? "+" : ""}{formatMoney(profit, row.currency)}
-                        </Text>
-                      </View>
+                    return (
+                      <View
+                        key={row.monthStart}
+                        style={{
+                          flexDirection: "row",
+                          backgroundColor: idx % 2 === 0 ? "white" : "#FAFAFA",
+                          borderBottomWidth: isLast ? 0 : 1,
+                          borderBottomColor: "#F1F5F9",
+                        }}
+                      >
+                        {/* MES */}
+                        <View style={{ width: 82, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }}>
+                            {formatMonthYear(row.monthStart)}
+                          </Text>
+                        </View>
 
-                      {cashflow !== 0 && (
-                        <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 8 }}>
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 2 }}>Flujo neto</Text>
-                          <Text style={{ fontSize: 12, fontWeight: "900", color: toneColor(cashflow) }} numberOfLines={1}>
+                        {/* INICIO */}
+                        <View style={{ width: 108, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
+                            {start == null ? "—" : formatMoney(start, row.currency)}
+                          </Text>
+                        </View>
+
+                        {/* FIN */}
+                        <View style={{ width: 108, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
+                            {formatMoney(end, row.currency)}
+                          </Text>
+                        </View>
+
+                        {/* CASHFLOW */}
+                        <View style={{ width: 104, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(cashflow) }} numberOfLines={1}>
                             {cashflow >= 0 ? "+" : ""}{formatMoney(cashflow, row.currency)}
                           </Text>
                         </View>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
+
+                        {/* BENEFICIO */}
+                        <View style={{ width: 104, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(profit) }} numberOfLines={1}>
+                            {profit >= 0 ? "+" : ""}{formatMoney(profit, row.currency)}
+                          </Text>
+                        </View>
+
+                        {/* RENT. % */}
+                        <View style={{ width: 80, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
+                          <View
+                            style={{
+                              paddingHorizontal: 7, paddingVertical: 3,
+                              borderRadius: 999, backgroundColor: toneBg(profit),
+                            }}
+                          >
+                            <Text style={{ fontSize: 11, fontWeight: "900", color: toneColor(profit) }}>
+                              {formatPctRatio(row.returnPct)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </View>
           </>
         )}
