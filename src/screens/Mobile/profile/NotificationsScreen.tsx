@@ -28,7 +28,7 @@ export default function NotificationsScreen({ navigation }: any) {
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>("undetermined");
   const [requestingPermission, setRequestingPermission] = useState(false);
   const [preferences, setPreferences] = useState<NotificationPreferences>({
-    recurringTransactions: true,
+    recurringTransactions: false,
   });
   const [loadingPrefs, setLoadingPrefs] = useState(true);
   const [savingKey, setSavingKey] = useState<keyof NotificationPreferences | null>(null);
@@ -70,13 +70,25 @@ export default function NotificationsScreen({ navigation }: any) {
   };
 
   const handleToggle = async (key: keyof NotificationPreferences, value: boolean) => {
+    // Activar → pedir permiso primero si no está concedido
+    if (value && !isWeb) {
+      const granted = await requestNotificationPermission();
+      await checkPermission();
+
+      if (!granted) {
+        // El usuario rechazó → no activar el toggle
+        return;
+      }
+
+      // Si es la primera vez que concede permiso, registra el token
+      await registerPushToken().catch(() => null);
+    }
+
     setSavingKey(key);
-    const updated = { ...preferences, [key]: value };
-    setPreferences(updated);
+    setPreferences((prev) => ({ ...prev, [key]: value }));
     try {
       await updateNotificationPreferences({ [key]: value });
     } catch {
-      // Revertir si falla
       setPreferences((prev) => ({ ...prev, [key]: !value }));
     } finally {
       setSavingKey(null);
