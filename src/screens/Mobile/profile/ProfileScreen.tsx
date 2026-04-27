@@ -88,7 +88,7 @@ export default function ProfileScreen({ navigation }: any) {
         <View className="bg-white mx-6 rounded-2xl border border-gray-100 overflow-hidden">
           {[
             { label: "Cuenta", icon: "person-outline" },
-            { label: "Notificaciones", icon: "notifications-outline" },
+            { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications" },
             { label: "Apariencia", icon: "sunny-outline" },
             { label: "Informes", icon: "document-text-outline", navigate: "Reports" }, // ✅ NUEVO
 

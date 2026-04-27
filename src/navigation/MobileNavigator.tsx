@@ -41,6 +41,7 @@ export type RootStackParamList = {
   ReportsPdfViewer: undefined;
   MonthlyContributions: undefined;
   InvestmentOperation: undefined;
+  Notifications: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -281,6 +282,13 @@ export default function MobileNavigator() {
             name="MonthlyContributions"
             getComponent={() =>
               require("../screens/Mobile/finances/MonthlyContributions/MonthlyContributionsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Notifications"
+            getComponent={() =>
+              require("../screens/Mobile/profile/NotificationsScreen").default
             }
           />
         </>
