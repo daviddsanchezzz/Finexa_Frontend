@@ -16,6 +16,7 @@ import { colors } from "../../../theme/theme";
 import AppHeader from "../../../components/AppHeader";
 import {
   getNotificationPermissionStatus,
+  checkWebPushRegistered,
   registerPushToken,
   fetchNotificationPreferences,
   updateNotificationPreferences,
@@ -26,6 +27,7 @@ type PermissionState = "granted" | "denied" | "undetermined";
 
 export default function NotificationsScreen(_: any) {
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>("undetermined");
+  const [isRegistered, setIsRegistered] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     recurringTransactions: false,
@@ -38,6 +40,10 @@ export default function NotificationsScreen(_: any) {
   const checkPermission = async () => {
     const status = await getNotificationPermissionStatus();
     setPermissionStatus(status as PermissionState);
+    if (isWeb) {
+      const webReg = await checkWebPushRegistered();
+      setIsRegistered(webReg);
+    }
   };
 
   const loadPreferences = async () => {
@@ -64,10 +70,10 @@ export default function NotificationsScreen(_: any) {
   const handleRegister = async () => {
     setRegistering(true);
     try {
-      const token = await registerPushToken();
+      await registerPushToken();
       await checkPermission();
-      const preview = token.length > 40 ? token.slice(0, 40) + "…" : token;
-      Alert.alert("✅ Dispositivo registrado", `Token guardado:\n${preview}`);
+      if (isWeb) setIsRegistered(true);
+      Alert.alert("✅ Dispositivo registrado", "Ahora recibirás notificaciones en este dispositivo.");
     } catch (err: any) {
       Alert.alert("Error al registrar", err?.message ?? String(err));
     } finally {
@@ -85,6 +91,7 @@ export default function NotificationsScreen(_: any) {
       try {
         await registerPushToken();
         await checkPermission();
+        if (isWeb) setIsRegistered(true);
       } catch (err: any) {
         Alert.alert("No se pudo activar", err?.message ?? String(err));
         setRegistering(false);
@@ -105,6 +112,7 @@ export default function NotificationsScreen(_: any) {
   };
 
   const permissionGranted = permissionStatus === "granted";
+  const deviceReady = permissionGranted || isRegistered;
   const showPermissionBanner = !isWeb && !permissionGranted;
 
   return (
@@ -178,7 +186,7 @@ export default function NotificationsScreen(_: any) {
           activeOpacity={0.8}
           disabled={registering}
           style={{
-            backgroundColor: permissionGranted || isWeb ? "#F0FDF4" : colors.primary,
+            backgroundColor: deviceReady ? "#F0FDF4" : colors.primary,
             borderRadius: 16,
             paddingVertical: 14,
             paddingHorizontal: 18,
@@ -186,20 +194,20 @@ export default function NotificationsScreen(_: any) {
             alignItems: "center",
             marginBottom: 24,
             borderWidth: 1,
-            borderColor: permissionGranted || isWeb ? "#BBF7D0" : colors.primary,
+            borderColor: deviceReady ? "#BBF7D0" : colors.primary,
           }}
         >
           {registering ? (
             <ActivityIndicator
               size={18}
-              color={permissionGranted || isWeb ? "#16A34A" : "white"}
+              color={deviceReady ? "#16A34A" : "white"}
               style={{ marginRight: 10 }}
             />
           ) : (
             <Ionicons
               name={permissionGranted ? "checkmark-circle" : "notifications-outline"}
               size={20}
-              color={permissionGranted || isWeb ? "#16A34A" : "white"}
+              color={deviceReady ? "#16A34A" : "white"}
               style={{ marginRight: 10 }}
             />
           )}
@@ -208,7 +216,7 @@ export default function NotificationsScreen(_: any) {
               style={{
                 fontSize: 14,
                 fontWeight: "700",
-                color: permissionGranted || isWeb ? "#15803D" : "white",
+                color: deviceReady ? "#15803D" : "white",
               }}
             >
               {permissionGranted
@@ -220,7 +228,7 @@ export default function NotificationsScreen(_: any) {
             <Text
               style={{
                 fontSize: 12,
-                color: permissionGranted || isWeb ? "#16A34A" : "rgba(255,255,255,0.8)",
+                color: deviceReady ? "#16A34A" : "rgba(255,255,255,0.8)",
                 marginTop: 2,
               }}
             >

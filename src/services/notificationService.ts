@@ -31,6 +31,20 @@ export async function getNotificationPermissionStatus(): Promise<Notifications.P
   return status;
 }
 
+// Comprueba si ya hay una suscripción web push activa en este navegador
+export async function checkWebPushRegistered(): Promise<boolean> {
+  if (Platform.OS !== "web") return false;
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration("/service-worker.js");
+    if (!registration) return false;
+    const sub = await registration.pushManager.getSubscription();
+    return sub !== null;
+  } catch {
+    return false;
+  }
+}
+
 // ────────────────────────────────────────────
 // REGISTRO — lanza error en vez de devolver null
 // Úsalo desde la pantalla para mostrar el error al usuario
@@ -110,11 +124,13 @@ async function registerWebPush(): Promise<string> {
   return subscriptionJson;
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  const arr = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+  return arr.buffer as ArrayBuffer;
 }
 
 // ────────────────────────────────────────────
