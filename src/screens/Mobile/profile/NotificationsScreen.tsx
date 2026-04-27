@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +16,6 @@ import { colors } from "../../../theme/theme";
 import AppHeader from "../../../components/AppHeader";
 import {
   getNotificationPermissionStatus,
-  requestNotificationPermission,
   registerPushToken,
   fetchNotificationPreferences,
   updateNotificationPreferences,
@@ -24,9 +24,9 @@ import {
 
 type PermissionState = "granted" | "denied" | "undetermined";
 
-export default function NotificationsScreen({ navigation }: any) {
+export default function NotificationsScreen(_: any) {
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>("undetermined");
-  const [requestingPermission, setRequestingPermission] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     recurringTransactions: false,
   });
@@ -46,7 +46,7 @@ export default function NotificationsScreen({ navigation }: any) {
       const prefs = await fetchNotificationPreferences();
       setPreferences(prefs);
     } catch {
-      // Si el backend aún no tiene el endpoint, usa los defaults
+      // usa defaults si el endpoint no responde aún
     } finally {
       setLoadingPrefs(false);
     }
@@ -59,29 +59,38 @@ export default function NotificationsScreen({ navigation }: any) {
     }, [])
   );
 
-  const handleRequestPermission = async () => {
-    setRequestingPermission(true);
+  // ── Registro del dispositivo ────────────────
+
+  const handleRegister = async () => {
+    setRegistering(true);
     try {
-      await registerPushToken();
+      const token = await registerPushToken();
       await checkPermission();
+      const preview = token.length > 40 ? token.slice(0, 40) + "…" : token;
+      Alert.alert("✅ Dispositivo registrado", `Token guardado:\n${preview}`);
+    } catch (err: any) {
+      Alert.alert("Error al registrar", err?.message ?? String(err));
     } finally {
-      setRequestingPermission(false);
+      setRegistering(false);
     }
   };
 
-  const handleToggle = async (key: keyof NotificationPreferences, value: boolean) => {
-    // Activar → pedir permiso primero si no está concedido
-    if (value && !isWeb) {
-      const granted = await requestNotificationPermission();
-      await checkPermission();
+  // ── Toggle de preferencia ───────────────────
 
-      if (!granted) {
-        // El usuario rechazó → no activar el toggle
+  const handleToggle = async (key: keyof NotificationPreferences, value: boolean) => {
+    if (value) {
+      // Siempre intentamos registrar el token antes de activar
+      // (en nativo pide permiso, en web subscribe al push)
+      setRegistering(true);
+      try {
+        await registerPushToken();
+        await checkPermission();
+      } catch (err: any) {
+        Alert.alert("No se pudo activar", err?.message ?? String(err));
+        setRegistering(false);
         return;
       }
-
-      // Si es la primera vez que concede permiso, registra el token
-      await registerPushToken().catch(() => null);
+      setRegistering(false);
     }
 
     setSavingKey(key);
@@ -96,6 +105,7 @@ export default function NotificationsScreen({ navigation }: any) {
   };
 
   const permissionGranted = permissionStatus === "granted";
+  const showPermissionBanner = !isWeb && !permissionGranted;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -112,72 +122,29 @@ export default function NotificationsScreen({ navigation }: any) {
         contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Bloque estado de permisos */}
-        {!isWeb && (
+        {/* Banner permiso nativo denegado */}
+        {showPermissionBanner && permissionStatus === "denied" && (
           <View
             style={{
-              backgroundColor: permissionGranted ? "#F0FDF4" : "#FFF7ED",
+              backgroundColor: "#FFF7ED",
               borderRadius: 18,
               padding: 16,
               flexDirection: "row",
               alignItems: "center",
-              marginBottom: 24,
+              marginBottom: 20,
               borderWidth: 1,
-              borderColor: permissionGranted ? "#BBF7D0" : "#FED7AA",
+              borderColor: "#FED7AA",
             }}
           >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                backgroundColor: permissionGranted ? "#DCFCE7" : "#FFEDD5",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 12,
-              }}
-            >
-              <Ionicons
-                name={permissionGranted ? "checkmark-circle" : "notifications-off-outline"}
-                size={22}
-                color={permissionGranted ? "#16A34A" : "#EA580C"}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937", marginBottom: 2 }}>
-                {permissionGranted ? "Notificaciones activadas" : "Notificaciones desactivadas"}
-              </Text>
-              <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                {permissionGranted
-                  ? "Recibirás alertas de Spendly en tu dispositivo."
-                  : "Activa los permisos para recibir alertas."}
-              </Text>
-            </View>
-            {!permissionGranted && (
-              <TouchableOpacity
-                onPress={handleRequestPermission}
-                activeOpacity={0.8}
-                disabled={requestingPermission}
-                style={{
-                  backgroundColor: colors.primary,
-                  borderRadius: 10,
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
-                  marginLeft: 10,
-                }}
-              >
-                {requestingPermission ? (
-                  <ActivityIndicator size={14} color="white" />
-                ) : (
-                  <Text style={{ color: "white", fontWeight: "600", fontSize: 13 }}>
-                    Activar
-                  </Text>
-                )}
-              </TouchableOpacity>
-            )}
+            <Ionicons name="warning-outline" size={20} color="#EA580C" style={{ marginRight: 10 }} />
+            <Text style={{ fontSize: 13, color: "#9A3412", flex: 1, lineHeight: 18 }}>
+              Las notificaciones están bloqueadas en los ajustes del sistema. Ve a{" "}
+              <Text style={{ fontWeight: "700" }}>Ajustes → Finexa → Notificaciones</Text> y actívalas.
+            </Text>
           </View>
         )}
 
+        {/* Banner PWA / info web */}
         {isWeb && (
           <View
             style={{
@@ -185,20 +152,86 @@ export default function NotificationsScreen({ navigation }: any) {
               borderRadius: 18,
               padding: 14,
               flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 24,
+              alignItems: "flex-start",
+              marginBottom: 20,
               borderWidth: 1,
               borderColor: "#BFDBFE",
             }}
           >
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} style={{ marginRight: 10 }} />
-            <Text style={{ fontSize: 13, color: "#1D4ED8", flex: 1 }}>
-              Las notificaciones push están disponibles en la app móvil (iOS y Android).
+            <Ionicons
+              name="phone-portrait-outline"
+              size={20}
+              color={colors.primary}
+              style={{ marginRight: 10, marginTop: 1 }}
+            />
+            <Text style={{ fontSize: 13, color: "#1D4ED8", flex: 1, lineHeight: 18 }}>
+              En iOS debes abrir la app desde el icono del{" "}
+              <Text style={{ fontWeight: "700" }}>Home Screen</Text> (no desde Safari) para recibir push.
+              En Chrome/Android funciona directamente.
             </Text>
           </View>
         )}
 
-        {/* Sección transacciones recurrentes */}
+        {/* Botón registrar dispositivo */}
+        <TouchableOpacity
+          onPress={handleRegister}
+          activeOpacity={0.8}
+          disabled={registering}
+          style={{
+            backgroundColor: permissionGranted || isWeb ? "#F0FDF4" : colors.primary,
+            borderRadius: 16,
+            paddingVertical: 14,
+            paddingHorizontal: 18,
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 24,
+            borderWidth: 1,
+            borderColor: permissionGranted || isWeb ? "#BBF7D0" : colors.primary,
+          }}
+        >
+          {registering ? (
+            <ActivityIndicator
+              size={18}
+              color={permissionGranted || isWeb ? "#16A34A" : "white"}
+              style={{ marginRight: 10 }}
+            />
+          ) : (
+            <Ionicons
+              name={permissionGranted ? "checkmark-circle" : "notifications-outline"}
+              size={20}
+              color={permissionGranted || isWeb ? "#16A34A" : "white"}
+              style={{ marginRight: 10 }}
+            />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "700",
+                color: permissionGranted || isWeb ? "#15803D" : "white",
+              }}
+            >
+              {permissionGranted
+                ? "Dispositivo registrado"
+                : registering
+                ? "Registrando…"
+                : "Registrar este dispositivo"}
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                color: permissionGranted || isWeb ? "#16A34A" : "rgba(255,255,255,0.8)",
+                marginTop: 2,
+              }}
+            >
+              {permissionGranted
+                ? "Las notificaciones están activas"
+                : "Toca aquí para activar las notificaciones"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Sección preferencias */}
         <Text
           style={{
             fontSize: 12,
@@ -222,21 +255,23 @@ export default function NotificationsScreen({ navigation }: any) {
             marginBottom: 24,
           }}
         >
-          <NotificationRow
-            icon="repeat-outline"
-            iconBg="#F3E8FF"
-            iconColor="#A855F7"
-            title="Transacciones recurrentes"
-            description="Aviso cuando el cron ejecuta un pago o ingreso programado"
-            value={preferences.recurringTransactions}
-            saving={savingKey === "recurringTransactions"}
-            disabled={!permissionGranted && !isWeb}
-            onToggle={(v) => handleToggle("recurringTransactions", v)}
-            isLast
-          />
+          {loadingPrefs ? (
+            <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
+          ) : (
+            <NotificationRow
+              icon="repeat-outline"
+              iconBg="#F3E8FF"
+              iconColor="#A855F7"
+              title="Transacciones recurrentes"
+              description="Aviso cuando el cron ejecuta un pago o ingreso programado"
+              value={preferences.recurringTransactions}
+              saving={savingKey === "recurringTransactions"}
+              onToggle={(v) => handleToggle("recurringTransactions", v)}
+              isLast
+            />
+          )}
         </View>
 
-        {/* Info */}
         <View
           style={{
             backgroundColor: "#F9FAFB",
@@ -253,13 +288,10 @@ export default function NotificationsScreen({ navigation }: any) {
             style={{ marginRight: 10, marginTop: 1 }}
           />
           <Text style={{ fontSize: 12, color: "#6B7280", flex: 1, lineHeight: 18 }}>
-            Solo te enviaremos notificaciones relacionadas con tu actividad financiera. Puedes cambiar estas preferencias en cualquier momento.
+            Solo te enviaremos notificaciones relacionadas con tu actividad financiera. Puedes
+            cambiar estas preferencias en cualquier momento.
           </Text>
         </View>
-
-        {loadingPrefs && (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -273,7 +305,6 @@ interface NotificationRowProps {
   description: string;
   value: boolean;
   saving: boolean;
-  disabled: boolean;
   onToggle: (value: boolean) => void;
   isLast?: boolean;
 }
@@ -286,7 +317,6 @@ function NotificationRow({
   description,
   value,
   saving,
-  disabled,
   onToggle,
   isLast,
 }: NotificationRowProps) {
@@ -299,7 +329,6 @@ function NotificationRow({
         paddingVertical: 14,
         borderBottomWidth: isLast ? 0 : 1,
         borderBottomColor: "#F3F4F6",
-        opacity: disabled ? 0.45 : 1,
       }}
     >
       <View
@@ -329,7 +358,6 @@ function NotificationRow({
         <Switch
           value={value}
           onValueChange={onToggle}
-          disabled={disabled}
           trackColor={{ false: "#E5E7EB", true: colors.primary }}
           thumbColor="white"
         />

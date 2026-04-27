@@ -1,8 +1,8 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import api from "../api/api";
 
-// Comportamiento cuando llega una notificación con la app en primer plano
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
 });
 
 // ────────────────────────────────────────────
-// PERMISOS (solo nativo)
+// PERMISOS
 // ────────────────────────────────────────────
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -32,70 +32,82 @@ export async function getNotificationPermissionStatus(): Promise<Notifications.P
 }
 
 // ────────────────────────────────────────────
-// REGISTRO NATIVO (Expo Push Token → iOS/Android)
+// REGISTRO — lanza error en vez de devolver null
+// Úsalo desde la pantalla para mostrar el error al usuario
 // ────────────────────────────────────────────
 
-export async function registerPushToken(): Promise<string | null> {
+export async function registerPushToken(): Promise<string> {
   if (Platform.OS === "web") {
-    // En web usamos el flujo Web Push
     return registerWebPush();
   }
-
-  try {
-    const granted = await requestNotificationPermission();
-    if (!granted) return null;
-
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    const token = tokenData.data;
-
-    await api.post("/notifications/token", {
-      token,
-      platform: Platform.OS,
-    });
-
-    return token;
-  } catch (err) {
-    console.warn("No se pudo registrar el push token nativo:", err);
-    return null;
-  }
+  return registerNativeToken();
 }
 
-// ────────────────────────────────────────────
-// REGISTRO WEB PUSH (Safari PWA / Chrome)
-// ────────────────────────────────────────────
+async function registerNativeToken(): Promise<string> {
+  const granted = await requestNotificationPermission();
+  if (!granted) throw new Error("Permiso de notificaciones denegado");
 
-async function registerWebPush(): Promise<string | null> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-    return null;
+  // Expo SDK 50+ requiere projectId para push en producción
+  const projectId: string | undefined =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    (Constants as any).easConfig?.projectId;
+
+  const tokenData = projectId
+    ? await Notifications.getExpoPushTokenAsync({ projectId })
+    : await Notifications.getExpoPushTokenAsync();
+
+  const token = tokenData.data;
+
+  await api.post("/notifications/token", {
+    token,
+    platform: Platform.OS,
+  });
+
+  return token;
+}
+
+async function registerWebPush(): Promise<string> {
+  if (typeof window === "undefined") {
+    throw new Error("No disponible fuera del navegador");
+  }
+  if (!("serviceWorker" in navigator)) {
+    throw new Error("Este navegador no soporta Service Workers");
+  }
+  if (!("PushManager" in window)) {
+    throw new Error(
+      "Este navegador no soporta Web Push.\n" +
+        "En iOS asegúrate de abrir la app desde el icono del Home Screen (no desde Safari)."
+    );
   }
 
-  try {
-    // 1) Registrar el service worker
-    const registration = await navigator.serviceWorker.register("/service-worker.js");
+  const registration = await navigator.serviceWorker.register("/service-worker.js");
 
-    // 2) Obtener la VAPID public key del backend
-    const { data } = await api.get("/notifications/vapid-public-key");
-    const vapidPublicKey: string = data.key;
+  // Esperar a que el SW esté activo
+  await navigator.serviceWorker.ready;
 
-    // 3) Suscribirse al push
-    const subscription = await registration.pushManager.subscribe({
+  const { data } = await api.get("/notifications/vapid-public-key");
+  const vapidPublicKey: string = data.key;
+
+  if (!vapidPublicKey) {
+    throw new Error("El servidor no tiene configuradas las VAPID keys");
+  }
+
+  const existing = await registration.pushManager.getSubscription();
+  const subscription =
+    existing ??
+    (await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
+    }));
 
-    // 4) Serializar la suscripción y enviarla al backend
-    const subscriptionJson = JSON.stringify(subscription);
+  const subscriptionJson = JSON.stringify(subscription);
 
-    await api.post("/notifications/token", {
-      token: subscriptionJson,
-      platform: "web",
-    });
+  await api.post("/notifications/token", {
+    token: subscriptionJson,
+    platform: "web",
+  });
 
-    return subscriptionJson;
-  } catch (err) {
-    console.warn("No se pudo registrar web push:", err);
-    return null;
-  }
+  return subscriptionJson;
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
