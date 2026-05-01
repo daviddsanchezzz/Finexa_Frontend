@@ -424,6 +424,8 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
   // ✅ Dentro de DesktopInvestmentsScreen component (arriba, con el resto de states)
 const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
 const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
+const [showArchived, setShowArchived] = useState(false);
 
 // Sugerencia: últimos 24 meses (puedes cambiarlo)
 const fetchSnapshots = async () => {
@@ -507,13 +509,22 @@ const fetchSnapshots = async () => {
     );
   };
 
+  const fetchArchived = async () => {
+    try {
+      const res = await api.get("/investments/assets/archived");
+      setArchivedAssets(res.data || []);
+    } catch {
+      setArchivedAssets([]);
+    }
+  };
+
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
       setTimelineLoading(true);
         setSnapshotsLoading(true);
 
-      await Promise.all([fetchSummary(), fetchTimeline(range), fetchSnapshots()]);
+      await Promise.all([fetchSummary(), fetchTimeline(range), fetchSnapshots(), fetchArchived()]);
     } catch (e) {
       console.error("❌ Error cargando investments desktop:", e);
       setSummary(null);
@@ -845,7 +856,37 @@ const fetchSnapshots = async () => {
                   <Th label="PESO" align="right" flex={GRID.w} px={px} fs={fs} />
                 </View>
 
-                {/* Rows */}
+                {/* Toggle archivadas */}
+                {archivedAssets.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setShowArchived((v) => !v)}
+                    activeOpacity={0.8}
+                    style={{ paddingHorizontal: px(14), paddingVertical: px(8), flexDirection: "row", alignItems: "center", gap: px(6), borderTopWidth: 1, borderTopColor: "rgba(148,163,184,0.15)" }}
+                  >
+                    <Ionicons name={showArchived ? "chevron-up-outline" : "archive-outline"} size={px(13)} color="#CBD5E1" />
+                    <Text style={{ fontSize: fs(11), fontWeight: "700", color: "#CBD5E1" }}>
+                      {showArchived ? "Ocultar archivadas" : `Ver archivadas (${archivedAssets.length})`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Rows — archivadas */}
+                {showArchived && archivedAssets.map((a) => (
+                  <View
+                    key={a.id}
+                    style={{ flexDirection: "row", alignItems: "center", opacity: 0.55, borderTopWidth: 1, borderTopColor: "rgba(148,163,184,0.10)", backgroundColor: "#F8FAFC" }}
+                  >
+                    <View style={{ flex: GRID.asset, paddingHorizontal: px(14), paddingVertical: px(10), flexDirection: "row", alignItems: "center", gap: px(8) }}>
+                      <Ionicons name="archive-outline" size={px(14)} color="#94A3B8" />
+                      <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#64748B" }} numberOfLines={1}>{a.name}</Text>
+                    </View>
+                    <View style={{ flex: GRID.type + GRID.cur + GRID.inv + GRID.pnl + GRID.pct + GRID.w, paddingHorizontal: px(14) }}>
+                      <Text style={{ fontSize: fs(11), fontWeight: "600", color: "#CBD5E1" }}>Archivada</Text>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Rows — activas */}
                 {assets.map((a, idx) => {
                   const tone = pnlTone(a.pnl || 0);
                   const pnlColor = tone === "success" ? "#16A34A" : tone === "danger" ? "#DC2626" : "#64748B";

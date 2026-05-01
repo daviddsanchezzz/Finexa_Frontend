@@ -252,6 +252,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [legendOpen, setLegendOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
@@ -320,11 +322,21 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const fetchArchived = async () => {
+    try {
+      const res = await api.get("/investments/assets/archived");
+      setArchivedAssets(res.data || []);
+    } catch {
+      setArchivedAssets([]);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchSummary();
       fetchTimeline(range);
       fetchSnapshots();
+      fetchArchived();
     }, [range])
   );
 
@@ -535,11 +547,23 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </View>
 
         {/* LISTA */}
-        {assets.length > 0 && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+        {(assets.length > 0 || archivedAssets.length > 0) && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={{ fontSize: 13, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
               Tu cartera
             </Text>
+            {archivedAssets.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setShowArchived((v) => !v)}
+                activeOpacity={0.8}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+              >
+                <Ionicons name={showArchived ? "eye-outline" : "archive-outline"} size={13} color="#CBD5E1" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#CBD5E1" }}>
+                  {showArchived ? "Ocultar archivadas" : `Archivadas (${archivedAssets.length})`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -642,6 +666,48 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             })
           )}
         </View>
+
+        {/* ARCHIVADAS */}
+        {showArchived && archivedAssets.length > 0 && (
+          <View className="px-5" style={{ marginTop: 4, marginBottom: 4 }}>
+            {archivedAssets.map((a) => (
+              <View
+                key={a.id}
+                style={{
+                  backgroundColor: "#F8FAFC",
+                  borderRadius: 18,
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  marginBottom: 6,
+                  borderWidth: 1,
+                  borderColor: "#E2E8F0",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  opacity: 0.7,
+                }}
+              >
+                <View
+                  style={{
+                    width: 36, height: 36, borderRadius: 12,
+                    backgroundColor: "#E2E8F0",
+                    alignItems: "center", justifyContent: "center",
+                    marginRight: 12,
+                  }}
+                >
+                  <Ionicons name="archive-outline" size={16} color="#94A3B8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }} numberOfLines={1}>
+                    {a.name}
+                  </Text>
+                  <Text style={{ fontSize: 10, fontWeight: "600", color: "#CBD5E1", marginTop: 2 }}>
+                    Archivada
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* DONUT */}
         {!loading && assets.length > 0 && allocation.slices.length > 0 && (

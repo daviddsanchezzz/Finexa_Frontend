@@ -239,6 +239,35 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
     );
   };
 
+  const onArchive = async () => {
+    if (!assetId) return;
+
+    Alert.alert(
+      "Archivar inversión",
+      "La inversión desaparecerá de tu cartera. Podrás verla desde 'Ver archivadas'. Su última valoración debe ser 0.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Archivar",
+          onPress: async () => {
+            try {
+              setSaving(true);
+              await api.patch(`/investments/assets/${assetId}/archive`);
+              navigation.goBack();
+            } catch (e: any) {
+              const msg =
+                e?.response?.data?.message ||
+                "Para archivar, registra una valoración de 0 primero.";
+              Alert.alert("No se puede archivar", String(msg));
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const onSelectType = (t: InvestmentAssetType) => {
     setType(t);
     const suggested = autoRiskForType(t);
@@ -586,22 +615,41 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
           </TouchableOpacity>
 
           {isEdit ? (
-            <TouchableOpacity
-              onPress={onDelete}
-              disabled={saving}
-              className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
-              style={{
-                backgroundColor: "#FEF2F2",
-                borderWidth: 1,
-                borderColor: "#FECACA",
-              }}
-              activeOpacity={0.9}
-            >
-              <Ionicons name="trash-outline" size={18} color="#DC2626" />
-              <Text className="text-sm font-semibold ml-2" style={{ color: "#DC2626" }}>
-                Eliminar inversión
-              </Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                onPress={onArchive}
+                disabled={saving}
+                className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
+                style={{
+                  backgroundColor: "#FFFBEB",
+                  borderWidth: 1,
+                  borderColor: "#FDE68A",
+                }}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="archive-outline" size={18} color="#D97706" />
+                <Text className="text-sm font-semibold ml-2" style={{ color: "#D97706" }}>
+                  Archivar inversión
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onDelete}
+                disabled={saving}
+                className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
+                style={{
+                  backgroundColor: "#FEF2F2",
+                  borderWidth: 1,
+                  borderColor: "#FECACA",
+                }}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                <Text className="text-sm font-semibold ml-2" style={{ color: "#DC2626" }}>
+                  Eliminar inversión
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : null}
         </ScrollView>
       )}

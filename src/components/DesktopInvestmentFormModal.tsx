@@ -354,6 +354,27 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
     }
   }, [assetId, onClose, onSaved]);
 
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  const onArchive = useCallback(async () => {
+    if (!assetId) return;
+
+    setArchiveError(null);
+    try {
+      setSaving(true);
+      await api.patch(`/investments/assets/${assetId}/archive`);
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.message ||
+        "Para archivar, registra una valoración de 0 primero.";
+      setArchiveError(String(msg));
+    } finally {
+      setSaving(false);
+    }
+  }, [assetId, onClose, onSaved]);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* Overlay */}
@@ -409,26 +430,49 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
               {isEdit ? (
-                <TouchableOpacity
-                  onPress={onDelete}
-                  disabled={saving}
-                  activeOpacity={0.9}
-                  style={{
-                    height: px(36),
-                    paddingHorizontal: px(12),
-                    borderRadius: px(12),
-                    borderWidth: 1,
-                    borderColor: "#FECACA",
-                    backgroundColor: "#FEF2F2",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: px(8),
-                    opacity: saving ? 0.6 : 1,
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={px(16)} color="#DC2626" />
-                  <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#DC2626" }]}>Eliminar</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    onPress={onArchive}
+                    disabled={saving}
+                    activeOpacity={0.9}
+                    style={{
+                      height: px(36),
+                      paddingHorizontal: px(12),
+                      borderRadius: px(12),
+                      borderWidth: 1,
+                      borderColor: "#FDE68A",
+                      backgroundColor: "#FFFBEB",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: px(8),
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    <Ionicons name="archive-outline" size={px(16)} color="#D97706" />
+                    <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#D97706" }]}>Archivar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={onDelete}
+                    disabled={saving}
+                    activeOpacity={0.9}
+                    style={{
+                      height: px(36),
+                      paddingHorizontal: px(12),
+                      borderRadius: px(12),
+                      borderWidth: 1,
+                      borderColor: "#FECACA",
+                      backgroundColor: "#FEF2F2",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: px(8),
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={px(16)} color="#DC2626" />
+                    <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#DC2626" }]}>Eliminar</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
 
               <TouchableOpacity
@@ -475,6 +519,15 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
           </View>
 
           {/* Body */}
+          {!!archiveError && (
+            <View style={{ marginHorizontal: px(16), marginTop: px(12), padding: px(10), borderRadius: px(10), backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", flexDirection: "row", alignItems: "center", gap: px(8) }}>
+              <Ionicons name="warning-outline" size={px(15)} color="#D97706" />
+              <Text style={[textStyles.caption, { flex: 1, fontSize: fs(11), fontWeight: "700", color: "#92400E" }]}>{archiveError}</Text>
+              <TouchableOpacity onPress={() => setArchiveError(null)} activeOpacity={0.8}>
+                <Ionicons name="close-outline" size={px(15)} color="#D97706" />
+              </TouchableOpacity>
+            </View>
+          )}
           {loading ? (
             <View style={{ padding: px(22), alignItems: "center", justifyContent: "center" }}>
               <ActivityIndicator size="small" color={colors.primary} />
