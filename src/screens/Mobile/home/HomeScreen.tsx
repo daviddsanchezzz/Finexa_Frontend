@@ -29,6 +29,14 @@ export default function HomeScreen({ navigation }: any) {
 
   const showMonthlyReportBanner = isMonthlyReportBannerVisible();
 
+  const reportMonthLabel = (() => {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return prev
+      .toLocaleString("es-ES", { month: "long", year: "numeric" })
+      .replace("de ", "");
+  })();
+
   const [dateLabel, setDateLabel] = useState(() => {
     const now = new Date();
     return now
@@ -175,7 +183,7 @@ export default function HomeScreen({ navigation }: any) {
         Informe mensual disponible
       </Text>
       <Text className="text-[12px] text-[#92400E] opacity-80 mt-0.5 leading-4">
-        El informe de <Text className="font-semibold">{dateLabel}</Text> ya está
+        El informe de <Text className="font-semibold">{reportMonthLabel}</Text> ya está
         listo.
       </Text>
     </View>
