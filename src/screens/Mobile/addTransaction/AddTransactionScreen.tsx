@@ -12,9 +12,8 @@ import {
   Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { ViewStyle, TextStyle } from "react-native";
@@ -25,7 +24,10 @@ import { appAlert } from "../../../utils/appAlert";
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
   const editData = (route.params as any)?.editData || null;
-  const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
+  // BottomNav is position:absolute, height = paddingTop(14) + content(56) + paddingBottom(25) = 95px
+  // SafeAreaView already pads by insets.bottom, so we only need the remaining overlap
+  const tabBarHeight = Math.max(0, 95 - insets.bottom);
 
   // ✅ si vienes desde InvestmentDetail para añadir aportación
   const prefillInvestmentAssetId = (route.params as any)?.prefillInvestmentAssetId ?? null;
