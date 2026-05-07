@@ -907,7 +907,8 @@ export default function AddScreen({ navigation }: any) {
               borderTopColor: "#E2E8F0",
               paddingHorizontal: 12,
               paddingTop: 10,
-              paddingBottom: tabBarHeight + 8,
+              paddingBottom: 8,
+              marginBottom: tabBarHeight,
             }}>
               {/* Fila operadores */}
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
