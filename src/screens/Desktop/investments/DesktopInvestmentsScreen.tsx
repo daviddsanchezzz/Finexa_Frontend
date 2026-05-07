@@ -872,18 +872,26 @@ const fetchSnapshots = async () => {
 
                 {/* Rows — archivadas */}
                 {showArchived && archivedAssets.map((a) => (
-                  <View
+                  <Pressable
                     key={a.id}
-                    style={{ flexDirection: "row", alignItems: "center", opacity: 0.55, borderTopWidth: 1, borderTopColor: "rgba(148,163,184,0.10)", backgroundColor: "#F8FAFC" }}
+                    onPress={() => navigation.navigate("DesktopInvestmentDetail", { assetId: a.id })}
+                    style={({ pressed, hovered }: any) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      opacity: 0.65,
+                      borderTopWidth: 1,
+                      borderTopColor: "rgba(148,163,184,0.10)",
+                      backgroundColor: pressed ? "rgba(15,23,42,0.04)" : hovered ? "rgba(148,163,184,0.08)" : "#F8FAFC",
+                    })}
                   >
                     <View style={{ flex: GRID.asset, paddingHorizontal: px(14), paddingVertical: px(10), flexDirection: "row", alignItems: "center", gap: px(8) }}>
                       <Ionicons name="archive-outline" size={px(14)} color="#94A3B8" />
                       <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#64748B" }} numberOfLines={1}>{a.name}</Text>
                     </View>
                     <View style={{ flex: GRID.type + GRID.cur + GRID.inv + GRID.pnl + GRID.pct + GRID.w, paddingHorizontal: px(14) }}>
-                      <Text style={{ fontSize: fs(11), fontWeight: "600", color: "#CBD5E1" }}>Archivada</Text>
+                      <Text style={{ fontSize: fs(11), fontWeight: "600", color: "#CBD5E1" }}>Archivada · toca para gestionar</Text>
                     </View>
-                  </View>
+                  </Pressable>
                 ))}
 
                 {/* Rows — activas */}

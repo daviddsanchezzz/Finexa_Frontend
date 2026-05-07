@@ -55,6 +55,7 @@ interface AssetFromApi {
   currency: string;
   initialInvested: number;
   active: boolean;
+  archived: boolean;
 }
 
 function isValidCurrencyCode(v: string) {
@@ -219,6 +220,7 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -274,6 +276,7 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
       setType((a.type ?? "custom") as InvestmentAssetType);
       setRiskType((a.riskType ?? null) as RiskOrNull);
       setCurrency((a.currency ?? "EUR").toUpperCase());
+      setIsArchived(!!a.archived);
       setInitialInvestedText(typeof a.initialInvested === "number" ? String(a.initialInvested) : "0");
     } catch (e) {
       console.error("❌ Error loading asset (modal):", e);
@@ -349,6 +352,23 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
       onClose();
     } catch (e) {
       console.error("❌ Error deleting asset (modal):", e);
+    } finally {
+      setSaving(false);
+    }
+  }, [assetId, onClose, onSaved]);
+
+  const [unarchiveError, setUnarchiveError] = useState<string | null>(null);
+
+  const onUnarchive = useCallback(async () => {
+    if (!assetId) return;
+    setUnarchiveError(null);
+    try {
+      setSaving(true);
+      await api.patch(`/investments/assets/${assetId}/unarchive`);
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      setUnarchiveError(e?.response?.data?.message || "No se pudo restaurar la inversión.");
     } finally {
       setSaving(false);
     }
@@ -431,41 +451,46 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
             <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
               {isEdit ? (
                 <>
-                  <TouchableOpacity
-                    onPress={onArchive}
-                    disabled={saving}
-                    activeOpacity={0.9}
-                    style={{
-                      height: px(36),
-                      paddingHorizontal: px(12),
-                      borderRadius: px(12),
-                      borderWidth: 1,
-                      borderColor: "#FDE68A",
-                      backgroundColor: "#FFFBEB",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: px(8),
-                      opacity: saving ? 0.6 : 1,
-                    }}
-                  >
-                    <Ionicons name="archive-outline" size={px(16)} color="#D97706" />
-                    <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#D97706" }]}>Archivar</Text>
-                  </TouchableOpacity>
+                  {isArchived ? (
+                    <TouchableOpacity
+                      onPress={onUnarchive}
+                      disabled={saving}
+                      activeOpacity={0.9}
+                      style={{
+                        height: px(36), paddingHorizontal: px(12), borderRadius: px(12),
+                        borderWidth: 1, borderColor: "#BBF7D0", backgroundColor: "#F0FDF4",
+                        flexDirection: "row", alignItems: "center", gap: px(8),
+                        opacity: saving ? 0.6 : 1,
+                      }}
+                    >
+                      <Ionicons name="arrow-up-circle-outline" size={px(16)} color="#16A34A" />
+                      <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#16A34A" }]}>Restaurar</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={onArchive}
+                      disabled={saving}
+                      activeOpacity={0.9}
+                      style={{
+                        height: px(36), paddingHorizontal: px(12), borderRadius: px(12),
+                        borderWidth: 1, borderColor: "#FDE68A", backgroundColor: "#FFFBEB",
+                        flexDirection: "row", alignItems: "center", gap: px(8),
+                        opacity: saving ? 0.6 : 1,
+                      }}
+                    >
+                      <Ionicons name="archive-outline" size={px(16)} color="#D97706" />
+                      <Text style={[textStyles.button, { fontSize: fs(12), fontWeight: "900", color: "#D97706" }]}>Archivar</Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     onPress={onDelete}
                     disabled={saving}
                     activeOpacity={0.9}
                     style={{
-                      height: px(36),
-                      paddingHorizontal: px(12),
-                      borderRadius: px(12),
-                      borderWidth: 1,
-                      borderColor: "#FECACA",
-                      backgroundColor: "#FEF2F2",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: px(8),
+                      height: px(36), paddingHorizontal: px(12), borderRadius: px(12),
+                      borderWidth: 1, borderColor: "#FECACA", backgroundColor: "#FEF2F2",
+                      flexDirection: "row", alignItems: "center", gap: px(8),
                       opacity: saving ? 0.6 : 1,
                     }}
                   >
@@ -519,11 +544,11 @@ export default function DesktopInvestmentFormModal({ visible, onClose, assetId, 
           </View>
 
           {/* Body */}
-          {!!archiveError && (
+          {!!(archiveError || unarchiveError) && (
             <View style={{ marginHorizontal: px(16), marginTop: px(12), padding: px(10), borderRadius: px(10), backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A", flexDirection: "row", alignItems: "center", gap: px(8) }}>
               <Ionicons name="warning-outline" size={px(15)} color="#D97706" />
-              <Text style={[textStyles.caption, { flex: 1, fontSize: fs(11), fontWeight: "700", color: "#92400E" }]}>{archiveError}</Text>
-              <TouchableOpacity onPress={() => setArchiveError(null)} activeOpacity={0.8}>
+              <Text style={[textStyles.caption, { flex: 1, fontSize: fs(11), fontWeight: "700", color: "#92400E" }]}>{archiveError || unarchiveError}</Text>
+              <TouchableOpacity onPress={() => { setArchiveError(null); setUnarchiveError(null); }} activeOpacity={0.8}>
                 <Ionicons name="close-outline" size={px(15)} color="#D97706" />
               </TouchableOpacity>
             </View>

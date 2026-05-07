@@ -50,6 +50,7 @@ interface AssetFromApi {
   currency: string;
   initialInvested: number;
   active: boolean;
+  archived: boolean;
 }
 
 function isValidCurrencyCode(v: string) {
@@ -79,6 +80,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [saving, setSaving] = useState(false);
   const [archiveConfirming, setArchiveConfirming] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -131,6 +133,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       setType(a.type ?? "custom");
       setRiskType((a.riskType ?? null) as RiskOrNull);
       setCurrency((a.currency ?? "EUR").toUpperCase());
+      setIsArchived(!!a.archived);
 
       setInitialInvestedText(
         typeof a.initialInvested === "number" ? String(a.initialInvested) : "0"
@@ -258,6 +261,29 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
         "Para archivar, registra una valoración de 0 primero.";
       setArchiveError(String(msg));
       setArchiveConfirming(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const [unarchiveConfirming, setUnarchiveConfirming] = useState(false);
+  const [unarchiveError, setUnarchiveError] = useState<string | null>(null);
+
+  const onUnarchive = async () => {
+    if (!assetId) return;
+    if (!unarchiveConfirming) {
+      setUnarchiveError(null);
+      setUnarchiveConfirming(true);
+      return;
+    }
+    try {
+      setSaving(true);
+      await api.patch(`/investments/assets/${assetId}/unarchive`);
+      navigation.goBack();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || "No se pudo desarchivar la inversión.";
+      setUnarchiveError(String(msg));
+      setUnarchiveConfirming(false);
     } finally {
       setSaving(false);
     }
@@ -611,7 +637,52 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
           {isEdit ? (
             <>
-              {archiveConfirming ? (
+              {isArchived ? (
+                // — DESARCHIVAR —
+                unarchiveConfirming ? (
+                  <View
+                    className="rounded-2xl mt-2"
+                    style={{ backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0", padding: 14 }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: "#14532D", marginBottom: 4 }}>
+                      ¿Restaurar esta inversión?
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#166534", marginBottom: 12, lineHeight: 17 }}>
+                      Volverá a aparecer en tu cartera y en el gráfico.
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => setUnarchiveConfirming(false)}
+                        disabled={saving}
+                        activeOpacity={0.9}
+                        style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={onUnarchive}
+                        disabled={saving}
+                        activeOpacity={0.9}
+                        style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: "#16A34A", flexDirection: "row", justifyContent: "center", gap: 6 }}
+                      >
+                        {saving ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="arrow-up-circle-outline" size={15} color="white" />}
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }}>Sí, restaurar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    onPress={onUnarchive}
+                    disabled={saving}
+                    className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
+                    style={{ backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0" }}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="arrow-up-circle-outline" size={18} color="#16A34A" />
+                    <Text className="text-sm font-semibold ml-2" style={{ color: "#16A34A" }}>Restaurar inversión</Text>
+                  </TouchableOpacity>
+                )
+              ) : archiveConfirming ? (
                 <View
                   className="rounded-2xl mt-2"
                   style={{
@@ -678,7 +749,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 </TouchableOpacity>
               )}
 
-              {archiveError ? (
+              {(archiveError || unarchiveError) ? (
                 <View
                   style={{
                     marginTop: 8, paddingHorizontal: 12, paddingVertical: 8,
@@ -689,7 +760,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 >
                   <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
                   <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", flex: 1 }}>
-                    {archiveError}
+                    {archiveError || unarchiveError}
                   </Text>
                 </View>
               ) : null}

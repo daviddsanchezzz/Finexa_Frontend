@@ -671,8 +671,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         {showArchived && archivedAssets.length > 0 && (
           <View className="px-5" style={{ marginTop: 4, marginBottom: 4 }}>
             {archivedAssets.map((a) => (
-              <View
+              <TouchableOpacity
                 key={a.id}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
                 style={{
                   backgroundColor: "#F8FAFC",
                   borderRadius: 18,
@@ -704,7 +706,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     Archivada
                   </Text>
                 </View>
-              </View>
+                <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+              </TouchableOpacity>
             ))}
           </View>
         )}
