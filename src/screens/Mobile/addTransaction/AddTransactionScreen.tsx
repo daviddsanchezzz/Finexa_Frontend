@@ -575,7 +575,7 @@ export default function AddScreen({ navigation }: any) {
               <View className="flex-row items-end justify-center">
                 <Text
                   style={{
-                    fontSize: 64,
+                    fontSize: 36,
                     fontWeight: "700",
                     color: amount ? "#0F172A" : "#D1D5DB",
                     letterSpacing: -1,
@@ -583,7 +583,7 @@ export default function AddScreen({ navigation }: any) {
                 >
                   {amount || "0"}
                 </Text>
-                <Text style={{ fontSize: 36, fontWeight: "600", color: "#94A3B8", marginLeft: 6, marginBottom: 6 }}>
+                <Text style={{ fontSize: 36, fontWeight: "600", color: "#94A3B8", marginLeft: 6 }}>
                   €
                 </Text>
               </View>
