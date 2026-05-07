@@ -77,6 +77,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [archiveConfirming, setArchiveConfirming] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -241,31 +243,24 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
   const onArchive = async () => {
     if (!assetId) return;
-
-    Alert.alert(
-      "Archivar inversión",
-      "La inversión desaparecerá de tu cartera. Podrás verla desde 'Ver archivadas'. Su última valoración debe ser 0.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Archivar",
-          onPress: async () => {
-            try {
-              setSaving(true);
-              await api.patch(`/investments/assets/${assetId}/archive`);
-              navigation.goBack();
-            } catch (e: any) {
-              const msg =
-                e?.response?.data?.message ||
-                "Para archivar, registra una valoración de 0 primero.";
-              Alert.alert("No se puede archivar", String(msg));
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ]
-    );
+    if (!archiveConfirming) {
+      setArchiveError(null);
+      setArchiveConfirming(true);
+      return;
+    }
+    try {
+      setSaving(true);
+      await api.patch(`/investments/assets/${assetId}/archive`);
+      navigation.goBack();
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.message ||
+        "Para archivar, registra una valoración de 0 primero.";
+      setArchiveError(String(msg));
+      setArchiveConfirming(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onSelectType = (t: InvestmentAssetType) => {
@@ -616,22 +611,88 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
           {isEdit ? (
             <>
-              <TouchableOpacity
-                onPress={onArchive}
-                disabled={saving}
-                className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
-                style={{
-                  backgroundColor: "#FFFBEB",
-                  borderWidth: 1,
-                  borderColor: "#FDE68A",
-                }}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="archive-outline" size={18} color="#D97706" />
-                <Text className="text-sm font-semibold ml-2" style={{ color: "#D97706" }}>
-                  Archivar inversión
-                </Text>
-              </TouchableOpacity>
+              {archiveConfirming ? (
+                <View
+                  className="rounded-2xl mt-2"
+                  style={{
+                    backgroundColor: "#FFFBEB",
+                    borderWidth: 1,
+                    borderColor: "#FDE68A",
+                    padding: 14,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
+                    ¿Archivar esta inversión?
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#B45309", marginBottom: 12, lineHeight: 17 }}>
+                    Desaparecerá de tu cartera. Su última valoración debe ser 0.
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => setArchiveConfirming(false)}
+                      disabled={saving}
+                      activeOpacity={0.9}
+                      style={{
+                        flex: 1, alignItems: "center", paddingVertical: 9,
+                        borderRadius: 12, backgroundColor: "#F3F4F6",
+                        borderWidth: 1, borderColor: "#E5E7EB",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={onArchive}
+                      disabled={saving}
+                      activeOpacity={0.9}
+                      style={{
+                        flex: 1, alignItems: "center", paddingVertical: 9,
+                        borderRadius: 12, backgroundColor: "#D97706",
+                        flexDirection: "row", justifyContent: "center", gap: 6,
+                      }}
+                    >
+                      {saving ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <Ionicons name="archive-outline" size={15} color="white" />
+                      )}
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }}>Sí, archivar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={onArchive}
+                  disabled={saving}
+                  className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
+                  style={{
+                    backgroundColor: "#FFFBEB",
+                    borderWidth: 1,
+                    borderColor: "#FDE68A",
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons name="archive-outline" size={18} color="#D97706" />
+                  <Text className="text-sm font-semibold ml-2" style={{ color: "#D97706" }}>
+                    Archivar inversión
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {archiveError ? (
+                <View
+                  style={{
+                    marginTop: 8, paddingHorizontal: 12, paddingVertical: 8,
+                    borderRadius: 12, backgroundColor: "#FEF2F2",
+                    borderWidth: 1, borderColor: "#FECACA",
+                    flexDirection: "row", alignItems: "center", gap: 8,
+                  }}
+                >
+                  <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+                  <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", flex: 1 }}>
+                    {archiveError}
+                  </Text>
+                </View>
+              ) : null}
 
               <TouchableOpacity
                 onPress={onDelete}
