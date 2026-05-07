@@ -111,9 +111,16 @@ export default function WalletSelectorModal({
                     <Text className="text-[20px] mr-3">{wallet.emoji}</Text>
                     <Text className="text-[15px] text-text font-medium">{wallet.name}</Text>
                   </View>
-                  <Text className="text-[15px] text-gray-700 font-semibold">
-                    {formatEuro(wallet.balance)}
-                  </Text>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text className="text-[15px] text-gray-700 font-semibold">
+                      {formatEuro(wallet.balance)}
+                    </Text>
+                    {total > 0 && (
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: "#CBD5E1", marginTop: 1 }}>
+                        {((wallet.balance / total) * 100).toFixed(1)}%
+                      </Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
 
