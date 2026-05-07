@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { ViewStyle, TextStyle } from "react-native";
@@ -24,6 +25,7 @@ import { appAlert } from "../../../utils/appAlert";
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
   const editData = (route.params as any)?.editData || null;
+  const tabBarHeight = useBottomTabBarHeight();
 
   // ✅ si vienes desde InvestmentDetail para añadir aportación
   const prefillInvestmentAssetId = (route.params as any)?.prefillInvestmentAssetId ?? null;
@@ -511,7 +513,7 @@ export default function AddScreen({ navigation }: any) {
             ref={scrollRef}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: calcVisible ? 310 : 100, paddingHorizontal: 20 }}
+            contentContainerStyle={{ paddingBottom: calcVisible ? 310 + tabBarHeight : 100, paddingHorizontal: 20 }}
           >
             {/* TABS */}
             <View className="mt-6 mb-6 flex-row bg-gray-100 rounded-2xl p-1">
@@ -905,7 +907,7 @@ export default function AddScreen({ navigation }: any) {
               borderTopColor: "#E2E8F0",
               paddingHorizontal: 12,
               paddingTop: 10,
-              paddingBottom: 8,
+              paddingBottom: tabBarHeight + 8,
             }}>
               {/* Fila operadores */}
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
