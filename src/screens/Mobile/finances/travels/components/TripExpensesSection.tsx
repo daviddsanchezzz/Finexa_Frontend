@@ -66,6 +66,7 @@ export interface TripPlanItem {
 
   paymentStatus?: PaymentStatus | null;
   expenseDetails?: { category?: BudgetCategoryType | null } | null;
+  metadata?: { expenseCategory?: BudgetCategoryType | null } | null;
   destinationTransport?: { mode?: "train" | "bus" | "car" | "other" | null } | null;
 }
 
@@ -137,7 +138,8 @@ const BUDGET_DEFS: BudgetDef[] = [
 /** ====== Mapping como desktop ====== */
 function categoryForItem(item: TripPlanItem): BudgetCategoryType {
   if (item.type === "expense") {
-    const c = item.expenseDetails?.category as BudgetCategoryType | undefined | null;
+    // backend stores in metadata.expenseCategory; fallback to legacy expenseDetails.category
+    const c = (item.metadata?.expenseCategory ?? item.expenseDetails?.category) as BudgetCategoryType | undefined | null;
     return c ?? BudgetCategoryType.other;
   }
 

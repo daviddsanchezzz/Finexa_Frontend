@@ -462,7 +462,7 @@ export default function TripPlanFormScreen({
   );
   const [expCurrency, setExpCurrency] = useState(planItem?.currency || "EUR");
   const [expCategory, setExpCategory] = useState<BudgetCategoryType>(
-    (planItem?.expenseDetails?.category as BudgetCategoryType) ?? BudgetCategoryType.other
+    (planItem?.metadata?.expenseCategory as BudgetCategoryType) ?? BudgetCategoryType.other
   );
   const [expOccurredAt, setExpOccurredAt] = useState<Date | null>(
     planItem?.date ? new Date(planItem.date) : presetDay ? new Date(`${presetDay}T12:00`) : new Date()
@@ -682,7 +682,7 @@ export default function TripPlanFormScreen({
         currency: expCurrency,
         date: expOccurredAt?.toISOString() || new Date().toISOString(),
         notes: expNotes || null,
-        expenseDetails: { category: expCategory },
+        metadata: { expenseCategory: expCategory },
       };
 
       if (isEdit) {
