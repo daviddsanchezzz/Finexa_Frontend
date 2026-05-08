@@ -345,7 +345,8 @@ export default function TripsHomeScreen({ navigation }: any) {
       <View
         style={{
           paddingHorizontal: 20,
-          paddingBottom: 4,
+          paddingTop: 4,
+          paddingBottom: 6,
           flexDirection: "row",
           alignItems: "center",
         }}
@@ -359,16 +360,15 @@ export default function TripsHomeScreen({ navigation }: any) {
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 6,
+            gap: 5,
             backgroundColor: "#0F172A",
-            borderRadius: 14,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            marginBottom: 4,
+            borderRadius: 12,
+            paddingVertical: 6,
+            paddingHorizontal: 10,
           }}
         >
-          <Ionicons name="add-outline" size={15} color="white" />
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Nuevo</Text>
+          <Ionicons name="add-outline" size={14} color="white" />
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }}>Nuevo</Text>
         </TouchableOpacity>
       </View>
 
@@ -419,7 +419,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                 >
                   <Ionicons name="earth-outline" size={12} color="white" />
                   <Text style={{ color: "white", fontWeight: "800", fontSize: 12 }}>
-                    {Math.round(heroStats.visitedPct * 100)}% mundo
+                    {Math.round(heroStats.visitedPct)}% mundo
                   </Text>
                 </View>
               )}
