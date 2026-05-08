@@ -782,36 +782,51 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 borderColor: "#E5E7EB",
               }}
             >
+              {/* Cabecera: total + toggle leyenda */}
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Por activo</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8" }}>Total</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
-                      {formatMoney(allocation.total, currency)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setLegendOpen((p) => !p)}
-                    activeOpacity={0.7}
-                    style={{
-                      width: 32, height: 32, borderRadius: 10,
-                      backgroundColor: "#F1F5F9",
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Ionicons
-                      name={legendOpen ? "chevron-up" : "chevron-down"}
-                      size={16}
-                      color="#64748B"
-                    />
-                  </TouchableOpacity>
+                <View style={{ alignItems: "flex-start" }}>
+                  <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8" }}>Total</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
+                    {formatMoney(activeAllocation.total, currency)}
+                  </Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => setLegendOpen((p) => !p)}
+                  activeOpacity={0.7}
+                  style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    backgroundColor: "#F1F5F9",
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name={legendOpen ? "chevron-up" : "chevron-down"} size={16} color="#64748B" />
+                </TouchableOpacity>
               </View>
 
+              {/* Toggle Por activo / Por tipo */}
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 12, backgroundColor: "#F1F5F9", borderRadius: 12, padding: 4 }}>
+                {(["asset", "type"] as const).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    onPress={() => { setDonutMode(mode); setSelectedSliceId(null); setOtrosExpanded(false); }}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1, paddingVertical: 7, borderRadius: 9,
+                      backgroundColor: donutMode === mode ? "white" : "transparent",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: donutMode === mode ? colors.primary : "#6B7280" }}>
+                      {mode === "asset" ? "Por activo" : "Por tipo"}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Donut */}
               <View style={{ alignItems: "center", marginTop: 14 }}>
                 <DonutPro
-                  slices={allocation.slices}
+                  slices={activeAllocation.slices}
                   size={donutSize}
                   strokeWidth={donutStroke}
                   selectedId={selectedSlice?.id ?? null}
@@ -819,63 +834,97 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   centerValueText={
                     selectedSlice
                       ? formatMoney(selectedSlice.value, currency)
-                      : formatMoney(allocation.total, currency)
+                      : formatMoney(activeAllocation.total, currency)
                   }
                 />
               </View>
 
+              {/* Leyenda */}
               {legendOpen && (
                 <View style={{ marginTop: 12 }}>
-                  {allocation.slices.slice(0, 8).map((s) => {
+                  {activeAllocation.slices.map((s) => {
                     const isActive = (selectedSlice?.id ?? null) === s.id;
+                    const isOtros = s.id === -1;
 
                     return (
-                      <TouchableOpacity
-                        key={s.id}
-                        activeOpacity={0.85}
-                        onPress={() => setSelectedSliceId((prev) => (prev === s.id ? null : s.id))}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          paddingVertical: 10,
-                          borderBottomWidth: 1,
-                          borderBottomColor: "#F1F5F9",
-                          opacity: selectedSliceId != null ? (isActive ? 1 : 0.55) : 1,
-                        }}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
-                          <View
-                            style={{
-                              width: 10, height: 10, borderRadius: 6,
-                              backgroundColor: s.color, marginRight: 8,
-                            }}
-                          />
-                          <Text
-                            style={{ fontSize: 12, fontWeight: isActive ? "900" : "800", color: "#0F172A", flex: 1 }}
-                            numberOfLines={1}
-                          >
-                            {s.label}
-                          </Text>
-                        </View>
+                      <View key={s.id}>
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          onPress={() => {
+                            if (isOtros) {
+                              setOtrosExpanded((p) => !p);
+                            } else {
+                              setSelectedSliceId((prev) => (prev === s.id ? null : s.id));
+                            }
+                          }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            paddingVertical: 10,
+                            borderBottomWidth: 1,
+                            borderBottomColor: "#F1F5F9",
+                            opacity: selectedSliceId != null && !isOtros ? (isActive ? 1 : 0.55) : 1,
+                          }}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 6, backgroundColor: s.color, marginRight: 8 }} />
+                            <Text style={{ fontSize: 12, fontWeight: isActive ? "900" : "800", color: "#0F172A", flex: 1 }} numberOfLines={1}>
+                              {s.label}
+                            </Text>
+                            {isOtros && (
+                              <Ionicons
+                                name={otrosExpanded ? "chevron-up" : "chevron-down"}
+                                size={13}
+                                color="#94A3B8"
+                                style={{ marginRight: 6 }}
+                              />
+                            )}
+                          </View>
+                          <View style={{ alignItems: "flex-end" }}>
+                            <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                              {(s.pct * 100).toFixed(1)}%
+                            </Text>
+                            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }}>
+                              {formatMoney(s.value, currency)}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
 
-                        <View style={{ alignItems: "flex-end" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
-                            {(s.pct * 100).toFixed(1)}%
-                          </Text>
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }}>
-                            {formatMoney(s.value, currency)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                        {/* Sub-items de "Otros" */}
+                        {isOtros && otrosExpanded && allocation.otherAssets.map((oa) => (
+                          <View
+                            key={oa.id}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              paddingVertical: 8,
+                              paddingLeft: 18,
+                              borderBottomWidth: 1,
+                              borderBottomColor: "#F9FAFB",
+                              backgroundColor: "#FAFAFA",
+                            }}
+                          >
+                            <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: oa.color, marginRight: 8 }} />
+                              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", flex: 1 }} numberOfLines={1}>
+                                {oa.label}
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: "flex-end" }}>
+                              <Text style={{ fontSize: 11, fontWeight: "800", color: "#374151" }}>
+                                {(oa.pct * 100).toFixed(1)}%
+                              </Text>
+                              <Text style={{ fontSize: 10, fontWeight: "600", color: "#94A3B8", marginTop: 1 }}>
+                                {formatMoney(oa.value, currency)}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
                     );
                   })}
-
-                  {allocation.slices.length > 8 && (
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginTop: 10 }}>
-                      +{allocation.slices.length - 8} más…
-                    </Text>
-                  )}
                 </View>
               )}
             </View>
