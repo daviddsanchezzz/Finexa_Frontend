@@ -378,99 +378,70 @@ export default function TripsHomeScreen({ navigation }: any) {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* Hero card */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
           <View
             style={{
               backgroundColor: colors.primary,
-              borderRadius: 26,
-              padding: 20,
+              borderRadius: 20,
+              padding: 14,
               shadowColor: "#000",
-              shadowOpacity: 0.12,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.10,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 3 },
             }}
           >
-            {/* Top row */}
+            {/* Top row: todo en una línea */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View
-                  style={{
-                    width: 40, height: 40, borderRadius: 14,
-                    backgroundColor: "rgba(255,255,255,0.16)",
-                    alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 20 }}>✈️</Text>
-                </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={{ fontSize: 18 }}>✈️</Text>
                 <View>
-                  <Text style={{ fontSize: 17, fontWeight: "800", color: "white" }}>Mis viajes</Text>
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 1 }}>
-                    {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje" : "viajes"} en total
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>
+                    {summaryLoading ? "—" : heroStats.visited} países
+                  </Text>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>
+                    {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje" : "viajes"}
                   </Text>
                 </View>
               </View>
-              {heroStats.visitedPct > 0 && (
-                <View
-                  style={{
-                    paddingHorizontal: 10, paddingVertical: 5,
-                    borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)",
-                    flexDirection: "row", alignItems: "center", gap: 4,
-                  }}
-                >
-                  <Ionicons name="earth-outline" size={12} color="white" />
-                  <Text style={{ color: "white", fontWeight: "800", fontSize: 12 }}>
-                    {Math.round(heroStats.visitedPct)}% mundo
-                  </Text>
-                </View>
-              )}
-            </View>
 
-            {/* Big number */}
-            <View style={{ marginTop: 14 }}>
-              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: "700" }}>
-                Países visitados
-              </Text>
-              <Text style={{ fontSize: 34, fontWeight: "900", color: "white", marginTop: 2 }}>
-                {summaryLoading ? "—" : heroStats.visited}
-              </Text>
-            </View>
-
-            {/* Sub-boxes */}
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-              <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 16, padding: 12 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <Ionicons name="calendar-number-outline" size={12} color="rgba(255,255,255,0.8)" />
-                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: "700" }}>Próximo</Text>
-                </View>
-                {summaryLoading ? (
-                  <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>—</Text>
-                ) : summary?.daysToNextTrip != null ? (
-                  <>
-                    <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>
-                      {summary.daysToNextTrip}d
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {heroStats.visitedPct > 0 && (
+                  <View
+                    style={{
+                      paddingHorizontal: 9, paddingVertical: 4,
+                      borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)",
+                      flexDirection: "row", alignItems: "center", gap: 3,
+                    }}
+                  >
+                    <Ionicons name="earth-outline" size={11} color="white" />
+                    <Text style={{ color: "white", fontWeight: "700", fontSize: 11 }}>
+                      {Math.round(heroStats.visitedPct)}% mundo
                     </Text>
-                    <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 2 }} numberOfLines={1}>
-                      {summary.nextTrip?.name ?? ""}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" }}>
-                    Sin planear
-                  </Text>
+                  </View>
                 )}
               </View>
+            </View>
 
-              <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 16, padding: 12 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <Ionicons name="wallet-outline" size={12} color="rgba(255,255,255,0.8)" />
-                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: "700" }}>Gastado</Text>
+            {/* Sub-boxes en línea */}
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+              <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Ionicons name="calendar-number-outline" size={13} color="rgba(255,255,255,0.75)" />
+                <View>
+                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: "600" }}>Próximo</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+                    {summaryLoading ? "—" : summary?.daysToNextTrip != null ? `${summary.daysToNextTrip}d` : "Sin planear"}
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>
-                  {formatEuro(heroStats.totalSpent)}
-                </Text>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
-                  {heroStats.seenCount} {heroStats.seenCount === 1 ? "viaje" : "viajes"}
-                </Text>
+              </View>
+
+              <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Ionicons name="wallet-outline" size={13} color="rgba(255,255,255,0.75)" />
+                <View>
+                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: "600" }}>Gastado</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+                    {formatEuro(heroStats.totalSpent)}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
