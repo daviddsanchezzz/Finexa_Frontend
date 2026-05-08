@@ -5,7 +5,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +13,7 @@ import AppHeader from "../../../../components/AppHeader";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
+import { BudgetsScreenSkeleton } from "../../../../components/skeletons/BudgetsScreenSkeleton";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -161,23 +161,9 @@ export default function BudgetsHomeScreen({ navigation }: any) {
         />
       </View>
 
-      {/* RESUMEN + SELECTOR */}
+      {/* SELECTOR PERIODO - siempre visible (interactivo) */}
       <View className="px-5 mb-3">
-        <View className="mb-2">
-          <BudgetGoalCard
-            title={`Resumen ${periodLabel}`}
-            icon="📊"
-            total={summary.totalLimit}
-            current={summary.totalSpent}
-            color="white"
-            backgroundColor={colors.primary}
-            titleColor="white"
-            subtitleColor="rgba(255,255,255,0.8)"
-          />
-        </View>
-
-        {/* SELECTOR PERIODO */}
-        <View className="flex-row rounded-2xl bg-slate-50 p-1 mt-1">
+        <View className="flex-row rounded-2xl bg-slate-50 p-1">
           {[
             { key: "daily" as PeriodType, label: "Día" },
             { key: "weekly" as PeriodType, label: "Semana" },
@@ -217,11 +203,9 @@ export default function BudgetsHomeScreen({ navigation }: any) {
 
       {/* CONTENIDO */}
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={colors.primary}
-          style={{ marginTop: 50 }}
-        />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <BudgetsScreenSkeleton />
+        </ScrollView>
       ) : (
         <ScrollView
           className="flex-1 px-3"
@@ -231,6 +215,19 @@ export default function BudgetsHomeScreen({ navigation }: any) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          <View className="mb-3">
+            <BudgetGoalCard
+              title={`Resumen ${periodLabel}`}
+              icon="📊"
+              total={summary.totalLimit}
+              current={summary.totalSpent}
+              color="white"
+              backgroundColor={colors.primary}
+              titleColor="white"
+              subtitleColor="rgba(255,255,255,0.8)"
+            />
+          </View>
+
           {filteredBudgets.length === 0 ? (
             <Text className="text-center text-gray-400 mt-16 text-sm">
               No tienes presupuestos para este periodo.

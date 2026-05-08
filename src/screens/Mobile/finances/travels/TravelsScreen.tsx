@@ -5,7 +5,6 @@ import {
   Text,
   SafeAreaView,
   ScrollView,
-  ActivityIndicator,
   Platform,
   TextInput,
   TouchableOpacity,
@@ -15,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../../components/AppHeader";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
 
 type TripStatus = "wishlist" | "planning" | "seen";
 type BoardMode = "status" | "continent" | "year";
@@ -627,9 +627,7 @@ export default function TripsHomeScreen({ navigation }: any) {
         </View>
 
         {(loading || (boardMode === "continent" && continentStatsLoading)) && trips.length === 0 ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <TravelsScreenSkeleton />
         ) : isEmptyAll ? (
           /* Empty state global */
           <View style={{ alignItems: "center", marginTop: 32, gap: 12 }}>

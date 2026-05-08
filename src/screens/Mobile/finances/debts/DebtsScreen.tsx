@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -14,6 +13,7 @@ import api from "../../../../api/api";
 import AppHeader from "../../../../components/AppHeader";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
+import { DebtsScreenSkeleton } from "../../../../components/skeletons/DebtsScreenSkeleton";
 
 type DebtType = "loan" | "personal";
 type DebtDirection = "i_ow" | "they_owe";
@@ -123,129 +123,129 @@ export default function DebtsHomeScreen({ navigation }: any) {
         />
       </View>
 
-      {/* RESUMEN SUPERIOR */}
-      <View className="px-5 mb-3">
-        {/* TARJETA RESUMEN (ESTILO OSCURO) */}
-        <View
-            className="rounded-3xl p-4 mb-2"
-            style={{
-            backgroundColor: colors.primary,
-            }}
-        >
-          <View className="flex-row justify-between items-center mb-3">
-            <View>
-              <Text className="text-xs text-gray-300 mb-1">
-                Deuda total activa
-              </Text>
-              <Text className="text-2xl font-semibold text-white">
-                {formatCurrency(summary.totalDebt)}
-              </Text>
-            </View>
-            <View className="items-end">
-              <Text className="text-xs text-gray-300 mb-1">
-                Pendiente por pagar
-              </Text>
-                <Text className="text-lg font-semibold text-white">
-                {formatCurrency(summary.totalRemaining)}
+      {loading ? (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <DebtsScreenSkeleton />
+        </ScrollView>
+      ) : (
+        <>
+        {/* RESUMEN SUPERIOR */}
+        <View className="px-5 mb-3">
+          {/* TARJETA RESUMEN (ESTILO OSCURO) */}
+          <View
+              className="rounded-3xl p-4 mb-2"
+              style={{
+              backgroundColor: colors.primary,
+              }}
+          >
+            <View className="flex-row justify-between items-center mb-3">
+              <View>
+                <Text className="text-xs text-gray-300 mb-1">
+                  Deuda total activa
                 </Text>
+                <Text className="text-2xl font-semibold text-white">
+                  {formatCurrency(summary.totalDebt)}
+                </Text>
+              </View>
+              <View className="items-end">
+                <Text className="text-xs text-gray-300 mb-1">
+                  Pendiente por pagar
+                </Text>
+                  <Text className="text-lg font-semibold text-white">
+                  {formatCurrency(summary.totalRemaining)}
+                  </Text>
+              </View>
+            </View>
+
+            <View className="flex-row justify-between mt-1">
+              <View>
+                <Text className="text-[11px] text-gray-300">
+                  Cuota mensual estimada
+                </Text>
+                <Text className="text-sm font-medium text-gray-100">
+                  {formatCurrency(summary.totalMonthlyPayment)}
+                </Text>
+              </View>
+              <View className="items-end">
+                <Text className="text-[11px] text-gray-300">
+                  Deudas activas
+                </Text>
+                <Text className="text-sm font-medium text-gray-100">
+                  {summary.activeCount} / {summary.totalCount}
+                </Text>
+              </View>
             </View>
           </View>
 
-          <View className="flex-row justify-between mt-1">
-            <View>
-              <Text className="text-[11px] text-gray-300">
-                Cuota mensual estimada
-              </Text>
-              <Text className="text-sm font-medium text-gray-100">
-                {formatCurrency(summary.totalMonthlyPayment)}
+          {/* TARJETA SECUNDARIA: YO DEBO / ME DEBEN */}
+          <View className="flex-row mb-2">
+            <View
+              className="flex-1 mr-1.5 rounded-2xl p-3"
+              style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
+            >
+              <Text className="text-[11px] text-gray-500 mb-0.5">Yo debo</Text>
+              <Text className="text-sm font-semibold text-rose-600">
+                {formatCurrency(summary.iOwe)}
               </Text>
             </View>
-            <View className="items-end">
-              <Text className="text-[11px] text-gray-300">
-                Deudas activas
-              </Text>
-              <Text className="text-sm font-medium text-gray-100">
-                {summary.activeCount} / {summary.totalCount}
+            <View
+              className="flex-1 ml-1.5 rounded-2xl p-3"
+              style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
+            >
+              <Text className="text-[11px] text-gray-500 mb-0.5">Me deben</Text>
+              <Text className="text-sm font-semibold text-emerald-600">
+                {formatCurrency(summary.theyOwe)}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* TARJETA SECUNDARIA: YO DEBO / ME DEBEN */}
-        <View className="flex-row mb-2">
-          <View
-            className="flex-1 mr-1.5 rounded-2xl p-3"
-            style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
-          >
-            <Text className="text-[11px] text-gray-500 mb-0.5">Yo debo</Text>
-            <Text className="text-sm font-semibold text-rose-600">
-              {formatCurrency(summary.iOwe)}
-            </Text>
-          </View>
-          <View
-            className="flex-1 ml-1.5 rounded-2xl p-3"
-            style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
-          >
-            <Text className="text-[11px] text-gray-500 mb-0.5">Me deben</Text>
-            <Text className="text-sm font-semibold text-emerald-600">
-              {formatCurrency(summary.theyOwe)}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* FILTROS */}
-      <View className="px-5 mb-2">
-        <View className="flex-row rounded-2xl bg-slate-50 p-1">
-          {[
-            { key: "active" as FilterType, label: "Activas" },
-            { key: "paid" as FilterType, label: "Pagadas" },
-            { key: "all" as FilterType, label: "Todas" },
-          ].map((f) => {
-            const active = filter === f.key;
-            return (
-              <TouchableOpacity
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 14,
-                  backgroundColor: active ? "white" : "transparent",
-                  borderWidth: active ? 1 : 0,
-                  borderColor: active ? colors.primary : "transparent",
-                }}
-                activeOpacity={0.9}
-              >
-                <Text
+        {/* FILTROS */}
+        <View className="px-5 mb-2">
+          <View className="flex-row rounded-2xl bg-slate-50 p-1">
+            {[
+              { key: "active" as FilterType, label: "Activas" },
+              { key: "paid" as FilterType, label: "Pagadas" },
+              { key: "all" as FilterType, label: "Todas" },
+            ].map((f) => {
+              const active = filter === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
                   style={{
-                    textAlign: "center",
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: active ? colors.primary : "#6B7280",
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 14,
+                    backgroundColor: active ? "white" : "transparent",
+                    borderWidth: active ? 1 : 0,
+                    borderColor: active ? colors.primary : "transparent",
                   }}
+                  activeOpacity={0.9}
                 >
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={{
+                      textAlign: "center",
+                      fontSize: 12,
+                      fontWeight: "600",
+                      color: active ? colors.primary : "#6B7280",
+                    }}
+                  >
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </View>
 
-      {/* LISTA DE DEUDAS */}
-      <ScrollView
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.primary}
-            style={{ marginTop: 40 }}
-          />
-        ) : filteredDebts.length === 0 ? (
+        {/* LISTA DE DEUDAS */}
+        <ScrollView
+          className="flex-1 px-5"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+        {filteredDebts.length === 0 ? (
           <Text className="text-center text-gray-400 mb-4 text-sm">
             No hay deudas en este estado.
           </Text>
@@ -315,6 +315,8 @@ export default function DebtsHomeScreen({ navigation }: any) {
           </TouchableOpacity>
 
       </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }

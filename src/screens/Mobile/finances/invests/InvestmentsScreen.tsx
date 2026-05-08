@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   useWindowDimensions,
   Modal,
 } from "react-native";
@@ -15,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../../components/AppHeader";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
+import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/InvestmentsScreenSkeleton";
 
 import Svg, { G, Path, Circle } from "react-native-svg";
 
@@ -454,6 +454,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
+        {loading && <InvestmentsScreenSkeleton />}
+
+        {!loading && (
+        <>
+
         {/* HERO */}
         <View className="px-5 mb-4">
           <View
@@ -568,9 +573,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         )}
 
         <View className="px-5">
-          {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-          ) : assets.length === 0 ? (
+          {assets.length === 0 ? (
             <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
               <View
                 style={{
@@ -968,7 +971,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           </>
         )}
 
-        {timelineLoading ? <View style={{ height: 10 }} /> : null}
+        </>
+        )}
       </ScrollView>
 
       {/* ── Modal de acciones ── */}

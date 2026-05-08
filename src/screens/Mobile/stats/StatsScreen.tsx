@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   TouchableOpacity,
   Dimensions,
 } from "react-native";
@@ -15,6 +14,7 @@ import DateFilterModal from "../../../components/DateFilterModal";
 import PeriodChart from "../../../components/PeriodChart";
 import PieChartComponent from "../../../components/PieChart";
 import AdvancedStats from "../../../components/AdvancedStats";
+import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
 
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
@@ -385,50 +385,44 @@ export default function StatsScreen({ navigation }: any) {
           />
         </View>
 
-        {/* SELECTOR TIPO */}
-        <View className="flex-row mx-5 bg-gray-100 rounded-2xl p-1 mb-4">
-          {[
-            { key: "income", label: "Ingreso", color: "rgba(34,197,94,0.15)" },
-            { key: "expense", label: "Gasto", color: "rgba(239,68,68,0.15)" },
-          ].map((item) => {
-            const active = graphType === (item.key as GraphType);
-            return (
-              <TouchableOpacity
-                key={item.key}
-                onPress={() => setGraphType(item.key as GraphType)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 14,
-                  backgroundColor: active ? item.color : "transparent",
-                }}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontWeight: "600",
-                    color: active ? "black" : "gray",
-                  }}
-                >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         {/* LOADING */}
-        {loading && (
-          <ActivityIndicator
-            size="large"
-            color={colors.primary}
-            style={{ marginTop: 40 }}
-          />
-        )}
+        {loading && <StatsScreenSkeleton />}
 
         {/* CONTENIDO */}
         {!loading && bars && (
           <>
+            {/* SELECTOR TIPO */}
+            <View className="flex-row mx-5 bg-gray-100 rounded-2xl p-1 mb-4">
+              {[
+                { key: "income", label: "Ingreso", color: "rgba(34,197,94,0.15)" },
+                { key: "expense", label: "Gasto", color: "rgba(239,68,68,0.15)" },
+              ].map((item) => {
+                const active = graphType === (item.key as GraphType);
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    onPress={() => setGraphType(item.key as GraphType)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 14,
+                      backgroundColor: active ? item.color : "transparent",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "600",
+                        color: active ? "black" : "gray",
+                      }}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             {/* GRAPH: CARRUSEL DESLIZABLE (Barras / Circular) */}
             <View className="mx-5 mb-6">
               {/* Header del gráfico */}
