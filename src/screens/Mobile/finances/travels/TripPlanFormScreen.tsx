@@ -346,8 +346,10 @@ export default function TripPlanFormScreen({
   const getInitialTab = (): MainTab => {
     if (presetType === "flight" || presetType === "transport" || presetType === "taxi") return "transport";
     if (presetType === "accommodation") return "accommodation";
+    if (presetType === "expense") return "expense";
     if (planItem?.type === "flight" || planItem?.type === "transport_destination" || planItem?.type === "transport_local") return "transport";
     if (planItem?.type === "accommodation") return "accommodation";
+    if (planItem?.type === "expense") return "expense";
     return "activity";
   };
 
@@ -456,7 +458,9 @@ export default function TripPlanFormScreen({
     planItem?.cost ? String(planItem.cost).replace(".", ",") : ""
   );
   const [expCurrency, setExpCurrency] = useState("EUR");
-  const [expCategory, setExpCategory] = useState<BudgetCategoryType>(BudgetCategoryType.other);
+  const [expCategory, setExpCategory] = useState<BudgetCategoryType>(
+    (planItem?.expenseDetails?.category as BudgetCategoryType) ?? BudgetCategoryType.other
+  );
   const [expOccurredAt, setExpOccurredAt] = useState<Date | null>(
     planItem?.date ? new Date(planItem.date) : presetDay ? new Date(`${presetDay}T12:00`) : new Date()
   );
@@ -495,7 +499,7 @@ export default function TripPlanFormScreen({
       };
 
       if (isEdit) {
-        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
@@ -540,7 +544,7 @@ export default function TripPlanFormScreen({
       };
 
       if (isEdit) {
-        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
@@ -589,7 +593,7 @@ export default function TripPlanFormScreen({
       };
 
       if (isEdit) {
-        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
@@ -626,7 +630,7 @@ export default function TripPlanFormScreen({
       };
 
       if (isEdit) {
-        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
@@ -664,11 +668,11 @@ export default function TripPlanFormScreen({
         currency: expCurrency,
         date: expOccurredAt?.toISOString() || new Date().toISOString(),
         notes: expNotes || null,
-        expenseCategory: expCategory,
+        expenseDetails: { category: expCategory },
       };
 
       if (isEdit) {
-        await api.put(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
