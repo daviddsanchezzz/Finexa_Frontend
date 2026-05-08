@@ -9,8 +9,6 @@ import WalletSelectorModal from "../../../components/WalletSelectorModal";
 import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
-import { HealthScoreWidget } from "../../../components/HealthScoreWidget";
-import { computeHealthScore } from "../../../utils/healthScore";
 import { exportTransactionsCsv } from "../../../utils/csvExport";
 
 export default function HomeScreen({ navigation }: any) {
@@ -23,10 +21,6 @@ export default function HomeScreen({ navigation }: any) {
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
 
-  // Health score aux data
-  const [budgetsData, setBudgetsData] = useState<{ limit: number; spent: number }[]>([]);
-  const [debtsData, setDebtsData] = useState<{ totalAmount: number; remainingAmount: number }[]>([]);
-  const [hasInvestments, setHasInvestments] = useState(false);
 
   function isMonthlyReportBannerVisible(now = new Date()) {
     const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
@@ -70,42 +64,17 @@ export default function HomeScreen({ navigation }: any) {
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
 
-      const [txRes, budgetRes, debtRes, investRes] = await Promise.allSettled([
-        api.get("/transactions", { params }),
-        api.get("/budgets/overview", { params: { period: "monthly" } }),
-        api.get("/debts"),
-        api.get("/investments/summary"),
-      ]);
+      const res = await api.get("/transactions", { params });
 
-      if (txRes.status === "fulfilled") {
-        const filtered = txRes.value.data
-          .filter((tx: any) => tx.type !== "transfer")
-          .filter((tx: any) => tx.isRecurring === false)
-          .filter((tx: any) => tx.excludeFromStats !== true)
-          .sort(
-            (a: any, b: any) =>
-              new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
-        setTransactions(filtered);
-      }
-
-      if (budgetRes.status === "fulfilled") {
-        setBudgetsData(budgetRes.value.data?.budgets || []);
-      }
-
-      if (debtRes.status === "fulfilled") {
-        const activeDebts = (debtRes.value.data || []).filter(
-          (d: any) => d.status === "active"
+      const filtered = res.data
+        .filter((tx: any) => tx.type !== "transfer")
+        .filter((tx: any) => tx.isRecurring === false)
+        .filter((tx: any) => tx.excludeFromStats !== true)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
         );
-        setDebtsData(activeDebts);
-      }
-
-      if (investRes.status === "fulfilled") {
-        const summary = investRes.value.data;
-        setHasInvestments(
-          summary?.totalValue > 0 || summary?.assets?.length > 0
-        );
-      }
+      setTransactions(filtered);
     } catch (err) {
       console.error("❌ Error al obtener transacciones:", err);
     } finally {
@@ -130,15 +99,6 @@ export default function HomeScreen({ navigation }: any) {
   const totalExpense = transactions
     .filter((tx) => tx.type === "expense")
     .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
-
-  const healthScore = computeHealthScore({
-    totalIncome,
-    totalExpense,
-    budgets: budgetsData,
-    activeDebts: debtsData,
-    hasInvestments,
-    emergencyFundMonths: 0,
-  });
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -182,7 +142,7 @@ export default function HomeScreen({ navigation }: any) {
             </View>
 
             {/* Indicadores */}
-            <View className="flex-row justify-between mb-3">
+            <View className="flex-row justify-between mb-1">
               <View className="flex-1 items-center mr-2.5">
                 <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
                   INGRESOS
@@ -201,9 +161,6 @@ export default function HomeScreen({ navigation }: any) {
                 </Text>
               </View>
             </View>
-
-            {/* Health Score widget */}
-            <HealthScoreWidget result={healthScore} />
 
             {showMonthlyReportBanner && (
               <View className="mt-3">
