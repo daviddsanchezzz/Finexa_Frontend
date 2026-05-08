@@ -103,7 +103,7 @@ export default function ProfileScreen({ navigation }: any) {
               icon: "receipt-outline",
               navigate: "ReconcileAccounts",
             },
-            { label: "Seguridad", icon: "lock-closed-outline" },
+            { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
             { label: "Centro de ayuda", icon: "help-circle-outline" },
             { label: "Sobre Spendly", icon: "information-circle-outline" },
           ].map((item, idx) => (

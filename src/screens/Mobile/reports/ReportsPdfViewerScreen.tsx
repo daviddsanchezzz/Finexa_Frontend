@@ -6,6 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { storage } from "../../../utils/storage";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 
 // En web NO hay WebView. En iOS/Android sí.
 const WebViewNative = Platform.OS === "web" ? null : require("react-native-webview").WebView;
@@ -26,6 +28,30 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
   // Web: URL del blob para mostrar/abrir
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    if (!url || !token) return;
+    try {
+      setSharing(true);
+      const fileName = title.replace(/\s+/g, "_") + ".pdf";
+      const localUri = FileSystem.cacheDirectory + fileName;
+      const res = await FileSystem.downloadAsync(url, localUri, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status !== 200) throw new Error(`Error ${res.status}`);
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("Compartir no disponible", "Tu dispositivo no soporta esta función.");
+        return;
+      }
+      await Sharing.shareAsync(res.uri, { mimeType: "application/pdf", dialogTitle: title });
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "No se pudo descargar el informe");
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const url = useMemo(() => {
     const baseURL = (api as any)?.defaults?.baseURL;
@@ -110,7 +136,22 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         {title || "Informe"}
       </Text>
 
-      <View className="w-10 h-10" />
+      {Platform.OS !== "web" ? (
+        <TouchableOpacity
+          onPress={handleShare}
+          disabled={sharing}
+          activeOpacity={0.7}
+          className="w-10 h-10 rounded-full bg-white border border-gray-200 items-center justify-center"
+        >
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="share-outline" size={20} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+      ) : (
+        <View className="w-10 h-10" />
+      )}
     </View>
   );
 

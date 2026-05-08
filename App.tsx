@@ -1,17 +1,25 @@
 import "react-native-gesture-handler"; // 👈 OBLIGATORIO, siempre primero
 
-import React, { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Platform, AppState, AppStateStatus, View, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
+import { QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { colors } from "./src/theme/theme";
 import api from "./src/api/api";
 import { registerPushToken } from "./src/services/notificationService";
+import { queryClient } from "./src/lib/queryClient";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { ToastContainer } from "./src/components/ui/ToastContainer";
+import {
+  isBiometricEnabled,
+  authenticateWithBiometric,
+} from "./src/hooks/useBiometric";
 
 function AppContent() {
   const { user } = useAuth();
@@ -48,6 +56,30 @@ function AppContent() {
   return <AppNavigator />;
 }
 
+function BiometricGate({ children }: { children: React.ReactNode }) {
+  const [locked, setLocked] = useState(false);
+  const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const sub = AppState.addEventListener("change", async (next) => {
+      if (appState.current.match(/active/) && next === "background") {
+        const enabled = await isBiometricEnabled();
+        if (enabled) setLocked(true);
+      }
+      if (next === "active" && locked) {
+        const ok = await authenticateWithBiometric();
+        if (ok) setLocked(false);
+      }
+      appState.current = next;
+    });
+    return () => sub.remove();
+  }, [locked]);
+
+  if (locked) return <View style={StyleSheet.absoluteFill} />;
+  return <>{children}</>;
+}
+
 export default function App() {
   useEffect(() => {
     // ✅ Solo en web: mantener backend "caliente"
@@ -66,13 +98,20 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
-      <AuthProvider>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            <AppContent />
-          </NavigationContainer>
-        </SafeAreaProvider>
-      </AuthProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SafeAreaProvider>
+              <BiometricGate>
+                <NavigationContainer>
+                  <AppContent />
+                  <ToastContainer />
+                </NavigationContainer>
+              </BiometricGate>
+            </SafeAreaProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

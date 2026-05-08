@@ -14,6 +14,7 @@ import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
 import { BudgetsScreenSkeleton } from "../../../../components/skeletons/BudgetsScreenSkeleton";
+import { checkBudgetAlerts } from "../../../../utils/budgetAlerts";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -100,7 +101,8 @@ export default function BudgetsHomeScreen({ navigation }: any) {
           params: { period: periodType },
         });
 
-        setBudgets(res.data?.budgets || []);
+        const budgetList = res.data?.budgets || [];
+        setBudgets(budgetList);
         setSummary(
           res.data?.summary || {
             totalLimit: 0,
@@ -109,6 +111,7 @@ export default function BudgetsHomeScreen({ navigation }: any) {
             count: 0,
           }
         );
+        checkBudgetAlerts(budgetList).catch(() => {});
       } catch (e) {
         console.log("❌ Error cargando overview de budgets", e);
         setBudgets([]);

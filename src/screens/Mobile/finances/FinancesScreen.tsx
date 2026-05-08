@@ -98,16 +98,25 @@ const MODULES: FinanceModule[] = [
     softBg: "#F3E8FF",
   },
   {
-  key: "monthlyContributions",
-  title: "Aportaciones mensuales",
-  subtitle: "Planifica y controla cuánto aportas cada mes a tus objetivos e inversión.",
-  emoji: "🗓️",
-  iconName: "calendar-outline",
-  routeName: "MonthlyContributions",
-  accentColor: "#14B8A6",
-  softBg: "#E6FFFB",
-},
-
+    key: "monthlyContributions",
+    title: "Aportaciones mensuales",
+    subtitle: "Planifica y controla cuánto aportas cada mes a tus objetivos e inversión.",
+    emoji: "🗓️",
+    iconName: "calendar-outline",
+    routeName: "MonthlyContributions",
+    accentColor: "#14B8A6",
+    softBg: "#E6FFFB",
+  },
+  {
+    key: "netWorth",
+    title: "Patrimonio neto",
+    subtitle: "Visualiza activos, pasivos y tu riqueza neta en tiempo real.",
+    emoji: "🏦",
+    iconName: "analytics-outline",
+    routeName: "NetWorth",
+    accentColor: "#7C3AED",
+    softBg: "#EDE9FE",
+  },
 ];
 
 /* ===========================
