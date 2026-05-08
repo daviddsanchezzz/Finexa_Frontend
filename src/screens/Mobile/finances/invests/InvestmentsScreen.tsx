@@ -252,6 +252,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [legendOpen, setLegendOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [rentSelectedYear, setRentSelectedYear] = useState<number | null>(null);
   const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [donutMode, setDonutMode] = useState<"asset" | "type">("asset");
@@ -284,12 +285,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const fetchSnapshots = async () => {
     setSnapshotsLoading(true);
     try {
-      const to = new Date();
-      const from = new Date(to);
-      from.setMonth(from.getMonth() - 12);
-      const res = await api.get(
-        `/investments/snapshots?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
-      );
+      const res = await api.get("/investments/snapshots");
       const rows = (res.data || []) as any[];
       const mapped: PortfolioSnapshotRow[] = rows
         .map((r) => ({
@@ -303,6 +299,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         }))
         .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
       setSnapshots(mapped);
+      // Inicializar año seleccionado al año más reciente
+      if (mapped.length > 0) {
+        const latestYear = new Date(mapped[0].monthStart).getUTCFullYear();
+        setRentSelectedYear(latestYear);
+      }
     } catch {
       setSnapshots([]);
     } finally {
@@ -458,6 +459,46 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const exists = allocation.slices.some((s) => s.id === selectedSliceId);
     if (!exists) setSelectedSliceId(null);
   }, [allocation.slices, selectedSliceId]);
+
+  // Años únicos de los snapshots (orden asc)
+  const rentYears = useMemo(() => {
+    const set = new Set<number>();
+    snapshots.forEach((s) => set.add(new Date(s.monthStart).getUTCFullYear()));
+    return Array.from(set).sort();
+  }, [snapshots]);
+
+  // Meses del año seleccionado (orden cronológico)
+  const rentMonthRows = useMemo(() => {
+    if (rentSelectedYear === null) return [];
+    return [...snapshots]
+      .filter((s) => new Date(s.monthStart).getUTCFullYear() === rentSelectedYear)
+      .sort((a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime());
+  }, [snapshots, rentSelectedYear]);
+
+  // Agregado anual
+  const rentYearRows = useMemo(() => {
+    return rentYears.map((y) => {
+      const months = [...snapshots]
+        .filter((s) => new Date(s.monthStart).getUTCFullYear() === y)
+        .sort((a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime());
+      const first = months[0];
+      const last = months[months.length - 1];
+      const cashflowNet = months.reduce((s, r) => s + r.cashflowNet, 0);
+      const profit = months.reduce((s, r) => s + r.profit, 0);
+      const returnPct = first?.startValue != null && first.startValue > 0
+        ? profit / first.startValue
+        : null;
+      return {
+        year: y,
+        currency: first?.currency ?? "EUR",
+        startValue: first?.startValue ?? null,
+        endValue: last?.endValue ?? 0,
+        cashflowNet,
+        profit,
+        returnPct,
+      };
+    });
+  }, [snapshots, rentYears]);
 
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -931,137 +972,193 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* ── Rendimiento mensual ── */}
-        {snapshots.length > 0 && (
-          <>
-            <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
-              <Text style={{ fontSize: 13, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
-                Rendimiento mensual
-              </Text>
-            </View>
+        {/* ── Rentabilidad mensual (estilo AdvancedStats) ── */}
+        {snapshots.length > 0 && (() => {
+          const CM = 110; // mes/año
+          const CV = 112; // valores monetarios
+          const CP = 100; // porcentaje
+          const hStyle = { fontSize: 14, fontWeight: "600" as const, color: "#1F2937" };
+          const cStyle = { fontSize: 13, fontWeight: "500" as const, color: "#374151" };
+          const hBg = { backgroundColor: "rgba(0,0,0,0.04)", borderBottomWidth: 1 as const, borderColor: "#E5E7EB" } as const;
+          const rBorder = { borderBottomWidth: 1 as const, borderColor: "#F1F5F9" } as const;
 
-            <View
-              style={{
-                marginHorizontal: 20,
-                backgroundColor: "white",
-                borderRadius: 24,
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                overflow: "hidden",
-                marginBottom: 10,
-              }}
-            >
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
-                <View>
-                  {/* Cabecera */}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      backgroundColor: "rgba(15,23,42,0.04)",
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#E5E7EB",
-                    }}
-                  >
-                    {(
-                      [
-                        { label: "MES",       w: 82,  right: false },
-                        { label: "INICIO",    w: 108, right: true  },
-                        { label: "FIN",       w: 108, right: true  },
-                        { label: "CASHFLOW",  w: 104, right: true  },
-                        { label: "BENEFICIO", w: 104, right: true  },
-                        { label: "RENT. %",   w: 80,  right: true  },
-                      ] as { label: string; w: number; right: boolean }[]
-                    ).map((col) => (
-                      <View
-                        key={col.label}
-                        style={{
-                          width: col.w,
-                          paddingVertical: 10,
-                          paddingHorizontal: 10,
-                          alignItems: col.right ? "flex-end" : "flex-start",
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.4 }}>
-                          {col.label}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
+          const totalMonthCashflow = rentMonthRows.reduce((s, r) => s + r.cashflowNet, 0);
+          const totalMonthProfit   = rentMonthRows.reduce((s, r) => s + r.profit, 0);
+          const totalYearCashflow  = rentYearRows.reduce((s, r) => s + r.cashflowNet, 0);
+          const totalYearProfit    = rentYearRows.reduce((s, r) => s + r.profit, 0);
 
-                  {/* Filas */}
-                  {snapshots.map((row, idx) => {
-                    const profit   = Number(row.profit ?? 0);
-                    const cashflow = Number(row.cashflowNet ?? 0);
-                    const start    = row.startValue == null ? null : Number(row.startValue);
-                    const end      = Number(row.endValue ?? 0);
-                    const isLast   = idx === snapshots.length - 1;
+          return (
+            <>
+              {/* ── Resumen año ── */}
+              <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A" }}>
+                  Rentabilidad {rentSelectedYear}
+                </Text>
+              </View>
 
+              {/* Selector de año */}
+              {rentYears.length > 1 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 10 }}
+                >
+                  {rentYears.map((y) => {
+                    const active = rentSelectedYear === y;
                     return (
-                      <View
-                        key={row.monthStart}
+                      <TouchableOpacity
+                        key={y}
+                        onPress={() => setRentSelectedYear(y)}
                         style={{
-                          flexDirection: "row",
-                          backgroundColor: idx % 2 === 0 ? "white" : "#FAFAFA",
-                          borderBottomWidth: isLast ? 0 : 1,
-                          borderBottomColor: "#F1F5F9",
+                          paddingHorizontal: 14, paddingVertical: 6,
+                          borderRadius: 999,
+                          backgroundColor: active ? colors.primary : "white",
+                          borderWidth: 1,
+                          borderColor: active ? colors.primary : "#E5E7EB",
                         }}
                       >
-                        {/* MES */}
-                        <View style={{ width: 82, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }}>
-                            {formatMonthYear(row.monthStart)}
-                          </Text>
-                        </View>
-
-                        {/* INICIO */}
-                        <View style={{ width: 108, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
-                            {start == null ? "—" : formatMoney(start, row.currency)}
-                          </Text>
-                        </View>
-
-                        {/* FIN */}
-                        <View style={{ width: 108, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
-                            {formatMoney(end, row.currency)}
-                          </Text>
-                        </View>
-
-                        {/* CASHFLOW */}
-                        <View style={{ width: 104, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(cashflow) }} numberOfLines={1}>
-                            {cashflow >= 0 ? "+" : ""}{formatMoney(cashflow, row.currency)}
-                          </Text>
-                        </View>
-
-                        {/* BENEFICIO */}
-                        <View style={{ width: 104, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "700", color: toneColor(profit) }} numberOfLines={1}>
-                            {profit >= 0 ? "+" : ""}{formatMoney(profit, row.currency)}
-                          </Text>
-                        </View>
-
-                        {/* RENT. % */}
-                        <View style={{ width: 80, paddingVertical: 12, paddingHorizontal: 10, justifyContent: "center", alignItems: "flex-end" }}>
-                          <View
-                            style={{
-                              paddingHorizontal: 7, paddingVertical: 3,
-                              borderRadius: 999, backgroundColor: toneBg(profit),
-                            }}
-                          >
-                            <Text style={{ fontSize: 11, fontWeight: "900", color: toneColor(profit) }}>
-                              {formatPctRatio(row.returnPct)}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: active ? "white" : "#374151" }}>
+                          {y}
+                        </Text>
+                      </TouchableOpacity>
                     );
                   })}
+                </ScrollView>
+              )}
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+              >
+                <View>
+                  {/* Header */}
+                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg }}>
+                    <Text style={{ ...hStyle, width: CM }}>Mes</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
+                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+                  </View>
+
+                  {/* Filas mensuales */}
+                  {rentMonthRows.map((row, idx) => (
+                    <View
+                      key={row.monthStart}
+                      style={{
+                        flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8,
+                        ...(idx < rentMonthRows.length - 1 ? rBorder : {}),
+                      }}
+                    >
+                      <Text style={{ ...cStyle, width: CM }}>{formatMonthYear(row.monthStart)}</Text>
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                        {row.startValue == null ? "—" : formatMoney(row.startValue, row.currency)}
+                      </Text>
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                        {formatMoney(row.endValue, row.currency)}
+                      </Text>
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
+                        {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
+                      </Text>
+                      <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
+                        {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
+                      </Text>
+                      <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
+                        {formatPctRatio(row.returnPct)}
+                      </Text>
+                    </View>
+                  ))}
+
+                  {/* Total año */}
+                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
+                    <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
+                      {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
+                    </Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthProfit) }}>
+                      {totalMonthProfit >= 0 ? "+" : ""}{formatMoney(totalMonthProfit)}
+                    </Text>
+                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>—</Text>
+                  </View>
                 </View>
               </ScrollView>
-            </View>
-          </>
-        )}
+
+              {/* ── Resumen global ── */}
+              <View style={{ paddingHorizontal: 20, marginTop: 28, marginBottom: 8 }}>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A" }}>
+                  Rentabilidad global
+                </Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+              >
+                <View>
+                  {/* Header */}
+                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg }}>
+                    <Text style={{ ...hStyle, width: CM }}>Año</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
+                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+                  </View>
+
+                  {/* Filas anuales */}
+                  {rentYearRows.map((row, idx) => (
+                    <TouchableOpacity
+                      key={row.year}
+                      onPress={() => setRentSelectedYear(row.year)}
+                      style={{
+                        flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8,
+                        backgroundColor: rentSelectedYear === row.year ? "rgba(59,130,246,0.05)" : "transparent",
+                        ...(idx < rentYearRows.length - 1 ? rBorder : {}),
+                      }}
+                    >
+                      <Text style={{ ...cStyle, width: CM, fontWeight: rentSelectedYear === row.year ? "700" : "500" }}>
+                        {row.year}
+                      </Text>
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                        {row.startValue == null ? "—" : formatMoney(row.startValue, row.currency)}
+                      </Text>
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                        {formatMoney(row.endValue, row.currency)}
+                      </Text>
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
+                        {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
+                      </Text>
+                      <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
+                        {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
+                      </Text>
+                      <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
+                        {formatPctRatio(row.returnPct)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+
+                  {/* Total global */}
+                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
+                    <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
+                      {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
+                    </Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearProfit) }}>
+                      {totalYearProfit >= 0 ? "+" : ""}{formatMoney(totalYearProfit)}
+                    </Text>
+                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>—</Text>
+                  </View>
+                </View>
+              </ScrollView>
+            </>
+          );
+        })()}
 
         </>
         )}

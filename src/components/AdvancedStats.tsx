@@ -257,9 +257,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
 
         // Profit de inversiones del snapshot mensual (null si no existe todavía)
         const investmentProfit: number | null =
-          isFinishedMonth && snapshots[`${y}-${m}`] != null
-            ? snapshots[`${y}-${m}`]
-            : null;
+          isFinishedMonth ? (snapshots[`${y}-${m}`] ?? null) : null;
 
         let finalAmount = 0;
 
