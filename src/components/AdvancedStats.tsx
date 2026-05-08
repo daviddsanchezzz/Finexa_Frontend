@@ -34,6 +34,7 @@ interface MonthSummary {
   income: number;
   expense: number;
   saving: number;
+  investment: number | null; // profit del PortfolioSnapshot; null = sin snapshot
   finalAmount: number;
 }
 
@@ -42,6 +43,7 @@ interface YearSummary {
   income: number;
   expense: number;
   saving: number;
+  investment: number;
   finalAmount: number;
 }
 
@@ -63,6 +65,8 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
     Record<number, Record<number, { income?: number; expense?: number; finalBalance?: number }>>
   >({});
   const [loading, setLoading] = useState(true);
+  // key: "YYYY-M" (M = 0–11 UTC), value: profit en € del PortfolioSnapshot
+  const [snapshots, setSnapshots] = useState<Record<string, number>>({});
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -115,9 +119,10 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
     try {
       setLoading(true);
 
-      const [txRes, manualRes] = await Promise.all([
+      const [txRes, manualRes, snapRes] = await Promise.all([
         api.get("/transactions"),
         api.get("/manual-month"),
+        api.get("/investments/snapshots"),
       ]);
 
       const filtered = filterForStats(txRes.data || [])
@@ -136,6 +141,15 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
         };
       });
       setManualData(map);
+
+      // Mapear snapshots de inversión: "YYYY-M" → profit en €
+      const snapMap: Record<string, number> = {};
+      (snapRes.data || []).forEach((s: any) => {
+        if (s.profit == null) return;
+        const d = new Date(s.monthStart);
+        snapMap[`${d.getUTCFullYear()}-${d.getUTCMonth()}`] = Number(s.profit);
+      });
+      setSnapshots(snapMap);
     } catch (error) {
       console.log("❌ Error cargando datos:", error);
     } finally {
@@ -198,7 +212,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
     }
 
     const monthsByYear: Record<number, MonthSummary[]> = {};
-    const yearAgg: Record<number, { income: number; expense: number; saving: number; finalAmount: number }> = {};
+    const yearAgg: Record<number, { income: number; expense: number; saving: number; investment: number; finalAmount: number }> = {};
 
     // Saldo global propagado mes a mes
     let globalRunningBalance = initialBalance;
@@ -211,6 +225,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
 
       let yearIncome = 0;
       let yearExpense = 0;
+      let yearInvestment = 0;
       let lastFinishedFinalAmount: number | null = null;
 
       const monthsArr: MonthSummary[] = new Array(12).fill(null).map((_, m) => {
@@ -240,17 +255,24 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
 
         const saving = income - expense;
 
+        // Profit de inversiones del snapshot mensual (null si no existe todavía)
+        const investmentProfit: number | null =
+          isFinishedMonth && snapshots[`${y}-${m}`] != null
+            ? snapshots[`${y}-${m}`]
+            : null;
+
         let finalAmount = 0;
 
         if (isFinishedMonth) {
           yearIncome += income;
           yearExpense += expense;
+          if (investmentProfit !== null) yearInvestment += investmentProfit;
 
-          // Manual finalBalance manda; si no, balance previo + ahorro
+          // Manual finalBalance manda; si no, balance previo + ahorro + inversión
           if (override?.finalBalance !== undefined && override?.finalBalance !== null) {
             globalRunningBalance = override.finalBalance;
           } else {
-            globalRunningBalance = globalRunningBalance + saving;
+            globalRunningBalance = globalRunningBalance + saving + (investmentProfit ?? 0);
           }
 
           finalAmount = globalRunningBalance;
@@ -265,6 +287,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
           income,
           expense,
           saving,
+          investment: isFinishedMonth ? investmentProfit : null,
           finalAmount,
         };
       });
@@ -277,6 +300,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
         income: yearIncome,
         expense: yearExpense,
         saving: yearSaving,
+        investment: yearInvestment,
         finalAmount: yearFinalAmount,
       };
     });
@@ -286,22 +310,23 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
       const fullYearFinished = y < currentYear;
 
       if (!fullYearFinished) {
-        return { year: y, income: 0, expense: 0, saving: 0, finalAmount: 0 };
+        return { year: y, income: 0, expense: 0, saving: 0, investment: 0, finalAmount: 0 };
       }
 
-      const agg = yearAgg[y] ?? { income: 0, expense: 0, saving: 0, finalAmount: 0 };
+      const agg = yearAgg[y] ?? { income: 0, expense: 0, saving: 0, investment: 0, finalAmount: 0 };
 
       return {
         year: y,
         income: agg.income,
         expense: agg.expense,
         saving: agg.saving,
+        investment: agg.investment,
         finalAmount: agg.finalAmount,
       };
     });
 
     return { monthsByYear, globalSummaryList };
-  }, [transactions, manualData, initialBalance, currentYear, currentMonth]);
+  }, [transactions, manualData, snapshots, initialBalance, currentYear, currentMonth]);
 
   useEffect(() => {
     if (!hasInitializedYear && globalSummaryList.length > 0) {
@@ -326,6 +351,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
   const totalYearIncome = finishedMonths.reduce((s, m) => s + m.income, 0);
   const totalYearExpense = finishedMonths.reduce((s, m) => s + m.expense, 0);
   const totalYearSaving = finishedMonths.reduce((s, m) => s + m.saving, 0);
+  const totalYearInvestment = finishedMonths.reduce((s, m) => s + (m.investment ?? 0), 0);
   const totalYearFinal =
     finishedMonths.length > 0 ? finishedMonths[finishedMonths.length - 1].finalAmount : 0;
 
@@ -334,6 +360,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
   const totalGlobalIncome = finishedYears.reduce((s, y) => s + y.income, 0);
   const totalGlobalExpense = finishedYears.reduce((s, y) => s + y.expense, 0);
   const totalGlobalSaving = finishedYears.reduce((s, y) => s + y.saving, 0);
+  const totalGlobalInvestment = finishedYears.reduce((s, y) => s + y.investment, 0);
   const totalGlobalFinal =
     finishedYears.length > 0 ? finishedYears[finishedYears.length - 1].finalAmount : 0;
 
@@ -465,6 +492,9 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
             <Text style={{ width: COL, textAlign: "center" }} className={headerText}>
               Ahorro
             </Text>
+            <Text style={{ width: COL, textAlign: "center" }} className={headerText}>
+              Inversión
+            </Text>
             <Text style={{ width: COL_FINAL, textAlign: "center" }} className={headerText}>
               Saldo final
             </Text>
@@ -521,6 +551,19 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
                 </Text>
 
                 <Text
+                  style={{ width: COL, textAlign: "center" }}
+                  className={`font-semibold ${
+                    !finished || m.investment === null
+                      ? "text-gray-400"
+                      : m.investment >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {finished ? (m.investment !== null ? formatEuro(m.investment) : "—") : "–"}
+                </Text>
+
+                <Text
                   style={{ width: COL_FINAL, textAlign: "center" }}
                   className="font-semibold text-gray-800"
                 >
@@ -556,6 +599,13 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
               className={`font-bold ${totalYearSaving >= 0 ? "text-green-600" : "text-red-600"}`}
             >
               {formatEuro(totalYearSaving)}
+            </Text>
+
+            <Text
+              style={{ width: COL, textAlign: "center" }}
+              className={`font-bold ${totalYearInvestment >= 0 ? "text-green-600" : "text-red-600"}`}
+            >
+              {formatEuro(totalYearInvestment)}
             </Text>
 
             <Text style={{ width: COL_FINAL, textAlign: "center" }} className="font-bold text-gray-900">
@@ -598,6 +648,9 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
             </Text>
             <Text style={{ width: COL, textAlign: "center" }} className={headerText}>
               Ahorro
+            </Text>
+            <Text style={{ width: COL, textAlign: "center" }} className={headerText}>
+              Inversión
             </Text>
             <Text style={{ width: COL_FINAL, textAlign: "center" }} className={headerText}>
               Saldo final
@@ -649,6 +702,19 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
                 </Text>
 
                 <Text
+                  style={{ width: COL, textAlign: "center" }}
+                  className={`font-semibold ${
+                    !finished
+                      ? "text-gray-400"
+                      : y.investment >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {finished ? formatEuro(y.investment) : "–"}
+                </Text>
+
+                <Text
                   style={{ width: COL_FINAL, textAlign: "center" }}
                   className="font-semibold text-gray-800"
                 >
@@ -684,6 +750,13 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
               className={`font-bold ${totalGlobalSaving >= 0 ? "text-green-600" : "text-red-600"}`}
             >
               {formatEuro(totalGlobalSaving)}
+            </Text>
+
+            <Text
+              style={{ width: COL, textAlign: "center" }}
+              className={`font-bold ${totalGlobalInvestment >= 0 ? "text-green-600" : "text-red-600"}`}
+            >
+              {formatEuro(totalGlobalInvestment)}
             </Text>
 
             <Text style={{ width: COL_FINAL, textAlign: "center" }} className="font-bold text-gray-900">
