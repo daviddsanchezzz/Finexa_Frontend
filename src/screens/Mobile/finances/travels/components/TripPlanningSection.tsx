@@ -1,6 +1,6 @@
 // src/screens/Trips/components/TripPlanningSection.redesign.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Pressable, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Linking, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
@@ -36,17 +36,25 @@ export interface TripPlanItem {
   id: number;
   type: TripPlanItemType;
   title: string;
-  day?: string | null; // YYYY-MM-DD o ISO
-  date?: string | null; // ISO
-  startAt?: string | null; // ISO o "HH:MM"
+  day?: string | null;
+  date?: string | null;
+  startAt?: string | null;
   endAt?: string | null;
-  startTime?: string | null; // ISO
+  startTime?: string | null;
   endTime?: string | null;
   location?: string | null;
   notes?: string | null;
   transactionId?: number | null;
   cost?: number | null;
   logistics?: boolean | null;
+  flightDetails?: {
+    flightNumber?: string | null;
+    airlineName?: string | null;
+    fromIata?: string | null;
+    toIata?: string | null;
+    depAt?: string | null;
+    arrAt?: string | null;
+  } | null;
 }
 
 type TripLike = { startDate?: string | null; endDate?: string | null };
@@ -493,7 +501,37 @@ function ActivityCard({
           {item.title}
         </Text>
 
-        {!!(item.location || item.notes) && (
+        {/* Flight details inline */}
+        {item.type === "flight" && item.flightDetails && (() => {
+          const fd = item.flightDetails;
+          const route = fd.fromIata && fd.toIata ? `${fd.fromIata} → ${fd.toIata}` : null;
+          const airline = fd.airlineName || null;
+          const flightNum = fd.flightNumber || null;
+          const subline = [airline, route].filter(Boolean).join(" · ");
+          return (
+            <View>
+              {!!subline && (
+                <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: UI.muted2 }} numberOfLines={1}>
+                  {subline}
+                </Text>
+              )}
+              {!!flightNum && (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(`https://www.flightradar24.com/${flightNum.replace(/\s/g, "")}`)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4, alignSelf: "flex-start" }}
+                  activeOpacity={0.75}
+                >
+                  <View style={{ backgroundColor: "rgba(37,99,235,0.10)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="radio-outline" size={10} color="#2563EB" />
+                    <Text style={{ fontSize: 10, fontWeight: "800", color: "#2563EB" }}>{flightNum} · Ver estado</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })()}
+
+        {item.type !== "flight" && !!(item.location || item.notes) && (
           <Text
             style={{ marginTop: 3, fontSize: 11, fontWeight: "700", color: UI.muted2 }}
             numberOfLines={2}

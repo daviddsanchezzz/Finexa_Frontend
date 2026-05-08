@@ -12,11 +12,15 @@ const UI = {
 
 export type TaskStatus = "to_do" | "done";
 
+export type TaskPriority = "low" | "medium" | "high";
+
 export type TripTask = {
   id: number;
   tripId: number;
   title: string;
   status: TaskStatus;
+  priority?: TaskPriority | null;
+  dueDate?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -38,10 +42,11 @@ type Props = {
   tasks: TripTask[];
   notes: TripNote[];
 
-  onCreateTask?: (title: string) => Promise<void> | void;
+  onCreateTask?: (title: string, priority?: TaskPriority | null, dueDate?: string | null) => Promise<void> | void;
   onToggleTask?: (taskId: number, next: TaskStatus) => Promise<void> | void;
   onDeleteTask?: (taskId: number) => Promise<void> | void;
   onEditTaskTitle?: (taskId: number, title: string) => Promise<void> | void;
+  onUpdateTask?: (taskId: number, patch: { title?: string; priority?: TaskPriority | null; dueDate?: string | null }) => Promise<void> | void;
 
   onCreateNote?: (note: { title?: string | null; body: string; pinned?: boolean }) => Promise<TripNote | void> | void;
   onUpdateNote?: (noteId: number, patch: Partial<Pick<TripNote, "title" | "body" | "pinned">>) => Promise<void> | void;
@@ -142,6 +147,27 @@ function IconButton({
   );
 }
 
+const PRIORITY_META: Record<TaskPriority, { label: string; color: string; dot: string }> = {
+  high: { label: "Alta", color: "#EF4444", dot: "#EF4444" },
+  medium: { label: "Media", color: "#F59E0B", dot: "#F59E0B" },
+  low: { label: "Baja", color: "#22C55E", dot: "#22C55E" },
+};
+
+function fmtDueDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return { label: "Vencida", color: "#EF4444" };
+  if (diff === 0) return { label: "Hoy", color: "#F59E0B" };
+  if (diff === 1) return { label: "Mañana", color: "#F59E0B" };
+  return { label: d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }), color: "#64748B" };
+}
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
 /** ========= TasksPanel ========= */
 function TasksPanel({
   px,
@@ -150,24 +176,35 @@ function TasksPanel({
   onCreateTask,
   onToggleTask,
   onDeleteTask,
-  onEditTaskTitle,
+  onUpdateTask,
 }: {
   px: (n: number) => number;
   fs: (n: number) => number;
   tasks: TripTask[];
-  onCreateTask?: (title: string) => Promise<void> | void;
+  onCreateTask?: (title: string, priority?: TaskPriority | null, dueDate?: string | null) => Promise<void> | void;
   onToggleTask?: (taskId: number, next: TaskStatus) => Promise<void> | void;
   onDeleteTask?: (taskId: number) => Promise<void> | void;
-  onEditTaskTitle?: (taskId: number, title: string) => Promise<void> | void;
+  onUpdateTask?: (taskId: number, patch: { title?: string; priority?: TaskPriority | null; dueDate?: string | null }) => Promise<void> | void;
 }) {
   const [filter, setFilter] = useState<"all" | "to_do" | "done">("to_do");
   const [draft, setDraft] = useState("");
+  const [draftPriority, setDraftPriority] = useState<TaskPriority | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [editingPriority, setEditingPriority] = useState<TaskPriority | null>(null);
 
   const filtered = useMemo(() => {
-    const base = tasks.slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    const base = tasks.slice().sort((a, b) => {
+      // pending first, then by priority, then by dueDate
+      if (a.status !== b.status) return a.status === "to_do" ? -1 : 1;
+      const pa = a.priority ? PRIORITY_ORDER[a.priority] ?? 9 : 9;
+      const pb = b.priority ? PRIORITY_ORDER[b.priority] ?? 9 : 9;
+      if (pa !== pb) return pa - pb;
+      const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      return da - db;
+    });
     if (filter === "all") return base;
     return base.filter((t) => t.status === filter);
   }, [tasks, filter]);
@@ -176,27 +213,27 @@ function TasksPanel({
     const t = draft.trim();
     if (!t) return;
     setDraft("");
-    await onCreateTask?.(t);
+    const p = draftPriority;
+    setDraftPriority(null);
+    await onCreateTask?.(t, p, null);
   }
 
   function startEdit(t: TripTask) {
     setEditingId(t.id);
     setEditingTitle(t.title);
+    setEditingPriority(t.priority ?? null);
   }
   function cancelEdit() {
     setEditingId(null);
     setEditingTitle("");
+    setEditingPriority(null);
   }
 
   async function saveEdit(task: TripTask) {
-    const next = editingTitle.trim();
-    if (!next) return;
-    if (next === task.title.trim()) {
-      cancelEdit();
-      return;
-    }
+    const nextTitle = editingTitle.trim();
+    if (!nextTitle) return;
     cancelEdit();
-    await onEditTaskTitle?.(task.id, next);
+    await onUpdateTask?.(task.id, { title: nextTitle, priority: editingPriority });
   }
 
   return (
@@ -270,33 +307,78 @@ function TasksPanel({
                   {/* text / edit */}
                   <View style={{ flex: 1, minWidth: 0 }}>
                     {isEditing ? (
-                      <TextInput
-                        value={editingTitle}
-                        onChangeText={setEditingTitle}
-                        autoFocus
-                        onSubmitEditing={() => saveEdit(t)}
-                        style={{
-                          fontSize: fs(14),
-                          fontWeight: "750" as any,
-                          color: UI.text,
-                          paddingVertical: px(2),
-                          outlineStyle: "none" as any,
-                        }}
-                        placeholder="Título…"
-                        placeholderTextColor={UI.muted2}
-                      />
+                      <>
+                        <TextInput
+                          value={editingTitle}
+                          onChangeText={setEditingTitle}
+                          autoFocus
+                          onSubmitEditing={() => saveEdit(t)}
+                          style={{
+                            fontSize: fs(14),
+                            fontWeight: "750" as any,
+                            color: UI.text,
+                            paddingVertical: px(2),
+                            outlineStyle: "none" as any,
+                          }}
+                          placeholder="Título…"
+                          placeholderTextColor={UI.muted2}
+                        />
+                        {/* priority selector while editing */}
+                        <View style={{ flexDirection: "row", gap: px(4), marginTop: px(4) }}>
+                          {(["high", "medium", "low"] as TaskPriority[]).map((p) => {
+                            const meta = PRIORITY_META[p];
+                            const active = editingPriority === p;
+                            return (
+                              <Pressable
+                                key={p}
+                                onPress={(e) => { e?.stopPropagation?.(); setEditingPriority(active ? null : p); }}
+                                style={{ flexDirection: "row", alignItems: "center", gap: px(3), paddingHorizontal: px(7), paddingVertical: px(3), borderRadius: px(8), backgroundColor: active ? meta.color + "20" : "rgba(148,163,184,0.12)", borderWidth: 1, borderColor: active ? meta.color + "50" : "transparent" }}
+                              >
+                                <View style={{ width: px(6), height: px(6), borderRadius: 99, backgroundColor: meta.dot }} />
+                                <Text style={{ fontSize: fs(10), fontWeight: "700", color: active ? meta.color : UI.muted }}>{meta.label}</Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </>
                     ) : (
-                      <Text
-                        style={{
-                          fontSize: fs(14),
-                          fontWeight: "700",
-                          color: done ? UI.muted : UI.text,
-                          textDecorationLine: done ? "line-through" : "none",
-                        }}
-                        numberOfLines={1}
-                      >
-                        {t.title}
-                      </Text>
+                      <>
+                        <Text
+                          style={{
+                            fontSize: fs(14),
+                            fontWeight: "700",
+                            color: done ? UI.muted : UI.text,
+                            textDecorationLine: done ? "line-through" : "none",
+                          }}
+                          numberOfLines={1}
+                        >
+                          {t.title}
+                        </Text>
+                        {/* priority + dueDate badges */}
+                        {(t.priority || t.dueDate) && !done ? (
+                          <View style={{ flexDirection: "row", gap: px(5), marginTop: px(3) }}>
+                            {t.priority && (() => {
+                              const meta = PRIORITY_META[t.priority];
+                              return (
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: px(3) }}>
+                                  <View style={{ width: px(6), height: px(6), borderRadius: 99, backgroundColor: meta.dot }} />
+                                  <Text style={{ fontSize: fs(10), fontWeight: "700", color: meta.color }}>{meta.label}</Text>
+                                </View>
+                              );
+                            })()}
+                            {t.dueDate && (() => {
+                              const due = fmtDueDate(t.dueDate);
+                              if (!due) return null;
+                              return (
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: px(3) }}>
+                                  <Ionicons name="calendar-outline" size={px(10)} color={due.color} />
+                                  <Text style={{ fontSize: fs(10), fontWeight: "700", color: due.color }}>{due.label}</Text>
+                                </View>
+                              );
+                            })()}
+                          </View>
+                        ) : null}
+                      </>
                     )}
                   </View>
 
@@ -369,6 +451,23 @@ function TasksPanel({
 
         {/* Add input row */}
         <View style={{ borderTopWidth: 1, borderTopColor: "rgba(226,232,240,0.85)", padding: px(14) }}>
+          {/* priority quick-select for new task */}
+          <View style={{ flexDirection: "row", gap: px(5), marginBottom: px(8) }}>
+            {(["high", "medium", "low"] as TaskPriority[]).map((p) => {
+              const meta = PRIORITY_META[p];
+              const active = draftPriority === p;
+              return (
+                <Pressable
+                  key={p}
+                  onPress={() => setDraftPriority(active ? null : p)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: px(4), paddingHorizontal: px(9), paddingVertical: px(4), borderRadius: px(9), backgroundColor: active ? meta.color + "18" : "rgba(148,163,184,0.10)", borderWidth: 1, borderColor: active ? meta.color + "45" : "transparent" }}
+                >
+                  <View style={{ width: px(7), height: px(7), borderRadius: 99, backgroundColor: meta.dot }} />
+                  <Text style={{ fontSize: fs(11), fontWeight: "700", color: active ? meta.color : UI.muted }}>{meta.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <View
             style={{
               flexDirection: "row",
@@ -808,7 +907,7 @@ export default function TripExpenseSummarySection({
   onCreateTask,
   onToggleTask,
   onDeleteTask,
-  onEditTaskTitle,
+  onUpdateTask,
   onCreateNote,
   onUpdateNote,
   onDeleteNote,
@@ -822,7 +921,7 @@ export default function TripExpenseSummarySection({
         onCreateTask={onCreateTask}
         onToggleTask={onToggleTask}
         onDeleteTask={onDeleteTask}
-        onEditTaskTitle={onEditTaskTitle}
+        onUpdateTask={onUpdateTask}
       />
 
       <NotesPanel

@@ -1,5 +1,5 @@
 // src/screens/Mobile/finances/travels/TripPlanFormScreen.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  Modal,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../../../api/api";
 import { TripPlanItemType, BudgetCategoryType, RoomType, BathroomType } from "../../../../types/enums/travel";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
+import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
 
 // ==================== TYPES ====================
 
@@ -457,7 +460,7 @@ export default function TripPlanFormScreen({
   const [expAmountStr, setExpAmountStr] = useState(
     planItem?.cost ? String(planItem.cost).replace(".", ",") : ""
   );
-  const [expCurrency, setExpCurrency] = useState("EUR");
+  const [expCurrency, setExpCurrency] = useState(planItem?.currency || "EUR");
   const [expCategory, setExpCategory] = useState<BudgetCategoryType>(
     (planItem?.expenseDetails?.category as BudgetCategoryType) ?? BudgetCategoryType.other
   );
@@ -465,6 +468,17 @@ export default function TripPlanFormScreen({
     planItem?.date ? new Date(planItem.date) : presetDay ? new Date(`${presetDay}T12:00`) : new Date()
   );
   const [expNotes, setExpNotes] = useState(planItem?.notes || "");
+  const [expEurPreview, setExpEurPreview] = useState<number | null>(null);
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
+
+  // EUR preview for foreign-currency expenses
+  useEffect(() => {
+    const amount = parseCost(expAmountStr);
+    if (!amount || expCurrency === "EUR") { setExpEurPreview(null); return; }
+    let cancelled = false;
+    toEur(amount, expCurrency).then((v) => { if (!cancelled) setExpEurPreview(v); });
+    return () => { cancelled = true; };
+  }, [expAmountStr, expCurrency]);
 
   // ==================== COMMON STATE ====================
 
@@ -1205,23 +1219,49 @@ export default function TripPlanFormScreen({
             />
 
             <Row2>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 2 }}>
                 <Field
                   label="IMPORTE *"
                   value={expAmountStr}
                   onChange={setExpAmountStr}
                   placeholder="0,00"
+                  keyboardType="decimal-pad"
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Field
-                  label="MONEDA"
-                  value={expCurrency}
-                  onChange={setExpCurrency}
-                  placeholder="EUR"
-                />
+                <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6 }}>
+                  MONEDA
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setCurrencyModalOpen(true)}
+                  style={{
+                    height: 44,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: UI.border,
+                    backgroundColor: "white",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingHorizontal: 12,
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: UI.text }}>{expCurrency}</Text>
+                  <Ionicons name="chevron-down" size={14} color={UI.muted} />
+                </TouchableOpacity>
               </View>
             </Row2>
+
+            {/* EUR preview when foreign currency */}
+            {expCurrency !== "EUR" && expEurPreview !== null && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: -6, marginBottom: 12 }}>
+                <Ionicons name="swap-horizontal-outline" size={13} color={UI.muted} />
+                <Text style={{ fontSize: 12, color: UI.muted, fontWeight: "600" }}>
+                  ≈ {expEurPreview.toFixed(2).replace(".", ",")} €
+                </Text>
+              </View>
+            )}
 
             {/* Category */}
             <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 10 }}>
@@ -1303,6 +1343,40 @@ export default function TripPlanFormScreen({
           onPress={handleSave}
         />
       </View>
+
+      {/* CURRENCY PICKER MODAL */}
+      <Modal visible={currencyModalOpen} transparent animationType="slide" onRequestClose={() => setCurrencyModalOpen(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)" }} activeOpacity={1} onPress={() => setCurrencyModalOpen(false)} />
+        <View style={{ backgroundColor: "white", borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "70%", position: "absolute", bottom: 0, left: 0, right: 0 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: UI.border }}>
+            <Text style={{ fontSize: 16, fontWeight: "800", color: UI.text }}>Seleccionar moneda</Text>
+            <TouchableOpacity onPress={() => setCurrencyModalOpen(false)}>
+              <Ionicons name="close" size={22} color={UI.muted} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={COMMON_CURRENCIES}
+            keyExtractor={(item) => item.code}
+            renderItem={({ item }) => {
+              const active = expCurrency === item.code;
+              return (
+                <TouchableOpacity
+                  onPress={() => { setExpCurrency(item.code); setCurrencyModalOpen(false); }}
+                  style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, backgroundColor: active ? "rgba(11,18,32,0.05)" : "white" }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: UI.text, width: 52 }}>{item.symbol}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "700", color: UI.text }}>{item.code}</Text>
+                    <Text style={{ fontSize: 12, color: UI.muted }}>{item.label}</Text>
+                  </View>
+                  {active && <Ionicons name="checkmark" size={18} color={UI.text} />}
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

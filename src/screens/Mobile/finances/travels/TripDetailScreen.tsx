@@ -69,11 +69,15 @@ export interface TripPlanItem {
 
 export type TaskStatus = "to_do" | "done";
 
+export type TaskPriority = "low" | "medium" | "high";
+
 export type TripTask = {
   id: number;
   tripId: number;
   title: string;
   status: TaskStatus;
+  priority?: TaskPriority | null;
+  dueDate?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -102,6 +106,7 @@ interface TripFromApi {
   tasks?: TripTask[];
   notes?: TripNote[];
   cost: number | null;
+  budget?: number | null;
 }
 
 type TripTab = "summary" | "expenses" | "planning" | "info";
@@ -169,6 +174,129 @@ function countryNameEs(code?: string | null) {
   } catch {
     return c;
   }
+}
+
+// ===== WMO weather code → emoji + label =====
+function wmoToMeta(code: number): { emoji: string; label: string } {
+  if (code === 0) return { emoji: "☀️", label: "Despejado" };
+  if (code <= 3) return { emoji: "⛅", label: "Nuboso" };
+  if (code <= 48) return { emoji: "🌫️", label: "Niebla" };
+  if (code <= 55) return { emoji: "🌦️", label: "Llovizna" };
+  if (code <= 65) return { emoji: "🌧️", label: "Lluvia" };
+  if (code <= 77) return { emoji: "❄️", label: "Nieve" };
+  if (code <= 82) return { emoji: "🌦️", label: "Chubascos" };
+  if (code <= 99) return { emoji: "⛈️", label: "Tormenta" };
+  return { emoji: "🌡️", label: "Variable" };
+}
+
+interface WeatherDay {
+  date: string;
+  code: number;
+  max: number;
+  min: number;
+}
+
+function WeatherWidget({ countryCode }: { countryCode: string }) {
+  const [days, setDays] = useState<WeatherDay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [city, setCity] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        // 1. capital coords from restcountries
+        const rc = await fetch(
+          `https://restcountries.com/v3.1/alpha/${countryCode}?fields=capital,capitalInfo`
+        );
+        const rcData = await rc.json();
+        const capitalName: string = rcData?.capital?.[0] || "";
+        const lat: number | undefined = rcData?.capitalInfo?.latlng?.[0];
+        const lon: number | undefined = rcData?.capitalInfo?.latlng?.[1];
+        if (!lat || !lon || cancelled) return;
+        if (!cancelled) setCity(capitalName);
+
+        // 2. weather from open-meteo (free, no key)
+        const wRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+          `&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`
+        );
+        const wData = await wRes.json();
+        if (cancelled) return;
+        const { time, weathercode, temperature_2m_max, temperature_2m_min } = wData.daily || {};
+        if (!time) return;
+        const result: WeatherDay[] = (time as string[]).map((d: string, i: number) => ({
+          date: d,
+          code: weathercode[i],
+          max: Math.round(temperature_2m_max[i]),
+          min: Math.round(temperature_2m_min[i]),
+        }));
+        if (!cancelled) setDays(result);
+      } catch {
+        // silently skip if API unavailable
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [countryCode]);
+
+  if (loading) {
+    return (
+      <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 12, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <ActivityIndicator size="small" color="#94A3B8" />
+        <Text style={{ fontSize: 12, color: "#94A3B8" }}>Cargando clima…</Text>
+      </View>
+    );
+  }
+  if (!days.length) return null;
+
+  const today = days[0];
+  const rest = days.slice(1);
+  const todayMeta = wmoToMeta(today.code);
+
+  return (
+    <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 12, marginBottom: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Ionicons name="partly-sunny-outline" size={13} color="#94A3B8" />
+          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+            CLIMA · {city.toUpperCase()}
+          </Text>
+        </View>
+        <Text style={{ fontSize: 11, color: "#94A3B8" }}>Próximos 5 días</Text>
+      </View>
+
+      {/* Today */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+        <Text style={{ fontSize: 28 }}>{todayMeta.emoji}</Text>
+        <View style={{ marginLeft: 10 }}>
+          <Text style={{ fontSize: 20, fontWeight: "800", color: "#0B1220" }}>
+            {today.max}° <Text style={{ fontSize: 14, fontWeight: "500", color: "#94A3B8" }}>/ {today.min}°</Text>
+          </Text>
+          <Text style={{ fontSize: 12, color: "#64748B" }}>{todayMeta.label} · Hoy</Text>
+        </View>
+      </View>
+
+      {/* Rest of week */}
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        {rest.map((d) => {
+          const meta = wmoToMeta(d.code);
+          const dayLabel = new Date(d.date + "T12:00").toLocaleDateString("es-ES", { weekday: "short" });
+          return (
+            <View key={d.date} style={{ flex: 1, alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 10, paddingVertical: 6 }}>
+              <Text style={{ fontSize: 9, fontWeight: "700", color: "#94A3B8", textTransform: "uppercase" }}>{dayLabel}</Text>
+              <Text style={{ fontSize: 16, marginVertical: 2 }}>{meta.emoji}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#0B1220" }}>{d.max}°</Text>
+              <Text style={{ fontSize: 10, color: "#94A3B8" }}>{d.min}°</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 export default function TripDetailScreen({ route, navigation }: any) {
@@ -241,7 +369,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   // TASKS CALLBACKS
   // =========================
 
-  const createTripTask = async (title: string) => {
+  const createTripTask = async (title: string, priority?: TaskPriority | null, dueDate?: string | null) => {
     if (!tripId) return;
     const tempId = -Math.floor(Math.random() * 1_000_000);
     const optimistic: TripTask = {
@@ -249,6 +377,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
       tripId,
       title,
       status: "to_do",
+      priority: priority ?? null,
+      dueDate: dueDate ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -259,7 +389,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
     });
 
     try {
-      const res = await api.post(`/trips/${tripId}/tasks`, { title });
+      const res = await api.post(`/trips/${tripId}/tasks`, { title, priority: priority ?? undefined, dueDate: dueDate ?? undefined });
       setTrip((prev) => {
         if (!prev) return prev;
         return {
@@ -273,6 +403,25 @@ export default function TripDetailScreen({ route, navigation }: any) {
         if (!prev) return prev;
         return { ...prev, tasks: (prev.tasks || []).filter((t) => t.id !== tempId) };
       });
+    }
+  };
+
+  const updateTripTask = async (taskId: number, patch: { title?: string; priority?: TaskPriority | null; dueDate?: string | null }) => {
+    if (!tripId) return;
+    setTrip((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tasks: (prev.tasks || []).map((t) =>
+          t.id === taskId ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t
+        ),
+      };
+    });
+    try {
+      await api.patch(`/trips/${tripId}/tasks/${taskId}`, patch);
+    } catch (e) {
+      console.error("❌ Error actualizando tarea:", e);
+      fetchTrip();
     }
   };
 
@@ -293,27 +442,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
       await api.patch(`/trips/${tripId}/tasks/${taskId}/toggle`);
     } catch (e) {
       console.error("❌ Error toggling tarea:", e);
-      fetchTrip();
-    }
-  };
-
-  const editTripTaskTitle = async (taskId: number, title: string) => {
-    if (!tripId) return;
-
-    setTrip((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tasks: (prev.tasks || []).map((t) =>
-          t.id === taskId ? { ...t, title, updatedAt: new Date().toISOString() } : t
-        ),
-      };
-    });
-
-    try {
-      await api.patch(`/trips/${tripId}/tasks/${taskId}`, { title });
-    } catch (e) {
-      console.error("❌ Error editando tarea:", e);
       fetchTrip();
     }
   };
@@ -670,7 +798,42 @@ export default function TripDetailScreen({ route, navigation }: any) {
               </Text>
             </View>
           </View>
+
+          {/* BUDGET PROGRESS BAR */}
+          {!!trip.budget && trip.budget > 0 && (() => {
+            const spent = trip.cost || 0;
+            const pct = Math.min(spent / trip.budget, 1);
+            const over = spent > trip.budget;
+            const barColor = over ? "#F87171" : pct > 0.8 ? "#FBBF24" : "#4ADE80";
+            return (
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+                    {over ? "⚠️ Presupuesto superado" : `Presupuesto · ${Math.round(pct * 100)}%`}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.80)", fontWeight: "600" }}>
+                    {formatEuro(trip.budget)}
+                  </Text>
+                </View>
+                <View style={{ height: 6, borderRadius: 99, backgroundColor: "rgba(255,255,255,0.18)" }}>
+                  <View
+                    style={{
+                      height: 6,
+                      borderRadius: 99,
+                      backgroundColor: barColor,
+                      width: `${Math.round(pct * 100)}%`,
+                    }}
+                  />
+                </View>
+              </View>
+            );
+          })()}
         </View>
+
+        {/* WEATHER WIDGET — solo viajes próximos / en curso con destino */}
+        {(status === "upcoming" || status === "ongoing") && !!countryCode && (
+          <WeatherWidget countryCode={countryCode} />
+        )}
 
         {/* SELECTOR TABS */}
         <View className="mb-3">
@@ -724,7 +887,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
               onCreateTask={createTripTask}
               onToggleTask={toggleTripTask}
               onDeleteTask={deleteTripTask}
-              onEditTaskTitle={editTripTaskTitle}
+              onUpdateTask={updateTripTask}
               onCreateNote={createTripNote}
               onUpdateNote={updateTripNote}
               onDeleteNote={deleteTripNote}
@@ -732,7 +895,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
           )}
 
           {tab === "expenses" && (
-            <TripExpensesSection tripId={trip.id} planItems={planItems} budget={null} />
+            <TripExpensesSection tripId={trip.id} planItems={planItems} budget={trip.budget ?? null} />
           )}
 
           {tab === "planning" && (

@@ -62,6 +62,7 @@ export interface TripPlanItem {
   notes?: string | null;
 
   cost?: number | null;
+  currency?: string | null;
 
   paymentStatus?: PaymentStatus | null;
   expenseDetails?: { category?: BudgetCategoryType | null } | null;
@@ -399,6 +400,11 @@ function ExpenseRow({
 
       <View style={{ alignItems: "flex-end" }}>
         <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
+        {!!item.currency && item.currency !== "EUR" && !!item.cost && (
+          <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }}>
+            {Number(item.cost).toFixed(2)} {item.currency}
+          </Text>
+        )}
         {onSetPaymentStatus ? (
           <PaymentChip status={itemStatus} disabled={!canToggle || savingPay} onToggle={togglePayment} />
         ) : null}
@@ -410,7 +416,7 @@ function ExpenseRow({
 export default function TripExpensesSection({
   tripId,
   planItems,
-  budget, // no se usa en esta versión (compatibilidad)
+  budget,
   onPressItem,
   onSetPaymentStatus,
 }: Props) {
@@ -499,6 +505,43 @@ const entries = useMemo(() => {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22, paddingTop: 10 }}>
+        {/* BUDGET GLOBAL BAR */}
+        {!!budget && budget > 0 && (() => {
+          const pct = Math.min(totalSpent / budget, 1);
+          const over = totalSpent > budget;
+          const barColor = over ? "#EF4444" : pct > 0.8 ? "#F59E0B" : "#22C55E";
+          return (
+            <View
+              style={{
+                marginHorizontal: 14,
+                marginBottom: 14,
+                backgroundColor: "white",
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: UI.border,
+                padding: 14,
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: UI.text }}>
+                  {over ? "⚠️ Presupuesto superado" : "Presupuesto del viaje"}
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: over ? "#EF4444" : UI.text }}>
+                  {formatEuro(totalSpent)} / {formatEuro(budget)}
+                </Text>
+              </View>
+              <View style={{ height: 8, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.2)" }}>
+                <View style={{ height: 8, borderRadius: 99, backgroundColor: barColor, width: `${Math.round(pct * 100)}%` }} />
+              </View>
+              <Text style={{ marginTop: 6, fontSize: 11, color: UI.muted2, fontWeight: "600" }}>
+                {over
+                  ? `${formatEuro(totalSpent - budget)} por encima del presupuesto`
+                  : `Queda ${formatEuro(budget - totalSpent)} · ${Math.round(pct * 100)}% usado`}
+              </Text>
+            </View>
+          );
+        })()}
+
         {/* KPI horizontal (solo cards con barra) */}
         {visibleKpis.length > 0 ? (
           <View style={{ marginBottom: 10 }}>
