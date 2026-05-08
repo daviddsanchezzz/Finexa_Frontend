@@ -185,7 +185,6 @@ function iconForPlanItem(item: TripPlanItem, fallback: keyof typeof Ionicons.gly
   if (item.type === "transport_destination") return iconForDestinationMode(item.destinationTransport?.mode as DestMode | undefined);
   if (item.type === "transport_local" || item.type === "transport") return "bus-outline";
   if (item.type === "taxi") return "car-outline";
-  if (item.type === "expense") return "receipt-outline";
   return fallback;
 }
 

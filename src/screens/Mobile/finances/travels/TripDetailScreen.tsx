@@ -1,5 +1,5 @@
 // src/screens/finances/travels/TripDetailScreen.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 
@@ -319,22 +320,35 @@ export default function TripDetailScreen({ route, navigation }: any) {
       maximumFractionDigits: 2,
     });
 
-  const fetchTrip = async () => {
+  const fetchTrip = async (silent = false) => {
     if (!tripId) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.get(`/trips/${tripId}`);
       setTrip(res.data);
     } catch (err) {
       console.error("❌ Error al obtener viaje:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  const initialLoadDone = useRef(false);
+
   useEffect(() => {
+    initialLoadDone.current = false;
     fetchTrip();
   }, [tripId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!initialLoadDone.current) {
+        initialLoadDone.current = true;
+        return;
+      }
+      fetchTrip(true);
+    }, [tripId])
+  );
 
   // =========================
   // DERIVADOS
