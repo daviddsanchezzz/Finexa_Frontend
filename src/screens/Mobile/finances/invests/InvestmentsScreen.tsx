@@ -254,6 +254,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
   const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [donutMode, setDonutMode] = useState<"asset" | "type">("asset");
+  const [otrosExpanded, setOtrosExpanded] = useState(false);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
@@ -373,7 +375,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const allocation = useMemo(() => {
     const list = assets || [];
     const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
-    if (!total) return { total: 0, slices: [] as DonutSlice[] };
+    if (!total) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
 
     const base = list
       .map((a, idx) => {
@@ -395,8 +397,49 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       big.push(...small);
     }
 
-    return { total, slices: big };
+    return { total, slices: big, otherAssets: small };
   }, [assets]);
+
+  const allocationByType = useMemo(() => {
+    const list = assets || [];
+    const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
+    if (!total) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
+
+    const typeColors: Record<string, string> = {
+      crypto: "#F59E0B",
+      stock: "#22C55E",
+      etf: "#0EA5E9",
+      fund: "#7C3AED",
+      custom: "#64748B",
+    };
+    const typeNames: Record<string, string> = {
+      crypto: "Crypto",
+      stock: "Acciones",
+      etf: "ETFs",
+      fund: "Fondos",
+      custom: "Custom",
+    };
+
+    const typeMap = new Map<string, number>();
+    for (const a of list) {
+      typeMap.set(a.type, (typeMap.get(a.type) || 0) + (a.currentValue || 0));
+    }
+
+    const slices: DonutSlice[] = Array.from(typeMap.entries())
+      .map(([type, value], idx) => ({
+        id: 1000 + idx,
+        label: typeNames[type] || type,
+        value,
+        pct: value / total,
+        color: typeColors[type] || palette[idx % palette.length],
+      }))
+      .filter((s) => s.pct > 0)
+      .sort((a, b) => b.value - a.value);
+
+    return { total, slices, otherAssets: [] as DonutSlice[] };
+  }, [assets]);
+
+  const activeAllocation = donutMode === "asset" ? allocation : allocationByType;
 
   const allocationMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -405,10 +448,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   }, [allocation.slices]);
 
   const selectedSlice = useMemo(() => {
-    if (!allocation.slices.length) return null;
-    const found = allocation.slices.find((s) => s.id === selectedSliceId);
-    return found || allocation.slices[0];
-  }, [allocation.slices, selectedSliceId]);
+    if (!activeAllocation.slices.length) return null;
+    const found = activeAllocation.slices.find((s) => s.id === selectedSliceId);
+    return found || activeAllocation.slices[0];
+  }, [activeAllocation.slices, selectedSliceId]);
 
   useEffect(() => {
     if (!selectedSliceId) return;
