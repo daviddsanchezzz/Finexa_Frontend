@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +10,7 @@ export default function ProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* 🔹 Header con avatar */}
+      {/* Header con avatar */}
       <View className="bg-primary/10 pb-6 pt-8 items-center relative">
         {/* Botón cerrar */}
         <TouchableOpacity
@@ -42,42 +42,34 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </View>
 
-        <Text className="text-xl font-bold text-text">
-          {user?.name || "Usuario"}
-        </Text>
-        <Text className="text-gray-500 text-[14px] mt-1">
-          {user?.email || "@usuario"}
-        </Text>
+        <Text className="text-xl font-bold text-text">{user?.name || "Usuario"}</Text>
+        <Text className="text-gray-500 text-[14px] mt-1">{user?.email || "@usuario"}</Text>
       </View>
 
-      {/* 🔹 Bloques plan / referidos */}
+      {/* Accesos rápidos */}
       <View className="flex-row justify-between px-6 mt-6 mb-4">
         <TouchableOpacity
+          onPress={() => navigation.navigate("Wallets")}
           activeOpacity={0.8}
           className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mr-3"
         >
-          <Ionicons name="card-outline" size={26} color={colors.primary} />
-          <Text className="text-text font-semibold mt-2 text-[15px]">
-            Estándar
-          </Text>
-          <Text className="text-gray-400 text-[12px] mt-0.5">Tu plan</Text>
+          <Ionicons name="wallet-outline" size={26} color={colors.primary} />
+          <Text className="text-text font-semibold mt-2 text-[15px]">Carteras</Text>
+          <Text className="text-gray-400 text-[12px] mt-0.5">Gestiona tus carteras</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
+          onPress={() => navigation.navigate("Categories")}
           activeOpacity={0.8}
           className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ml-3"
         >
-          <Ionicons name="person-add-outline" size={26} color={colors.primary} />
-          <Text className="text-text font-semibold mt-2 text-[15px]">
-            Invita amigos
-          </Text>
-          <Text className="text-gray-400 text-[12px] mt-0.5">
-            Recomienda Finexa
-          </Text>
+          <Ionicons name="color-palette-outline" size={26} color={colors.primary} />
+          <Text className="text-text font-semibold mt-2 text-[15px]">Categorías</Text>
+          <Text className="text-gray-400 text-[12px] mt-0.5">Organiza tus categorías</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 🔹 SOLO la lista tiene scroll */}
+      {/* SOLO la lista tiene scroll */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 80 }}
@@ -92,12 +84,6 @@ export default function ProfileScreen({ navigation }: any) {
             { label: "Apariencia", icon: "sunny-outline", navigate: "Appearance" },
             { label: "Finanzas personal", icon: "grid-outline", navigate: "FinancesSettings" },
             { label: "Informes", icon: "document-text-outline", navigate: "Reports" },
-            {
-              label: "Categorías",
-              icon: "color-palette-outline",
-              navigate: "Categories",
-            },
-            { label: "Carteras", icon: "wallet-outline", navigate: "Wallets" },
             {
               label: "Cuadrar cuentas",
               icon: "receipt-outline",
@@ -122,15 +108,9 @@ export default function ProfileScreen({ navigation }: any) {
                   color={colors.text}
                   style={{ marginRight: 14 }}
                 />
-                <Text className="text-[15px] text-text font-medium">
-                  {item.label}
-                </Text>
+                <Text className="text-[15px] text-text font-medium">{item.label}</Text>
               </View>
-              <Ionicons
-                name="chevron-forward-outline"
-                size={20}
-                color="#9CA3AF"
-              />
+              <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           ))}
         </View>
@@ -141,9 +121,7 @@ export default function ProfileScreen({ navigation }: any) {
           activeOpacity={0.8}
           className="mx-6 mt-8 bg-red-50 border border-red-100 py-3 rounded-2xl items-center"
         >
-          <Text className="text-red-600 font-semibold text-[16px]">
-            Cerrar sesión
-          </Text>
+          <Text className="text-red-600 font-semibold text-[16px]">Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
