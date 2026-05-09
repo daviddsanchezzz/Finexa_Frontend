@@ -30,8 +30,8 @@ const GRID_PAD_TOP = 8;
 const GRID_PAD_BOTTOM = 8;
 const ADD_BTN_H = 52; // height of "Añadir módulos" button
 const ADD_BTN_MARGIN = 8; // margin above it
-const MIN_CARD_H = 110;
-const MAX_CARD_H = 170;
+const MIN_CARD_H = 130;
+const MAX_CARD_H = 190;
 
 /* ── Card ─────────────────────────────────────────── */
 function ModuleCard({
@@ -89,6 +89,20 @@ function ModuleCard({
         numberOfLines={2}
       >
         {m.title}
+      </Text>
+
+      <Text
+        style={{
+          fontSize: 11,
+          color: "#9CA3AF",
+          textAlign: "center",
+          lineHeight: 15,
+          paddingHorizontal: 12,
+          marginTop: 5,
+        }}
+        numberOfLines={2}
+      >
+        {m.subtitle}
       </Text>
     </TouchableOpacity>
   );
