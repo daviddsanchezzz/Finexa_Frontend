@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { vars } from "nativewind";
 
 const THEME_KEY = "app.theme.preference";
+const isWeb = typeof document !== "undefined";
 
 export type ThemeMode = "light" | "dark";
 
@@ -76,20 +77,39 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [mode, setModeState] = useState<ThemeMode>("light");
+  const [mode, setModeState] = useState<ThemeMode>(() => {
+    if (!isWeb) return "light";
+    const saved = window.localStorage.getItem(THEME_KEY);
+    return saved === "dark" || saved === "light" ? saved : "light";
+  });
+
+  const applyMode = (m: ThemeMode) => {
+    Appearance.setColorScheme(m);
+    if (isWeb) {
+      document.documentElement.classList.toggle("dark", m === "dark");
+      document.documentElement.style.colorScheme = m;
+    }
+  };
+
+  useEffect(() => {
+    applyMode(mode);
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((v) => {
       if (v === "dark" || v === "light") {
         setModeState(v);
-        Appearance.setColorScheme(v);
+        applyMode(v);
       }
     });
   }, []);
 
   const setMode = async (m: ThemeMode) => {
     setModeState(m);
-    Appearance.setColorScheme(m);
+    applyMode(m);
+    if (isWeb) {
+      window.localStorage.setItem(THEME_KEY, m);
+    }
     await AsyncStorage.setItem(THEME_KEY, m);
   };
 

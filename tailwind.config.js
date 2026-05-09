@@ -18,7 +18,6 @@ module.exports = {
         text:          "var(--color-text)",
         textSecondary: "var(--color-text-secondary)",
         border:        "var(--color-border)",       
-        white:         "var(--color-surface)",   // bg-white → surface
 
         card:          "var(--color-card)",
         error:         "var(--color-error)",
