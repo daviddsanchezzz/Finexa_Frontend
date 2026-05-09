@@ -33,9 +33,22 @@ interface DebtItem {
   status: string;
 }
 
+interface InvestmentAsset {
+  id: number;
+  name: string;
+  type: string;
+  currentValue: number;
+  pnl: number;
+}
+
 interface NetWorthData {
   wallets: WalletItem[];
-  investments: { totalCurrentValue: number; totalPnL: number; totalInvested: number };
+  investments: {
+    totalCurrentValue: number;
+    totalPnL: number;
+    totalInvested: number;
+    assets: InvestmentAsset[];
+  };
   debts: DebtItem[];
 }
 
@@ -206,6 +219,15 @@ function DistributionBar({ cash, savings, invest }: { cash: number; savings: num
   );
 }
 
+const ASSET_TYPE_EMOJI: Record<string, string> = {
+  crypto: "₿",
+  etf:    "📦",
+  stock:  "📊",
+  fund:   "🏦",
+  custom: "💼",
+  cash:   "💵",
+};
+
 // ── Screen ────────────────────────────────────────────
 export default function NetWorthScreen({ navigation }: any) {
   const [data, setData] = useState<NetWorthData | null>(null);
@@ -229,8 +251,9 @@ export default function NetWorthScreen({ navigation }: any) {
                 totalCurrentValue: investRes.value.data?.totalCurrentValue ?? 0,
                 totalPnL: investRes.value.data?.totalPnL ?? 0,
                 totalInvested: investRes.value.data?.totalInvested ?? 0,
+                assets: investRes.value.data?.assets ?? [],
               }
-            : { totalCurrentValue: 0, totalPnL: 0, totalInvested: 0 },
+            : { totalCurrentValue: 0, totalPnL: 0, totalInvested: 0, assets: [] },
         debts: debtsRes.status === "fulfilled" ? debtsRes.value.data || [] : [],
       });
     } catch (e) {
@@ -251,14 +274,11 @@ export default function NetWorthScreen({ navigation }: any) {
   const cashTotal    = cashWallets.reduce((s, w) => s + w.balance, 0);
   const savingsTotal = savingsWallets.reduce((s, w) => s + w.balance, 0);
   const investTotal  = data?.investments.totalCurrentValue ?? 0;
-  const investPnL    = data?.investments.totalPnL ?? 0;
   const debtTotal    = activeDebts.reduce((s, d) => s + d.remainingAmount, 0);
 
   const totalAssets      = cashTotal + savingsTotal + investTotal;
   const totalLiabilities = debtTotal;
   const netWorth         = totalAssets - totalLiabilities;
-
-  const pnlPositive = investPnL >= 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
@@ -300,28 +320,23 @@ export default function NetWorthScreen({ navigation }: any) {
 
             <DistributionBar cash={cashTotal} savings={savingsTotal} invest={investTotal} />
 
-            {/* 3 mini stats */}
+            {/* Mini stats con % */}
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <View style={{ alignItems: "center" }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.cash.color, marginBottom: 4 }} />
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Liquidez</Text>
-                <Text style={{ color: "white", fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(cashTotal)}</Text>
-              </View>
-              <View style={{ alignItems: "center" }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.savings.color, marginBottom: 4 }} />
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Ahorro</Text>
-                <Text style={{ color: "white", fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(savingsTotal)}</Text>
-              </View>
-              <View style={{ alignItems: "center" }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.investment.color, marginBottom: 4 }} />
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Inversión</Text>
-                <Text style={{ color: "white", fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(investTotal)}</Text>
-              </View>
-              <View style={{ alignItems: "center" }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.debt.color, marginBottom: 4 }} />
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Deudas</Text>
-                <Text style={{ color: "#FCA5A5", fontSize: 13, fontWeight: "700", marginTop: 1 }}>−{fmt(debtTotal)}</Text>
-              </View>
+              {[
+                { label: "Liquidez",  value: cashTotal,    color: KIND.cash.color,       textColor: "white",   pct: totalAssets > 0 ? cashTotal / totalAssets : 0 },
+                { label: "Ahorro",    value: savingsTotal,  color: KIND.savings.color,    textColor: "white",   pct: totalAssets > 0 ? savingsTotal / totalAssets : 0 },
+                { label: "Inversión", value: investTotal,   color: KIND.investment.color, textColor: "white",   pct: totalAssets > 0 ? investTotal / totalAssets : 0 },
+                { label: "Deudas",    value: debtTotal,     color: KIND.debt.color,       textColor: "#FCA5A5", pct: totalAssets > 0 ? debtTotal / totalAssets : 0 },
+              ].map((s) => (
+                <View key={s.label} style={{ alignItems: "center" }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color, marginBottom: 4 }} />
+                  <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.label}</Text>
+                  <Text style={{ color: s.textColor, fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
+                  <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 1 }}>
+                    {s.pct > 0 ? (s.pct * 100).toFixed(0) + "%" : "—"}
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
 
@@ -355,24 +370,19 @@ export default function NetWorthScreen({ navigation }: any) {
           </Section>
 
           {/* Inversión */}
-          <Section
-            kindKey="investment"
-            total={investTotal}
-            badge={investPnL !== 0 ? fmt(investPnL, true) : undefined}
-            badgeColor={pnlPositive ? "#16A34A" : "#DC2626"}
-          >
-            <Row
-              emoji="📈"
-              name="Cartera de inversión"
-              amount={investTotal}
-              amountColor="#16A34A"
-            />
-            {data?.investments.totalInvested !== undefined && (
-              <Row
-                name="Capital invertido"
-                amount={data.investments.totalInvested}
-                amountColor="#6B7280"
-              />
+          <Section kindKey="investment" total={investTotal}>
+            {(data?.investments.assets ?? []).length === 0 ? (
+              <EmptyRow label="Sin activos de inversión" />
+            ) : (
+              (data?.investments.assets ?? []).map((a) => (
+                <Row
+                  key={a.id}
+                  emoji={ASSET_TYPE_EMOJI[a.type] ?? "💼"}
+                  name={a.name}
+                  amount={a.currentValue}
+                  amountColor="#16A34A"
+                />
+              ))
             )}
           </Section>
 
