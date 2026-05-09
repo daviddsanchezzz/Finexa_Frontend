@@ -1,4 +1,4 @@
-import "react-native-gesture-handler"; // 👈 OBLIGATORIO, siempre primero
+import "react-native-gesture-handler"; // ðŸ‘ˆ OBLIGATORIO, siempre primero
 
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, AppState, AppStateStatus, View, StyleSheet } from "react-native";
@@ -27,7 +27,7 @@ function AppContent() {
   const notificationListener = useRef<Notifications.EventSubscription>();
   const responseListener = useRef<Notifications.EventSubscription>();
 
-  // Registrar token push cuando el usuario inicia sesión
+  // Registrar token push cuando el usuario inicia sesiÃ³n
   useEffect(() => {
     if (!user) return;
     if (Platform.OS === "web") return;
@@ -41,10 +41,10 @@ function AppContent() {
       }
     );
 
-    // Escuchar cuando el usuario toca una notificación
+    // Escuchar cuando el usuario toca una notificaciÃ³n
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (_response) => {
-        // Aquí puedes navegar a la pantalla relevante según response.notification.request.content.data
+        // AquÃ­ puedes navegar a la pantalla relevante segÃºn response.notification.request.content.data
       }
     );
 
@@ -92,8 +92,34 @@ function BiometricGate({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   useEffect(() => {
-    // ✅ Solo en web: mantener backend "caliente"
+    // Solo en web: mantener backend "caliente"
     if (Platform.OS !== "web") return;
+
+    document.title = "Finexa";
+    const setMeta = (name: string, content: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+    const setLink = (rel: string, href: string) => {
+      let el = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+      if (!el) {
+        el = document.createElement("link");
+        el.setAttribute("rel", rel);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("href", href);
+    };
+    setMeta("apple-mobile-web-app-capable", "yes");
+    setMeta("apple-mobile-web-app-status-bar-style", "default");
+    setMeta("apple-mobile-web-app-title", "Finexa");
+    setMeta("theme-color", "#3B82F6");
+    setLink("apple-touch-icon", "/apple-touch-icon.png");
+    setLink("manifest", "/manifest.json");
 
     // Warm-up inmediato (no bloqueante)
     api.get("/health").catch(() => {});
