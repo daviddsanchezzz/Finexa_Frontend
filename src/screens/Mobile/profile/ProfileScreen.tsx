@@ -7,6 +7,35 @@ import { colors } from "../../../theme/theme";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
+  const sections = [
+    {
+      title: "Perfil",
+      items: [{ label: "Cuenta", icon: "person-outline" }],
+    },
+    {
+      title: "Preferencias",
+      items: [
+        { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
+        { label: "Apariencia", icon: "sunny-outline", navigate: "Appearance" },
+        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications" },
+      ],
+    },
+    {
+      title: "Finanzas",
+      items: [
+        { label: "Finanzas personal", icon: "grid-outline", navigate: "FinancesSettings" },
+        { label: "Informes", icon: "document-text-outline", navigate: "Reports" },
+        { label: "Cuadrar cuentas", icon: "receipt-outline", navigate: "ReconcileAccounts" },
+      ],
+    },
+    {
+      title: "Soporte",
+      items: [
+        { label: "Centro de ayuda", icon: "help-circle-outline" },
+        { label: "Sobre Finexa", icon: "information-circle-outline" },
+      ],
+    },
+  ] as const;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -46,74 +75,66 @@ export default function ProfileScreen({ navigation }: any) {
         <Text className="text-gray-500 text-[14px] mt-1">{user?.email || "@usuario"}</Text>
       </View>
 
-      {/* Accesos rápidos */}
-      <View className="flex-row justify-between px-6 mt-6 mb-4">
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Wallets")}
-          activeOpacity={0.8}
-          className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mr-3"
-        >
-          <Ionicons name="wallet-outline" size={26} color={colors.primary} />
-          <Text className="text-text font-semibold mt-2 text-[15px]">Carteras</Text>
-          <Text className="text-gray-400 text-[12px] mt-0.5">Gestiona tus carteras</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Categories")}
-          activeOpacity={0.8}
-          className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ml-3"
-        >
-          <Ionicons name="color-palette-outline" size={26} color={colors.primary} />
-          <Text className="text-text font-semibold mt-2 text-[15px]">Categorías</Text>
-          <Text className="text-gray-400 text-[12px] mt-0.5">Organiza tus categorías</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* SOLO la lista tiene scroll */}
+      {/* Zona scrolleable */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         className="mt-2"
       >
-        {/* Lista de opciones */}
-        <View className="bg-white mx-6 rounded-2xl border border-gray-100 overflow-hidden">
-          {[
-            { label: "Cuenta", icon: "person-outline" },
-            { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications" },
-            { label: "Apariencia", icon: "sunny-outline", navigate: "Appearance" },
-            { label: "Finanzas personal", icon: "grid-outline", navigate: "FinancesSettings" },
-            { label: "Informes", icon: "document-text-outline", navigate: "Reports" },
-            {
-              label: "Cuadrar cuentas",
-              icon: "receipt-outline",
-              navigate: "ReconcileAccounts",
-            },
-            { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
-            { label: "Centro de ayuda", icon: "help-circle-outline" },
-            { label: "Sobre Spendly", icon: "information-circle-outline" },
-          ].map((item, idx, arr) => (
-            <TouchableOpacity
-              key={idx}
-              activeOpacity={0.7}
-              onPress={() => item.navigate && navigation.navigate(item.navigate as never)}
-              className={`flex-row justify-between items-center px-6 py-4 ${
-                idx !== arr.length - 1 ? "border-b border-gray-100" : ""
-              }`}
-            >
-              <View className="flex-row items-center">
-                <Ionicons
-                  name={item.icon as any}
-                  size={22}
-                  color={colors.text}
-                  style={{ marginRight: 14 }}
-                />
-                <Text className="text-[15px] text-text font-medium">{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
+        {/* Accesos rápidos */}
+        <View className="flex-row justify-between px-6 mt-6 mb-4">
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Wallets")}
+            activeOpacity={0.8}
+            className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mr-3"
+          >
+            <Ionicons name="wallet-outline" size={26} color={colors.primary} />
+            <Text className="text-text font-semibold mt-2 text-[15px]">Carteras</Text>
+            <Text className="text-gray-400 text-[12px] mt-0.5">Gestiona tus carteras</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Categories")}
+            activeOpacity={0.8}
+            className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ml-3"
+          >
+            <Ionicons name="color-palette-outline" size={26} color={colors.primary} />
+            <Text className="text-text font-semibold mt-2 text-[15px]">Categorías</Text>
+            <Text className="text-gray-400 text-[12px] mt-0.5">Organiza tus categorías</Text>
+          </TouchableOpacity>
         </View>
+
+        {sections.map((section) => (
+          <View key={section.title} className="mx-6 mb-4">
+            <Text className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider px-1 mb-2">
+              {section.title}
+            </Text>
+            <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {section.items.map((item, idx) => (
+                <TouchableOpacity
+                  key={item.label}
+                  activeOpacity={0.7}
+                  onPress={() => item.navigate && navigation.navigate(item.navigate as never)}
+                  className={`flex-row justify-between items-center px-6 py-4 ${
+                    idx !== section.items.length - 1 ? "border-b border-gray-100" : ""
+                  }`}
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons
+                      name={item.icon as any}
+                      size={22}
+                      color={colors.text}
+                      style={{ marginRight: 14 }}
+                    />
+                    <Text className="text-[15px] text-text font-medium">{item.label}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
 
         {/* Cerrar sesión */}
         <TouchableOpacity
