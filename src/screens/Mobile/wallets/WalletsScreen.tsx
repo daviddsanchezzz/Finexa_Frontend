@@ -40,6 +40,12 @@ type Wallet = {
   description?: string;
 };
 
+const KIND_STYLE: Record<WalletKind, { label: string; color: string; bg: string }> = {
+  cash:       { label: "Gastos",   color: "#3B82F6", bg: "#EFF6FF" },
+  savings:    { label: "Ahorro",   color: "#10B981", bg: "#ECFDF5" },
+  investment: { label: "Inversión",color: "#8B5CF6", bg: "#F5F3FF" },
+};
+
 const moveItem = <T,>(arr: T[], fromIndex: number, toIndex: number): T[] => {
   const newArr = [...arr];
   const item = newArr.splice(fromIndex, 1)[0];
@@ -220,7 +226,7 @@ export default function WalletsScreen({ navigation }: any) {
               >
                 <View
                   style={{
-                    backgroundColor: colors.primary + "15",
+                    backgroundColor: KIND_STYLE[wallet.kind]?.bg ?? colors.primary + "15",
                     padding: 8,
                     borderRadius: 10,
                     marginRight: 12,
@@ -228,9 +234,14 @@ export default function WalletsScreen({ navigation }: any) {
                 >
                   <Text style={{ fontSize: 22 }}>{wallet.emoji}</Text>
                 </View>
-                <Text className="text-[17px] font-semibold text-text">
-                  {wallet.name}
-                </Text>
+                <View>
+                  <Text className="text-[16px] font-semibold text-text">
+                    {wallet.name}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: KIND_STYLE[wallet.kind]?.color ?? "#9CA3AF", fontWeight: "600", marginTop: 1 }}>
+                    {KIND_STYLE[wallet.kind]?.label ?? wallet.kind}
+                  </Text>
+                </View>
               </TouchableOpacity>
 
               {/* Saldo + controles reordenar */}

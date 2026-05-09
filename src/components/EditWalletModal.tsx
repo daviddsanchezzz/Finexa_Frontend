@@ -100,7 +100,7 @@ export default function EditWalletModal({
       setName(editingWallet.name || "");
       setBalance(
         editingWallet.balance !== undefined && editingWallet.balance !== null
-          ? editingWallet.balance.toString().replace(".", ",")
+          ? parseFloat(editingWallet.balance.toFixed(2)).toString().replace(".", ",")
           : ""
       );
       setDescription(editingWallet.description || "");
