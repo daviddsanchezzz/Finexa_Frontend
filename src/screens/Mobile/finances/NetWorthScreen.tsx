@@ -5,6 +5,7 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,16 +14,199 @@ import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
 import { colors } from "../../../theme/theme";
 
+type WalletKind = "cash" | "savings" | "investment";
+
+interface WalletItem {
+  id: number;
+  name: string;
+  emoji: string;
+  balance: number;
+  currency: string;
+  kind: WalletKind;
+}
+
+interface DebtItem {
+  id: number;
+  name: string;
+  emoji?: string;
+  remainingAmount: number;
+  status: string;
+}
+
 interface NetWorthData {
-  wallets: { id: number; name: string; emoji: string; balance: number; currency: string }[];
-  investments: { totalValue: number };
-  debts: { totalAmount: number; remainingAmount: number; status: string }[];
+  wallets: WalletItem[];
+  investments: { totalCurrentValue: number; totalPnL: number; totalInvested: number };
+  debts: DebtItem[];
 }
 
-function fmt(n: number) {
-  return n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+// ── Colors per kind ──────────────────────────────────
+const KIND = {
+  cash:       { color: "#3B82F6", bg: "#EFF6FF", label: "Liquidez",  icon: "card-outline"         },
+  savings:    { color: "#10B981", bg: "#ECFDF5", label: "Ahorro",    icon: "wallet-outline"        },
+  investment: { color: "#8B5CF6", bg: "#F5F3FF", label: "Inversión", icon: "trending-up-outline"   },
+  debt:       { color: "#EF4444", bg: "#FEF2F2", label: "Deudas",    icon: "card-outline"          },
+};
+
+function fmt(n: number, showSign = false) {
+  const s = Math.abs(n).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (showSign && n !== 0) return (n >= 0 ? "+" : "−") + s + " €";
+  return (n < 0 ? "−" : "") + s + " €";
 }
 
+// ── Collapsible section ───────────────────────────────
+interface SectionProps {
+  kindKey: keyof typeof KIND;
+  total: number;
+  children?: React.ReactNode;
+  badge?: string;
+  badgeColor?: string;
+  defaultOpen?: boolean;
+}
+
+function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = true }: SectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const k = KIND[kindKey];
+  const isNeg = kindKey === "debt";
+
+  return (
+    <View
+      style={{
+        backgroundColor: "white",
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: "#F0F0F0",
+        marginBottom: 12,
+        overflow: "hidden",
+      }}
+    >
+      {/* Header row */}
+      <TouchableOpacity
+        onPress={() => setOpen((v) => !v)}
+        activeOpacity={0.7}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+        }}
+      >
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: k.bg,
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 12,
+          }}
+        >
+          <Ionicons name={k.icon as any} size={18} color={k.color} />
+        </View>
+
+        <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: "#111827" }}>
+          {k.label}
+        </Text>
+
+        {badge && (
+          <View
+            style={{
+              backgroundColor: badgeColor ? badgeColor + "20" : k.bg,
+              borderRadius: 8,
+              paddingHorizontal: 7,
+              paddingVertical: 2,
+              marginRight: 8,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "700", color: badgeColor || k.color }}>
+              {badge}
+            </Text>
+          </View>
+        )}
+
+        <Text style={{ fontSize: 15, fontWeight: "800", color: isNeg ? "#EF4444" : "#111827", marginRight: 8 }}>
+          {fmt(total)}
+        </Text>
+
+        <Ionicons
+          name={open ? "chevron-up" : "chevron-down"}
+          size={16}
+          color="#9CA3AF"
+        />
+      </TouchableOpacity>
+
+      {/* Rows */}
+      {open && children && (
+        <View style={{ borderTopWidth: 1, borderTopColor: "#F3F4F6" }}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function Row({ emoji, name, amount, amountColor }: { emoji?: string; name: string; amount: number; amountColor?: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 11,
+        borderBottomWidth: 1,
+        borderBottomColor: "#F9FAFB",
+      }}
+    >
+      {emoji ? (
+        <Text style={{ fontSize: 18, marginRight: 10, width: 28, textAlign: "center" }}>{emoji}</Text>
+      ) : (
+        <View style={{ width: 28, marginRight: 10 }} />
+      )}
+      <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{name}</Text>
+      <Text style={{ fontSize: 13, fontWeight: "600", color: amountColor || "#111827" }}>
+        {fmt(amount)}
+      </Text>
+    </View>
+  );
+}
+
+function EmptyRow({ label }: { label: string }) {
+  return (
+    <View style={{ padding: 16, alignItems: "center" }}>
+      <Text style={{ fontSize: 13, color: "#9CA3AF" }}>{label}</Text>
+    </View>
+  );
+}
+
+// ── Distribution bar ──────────────────────────────────
+function DistributionBar({ cash, savings, invest }: { cash: number; savings: number; invest: number }) {
+  const total = cash + savings + invest;
+  if (total <= 0) return null;
+
+  const segments = [
+    { value: cash,    color: KIND.cash.color },
+    { value: savings, color: KIND.savings.color },
+    { value: invest,  color: KIND.investment.color },
+  ].filter((s) => s.value > 0);
+
+  return (
+    <View style={{ flexDirection: "row", height: 6, borderRadius: 6, overflow: "hidden", marginTop: 20, marginBottom: 16 }}>
+      {segments.map((s, i) => (
+        <View
+          key={i}
+          style={{
+            flex: s.value / total,
+            backgroundColor: s.color,
+            marginLeft: i > 0 ? 2 : 0,
+            borderRadius: 6,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ── Screen ────────────────────────────────────────────
 export default function NetWorthScreen({ navigation }: any) {
   const [data, setData] = useState<NetWorthData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,14 +222,16 @@ export default function NetWorthScreen({ navigation }: any) {
       ]);
 
       setData({
-        wallets:
-          walletsRes.status === "fulfilled" ? walletsRes.value.data || [] : [],
+        wallets: walletsRes.status === "fulfilled" ? walletsRes.value.data || [] : [],
         investments:
           investRes.status === "fulfilled"
-            ? { totalValue: investRes.value.data?.totalValue || 0 }
-            : { totalValue: 0 },
-        debts:
-          debtsRes.status === "fulfilled" ? debtsRes.value.data || [] : [],
+            ? {
+                totalCurrentValue: investRes.value.data?.totalCurrentValue ?? 0,
+                totalPnL: investRes.value.data?.totalPnL ?? 0,
+                totalInvested: investRes.value.data?.totalInvested ?? 0,
+              }
+            : { totalCurrentValue: 0, totalPnL: 0, totalInvested: 0 },
+        debts: debtsRes.status === "fulfilled" ? debtsRes.value.data || [] : [],
       });
     } catch (e) {
       console.error("❌ NetWorth fetch error", e);
@@ -55,34 +241,28 @@ export default function NetWorthScreen({ navigation }: any) {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { fetchData(); }, []));
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchData(true);
-  };
+  // ── Derived values ──
+  const cashWallets    = (data?.wallets ?? []).filter((w) => w.kind === "cash");
+  const savingsWallets = (data?.wallets ?? []).filter((w) => w.kind === "savings");
+  const activeDebts    = (data?.debts ?? []).filter((d) => d.status === "active");
 
-  const totalAssets =
-    (data?.wallets.reduce((s, w) => s + w.balance, 0) ?? 0) +
-    (data?.investments.totalValue ?? 0);
+  const cashTotal    = cashWallets.reduce((s, w) => s + w.balance, 0);
+  const savingsTotal = savingsWallets.reduce((s, w) => s + w.balance, 0);
+  const investTotal  = data?.investments.totalCurrentValue ?? 0;
+  const investPnL    = data?.investments.totalPnL ?? 0;
+  const debtTotal    = activeDebts.reduce((s, d) => s + d.remainingAmount, 0);
 
-  const totalLiabilities =
-    data?.debts
-      .filter((d) => d.status === "active")
-      .reduce((s, d) => s + d.remainingAmount, 0) ?? 0;
+  const totalAssets      = cashTotal + savingsTotal + investTotal;
+  const totalLiabilities = debtTotal;
+  const netWorth         = totalAssets - totalLiabilities;
 
-  const netWorth = totalAssets - totalLiabilities;
-
-  const walletTotal = data?.wallets.reduce((s, w) => s + w.balance, 0) ?? 0;
-  const investTotal = data?.investments.totalValue ?? 0;
+  const pnlPositive = investPnL >= 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pb-3">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 4 }}>
         <AppHeader
           title="Patrimonio neto"
           showBack={true}
@@ -92,137 +272,125 @@ export default function NetWorthScreen({ navigation }: any) {
       </View>
 
       {loading ? (
-        <View className="flex-1 items-center justify-center">
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <ScrollView
-          className="flex-1 px-5"
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(true); }} />}
         >
-          {/* Hero */}
+          {/* ── Hero ── */}
           <View
             style={{
               backgroundColor: colors.primary,
               borderRadius: 24,
-              padding: 24,
-              marginBottom: 16,
-              alignItems: "center",
+              padding: 22,
+              marginBottom: 20,
             }}
           >
-            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "600" }}>
+            <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6 }}>
               Patrimonio neto
             </Text>
-            <Text
-              style={{
-                color: "white",
-                fontSize: 36,
-                fontWeight: "800",
-                marginTop: 8,
-              }}
-            >
+            <Text style={{ color: "white", fontSize: 38, fontWeight: "800", marginTop: 6 }}>
               {fmt(netWorth)}
             </Text>
-            <View
-              style={{ flexDirection: "row", gap: 32, marginTop: 16 }}
-            >
+
+            <DistributionBar cash={cashTotal} savings={savingsTotal} invest={investTotal} />
+
+            {/* 3 mini stats */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <View style={{ alignItems: "center" }}>
-                <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>Activos</Text>
-                <Text style={{ color: "#86EFAC", fontSize: 16, fontWeight: "700", marginTop: 2 }}>
-                  {fmt(totalAssets)}
-                </Text>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.cash.color, marginBottom: 4 }} />
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Liquidez</Text>
+                <Text style={{ color: "white", fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(cashTotal)}</Text>
               </View>
-              <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.2)" }} />
               <View style={{ alignItems: "center" }}>
-                <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>Pasivos</Text>
-                <Text style={{ color: "#FCA5A5", fontSize: 16, fontWeight: "700", marginTop: 2 }}>
-                  {fmt(totalLiabilities)}
-                </Text>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.savings.color, marginBottom: 4 }} />
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Ahorro</Text>
+                <Text style={{ color: "white", fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(savingsTotal)}</Text>
+              </View>
+              <View style={{ alignItems: "center" }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.investment.color, marginBottom: 4 }} />
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Inversión</Text>
+                <Text style={{ color: "white", fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(investTotal)}</Text>
+              </View>
+              <View style={{ alignItems: "center" }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: KIND.debt.color, marginBottom: 4 }} />
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>Deudas</Text>
+                <Text style={{ color: "#FCA5A5", fontSize: 13, fontWeight: "700", marginTop: 1 }}>−{fmt(debtTotal)}</Text>
               </View>
             </View>
           </View>
 
-          {/* Assets section */}
-          <Text style={{ fontSize: 13, fontWeight: "700", color: "#374151", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Activos
+          {/* ── Activos ── */}
+          <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+            Activos — {fmt(totalAssets)}
           </Text>
 
-          {/* Wallets */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12, overflow: "hidden" }}>
-            <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#111827" }}>💳 Carteras</Text>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#16A34A" }}>{fmt(walletTotal)}</Text>
-            </View>
-            {(data?.wallets ?? []).map((w, i) => (
-              <View
-                key={w.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderBottomWidth: i < (data?.wallets.length ?? 0) - 1 ? 1 : 0,
-                  borderBottomColor: "#F9FAFB",
-                }}
-              >
-                <Text style={{ fontSize: 18, marginRight: 10 }}>{w.emoji}</Text>
-                <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{w.name}</Text>
-                <Text style={{ fontSize: 13, fontWeight: "600", color: w.balance >= 0 ? "#16A34A" : "#DC2626" }}>
-                  {fmt(w.balance)}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Investments */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 16, overflow: "hidden" }}>
-            <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#111827" }}>📈 Inversiones</Text>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#16A34A" }}>{fmt(investTotal)}</Text>
-            </View>
-          </View>
-
-          {/* Liabilities section */}
-          <Text style={{ fontSize: 13, fontWeight: "700", color: "#374151", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Pasivos
-          </Text>
-
-          <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 16, overflow: "hidden" }}>
-            <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#111827" }}>💸 Deudas activas</Text>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#DC2626" }}>{fmt(totalLiabilities)}</Text>
-            </View>
-            {(data?.debts ?? [])
-              .filter((d) => d.status === "active")
-              .map((d: any, i, arr) => (
-                <View
-                  key={d.id}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingHorizontal: 16,
-                    paddingVertical: 10,
-                    borderBottomWidth: i < arr.length - 1 ? 1 : 0,
-                    borderBottomColor: "#F9FAFB",
-                  }}
-                >
-                  <Text style={{ fontSize: 18, marginRight: 10 }}>{d.emoji || "💸"}</Text>
-                  <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{d.name}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#DC2626" }}>
-                    {fmt(d.remainingAmount)}
-                  </Text>
-                </View>
-              ))}
-            {(data?.debts ?? []).filter((d) => d.status === "active").length === 0 && (
-              <View style={{ padding: 16 }}>
-                <Text style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>Sin deudas activas</Text>
-              </View>
+          {/* Liquidez */}
+          <Section kindKey="cash" total={cashTotal}>
+            {cashWallets.length === 0 ? (
+              <EmptyRow label="Sin carteras de gastos" />
+            ) : (
+              cashWallets.map((w) => (
+                <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
+                  amountColor={w.balance >= 0 ? "#16A34A" : "#DC2626"} />
+              ))
             )}
-          </View>
+          </Section>
+
+          {/* Ahorro */}
+          <Section kindKey="savings" total={savingsTotal}>
+            {savingsWallets.length === 0 ? (
+              <EmptyRow label="Sin carteras de ahorro" />
+            ) : (
+              savingsWallets.map((w) => (
+                <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
+                  amountColor="#16A34A" />
+              ))
+            )}
+          </Section>
+
+          {/* Inversión */}
+          <Section
+            kindKey="investment"
+            total={investTotal}
+            badge={investPnL !== 0 ? fmt(investPnL, true) : undefined}
+            badgeColor={pnlPositive ? "#16A34A" : "#DC2626"}
+          >
+            <Row
+              emoji="📈"
+              name="Cartera de inversión"
+              amount={investTotal}
+              amountColor="#16A34A"
+            />
+            {data?.investments.totalInvested !== undefined && (
+              <Row
+                name="Capital invertido"
+                amount={data.investments.totalInvested}
+                amountColor="#6B7280"
+              />
+            )}
+          </Section>
+
+          {/* ── Pasivos ── */}
+          <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
+            Pasivos — {fmt(totalLiabilities)}
+          </Text>
+
+          <Section kindKey="debt" total={totalLiabilities} defaultOpen={activeDebts.length > 0}>
+            {activeDebts.length === 0 ? (
+              <EmptyRow label="Sin deudas activas" />
+            ) : (
+              activeDebts.map((d) => (
+                <Row key={d.id} emoji={d.emoji || "💸"} name={d.name}
+                  amount={d.remainingAmount} amountColor="#EF4444" />
+              ))
+            )}
+          </Section>
         </ScrollView>
       )}
     </SafeAreaView>

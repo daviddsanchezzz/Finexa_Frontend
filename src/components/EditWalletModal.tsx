@@ -10,11 +10,48 @@ import {
   Alert,
 } from "react-native";
 import Modal from "react-native-modal";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 
 const screenHeight = Dimensions.get("window").height;
+
+type WalletKind = "cash" | "savings" | "investment";
+
+const KIND_OPTIONS: {
+  key: WalletKind;
+  label: string;
+  icon: string;
+  color: string;
+  bg: string;
+  description: string;
+}[] = [
+  {
+    key: "cash",
+    label: "Gastos",
+    icon: "card-outline",
+    color: "#3B82F6",
+    bg: "#EFF6FF",
+    description: "Cuenta del día a día",
+  },
+  {
+    key: "savings",
+    label: "Ahorro",
+    icon: "wallet-outline",
+    color: "#10B981",
+    bg: "#ECFDF5",
+    description: "Cuenta remunerada o fondo",
+  },
+  {
+    key: "investment",
+    label: "Inversión",
+    icon: "trending-up-outline",
+    color: "#8B5CF6",
+    bg: "#F5F3FF",
+    description: "Solo puede haber una",
+  },
+];
 
 interface EditWalletModalProps {
   visible: boolean;
@@ -27,6 +64,7 @@ interface EditWalletModalProps {
     balance?: number;
     description?: string;
     currency?: string;
+    kind?: WalletKind;
   } | null;
 }
 
@@ -43,7 +81,10 @@ export default function EditWalletModal({
   const [description, setDescription] = useState("");
   const [balance, setBalance] = useState("");
   const [currency, setCurrency] = useState("EUR");
+  const [kind, setKind] = useState<WalletKind>("cash");
   const [loading, setLoading] = useState(false);
+
+  const isEditing = !!editingWallet?.id;
 
   const formatEuro = (n: number) =>
     n.toLocaleString("es-ES", {
@@ -53,7 +94,6 @@ export default function EditWalletModal({
       maximumFractionDigits: 2,
     });
 
-  // 🔁 Sincronizar datos al abrir
   useEffect(() => {
     if (editingWallet) {
       setEmoji(editingWallet.emoji || "💰");
@@ -65,26 +105,26 @@ export default function EditWalletModal({
       );
       setDescription(editingWallet.description || "");
       setCurrency(editingWallet.currency || "EUR");
+      setKind(editingWallet.kind || "cash");
     } else {
       setEmoji("💰");
       setName("");
       setBalance("");
       setDescription("");
       setCurrency("EUR");
+      setKind("cash");
     }
   }, [editingWallet, visible]);
 
+  const selectedKindInfo = KIND_OPTIONS.find((o) => o.key === kind)!;
+
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert("Error", "El nombre de la wallet es obligatorio");
+      Alert.alert("Error", "El nombre de la cartera es obligatorio");
       return;
     }
     if (!balance || isNaN(Number(balance.replace(",", ".")))) {
       Alert.alert("Error", "Introduce un saldo válido");
-      return;
-    }
-    if (!currency.trim()) {
-      Alert.alert("Error", "Introduce una divisa válida (ej. EUR)");
       return;
     }
 
@@ -94,26 +134,21 @@ export default function EditWalletModal({
       balance: parseFloat(balance.replace(",", ".")),
       description: description.trim(),
       currency: currency.toUpperCase(),
+      kind,
       userId: user?.id,
     };
-    console.log("Payload a enviar:", payload);
 
     try {
       setLoading(true);
-      const res = editingWallet?.id
-        ? await api.patch(`/wallets/${editingWallet.id}`, payload)
+      const res = isEditing
+        ? await api.patch(`/wallets/${editingWallet!.id}`, payload)
         : await api.post("/wallets", payload);
-
       onSave(res.data);
       onClose();
     } catch (error: any) {
-      console.error(
-        "❌ Error al guardar wallet:",
-        error.response?.data || error.message
-      );
       Alert.alert(
         "Error",
-        error.response?.data?.message || "No se pudo guardar la wallet"
+        error.response?.data?.message || "No se pudo guardar la cartera"
       );
     } finally {
       setLoading(false);
@@ -136,9 +171,14 @@ export default function EditWalletModal({
       style={{ justifyContent: "flex-end", margin: 0 }}
     >
       <View
-        className="bg-white rounded-t-3xl px-5 pt-4 pb-2"
         style={{
-          minHeight: screenHeight * 0.55,
+          backgroundColor: "white",
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 8,
+          minHeight: screenHeight * 0.62,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
@@ -146,159 +186,241 @@ export default function EditWalletModal({
         }}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center mb-3">
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text className="text-[14px] text-gray-500 font-medium">
-              Cancelar
-            </Text>
+            <Text style={{ fontSize: 14, color: "#6B7280", fontWeight: "500" }}>Cancelar</Text>
           </TouchableOpacity>
-
-          <Text className="text-[16px] font-semibold text-text">
-            {editingWallet?.id ? "Editar wallet" : "Nueva wallet"}
+          <Text style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}>
+            {isEditing ? "Editar cartera" : "Nueva cartera"}
           </Text>
-
-          <TouchableOpacity
-            onPress={handleSave}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
+          <TouchableOpacity onPress={handleSave} activeOpacity={0.8} disabled={loading}>
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text
-                className="text-[14px] font-semibold"
-                style={{ color: colors.primary }}
-              >
+              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary }}>
                 Guardar
               </Text>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Contenido */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          {/* PREVIEW CARD BONITA */}
-          <View className="mb-6">
-            <View className="bg-primary rounded-3xl px-4 py-4 flex-row items-center shadow-md shadow-black/5">
-              <View className="w-14 h-14 rounded-2xl bg-white/15 items-center justify-center mr-3">
-                <Text className="text-[30px]">{emoji || "💰"}</Text>
-              </View>
-
-              <View className="flex-1">
-                <Text
-                  className="text-white text-[14px] font-semibold"
-                  numberOfLines={1}
-                >
-                  {name || "Nueva wallet"}
-                </Text>
-                <Text className="text-white/80 text-[11px] mt-0.5">
-                  {currency.toUpperCase() || "EUR"}
-                </Text>
-                <Text className="text-white text-[18px] font-bold mt-1">
-                  {parsedBalance > 0
-                    ? formatEuro(parsedBalance)
-                    : formatEuro(0)}
-                </Text>
-              </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          {/* Preview card */}
+          <View
+            style={{
+              backgroundColor: selectedKindInfo.color,
+              borderRadius: 20,
+              padding: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 20,
+            }}
+          >
+            <View
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <Text style={{ fontSize: 28 }}>{emoji || "💰"}</Text>
             </View>
-          </View>
-
-          {/* BLOQUE INFO BÁSICA */}
-          <View className="mb-5">
-            <Text className="text-[13px] text-gray-400 mb-2">
-              Información básica
-            </Text>
-
-            {/* Nombre */}
-            <Text className="text-[11px] text-gray-500 mb-1">Nombre</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Nombre de la wallet"
-              placeholderTextColor="#9CA3AF"
-              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
-            />
-
-            {/* Emoji como string (igual estilo que DebtFormScreen) */}
-            <Text className="text-[11px] text-gray-500 mb-1 mt-3">
-              Emoji (opcional)
-            </Text>
-            <View className="flex-row items-center">
-              <TextInput
-                value={emoji}
-                onChangeText={setEmoji}
-                maxLength={2}
-                className="border border-slate-200 rounded-xl px-3 py-2 w-16 text-center mr-2 text-[18px] bg-gray-50"
-              />
-              <Text className="text-[11px] text-gray-500 flex-1">
-                Se mostrará como icono principal de la wallet.
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "500" }}>
+                {selectedKindInfo.label.toUpperCase()}
+              </Text>
+              <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }} numberOfLines={1}>
+                {name || "Nueva cartera"}
+              </Text>
+              <Text style={{ color: "white", fontSize: 18, fontWeight: "800", marginTop: 2 }}>
+                {formatEuro(parsedBalance)}
               </Text>
             </View>
           </View>
 
-          {/* BLOQUE DINERO */}
-          <View className="mb-5">
-            <Text className="text-[13px] text-gray-400 mb-2">
-              Dinero y divisa
-            </Text>
-
-            <View className="flex-row">
-              {/* Saldo */}
-              <View className="flex-1 mr-3">
-                <Text className="text-[11px] text-gray-500 mb-1">
-                  Saldo inicial
-                </Text>
-                <TextInput
-                  value={balance}
-                  onChangeText={(t) => setBalance(t.replace(".", ","))}
-                  placeholder="Ej: 120,50"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="numeric"
-                  className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
-                />
-              </View>
-
-              {/* Moneda */}
-              <View style={{ width: 90 }}>
-                <Text className="text-[11px] text-gray-500 mb-1">Divisa</Text>
-                <TextInput
-                  value={currency}
-                  onChangeText={(text) => setCurrency(text.toUpperCase())}
-                  placeholder="EUR"
-                  placeholderTextColor="#9CA3AF"
-                  maxLength={3}
-                  autoCapitalize="characters"
-                  className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100 text-center"
-                />
-              </View>
+          {/* Tipo de cartera */}
+          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Tipo de cartera
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
+            {KIND_OPTIONS.map((opt) => {
+              const selected = kind === opt.key;
+              const blocked = opt.key === "investment" && isEditing && editingWallet?.kind !== "investment";
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  onPress={() => !blocked && setKind(opt.key)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    borderRadius: 14,
+                    borderWidth: selected ? 2 : 1,
+                    borderColor: selected ? opt.color : "#E5E7EB",
+                    backgroundColor: selected ? opt.bg : "white",
+                    padding: 10,
+                    alignItems: "center",
+                    opacity: blocked ? 0.4 : 1,
+                  }}
+                >
+                  <Ionicons
+                    name={opt.icon as any}
+                    size={20}
+                    color={selected ? opt.color : "#9CA3AF"}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: "700",
+                      color: selected ? opt.color : "#6B7280",
+                      marginTop: 5,
+                    }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {kind === "investment" && (
+            <View
+              style={{
+                backgroundColor: "#F5F3FF",
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: "row",
+                alignItems: "flex-start",
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: "#DDD6FE",
+              }}
+            >
+              <Ionicons name="information-circle-outline" size={16} color="#8B5CF6" style={{ marginRight: 8, marginTop: 1 }} />
+              <Text style={{ fontSize: 12, color: "#6D28D9", flex: 1, lineHeight: 17 }}>
+                Solo puede existir una cartera de inversión. Su saldo se sincroniza automáticamente con el módulo de inversiones.
+              </Text>
             </View>
-            <Text className="text-[10px] text-gray-400 mt-1">
-              Puedes cambiar el saldo inicial más adelante con movimientos.
-            </Text>
+          )}
+
+          {/* Nombre y emoji */}
+          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Información básica
+          </Text>
+          <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Nombre</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Nombre de la cartera"
+            placeholderTextColor="#9CA3AF"
+            style={{
+              backgroundColor: "#F9FAFB",
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              fontSize: 15,
+              color: "#111827",
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              marginBottom: 12,
+            }}
+          />
+
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+            <View style={{ marginRight: 12 }}>
+              <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Emoji</Text>
+              <TextInput
+                value={emoji}
+                onChangeText={setEmoji}
+                maxLength={2}
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  borderRadius: 12,
+                  paddingHorizontal: 10,
+                  paddingVertical: 10,
+                  width: 58,
+                  textAlign: "center",
+                  fontSize: 20,
+                  backgroundColor: "#F9FAFB",
+                }}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Divisa</Text>
+              <TextInput
+                value={currency}
+                onChangeText={(t) => setCurrency(t.toUpperCase())}
+                placeholder="EUR"
+                placeholderTextColor="#9CA3AF"
+                maxLength={3}
+                autoCapitalize="characters"
+                style={{
+                  backgroundColor: "#F9FAFB",
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  fontSize: 15,
+                  color: "#111827",
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                }}
+              />
+            </View>
           </View>
 
-          {/* DESCRIPCIÓN */}
-          <View className="mb-2">
-            <Text className="text-[13px] text-gray-400 mb-2">
-              Detalles adicionales
-            </Text>
-            <Text className="text-[11px] text-gray-500 mb-1">
-              Descripción (opcional)
-            </Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Ej: Wallet para ahorros, viajes, efectivo..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              className="bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
-              style={{ textAlignVertical: "top" }}
-            />
-          </View>
+          {/* Saldo */}
+          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Saldo
+          </Text>
+          <TextInput
+            value={balance}
+            onChangeText={(t) => setBalance(t.replace(".", ","))}
+            placeholder="0,00"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="numeric"
+            style={{
+              backgroundColor: "#F9FAFB",
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              fontSize: 15,
+              color: "#111827",
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              marginBottom: 6,
+            }}
+          />
+          <Text style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 20 }}>
+            Puedes ajustar el saldo con movimientos después.
+          </Text>
+
+          {/* Descripción */}
+          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Descripción (opcional)
+          </Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Ej: Cuenta remunerada MyInvestor al 3%..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={3}
+            style={{
+              backgroundColor: "#F9FAFB",
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              fontSize: 14,
+              color: "#111827",
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              textAlignVertical: "top",
+              minHeight: 80,
+            }}
+          />
         </ScrollView>
       </View>
     </Modal>

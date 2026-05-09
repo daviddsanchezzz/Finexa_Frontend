@@ -28,11 +28,16 @@ const formatEuro = (n: number) =>
     maximumFractionDigits: 2,
   });
 
+type WalletKind = "cash" | "savings" | "investment";
+
 type Wallet = {
   id: number;
   name: string;
   emoji: string;
   balance: number;
+  kind: WalletKind;
+  currency?: string;
+  description?: string;
 };
 
 const moveItem = <T,>(arr: T[], fromIndex: number, toIndex: number): T[] => {
