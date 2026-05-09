@@ -1,47 +1,48 @@
-{
-  "expo": {
-    "name": "Finexa",
-    "slug": "finexa",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+﻿{
+    "expo":  {
+                 "name":  "Finexa",
+                 "slug":  "finexa",
+                 "version":  "1.0.0",
+                 "orientation":  "portrait",
+                 "icon":  "./assets/icon.png",
+                 "userInterfaceStyle":  "light",
+                 "newArchEnabled":  true,
+                 "splash":  {
+                                "image":  "./assets/splash-icon.png",
+                                "resizeMode":  "contain",
+                                "backgroundColor":  "#3b82f6"
+                            },
+                 "ios":  {
+                             "supportsTablet":  true
+                         },
+                 "android":  {
+                                 "adaptiveIcon":  {
+                                                      "foregroundImage":  "./assets/adaptive-icon.png",
+                                                      "backgroundColor":  "#3b82f6"
+                                                  },
+                                 "edgeToEdgeEnabled":  true,
+                                 "predictiveBackGestureEnabled":  false
+                             },
+                 "web":  {
+                             "favicon":  "./assets/icon.png",
+                             "name":  "Finexa - Controla tus finanzas",
+                             "shortName":  "Finexa",
+                             "themeColor":  "#3B82F6",
+                             "backgroundColor":  "#ffffff"
+                         },
+                 "plugins":  [
+                                 "expo-font",
+                                 "expo-secure-store",
+                                 [
+                                     "expo-notifications",
+                                     {
+                                         "icon":  "./assets/icon.png",
+                                         "color":  "#3B82F6",
+                                         "sounds":  [
 
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#3b82f6"
-    },
-
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3b82f6"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/icon.png",
-      "name": "Finexa — Controla tus finanzas",
-      "shortName": "Finexa",
-      "themeColor": "#3B82F6"
-    },
-    "plugins": [
-      "expo-font",
-      "expo-secure-store",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#3B82F6",
-          "sounds": []
-        }
-      ]
-    ]
-  }
+                                                    ]
+                                     }
+                                 ]
+                             ]
+             }
 }
