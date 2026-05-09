@@ -5,6 +5,7 @@ import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import Modal from "react-native-modal";
 import { appAlert } from "../utils/appAlert";
 import RecurringScopeModal, {
@@ -24,7 +25,8 @@ export default function TransactionsList({
   navigation,
   backgroundColor,
 }: Props) {
-  const bg = backgroundColor ?? colors.background;
+  const { colors: t } = useTheme();
+  const bg = backgroundColor ?? t.surface;
   const [selectedTx, setSelectedTx] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
   const isRecurringOccurrence = (tx: any) => !!tx?.parentId; // instancia generada

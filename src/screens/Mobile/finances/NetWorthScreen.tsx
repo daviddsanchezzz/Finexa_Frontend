@@ -13,6 +13,7 @@ import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
 import SkeletonBox from "../../../components/SkeletonBox";
 import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -78,16 +79,17 @@ interface SectionProps {
 
 function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = false }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const { colors: t } = useTheme();
   const k = KIND[kindKey];
   const isNeg = kindKey === "debt";
 
   return (
     <View
       style={{
-        backgroundColor: "white",
+        backgroundColor: t.surface,
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: "#F0F0F0",
+        borderColor: t.border,
         marginBottom: 12,
         overflow: "hidden",
       }}
@@ -229,7 +231,8 @@ const ASSET_TYPE_EMOJI: Record<string, string> = {
 };
 
 // ── Screen ────────────────────────────────────────────
-export default function NetWorthScreen({ navigation }: any) {
+export default function NetWorthScreen({ navigation: _nav }: any) {
+  const { isDark, colors: t } = useTheme();
   const [data, setData] = useState<NetWorthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -285,7 +288,7 @@ export default function NetWorthScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
       {/* AppHeader */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 4 }}>
         <AppHeader

@@ -2,7 +2,8 @@ import "react-native-gesture-handler"; // 👈 OBLIGATORIO, siempre primero
 
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, AppState, AppStateStatus, View, StyleSheet } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
+import { useTheme } from "./src/context/ThemeContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
@@ -56,6 +57,15 @@ function AppContent() {
   return <AppNavigator />;
 }
 
+function ThemedNavigationContainer({ children }: { children: React.ReactNode }) {
+  const { isDark } = useTheme();
+  return (
+    <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+      {children}
+    </NavigationContainer>
+  );
+}
+
 function BiometricGate({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -104,10 +114,10 @@ export default function App() {
             <ThemeProvider>
               <SafeAreaProvider>
                 <BiometricGate>
-                  <NavigationContainer>
+                  <ThemedNavigationContainer>
                     <AppContent />
                     <ToastContainer />
-                  </NavigationContainer>
+                  </ThemedNavigationContainer>
                 </BiometricGate>
               </SafeAreaProvider>
             </ThemeProvider>

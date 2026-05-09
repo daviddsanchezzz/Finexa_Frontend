@@ -21,6 +21,7 @@ import {
   buildDefaultConfig,
   mergeConfig,
 } from "./financeModulesConfig";
+import { useTheme } from "../../../context/ThemeContext";
 
 const { width: SW } = Dimensions.get("window");
 const H_PAD = 20;
@@ -43,6 +44,7 @@ function ModuleCard({
   height: number;
   onPress: () => void;
 }) {
+  const { colors: t } = useTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -50,10 +52,10 @@ function ModuleCard({
       style={{
         width: CARD_W,
         height,
-        backgroundColor: "white",
+        backgroundColor: t.surface,
         borderRadius: 22,
         borderWidth: 1,
-        borderColor: "#EEF2F7",
+        borderColor: t.border,
         alignItems: "center",
         justifyContent: "center",
         shadowColor: "#0F172A",
@@ -81,7 +83,7 @@ function ModuleCard({
         style={{
           fontSize: 13,
           fontWeight: "700",
-          color: "#0F172A",
+          color: t.text,
           textAlign: "center",
           lineHeight: 18,
           paddingHorizontal: 10,
@@ -97,6 +99,7 @@ function ModuleCard({
 
 /* ── Screen ───────────────────────────────────────── */
 export default function FinancesScreen({ navigation }: any) {
+  const { isDark, colors: t } = useTheme();
   const [config, setConfig] = useState<ModuleConfig[]>(buildDefaultConfig());
   const [organizeOpen, setOrganizeOpen] = useState(false);
   const [containerH, setContainerH] = useState<number | null>(null);
@@ -172,7 +175,7 @@ export default function FinancesScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
       {/* ── Header ── */}
       <View
         style={{
@@ -184,7 +187,7 @@ export default function FinancesScreen({ navigation }: any) {
           paddingBottom: 10,
         }}
       >
-        <Text style={{ fontSize: 22, fontWeight: "800", color: "#0F172A" }}>
+        <Text style={{ fontSize: 22, fontWeight: "800", color: t.text }}>
           Finanzas
         </Text>
 
@@ -194,12 +197,12 @@ export default function FinancesScreen({ navigation }: any) {
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: "white",
+            backgroundColor: t.surface,
             borderRadius: 10,
             paddingHorizontal: 10,
             paddingVertical: 6,
             borderWidth: 1,
-            borderColor: "#E5E7EB",
+            borderColor: t.border,
             opacity: enabledConfig.length < 2 ? 0.35 : 1,
           }}
         >
@@ -302,7 +305,7 @@ export default function FinancesScreen({ navigation }: any) {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
           <View
             style={{
-              backgroundColor: "white",
+              backgroundColor: t.surface,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               paddingHorizontal: 16,
@@ -311,7 +314,7 @@ export default function FinancesScreen({ navigation }: any) {
             }}
           >
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: t.text }}>
                 Ordenar módulos
               </Text>
               <TouchableOpacity onPress={() => setOrganizeOpen(false)}>
@@ -336,7 +339,7 @@ export default function FinancesScreen({ navigation }: any) {
                       alignItems: "center",
                       paddingVertical: 12,
                       borderBottomWidth: i < enabledConfig.length - 1 ? 1 : 0,
-                      borderBottomColor: "rgba(0,0,0,0.05)",
+                      borderBottomColor: t.border,
                     }}
                   >
                     <View
@@ -353,7 +356,7 @@ export default function FinancesScreen({ navigation }: any) {
                       <Text style={{ fontSize: 18 }}>{m.emoji}</Text>
                     </View>
 
-                    <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
+                    <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: t.text }}>
                       {m.title}
                     </Text>
 
@@ -363,14 +366,14 @@ export default function FinancesScreen({ navigation }: any) {
                         disabled={i === 0}
                         style={{ paddingHorizontal: 8, opacity: i === 0 ? 0.25 : 1 }}
                       >
-                        <Ionicons name="chevron-up" size={20} color="#4B5563" />
+                        <Ionicons name="chevron-up" size={20} color={t.textSecondary} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => move(c.key, "down")}
                         disabled={i === enabledConfig.length - 1}
                         style={{ paddingHorizontal: 8, opacity: i === enabledConfig.length - 1 ? 0.25 : 1 }}
                       >
-                        <Ionicons name="chevron-down" size={20} color="#4B5563" />
+                        <Ionicons name="chevron-down" size={20} color={t.textSecondary} />
                       </TouchableOpacity>
                     </View>
                   </View>

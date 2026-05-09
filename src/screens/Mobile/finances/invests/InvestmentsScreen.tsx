@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../../components/AppHeader";
 import { colors } from "../../../../theme/theme";
+import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
 import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/InvestmentsScreenSkeleton";
 
@@ -243,6 +244,7 @@ const DonutPro = ({
 };
 
 export default function InvestmentsHomeScreen({ navigation }: any) {
+  const { isDark, colors: t } = useTheme();
   const [summary, setSummary] = useState<SummaryFromApi | null>(null);
   const [loading, setLoading] = useState(false);
   const [timeline, setTimeline] = useState<PortfolioTimelinePoint[]>([]);
@@ -686,13 +688,13 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   activeOpacity={0.85}
                   onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
                   style={{
-                    backgroundColor: "white",
+                    backgroundColor: t.surface,
                     borderRadius: 18,
                     paddingVertical: 12,
                     paddingHorizontal: 14,
                     marginBottom: 8,
                     borderWidth: 1,
-                    borderColor: "#EEF2F7",
+                    borderColor: t.border,
                     shadowColor: "#000",
                     shadowOpacity: 0.03,
                     shadowRadius: 4,
@@ -713,7 +715,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
                     <View style={{ flex: 1 }}>
                       <Text
-                        style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", lineHeight: 18 }}
+                        style={{ fontSize: 14, fontWeight: "700", color: t.text, lineHeight: 18 }}
                         numberOfLines={1}
                       >
                         {a.name}
@@ -763,13 +765,13 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 activeOpacity={0.8}
                 onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
                 style={{
-                  backgroundColor: "#F8FAFC",
+                  backgroundColor: isDark ? t.surface : "#F8FAFC",
                   borderRadius: 18,
                   paddingVertical: 10,
                   paddingHorizontal: 14,
                   marginBottom: 6,
                   borderWidth: 1,
-                  borderColor: "#E2E8F0",
+                  borderColor: t.border,
                   flexDirection: "row",
                   alignItems: "center",
                   opacity: 0.7,
@@ -810,7 +812,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
             <View
               style={{
-                backgroundColor: "white",
+                backgroundColor: t.surface,
                 borderRadius: 24,
                 padding: 16,
                 marginBottom: 10,
@@ -820,7 +822,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 shadowRadius: 5,
                 shadowOffset: { width: 0, height: 2 },
                 borderWidth: 1,
-                borderColor: "#E5E7EB",
+                borderColor: t.border,
               }}
             >
               {/* Cabecera: total + toggle leyenda */}

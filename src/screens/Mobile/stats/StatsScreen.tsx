@@ -18,6 +18,7 @@ import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSk
 
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 type GraphType = "expense" | "income";
 type RangeType = "week" | "month" | "year" | "all";
@@ -53,6 +54,7 @@ type TxLite = {
 };
 
 export default function StatsScreen({ navigation }: any) {
+  const { isDark, colors: t } = useTheme();
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [graphType, setGraphType] = useState<GraphType>("expense");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -498,7 +500,7 @@ export default function StatsScreen({ navigation }: any) {
                 <View
                   style={{
                     width: CARD_W,
-                    backgroundColor: "white",
+                    backgroundColor: t.surface,
                     borderRadius: 24,
                     padding: 18,
                     shadowOpacity: 0.06,
@@ -515,7 +517,7 @@ export default function StatsScreen({ navigation }: any) {
                 <View
                   style={{
                     width: CARD_W,
-                    backgroundColor: "white",
+                    backgroundColor: t.surface,
                     borderRadius: 24,
                     padding: 18,
                     shadowOpacity: 0.06,
@@ -590,7 +592,7 @@ export default function StatsScreen({ navigation }: any) {
                         }
                         className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
                         style={{
-                          backgroundColor: colors.background,
+                          backgroundColor: t.surface,
                           borderRadius: 12,
                           marginVertical: 3,
                         }}
@@ -678,7 +680,7 @@ export default function StatsScreen({ navigation }: any) {
                         }
                         className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
                         style={{
-                          backgroundColor: colors.background,
+                          backgroundColor: t.surface,
                           borderRadius: 12,
                           marginVertical: 3,
                         }}
