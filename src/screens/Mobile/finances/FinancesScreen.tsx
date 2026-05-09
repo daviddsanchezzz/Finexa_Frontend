@@ -41,7 +41,7 @@ function ModuleCard({
       activeOpacity={0.82}
       style={{
         width: CARD_W,
-        minHeight: 186,
+        minHeight: 150,
         backgroundColor: "white",
         borderRadius: 22,
         borderWidth: 1,
@@ -68,7 +68,7 @@ function ModuleCard({
           marginBottom: 14,
         }}
       >
-        <Ionicons name={m.iconName} size={28} color={m.accentColor} />
+        <Text style={{ fontSize: 28 }}>{m.emoji}</Text>
       </View>
 
       {/* Title */}
@@ -79,24 +79,10 @@ function ModuleCard({
           color: "#0F172A",
           textAlign: "center",
           lineHeight: 18,
-          marginBottom: 5,
         }}
         numberOfLines={2}
       >
         {m.title}
-      </Text>
-
-      {/* Subtitle */}
-      <Text
-        style={{
-          fontSize: 11,
-          color: "#94A3B8",
-          textAlign: "center",
-          lineHeight: 15,
-        }}
-        numberOfLines={2}
-      >
-        {m.subtitle}
       </Text>
     </TouchableOpacity>
   );
