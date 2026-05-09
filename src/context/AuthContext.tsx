@@ -15,6 +15,8 @@ type AuthContextType = {
   checkingSession: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (patch: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -86,6 +88,16 @@ useEffect(() => {
     setUser(user);
   };
 
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
+  const refreshUser = async () => {
+    const meRes = await api.get("/auth/me");
+    const u = meRes.data?.user ?? meRes.data;
+    if (u?.email) setUser(u);
+  };
+
   const logout = async () => {
     try {
       await api.post("/auth/logout"); // si lo implementas
@@ -98,7 +110,7 @@ useEffect(() => {
   };
 
   const value = useMemo(
-    () => ({ user, hydrated, checkingSession, login, logout }),
+    () => ({ user, hydrated, checkingSession, login, logout, updateUser, refreshUser }),
     [user, hydrated, checkingSession]
   );
 
