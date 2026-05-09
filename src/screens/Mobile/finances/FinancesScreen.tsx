@@ -31,6 +31,7 @@ const GRID_PAD_BOTTOM = 8;
 const ADD_BTN_H = 52; // height of "Añadir módulos" button
 const ADD_BTN_MARGIN = 8; // margin above it
 const MIN_CARD_H = 110;
+const MAX_CARD_H = 170;
 
 /* ── Card ─────────────────────────────────────────── */
 function ModuleCard({
@@ -147,7 +148,7 @@ export default function FinancesScreen({ navigation }: any) {
       GRID_PAD_BOTTOM -
       (numRows - 1) * CARD_GAP -
       addBtnTotalH;
-    return Math.max(MIN_CARD_H, available / numRows);
+    return Math.min(MAX_CARD_H, Math.max(MIN_CARD_H, available / numRows));
   }, [containerH, modulesToRender.length, hasDisabled]);
 
   const move = (key: string, dir: "up" | "down") => {
