@@ -25,8 +25,8 @@ export default function TransactionsList({
   navigation,
   backgroundColor,
 }: Props) {
-  const { colors: t } = useTheme();
-  const bg = backgroundColor ?? t.surface;
+  const { isDark, colors: t } = useTheme();
+  const bg = backgroundColor ?? (isDark ? t.surface : t.background);
   const [selectedTx, setSelectedTx] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
   const isRecurringOccurrence = (tx: any) => !!tx?.parentId; // instancia generada

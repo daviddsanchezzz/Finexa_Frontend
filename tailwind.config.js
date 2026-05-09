@@ -14,10 +14,12 @@ module.exports = {
         accent:        "var(--color-accent)",
         purple:        "var(--color-purple)",
         background:    "var(--color-background)",
+        surface:       "var(--color-surface)",
         text:          "var(--color-text)",
         textSecondary: "var(--color-text-secondary)",
-        border:        "var(--color-border)",
+        border:        "var(--color-border)",       
         white:         "var(--color-surface)",   // bg-white → surface
+
         card:          "var(--color-card)",
         error:         "var(--color-error)",
       },
