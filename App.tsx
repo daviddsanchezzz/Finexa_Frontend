@@ -11,7 +11,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { ThemeProvider } from "./src/context/ThemeContext";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { colors } from "./src/theme/theme";
 import api from "./src/api/api";
 import { registerPushToken } from "./src/services/notificationService";
 import { queryClient } from "./src/lib/queryClient";
@@ -98,7 +97,7 @@ export default function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>

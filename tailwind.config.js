@@ -9,16 +9,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#003cc5",
-        secondary: "#27AE60",
-        accent: "#F2C94C",
-        purple: "#9B51E0",
-        background: "#F9FAFB",
-        text: "#1A1A1A",
-        textSecondary: "#6B7280",
-        border: "#E5E7EB",
-        white: "#FFFFFF",
-        error: "#E63946",
+        primary:       "var(--color-primary)",
+        secondary:     "var(--color-secondary)",
+        accent:        "var(--color-accent)",
+        purple:        "var(--color-purple)",
+        background:    "var(--color-background)",
+        text:          "var(--color-text)",
+        textSecondary: "var(--color-text-secondary)",
+        border:        "var(--color-border)",
+        white:         "var(--color-surface)",   // bg-white → surface
+        card:          "var(--color-card)",
+        error:         "var(--color-error)",
       },
       fontFamily: {
         poppins: ['Poppins', 'sans-serif'],
