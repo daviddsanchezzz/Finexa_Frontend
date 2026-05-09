@@ -46,6 +46,9 @@ export type RootStackParamList = {
   NetWorth: undefined;
   FinancesSettings: undefined;
   Appearance: undefined;
+  Account: undefined;
+  HelpCenter: undefined;
+  AboutFinexa: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -321,6 +324,27 @@ export default function MobileNavigator() {
             name="Appearance"
             getComponent={() =>
               require("../screens/Mobile/profile/AppearanceScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Account"
+            getComponent={() =>
+              require("../screens/Mobile/profile/AccountScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="HelpCenter"
+            getComponent={() =>
+              require("../screens/Mobile/profile/HelpCenterScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="AboutFinexa"
+            getComponent={() =>
+              require("../screens/Mobile/profile/AboutFinexaScreen").default
             }
           />
         </>

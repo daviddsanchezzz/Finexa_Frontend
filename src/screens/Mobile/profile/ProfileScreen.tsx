@@ -10,7 +10,7 @@ export default function ProfileScreen({ navigation }: any) {
   const sections = [
     {
       title: "Perfil",
-      items: [{ label: "Cuenta", icon: "person-outline" }],
+      items: [{ label: "Cuenta", icon: "person-outline", navigate: "Account" }],
     },
     {
       title: "Preferencias",
@@ -31,8 +31,8 @@ export default function ProfileScreen({ navigation }: any) {
     {
       title: "Soporte",
       items: [
-        { label: "Centro de ayuda", icon: "help-circle-outline" },
-        { label: "Sobre Finexa", icon: "information-circle-outline" },
+        { label: "Centro de ayuda", icon: "help-circle-outline", navigate: "HelpCenter" },
+        { label: "Sobre Finexa", icon: "information-circle-outline", navigate: "AboutFinexa" },
       ],
     },
   ] as const;
