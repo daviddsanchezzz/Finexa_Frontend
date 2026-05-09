@@ -44,6 +44,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   BiometricSetup: undefined;
   NetWorth: undefined;
+  FinancesSettings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -305,6 +306,13 @@ export default function MobileNavigator() {
             name="NetWorth"
             getComponent={() =>
               require("../screens/Mobile/finances/NetWorthScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="FinancesSettings"
+            getComponent={() =>
+              require("../screens/Mobile/profile/FinancesSettingsScreen").default
             }
           />
         </>

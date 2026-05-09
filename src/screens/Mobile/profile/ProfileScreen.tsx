@@ -90,8 +90,8 @@ export default function ProfileScreen({ navigation }: any) {
             { label: "Cuenta", icon: "person-outline" },
             { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications" },
             { label: "Apariencia", icon: "sunny-outline" },
-            { label: "Informes", icon: "document-text-outline", navigate: "Reports" }, // ✅ NUEVO
-
+            { label: "Finanzas personal", icon: "grid-outline", navigate: "FinancesSettings" },
+            { label: "Informes", icon: "document-text-outline", navigate: "Reports" },
             {
               label: "Categorías",
               icon: "color-palette-outline",
@@ -106,13 +106,13 @@ export default function ProfileScreen({ navigation }: any) {
             { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
             { label: "Centro de ayuda", icon: "help-circle-outline" },
             { label: "Sobre Spendly", icon: "information-circle-outline" },
-          ].map((item, idx) => (
+          ].map((item, idx, arr) => (
             <TouchableOpacity
               key={idx}
               activeOpacity={0.7}
               onPress={() => item.navigate && navigation.navigate(item.navigate as never)}
               className={`flex-row justify-between items-center px-6 py-4 ${
-                idx !== 9 ? "border-b border-gray-100" : ""
+                idx !== arr.length - 1 ? "border-b border-gray-100" : ""
               }`}
             >
               <View className="flex-row items-center">

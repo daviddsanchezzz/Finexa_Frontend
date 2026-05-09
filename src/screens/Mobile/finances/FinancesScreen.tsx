@@ -7,151 +7,38 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../components/AppHeader";
-import { colors } from "../../../theme/theme";
+import {
+  MODULES,
+  STORAGE_KEY,
+  ModuleConfig,
+  buildDefaultConfig,
+  mergeConfig,
+} from "./financeModulesConfig";
 
-interface FinanceModule {
-  key: string;
-  title: string;
-  subtitle: string;
-  emoji: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  routeName: string;
-  accentColor: string;
-  softBg: string;
-}
-
-type ModuleConfig = {
-  key: string;
-  enabled: boolean;
-  order: number;
-};
-
-const STORAGE_KEY = "finances.modules.config.v1";
-
-/* ===========================
-   CATÁLOGO DE MÓDULOS
-=========================== */
-const MODULES: FinanceModule[] = [
-  {
-    key: "budgets",
-    title: "Presupuestos",
-    subtitle: "Limita y controla tus gastos por categoría.",
-    emoji: "📊",
-    iconName: "wallet-outline",
-    routeName: "Budgets",
-    accentColor: "#6366F1",
-    softBg: "#EEF2FF",
-  },
-  {
-    key: "goals",
-    title: "Objetivos",
-    subtitle: "Ahorra para lo que más te importa.",
-    emoji: "🎯",
-    iconName: "flag-outline",
-    routeName: "Goals",
-    accentColor: "#F97316",
-    softBg: "#FFF7ED",
-  },
-  {
-    key: "debts",
-    title: "Deudas",
-    subtitle: "Controla préstamos, cuotas y pagos pendientes.",
-    emoji: "💸",
-    iconName: "card-outline",
-    routeName: "Debts",
-    accentColor: "#EF4444",
-    softBg: "#FEF2F2",
-  },
-  {
-    key: "trips",
-    title: "Viajes",
-    subtitle: "Agrupa y analiza los gastos de viajes.",
-    emoji: "✈️",
-    iconName: "airplane-outline",
-    routeName: "Trips",
-    accentColor: "#0EA5E9",
-    softBg: "#E0F2FE",
-  },
-  {
-    key: "projects",
-    title: "Proyectos",
-    subtitle: "Controla ingresos, gastos y balance por proyecto.",
-    emoji: "🧩",
-    iconName: "briefcase-outline",
-    routeName: "Projects",
-    accentColor: "#14B8A6",
-    softBg: "#E6FFFB",
-  },
-  {
-    key: "recurring",
-    title: "Transacciones recurrentes",
-    subtitle: "Gestiona pagos programados y sus próximas ejecuciones.",
-    emoji: "🔁",
-    iconName: "repeat-outline",
-    routeName: "RecurringTransactions",
-    accentColor: "#A855F7",
-    softBg: "#F3E8FF",
-  },
-  {
-    key: "monthlyContributions",
-    title: "Aportaciones mensuales",
-    subtitle: "Planifica y controla cuánto aportas cada mes a tus objetivos e inversión.",
-    emoji: "🗓️",
-    iconName: "calendar-outline",
-    routeName: "MonthlyContributions",
-    accentColor: "#14B8A6",
-    softBg: "#E6FFFB",
-  },
-  {
-    key: "netWorth",
-    title: "Patrimonio neto",
-    subtitle: "Visualiza activos, pasivos y tu riqueza neta en tiempo real.",
-    emoji: "🏦",
-    iconName: "analytics-outline",
-    routeName: "NetWorth",
-    accentColor: "#7C3AED",
-    softBg: "#EDE9FE",
-  },
-];
-
-/* ===========================
-   HELPERS CONFIG
-=========================== */
-const buildDefaultConfig = (): ModuleConfig[] =>
-  MODULES.map((m, i) => ({
-    key: m.key,
-    enabled: true,
-    order: i,
-  }));
-
-const mergeConfig = (saved: ModuleConfig[] | null): ModuleConfig[] => {
-  const defaults = buildDefaultConfig();
-  const map = new Map(saved?.map((c) => [c.key, c]));
-  return defaults
-    .map((d) => ({ ...d, ...(map.get(d.key) || {}) }))
-    .sort((a, b) => a.order - b.order)
-    .map((c, i) => ({ ...c, order: i }));
-};
-
-/* ===========================
-   SCREEN
-=========================== */
 export default function FinancesScreen({ navigation }: any) {
   const [config, setConfig] = useState<ModuleConfig[]>(buildDefaultConfig());
   const [organizeOpen, setOrganizeOpen] = useState(false);
 
-  /* Load config */
+  const loadConfig = async () => {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    setConfig(mergeConfig(raw ? JSON.parse(raw) : null));
+  };
+
   useEffect(() => {
-    (async () => {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      setConfig(mergeConfig(raw ? JSON.parse(raw) : null));
-    })();
+    loadConfig();
   }, []);
+
+  // Reload when returning from FinancesSettings
+  useFocusEffect(
+    React.useCallback(() => {
+      loadConfig();
+    }, [])
+  );
 
   const saveConfig = async (next: ModuleConfig[]) => {
     setConfig(next);
@@ -160,30 +47,40 @@ export default function FinancesScreen({ navigation }: any) {
 
   const modulesToRender = useMemo(() => {
     const map = new Map(config.map((c) => [c.key, c]));
-    return MODULES.filter((m) => map.get(m.key)?.enabled)
-      .sort((a, b) => map.get(a.key)!.order - map.get(b.key)!.order);
+    return MODULES.filter((m) => map.get(m.key)?.enabled).sort(
+      (a, b) => map.get(a.key)!.order - map.get(b.key)!.order
+    );
   }, [config]);
 
-  /* ===== Actions ===== */
-  const toggleEnabled = (key: string) =>
-    saveConfig(
-      config.map((c) =>
-        c.key === key ? { ...c, enabled: !c.enabled } : c
-      )
-    );
+  // Enabled modules sorted by order — used in the organize modal
+  const enabledConfig = useMemo(
+    () => [...config].filter((c) => c.enabled).sort((a, b) => a.order - b.order),
+    [config]
+  );
 
+  // Move within enabled modules only, leaving disabled modules untouched
   const move = (key: string, dir: "up" | "down") => {
-    const idx = config.findIndex((c) => c.key === key);
-    const swap = dir === "up" ? idx - 1 : idx + 1;
-    if (idx < 0 || swap < 0 || swap >= config.length) return;
-    const next = [...config];
-    [next[idx], next[swap]] = [next[swap], next[idx]];
-    saveConfig(next.map((c, i) => ({ ...c, order: i })));
+    const idx = enabledConfig.findIndex((c) => c.key === key);
+    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= enabledConfig.length) return;
+
+    const keyA = enabledConfig[idx].key;
+    const keyB = enabledConfig[swapIdx].key;
+    const orderA = enabledConfig[idx].order;
+    const orderB = enabledConfig[swapIdx].order;
+
+    const next = config
+      .map((c) => {
+        if (c.key === keyA) return { ...c, order: orderB };
+        if (c.key === keyB) return { ...c, order: orderA };
+        return c;
+      })
+      .sort((a, b) => a.order - b.order)
+      .map((c, i) => ({ ...c, order: i }));
+
+    saveConfig(next);
   };
 
-  /* ===========================
-     RENDER
-=========================== */
   return (
     <SafeAreaView className="flex-1 bg-[#F3F4F6]">
       {/* HEADER */}
@@ -198,9 +95,7 @@ export default function FinancesScreen({ navigation }: any) {
       {/* ACTION */}
       <View className="px-5 flex-row justify-end">
         <TouchableOpacity onPress={() => setOrganizeOpen(true)}>
-          <Text className="text-[13px] font-semibold text-text">
-            Organizar
-          </Text>
+          <Text className="text-[13px] font-semibold text-text">Organizar</Text>
         </TouchableOpacity>
       </View>
 
@@ -254,22 +149,18 @@ export default function FinancesScreen({ navigation }: any) {
               </Text>
             </View>
 
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color="#94A3B8"
-            />
+            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* ORGANIZE MODAL */}
+      {/* ORGANIZE MODAL — reorder only */}
       <Modal visible={organizeOpen} transparent animationType="fade">
         <View className="flex-1 bg-black/40 justify-end">
           <View className="bg-white rounded-t-3xl px-4 pt-4 pb-6">
-            <View className="flex-row justify-between items-center mb-4">
+            <View className="flex-row justify-between items-center mb-1">
               <Text className="text-[15px] font-semibold text-text">
-                Organizar módulos
+                Ordenar módulos
               </Text>
               <TouchableOpacity onPress={() => setOrganizeOpen(false)}>
                 <Text className="text-[13px] font-semibold text-text">
@@ -278,32 +169,37 @@ export default function FinancesScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
+            <Text className="text-[12px] text-[#9CA3AF] mb-4">
+              Arrastra o usa las flechas para cambiar el orden de los módulos activos.
+            </Text>
+
             <ScrollView showsVerticalScrollIndicator={false}>
-              {config.map((c, i) => {
+              {enabledConfig.map((c, i) => {
                 const m = MODULES.find((x) => x.key === c.key)!;
                 return (
                   <View
                     key={c.key}
                     className="flex-row items-center py-3 border-b border-black/5"
                   >
-                    <Text className="text-[18px] w-8">{m.emoji}</Text>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: m.softBg,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 10,
+                      }}
+                    >
+                      <Text style={{ fontSize: 18 }}>{m.emoji}</Text>
+                    </View>
 
-                    <View className="flex-1">
+                    <View style={{ flex: 1 }}>
                       <Text className="text-[13px] font-semibold text-text">
                         {m.title}
                       </Text>
                     </View>
-
-<Switch
-  value={c.enabled}
-  onValueChange={() => toggleEnabled(c.key)}
-  trackColor={{
-    false: "rgba(0,0,0,0.12)",
-    true: `${colors.primary}40`,
-  }}
-  thumbColor="#E5E7EB" // aún más neutro
-  ios_backgroundColor="rgba(0,0,0,0.12)"
-/>
 
                     <View className="flex-row ml-2">
                       <TouchableOpacity
@@ -316,9 +212,11 @@ export default function FinancesScreen({ navigation }: any) {
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => move(c.key, "down")}
-                        disabled={i === config.length - 1}
+                        disabled={i === enabledConfig.length - 1}
                         className="px-2"
-                        style={{ opacity: i === config.length - 1 ? 0.3 : 1 }}
+                        style={{
+                          opacity: i === enabledConfig.length - 1 ? 0.3 : 1,
+                        }}
                       >
                         <Ionicons name="chevron-down" size={18} />
                       </TouchableOpacity>
