@@ -34,18 +34,18 @@ export default function MainTabs() {
       />
 
       <Tab.Screen
-        name="Finances"
-        options={{ tabBarLabel: "Presupuestos" }}
-        getComponent={() =>
-          require("../screens/Mobile/finances/FinancesScreen").default
-        }
-      />
-
-      <Tab.Screen
         name="Investments"
         options={{ tabBarLabel: "Inversión" }}
         getComponent={() =>
           require("../screens/Mobile/finances/invests/InvestmentsScreen").default
+        }
+      />
+
+      <Tab.Screen
+        name="Finances"
+        options={{ tabBarLabel: "Presupuestos" }}
+        getComponent={() =>
+          require("../screens/Mobile/finances/FinancesScreen").default
         }
       />
     </Tab.Navigator>
