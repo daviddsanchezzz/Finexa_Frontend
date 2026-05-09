@@ -31,6 +31,16 @@ type PortfolioSnapshotRow = {
   returnPct: number | null;
 };
 
+type MonthlyRentRow = {
+  monthStart: string;
+  currency: string;
+  startValue: number | null;
+  endValue: number | null;
+  cashflowNet: number | null;
+  profit: number | null;
+  returnPct: number | null;
+};
+
 interface SummaryAssetFromApi {
   id: number;
   name: string;
@@ -142,7 +152,7 @@ const formatMonthName = (iso: string) => {
 };
 
 const formatPctRatio = (p: number | null | undefined) => {
-  if (p == null || !Number.isFinite(p)) return "—";
+  if (p == null || !Number.isFinite(p)) return "-";
   return `${(p * 100).toFixed(2).replace(".", ",")}%`;
 };
 
@@ -278,7 +288,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       const res = await api.get("/investments/summary");
       setSummary(res.data || null);
     } catch (err) {
-      console.error("❌ Error al obtener investments summary:", err);
+      console.error("Error al obtener investments summary:", err);
     } finally {
       setLoading(false);
     }
@@ -301,7 +311,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         }))
         .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
       setSnapshots(mapped);
-      // Inicializar año seleccionado al año más reciente
+      // Inicializar Año seleccionado al Año má¡s reciente
       if (mapped.length > 0) {
         const latestYear = new Date(mapped[0].monthStart).getUTCFullYear();
         setRentSelectedYear(latestYear);
@@ -320,7 +330,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       const res = await api.get(`/investments/timeline?days=${days}`);
       setTimeline(res.data?.points || []);
     } catch (err) {
-      console.error("❌ Error al obtener investments timeline:", err);
+      console.error("Error al obtener investments timeline:", err);
       setTimeline([]);
     } finally {
       setTimelineLoading(false);
@@ -417,7 +427,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     };
     const typeNames: Record<string, string> = {
       crypto: "Crypto",
-      stock: "Acciones",
+      stock: "Acciónes",
       etf: "ETFs",
       fund: "Fondos",
       custom: "Custom",
@@ -469,12 +479,38 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     return Array.from(set).sort();
   }, [snapshots]);
 
-  // Meses del año seleccionado (orden cronológico)
-  const rentMonthRows = useMemo(() => {
+  // Meses del Año seleccionado (orden cronológico)
+  const rentMonthRows = useMemo<MonthlyRentRow[]>(() => {
     if (rentSelectedYear === null) return [];
-    return [...snapshots]
-      .filter((s) => new Date(s.monthStart).getUTCFullYear() === rentSelectedYear)
-      .sort((a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime());
+    const rows = [...snapshots]
+      .filter((s) => new Date(s.monthStart).getUTCFullYear() === rentSelectedYear);
+    const byMonth = new Map<number, PortfolioSnapshotRow>();
+    rows.forEach((r) => byMonth.set(new Date(r.monthStart).getUTCMonth(), r));
+    const fallbackCurrency = rows[0]?.currency ?? "EUR";
+
+    return new Array(12).fill(null).map((_, m) => {
+      const existing = byMonth.get(m);
+      if (existing) {
+        return {
+          monthStart: existing.monthStart,
+          currency: existing.currency,
+          startValue: existing.startValue,
+          endValue: existing.endValue,
+          cashflowNet: existing.cashflowNet,
+          profit: existing.profit,
+          returnPct: existing.returnPct,
+        };
+      }
+      return {
+        monthStart: new Date(Date.UTC(rentSelectedYear, m, 1)).toISOString(),
+        currency: fallbackCurrency,
+        startValue: null,
+        endValue: null,
+        cashflowNet: null,
+        profit: null,
+        returnPct: null,
+      };
+    });
   }, [snapshots, rentSelectedYear]);
 
   // Agregado anual
@@ -568,7 +604,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     alignItems: "center", justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 20 }}>📈</Text>
+                  <Ionicons name="stats-chart" size={20} color="white" />
                 </View>
                 <View style={{ marginLeft: 10, flex: 1 }}>
                   <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>Resumen</Text>
@@ -667,7 +703,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
                 }}
               >
-                <Text style={{ fontSize: 30 }}>📈</Text>
+                <Ionicons name="stats-chart" size={30} color="#94A3B8" />
               </View>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>Sin activos aún</Text>
               <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", textAlign: "center" }}>
@@ -984,9 +1020,12 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           const hBg = { backgroundColor: "rgba(0,0,0,0.04)", borderBottomWidth: 1 as const, borderColor: "#E5E7EB" } as const;
           const rBorder = { borderBottomWidth: 1 as const, borderColor: "#F1F5F9" } as const;
 
-          const totalMonthCashflow = rentMonthRows.reduce((s, r) => s + r.cashflowNet, 0);
-          const totalMonthProfit   = rentMonthRows.reduce((s, r) => s + r.profit, 0);
-          const firstMonthStartValue = rentMonthRows[0]?.startValue ?? null;
+          const filledMonthRows = rentMonthRows.filter((r) =>
+            r.startValue != null || r.endValue != null || r.cashflowNet != null || r.profit != null
+          );
+          const totalMonthCashflow = rentMonthRows.reduce((s, r) => s + (r.cashflowNet ?? 0), 0);
+          const totalMonthProfit   = rentMonthRows.reduce((s, r) => s + (r.profit ?? 0), 0);
+          const firstMonthStartValue = filledMonthRows[0]?.startValue ?? null;
           const totalMonthReturnPct =
             firstMonthStartValue != null && firstMonthStartValue > 0
               ? totalMonthProfit / firstMonthStartValue
@@ -996,14 +1035,14 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
           return (
             <>
-              {/* ── Resumen año ── */}
+              {/* ── Resumen Año ── */}
               <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
                 <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A" }}>
                   Rentabilidad {rentSelectedYear}
                 </Text>
               </View>
 
-              {/* Selector de año */}
+              {/* Selector de Año */}
               {rentYears.length > 1 && (
                 <ScrollView
                   horizontal
@@ -1060,18 +1099,18 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     >
                       <Text style={{ ...cStyle, width: CM }}>{formatMonthName(row.monthStart)}</Text>
                       <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {row.startValue == null ? "—" : formatMoney(row.startValue, row.currency)}
+                        {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
                       </Text>
                       <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {formatMoney(row.endValue, row.currency)}
+                        {row.endValue == null ? "-" : formatMoney(row.endValue, row.currency)}
                       </Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
-                        {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
+                      <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet ?? 0) }}>
+                        {row.cashflowNet == null ? "-" : `${row.cashflowNet >= 0 ? "+" : ""}${formatMoney(row.cashflowNet, row.currency)}`}
                       </Text>
-                      <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
-                        {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
+                      <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
+                        {row.profit == null ? "-" : `${row.profit >= 0 ? "+" : ""}${formatMoney(row.profit, row.currency)}`}
                       </Text>
-                      <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
+                      <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
                         {formatPctRatio(row.returnPct)}
                       </Text>
                     </View>
@@ -1080,8 +1119,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   {/* Total año */}
                   <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
                     <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
                     <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
                       {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
                     </Text>
@@ -1131,7 +1170,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         {row.year}
                       </Text>
                       <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {row.startValue == null ? "—" : formatMoney(row.startValue, row.currency)}
+                        {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
                       </Text>
                       <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
                         {formatMoney(row.endValue, row.currency)}
@@ -1151,15 +1190,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   {/* Total global */}
                   <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
                     <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
                     <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
                       {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
                     </Text>
                     <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearProfit) }}>
                       {totalYearProfit >= 0 ? "+" : ""}{formatMoney(totalYearProfit)}
                     </Text>
-                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>-</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -1248,4 +1287,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
+
+
+
 
