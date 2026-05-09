@@ -41,50 +41,63 @@ function ModuleCard({
       activeOpacity={0.82}
       style={{
         width: CARD_W,
+        minHeight: 186,
         backgroundColor: "white",
-        borderRadius: 20,
-        overflow: "hidden",
+        borderRadius: 22,
         borderWidth: 1,
-        borderColor: "#E8EEF4",
+        borderColor: "#EEF2F7",
+        padding: 18,
+        alignItems: "center",
+        justifyContent: "center",
         shadowColor: "#0F172A",
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 3,
       }}
     >
-      {/* Colored top */}
+      {/* Icon container */}
       <View
         style={{
+          width: 58,
+          height: 58,
+          borderRadius: 18,
           backgroundColor: m.softBg,
-          height: 86,
           alignItems: "center",
           justifyContent: "center",
+          marginBottom: 14,
         }}
       >
-        <Text style={{ fontSize: 36 }}>{m.emoji}</Text>
+        <Ionicons name={m.iconName} size={28} color={m.accentColor} />
       </View>
 
-      {/* Info */}
-      <View style={{ padding: 12, paddingTop: 10 }}>
-        <Text
-          style={{
-            fontSize: 13,
-            fontWeight: "700",
-            color: "#0F172A",
-            marginBottom: 4,
-          }}
-          numberOfLines={1}
-        >
-          {m.title}
-        </Text>
-        <Text
-          style={{ fontSize: 11, color: "#94A3B8", lineHeight: 15 }}
-          numberOfLines={2}
-        >
-          {m.subtitle}
-        </Text>
-      </View>
+      {/* Title */}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "700",
+          color: "#0F172A",
+          textAlign: "center",
+          lineHeight: 18,
+          marginBottom: 5,
+        }}
+        numberOfLines={2}
+      >
+        {m.title}
+      </Text>
+
+      {/* Subtitle */}
+      <Text
+        style={{
+          fontSize: 11,
+          color: "#94A3B8",
+          textAlign: "center",
+          lineHeight: 15,
+        }}
+        numberOfLines={2}
+      >
+        {m.subtitle}
+      </Text>
     </TouchableOpacity>
   );
 }
