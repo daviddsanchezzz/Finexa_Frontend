@@ -134,11 +134,11 @@ const formatShortDate = (iso: string) =>
     year: "numeric",
   });
 
-const formatMonthYear = (iso: string) => {
+const formatMonthName = (iso: string) => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const m = d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
-  return `${m} ${d.getFullYear()}`;
+  const m = d.toLocaleDateString("es-ES", { month: "long" });
+  return m.charAt(0).toUpperCase() + m.slice(1);
 };
 
 const formatPctRatio = (p: number | null | undefined) => {
@@ -986,6 +986,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
           const totalMonthCashflow = rentMonthRows.reduce((s, r) => s + r.cashflowNet, 0);
           const totalMonthProfit   = rentMonthRows.reduce((s, r) => s + r.profit, 0);
+          const firstMonthStartValue = rentMonthRows[0]?.startValue ?? null;
+          const totalMonthReturnPct =
+            firstMonthStartValue != null && firstMonthStartValue > 0
+              ? totalMonthProfit / firstMonthStartValue
+              : null;
           const totalYearCashflow  = rentYearRows.reduce((s, r) => s + r.cashflowNet, 0);
           const totalYearProfit    = rentYearRows.reduce((s, r) => s + r.profit, 0);
 
@@ -1053,7 +1058,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         ...(idx < rentMonthRows.length - 1 ? rBorder : {}),
                       }}
                     >
-                      <Text style={{ ...cStyle, width: CM }}>{formatMonthYear(row.monthStart)}</Text>
+                      <Text style={{ ...cStyle, width: CM }}>{formatMonthName(row.monthStart)}</Text>
                       <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
                         {row.startValue == null ? "—" : formatMoney(row.startValue, row.currency)}
                       </Text>
@@ -1083,7 +1088,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthProfit) }}>
                       {totalMonthProfit >= 0 ? "+" : ""}{formatMoney(totalMonthProfit)}
                     </Text>
-                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>—</Text>
+                    <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalMonthProfit) }}>{formatPctRatio(totalMonthReturnPct)}</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -1243,3 +1248,4 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
+
