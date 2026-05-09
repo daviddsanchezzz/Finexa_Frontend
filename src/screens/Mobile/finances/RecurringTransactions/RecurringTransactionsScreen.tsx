@@ -5,7 +5,6 @@ import {
   Text,
   SafeAreaView,
   ScrollView,
-  ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
@@ -14,6 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import AppHeader from "../../../../components/AppHeader";
+import SkeletonBox from "../../../../components/SkeletonBox";
 
 interface Category {
   id: number;
@@ -441,7 +441,18 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {loading ? (
-          <ActivityIndicator color={colors.primary} size="large" style={{ marginTop: 40 }} />
+          <View style={{ marginTop: 4 }}>
+            {[...Array(6)].map((_, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, paddingHorizontal: 6 }}>
+                <SkeletonBox width={40} height={40} borderRadius={10} style={{ marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <SkeletonBox height={13} width="58%" borderRadius={6} style={{ marginBottom: 6 }} />
+                  <SkeletonBox height={10} width="38%" borderRadius={6} />
+                </View>
+                <SkeletonBox width={56} height={13} borderRadius={6} />
+              </View>
+            ))}
+          </View>
         ) : transactions.length === 0 ? (
           <View className="items-center mt-10">
             <Text className="text-gray-400 text-[15px] text-center px-8">

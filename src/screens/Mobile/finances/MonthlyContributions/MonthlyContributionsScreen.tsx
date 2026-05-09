@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AppHeader from "../../../../components/AppHeader";
+import SkeletonBox from "../../../../components/SkeletonBox";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 
@@ -583,9 +584,10 @@ export default function MonthlyContributionsScreen({ navigation }: any) {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={{ marginTop: 8, fontSize: 12, color: "#64748B" }}>Cargando…</Text>
+        <View style={{ paddingHorizontal: 20 }}>
+          <SkeletonBox height={100} borderRadius={22} style={{ marginTop: 12 }} />
+          <SkeletonBox height={100} borderRadius={22} style={{ marginTop: 12 }} />
+          <SkeletonBox height={100} borderRadius={22} style={{ marginTop: 12 }} />
         </View>
       ) : (
         <ScrollView

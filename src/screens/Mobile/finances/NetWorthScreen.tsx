@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
 } from "react-native";
@@ -12,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
+import SkeletonBox from "../../../components/SkeletonBox";
 import { colors } from "../../../theme/theme";
 
 type WalletKind = "cash" | "savings" | "investment";
@@ -297,8 +297,16 @@ export default function NetWorthScreen({ navigation }: any) {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+            <SkeletonBox height={210} borderRadius={24} />
+          </View>
+          <View style={{ paddingHorizontal: 20, gap: 12 }}>
+            <SkeletonBox height={62} borderRadius={18} />
+            <SkeletonBox height={62} borderRadius={18} />
+            <SkeletonBox height={62} borderRadius={18} />
+            <SkeletonBox height={62} borderRadius={18} />
+          </View>
         </View>
       ) : (
         <>
