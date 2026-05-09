@@ -9,6 +9,7 @@ import * as Notifications from "expo-notifications";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { ThemeProvider } from "./src/context/ThemeContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { colors } from "./src/theme/theme";
 import api from "./src/api/api";
@@ -101,14 +102,16 @@ export default function App() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <SafeAreaProvider>
-              <BiometricGate>
-                <NavigationContainer>
-                  <AppContent />
-                  <ToastContainer />
-                </NavigationContainer>
-              </BiometricGate>
-            </SafeAreaProvider>
+            <ThemeProvider>
+              <SafeAreaProvider>
+                <BiometricGate>
+                  <NavigationContainer>
+                    <AppContent />
+                    <ToastContainer />
+                  </NavigationContainer>
+                </BiometricGate>
+              </SafeAreaProvider>
+            </ThemeProvider>
           </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>

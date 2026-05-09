@@ -89,7 +89,7 @@ export default function ProfileScreen({ navigation }: any) {
           {[
             { label: "Cuenta", icon: "person-outline" },
             { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications" },
-            { label: "Apariencia", icon: "sunny-outline" },
+            { label: "Apariencia", icon: "sunny-outline", navigate: "Appearance" },
             { label: "Finanzas personal", icon: "grid-outline", navigate: "FinancesSettings" },
             { label: "Informes", icon: "document-text-outline", navigate: "Reports" },
             {
