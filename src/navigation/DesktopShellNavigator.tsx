@@ -60,13 +60,13 @@ type NavItem = {
 type PressableStateWeb = { pressed: boolean; hovered?: boolean; focused?: boolean };
 
 const Stack = createNativeStackNavigator<DesktopStackParamList>();
-const EmptyScreen = () => <View style={{ flex: 1, backgroundColor: "#F8FAFC" }} />;
+const EmptyScreen = () => <View style={{ flex: 1, backgroundColor: "#F3F7FC" }} />;
 
 /** UI constants (más “black” como la referencia) */
 const UI = {
-  bg: "#F8FAFC",
+  bg: "#F3F7FC",
   surface: "#FFFFFF",
-  border: "#E2E8F0",
+  border: "#E5ECF5",
 
   // “negro” pro
   text: "#0B1220",
@@ -77,11 +77,11 @@ const UI = {
   primary: "#2563EB",
 
   // estados
-  hover: "rgba(15,23,42,0.04)",
-  activeBg: "rgba(15,23,42,0.08)",
+  hover: "rgba(37,99,235,0.08)",
+  activeBg: "rgba(37,99,235,0.14)",
 
-  radius: 12,
-  itemH: 40,
+  radius: 14,
+  itemH: 44,
   padX: 12,
 };
 
@@ -299,8 +299,12 @@ function DesktopShellLayout({
             borderRightWidth: 1,
             borderRightColor: UI.border,
             paddingHorizontal: 12,
-            paddingTop: 12,
-            paddingBottom: 12,
+            paddingTop: 14,
+            paddingBottom: 14,
+            shadowColor: "#0B1220",
+            shadowOpacity: 0.04,
+            shadowRadius: 18,
+            shadowOffset: { width: 6, height: 0 },
           }}
         >
           {/* Header: logo + actions */}
@@ -375,11 +379,13 @@ function DesktopShellLayout({
                   height: 52,
                   borderRadius: UI.radius,
                   paddingHorizontal: UI.padX,
-                  backgroundColor: s.hovered ? UI.hover : "transparent",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                })}
+              backgroundColor: s.hovered ? UI.hover : "transparent",
+              borderWidth: 1,
+              borderColor: s.hovered ? "rgba(37,99,235,0.18)" : "transparent",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+            })}
               >
                 <InitialsAvatar name={user?.name} email={user?.email} size={32} />
 
@@ -434,7 +440,7 @@ function DesktopShellLayout({
                       borderWidth: 1,
                       borderColor: UI.border,
                       shadowColor: "#000",
-                      shadowOpacity: 0.10,
+                      shadowOpacity: 0.12,
                       shadowRadius: 18,
                       shadowOffset: { width: 0, height: 12 },
                       overflow: "hidden",

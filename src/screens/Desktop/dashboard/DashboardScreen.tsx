@@ -1,4 +1,4 @@
-// src/screens/Desktop/dashboard/DashboardScreen.tsx
+﻿// src/screens/Desktop/dashboard/DashboardScreen.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -213,7 +213,7 @@ function useUiScale() {
   return { s, px, fs, width };
 }
 
-/** Encabezado sección (sin cajita) */
+/** Encabezado secciÃ³n (sin cajita) */
 function SectionTitle({
   title,
   right,
@@ -256,7 +256,7 @@ function Segmented({
   const items: Array<{ key: RangeType; label: string }> = [
     { key: "week", label: "Semana" },
     { key: "month", label: "Mes" },
-    { key: "year", label: "Año" },
+    { key: "year", label: "AÃ±o" },
   ];
 
   return (
@@ -428,7 +428,7 @@ function daysBetweenInclusive(fromISO: string | null, toISO: string | null) {
   return Math.max(1, diff + 1);
 }
 
-/** Header sticky para la sección de transacciones */
+/** Header sticky para la secciÃ³n de transacciones */
 function StickyTxHeader({
   title,
   right,
@@ -446,7 +446,7 @@ function StickyTxHeader({
         position: "sticky" as any,
         top: 0,
         zIndex: 20,
-        backgroundColor: "#F6F8FC",
+        backgroundColor: "#F3F7FC",
         paddingTop: px(10),
         paddingBottom: px(10),
       }}
@@ -548,7 +548,7 @@ export default function DashboardScreen({ navigation }: any) {
         savingsRate: localSavingsRate,
       });
     } catch (e) {
-      console.error("❌ Error cargando dashboard:", e);
+      console.error("âŒ Error cargando dashboard:", e);
       setSummary(null);
       setTransactions([]);
       setWallets([]);
@@ -641,7 +641,7 @@ export default function DashboardScreen({ navigation }: any) {
   }, [filteredTransactions, showAllTx]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
+    <View style={{ flex: 1, backgroundColor: "#F3F7FC" }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -653,24 +653,30 @@ export default function DashboardScreen({ navigation }: any) {
           alignSelf: "center",
         }}
       >
-        {/* ===== Top toolbar ===== */}
+                {/* ===== Header hero (alineado con mobile) ===== */}
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: px(14),
+            backgroundColor: colors.primary,
+            borderRadius: px(24),
+            padding: px(18),
             marginBottom: px(14),
+            shadowColor: "#0B1220",
+            shadowOpacity: 0.12,
+            shadowRadius: px(18),
+            shadowOffset: { width: 0, height: px(10) },
           }}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={[textStyles.h1, { fontSize: fs(22), color: "#0F172A" }]}>{dateLabel || "—"}</Text>
-            <Text style={[textStyles.bodyMuted, { marginTop: px(4), fontSize: fs(12), color: "#64748B" }]}>
-              {selectedWallet ? selectedWallet.name : "Todas las carteras"}
-            </Text>
-          </View>
+          <Text style={[textStyles.label, { color: "rgba(255,255,255,0.85)", fontSize: fs(12) }]}>
+            {selectedWallet ? selectedWallet.name : "Todas las carteras"}
+          </Text>
+          <Text style={[textStyles.h1, { color: "white", fontSize: fs(26), marginTop: px(4), fontWeight: "800" }]}>
+            {loading ? "—" : formatEuro(balancePeriod)}
+          </Text>
+          <Text style={[textStyles.bodyMuted, { color: "rgba(255,255,255,0.85)", marginTop: px(2), fontSize: fs(12) }]}>
+            {dateLabel || "—"}
+          </Text>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
+          <View style={{ marginTop: px(14), flexDirection: "row", alignItems: "center", gap: px(10), flexWrap: "wrap" }}>
             <TopButton icon="calendar-outline" label="Fechas" onPress={() => setDateModalVisible(true)} px={px} fs={fs} />
             <TopButton
               icon="wallet-outline"
@@ -681,53 +687,53 @@ export default function DashboardScreen({ navigation }: any) {
             />
             <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
           </View>
-
-          {Platform.OS === "web" && (
-            <View
-              style={{
-                height: px(40),
-                width: px(360),
-                borderRadius: px(14),
-                borderWidth: 1,
-                borderColor: "rgba(148,163,184,0.25)",
-                backgroundColor: "rgba(255,255,255,0.90)",
-                flexDirection: "row",
-                alignItems: "center",
-                paddingHorizontal: px(12),
-                gap: px(8),
-              }}
-            >
-              <Ionicons name="search-outline" size={px(16)} color="#64748B" />
-              {/* @ts-ignore */}
-              <input
-                value={txQuery}
-                onChange={(e: any) => setTxQuery(e?.target?.value ?? "")}
-                placeholder="Buscar transacciones..."
-                style={{
-                  flex: 1,
-                  border: "none",
-                  outline: "none",
-                  fontSize: fs(13),
-                  fontFamily: typography.family.base,
-                  fontWeight: 600,
-                  background: "transparent",
-                  color: "#0F172A",
-                }}
-              />
-              {!!txQuery && (
-                <TouchableOpacity activeOpacity={0.9} onPress={() => setTxQuery("")}>
-                  <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
         </View>
+
+        {Platform.OS === "web" && (
+          <View
+            style={{
+              height: px(42),
+              borderRadius: px(14),
+              borderWidth: 1,
+              borderColor: "rgba(148,163,184,0.22)",
+              backgroundColor: "rgba(255,255,255,0.96)",
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: px(12),
+              gap: px(8),
+              marginBottom: px(14),
+            }}
+          >
+            <Ionicons name="search-outline" size={px(16)} color="#64748B" />
+            {/* @ts-ignore */}
+            <input
+              value={txQuery}
+              onChange={(e: any) => setTxQuery(e?.target?.value ?? "")}
+              placeholder="Buscar transacciones..."
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                fontSize: fs(13),
+                fontFamily: typography.family.base,
+                fontWeight: 600,
+                background: "transparent",
+                color: "#0F172A",
+              }}
+            />
+            {!!txQuery && (
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setTxQuery("")}>
+                <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* ===== KPI row ===== */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
           <KpiCard
             title="PATRIMONIO TOTAL"
-            value={loading ? "—" : formatEuro(netWorth)}
+            value={loading ? "â€”" : formatEuro(netWorth)}
             subtitle={
               <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                 {selectedWallet ? "Balance de la cartera" : "Suma de balances de carteras"}
@@ -741,7 +747,7 @@ export default function DashboardScreen({ navigation }: any) {
 
           <KpiCard
             title="BALANCE"
-            value={loading ? "—" : formatEuro(balancePeriod)}
+            value={loading ? "â€”" : formatEuro(balancePeriod)}
             subtitle={
               loading ? null : (
                 <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
@@ -760,7 +766,7 @@ export default function DashboardScreen({ navigation }: any) {
 
           <KpiCard
             title="INGRESOS"
-            value={loading ? "—" : formatEuro(totalIncome)}
+            value={loading ? "â€”" : formatEuro(totalIncome)}
             subtitle={
               <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                 {dateLabel || ""}
@@ -774,7 +780,7 @@ export default function DashboardScreen({ navigation }: any) {
 
           <KpiCard
             title="GASTOS"
-            value={loading ? "—" : formatEuro(totalExpenses)}
+            value={loading ? "â€”" : formatEuro(totalExpenses)}
             subtitle={
               <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
                 {dateLabel || ""}
@@ -792,9 +798,9 @@ export default function DashboardScreen({ navigation }: any) {
           <GraphTypePill value={graphType} onChange={setGraphType} px={px} fs={fs} />
         </View>
 
-        {/* ===== Charts row (sin “Top categories”) ===== */}
+        {/* ===== Charts row (sin â€œTop categoriesâ€) ===== */}
         <View style={{ marginTop: px(12), flexDirection: width >= 1120 ? "row" : "column", gap: px(12) }}>
-          {/* Evolución */}
+          {/* EvoluciÃ³n */}
           <View
             style={{
               flex: 1,
@@ -808,7 +814,7 @@ export default function DashboardScreen({ navigation }: any) {
             }}
           >
             <SectionTitle
-              title={graphType === "expense" ? "Evolución de gastos" : "Evolución de ingresos"}
+              title={graphType === "expense" ? "EvoluciÃ³n de gastos" : "EvoluciÃ³n de ingresos"}
               right={<Segmented value={rangeType} onChange={setRangeType} px={px} fs={fs} />}
               px={px}
               fs={fs}
@@ -837,7 +843,7 @@ export default function DashboardScreen({ navigation }: any) {
               shadowOffset: { width: 0, height: px(10) },
             }}
           >
-            <SectionTitle title="Distribución por categorías" px={px} fs={fs} />
+            <SectionTitle title="DistribuciÃ³n por categorÃ­as" px={px} fs={fs} />
             <View style={{ marginTop: px(10), height: CHART_H, alignItems: "center", justifyContent: "center" }}>
               {loading ? (
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -906,7 +912,7 @@ export default function DashboardScreen({ navigation }: any) {
                   transactions={txPreview}
                   onEditTx={(tx) => openEditTx(tx)}
                   onDeleteTx={(tx) => {
-                    // tu lógica existente
+                    // tu lÃ³gica existente
                   }}
                 />
               </View>
@@ -972,3 +978,8 @@ export default function DashboardScreen({ navigation }: any) {
     </View>
   );
 }
+
+
+
+
+
