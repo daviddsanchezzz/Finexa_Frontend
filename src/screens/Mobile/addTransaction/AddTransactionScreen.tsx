@@ -845,6 +845,7 @@ export default function AddScreen({ navigation }: any) {
             value={amount}
             onChangeValue={setAmount}
             onExpressionChange={setCalcExpression}
+            showExpressionInHeader={false}
             onDone={closeCalc}
             bottomInset={tabBarHeight}
             variant="calculator"

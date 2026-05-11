@@ -11,6 +11,7 @@ type Props = {
   onChangeValue: (next: string) => void;
   onDone?: () => void;
   onExpressionChange?: (expression: string) => void;
+  showExpressionInHeader?: boolean;
   bottomInset?: number;
   variant?: Variant;
   onMovePrev?: () => void;
@@ -44,6 +45,7 @@ export default function NumericCalculatorKeyboard({
   onChangeValue,
   onDone,
   onExpressionChange,
+  showExpressionInHeader = true,
   bottomInset = 0,
   variant = "calculator",
   onMovePrev,
@@ -187,7 +189,7 @@ export default function NumericCalculatorKeyboard({
             )}
           </View>
 
-          {isCalculator && (
+          {isCalculator && showExpressionInHeader && (
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
               {calcOp && calcPrev !== null ? `${formatDisplay(calcPrev)} ${calcOp}` : ""}
             </Text>
