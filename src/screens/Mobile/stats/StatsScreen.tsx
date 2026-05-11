@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -27,6 +28,14 @@ type CategoryAgg = {
   name: string;
   emoji: string;
   color: string;
+  amount: number;
+  count: number;
+  subcategories: SubcategoryAgg[];
+};
+
+type SubcategoryAgg = {
+  name: string;
+  emoji: string;
   amount: number;
   count: number;
 };
@@ -51,6 +60,7 @@ type TxLite = {
   amount: number;
   date: string;
   category?: { name: string; emoji: string; color: string };
+  subcategory?: { name: string; emoji?: string } | null;
 };
 
 export default function StatsScreen({ navigation }: any) {
@@ -58,6 +68,12 @@ export default function StatsScreen({ navigation }: any) {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [graphType, setGraphType] = useState<GraphType>("expense");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [expandedIncome, setExpandedIncome] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [expandedExpense, setExpandedExpense] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // Carrusel: 0 = Barras, 1 = Circular
   const [chartPage, setChartPage] = useState(0);
@@ -170,11 +186,14 @@ export default function StatsScreen({ navigation }: any) {
   const groupByCategory = (list: TxLite[]) => {
     const incomeMap: Record<string, CategoryAgg> = {};
     const expenseMap: Record<string, CategoryAgg> = {};
+    const incomeSubMap: Record<string, Record<string, SubcategoryAgg>> = {};
+    const expenseSubMap: Record<string, Record<string, SubcategoryAgg>> = {};
 
     list.forEach((tx) => {
       if (!tx.category) return;
       const key = tx.category.name;
       const bucket = tx.type === "income" ? incomeMap : expenseMap;
+      const subBucket = tx.type === "income" ? incomeSubMap : expenseSubMap;
 
       if (!bucket[key]) {
         bucket[key] = {
@@ -183,15 +202,40 @@ export default function StatsScreen({ navigation }: any) {
           color: tx.category.color,
           amount: 0,
           count: 0,
+          subcategories: [],
         };
       }
 
       bucket[key].amount += Math.abs(tx.amount);
       bucket[key].count += 1;
+
+      const subName = tx.subcategory?.name?.trim() || "Sin subcategoría";
+      if (!subBucket[key]) subBucket[key] = {};
+      if (!subBucket[key][subName]) {
+        subBucket[key][subName] = {
+          name: subName,
+          emoji: tx.subcategory?.emoji || "•",
+          amount: 0,
+          count: 0,
+        };
+      }
+      subBucket[key][subName].amount += Math.abs(tx.amount);
+      subBucket[key][subName].count += 1;
     });
 
     const incomesArr = Object.values(incomeMap);
     const expensesArr = Object.values(expenseMap);
+
+    incomesArr.forEach((c) => {
+      c.subcategories = Object.values(incomeSubMap[c.name] || {}).sort(
+        (a, b) => b.amount - a.amount
+      );
+    });
+    expensesArr.forEach((c) => {
+      c.subcategories = Object.values(expenseSubMap[c.name] || {}).sort(
+        (a, b) => b.amount - a.amount
+      );
+    });
 
     incomesArr.sort((a, b) => b.amount - a.amount);
     expensesArr.sort((a, b) => b.amount - a.amount);
@@ -353,6 +397,10 @@ export default function StatsScreen({ navigation }: any) {
   })();
 
   const totalSaving = totalIncomes - totalExpenses;
+  const toggleIncome = (key: string) =>
+    setExpandedIncome((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleExpense = (key: string) =>
+    setExpandedExpense((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // ------------------------------
   // CARRUSEL HANDLERS
@@ -575,55 +623,95 @@ export default function StatsScreen({ navigation }: any) {
                   {incomes.map((c, i) => {
                     const percent =
                       totalIncomes > 0 ? (c.amount / totalIncomes) * 100 : 0;
+                    const isExpanded = !!expandedIncome[c.name];
 
                     return (
-                      <TouchableOpacity
+                      <View
                         key={i}
-                        activeOpacity={0.7}
-                        onPress={() =>
-                          navigation.navigate("CategoryTransactions", {
-                            categoryName: c.name,
-                            categoryEmoji: c.emoji,
-                            categoryColor: c.color,
-                            type: "income",
-                            dateFrom,
-                            dateTo,
-                          })
-                        }
-                        className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
                         style={{
                           backgroundColor: t.surface,
                           borderRadius: 12,
                           marginVertical: 3,
                         }}
                       >
-                        <View className="flex-row items-center">
-                          <View
-                            className="w-9 h-9 rounded-lg items-center justify-center mr-3"
-                            style={{ backgroundColor: c.color }}
-                          >
-                            <Text className="text-[18px]">{c.emoji}</Text>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => toggleIncome(c.name)}
+                          className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
+                        >
+                          <View className="flex-row items-center">
+                            <View
+                              className="w-9 h-9 rounded-lg items-center justify-center mr-3"
+                              style={{ backgroundColor: c.color }}
+                            >
+                              <Text className="text-[18px]">{c.emoji}</Text>
+                            </View>
+
+                            <View>
+                              <Text className="text-[16px] font-semibold text-text">
+                                {c.name}
+                              </Text>
+                              <Text className="text-[13px] text-gray-500 mt-0.5">
+                                x{c.count}
+                              </Text>
+                            </View>
                           </View>
 
-                          <View>
-                            <Text className="text-[16px] font-semibold text-text">
-                              {c.name}
-                            </Text>
-                            <Text className="text-[13px] text-gray-500 mt-0.5">
-                              x{c.count}
-                            </Text>
+                          <View className="items-end flex-row">
+                            <View className="items-end mr-2">
+                              <Text className="text-[16px] font-semibold text-text">
+                                {formatEuro(c.amount)}
+                              </Text>
+                              <Text className="text-[13px] text-gray-500 mt-0.5">
+                                {formatPercent(percent)}
+                              </Text>
+                            </View>
+                            <Ionicons
+                              name={isExpanded ? "chevron-up" : "chevron-down"}
+                              size={18}
+                              color="#6B7280"
+                              style={{ marginTop: 2 }}
+                            />
                           </View>
-                        </View>
+                        </TouchableOpacity>
 
-                        <View className="items-end">
-                          <Text className="text-[16px] font-semibold text-text">
-                            {formatEuro(c.amount)}
-                          </Text>
-                          <Text className="text-[13px] text-gray-500 mt-0.5">
-                            {formatPercent(percent)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                        {isExpanded && c.subcategories.length > 0 && (
+                          <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+                            {c.subcategories.map((s, idx) => {
+                              const subPercent =
+                                c.amount > 0 ? (s.amount / c.amount) * 100 : 0;
+                              return (
+                                <View
+                                  key={`${c.name}-income-sub-${idx}`}
+                                  style={{
+                                    flexDirection: "row",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    paddingVertical: 8,
+                                    borderTopWidth: idx === 0 ? 1 : 0,
+                                    borderTopColor: "#EEF2F7",
+                                  }}
+                                >
+                                  <View>
+                                    <Text className="text-[14px] text-gray-800 font-medium">
+                                      {s.emoji} {s.name}
+                                    </Text>
+                                    <Text className="text-[12px] text-gray-500">x{s.count}</Text>
+                                  </View>
+                                  <View className="items-end">
+                                    <Text className="text-[14px] font-semibold text-gray-800">
+                                      {formatEuro(s.amount)}
+                                    </Text>
+                                    <Text className="text-[12px] text-gray-500">
+                                      {formatPercent(subPercent)}
+                                    </Text>
+                                  </View>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                      </View>
                     );
                   })}
 
@@ -663,55 +751,95 @@ export default function StatsScreen({ navigation }: any) {
                   {expenses.map((c, i) => {
                     const percent =
                       totalExpenses > 0 ? (c.amount / totalExpenses) * 100 : 0;
+                    const isExpanded = !!expandedExpense[c.name];
 
                     return (
-                      <TouchableOpacity
+                      <View
                         key={i}
-                        activeOpacity={0.7}
-                        onPress={() =>
-                          navigation.navigate("CategoryTransactions", {
-                            categoryName: c.name,
-                            categoryEmoji: c.emoji,
-                            categoryColor: c.color,
-                            type: "expense",
-                            dateFrom,
-                            dateTo,
-                          })
-                        }
-                        className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
                         style={{
                           backgroundColor: t.surface,
                           borderRadius: 12,
                           marginVertical: 3,
                         }}
                       >
-                        <View className="flex-row items-center">
-                          <View
-                            className="w-9 h-9 rounded-lg items-center justify-center mr-3"
-                            style={{ backgroundColor: c.color }}
-                          >
-                            <Text className="text-[18px]">{c.emoji}</Text>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => toggleExpense(c.name)}
+                          className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
+                        >
+                          <View className="flex-row items-center">
+                            <View
+                              className="w-9 h-9 rounded-lg items-center justify-center mr-3"
+                              style={{ backgroundColor: c.color }}
+                            >
+                              <Text className="text-[18px]">{c.emoji}</Text>
+                            </View>
+
+                            <View>
+                              <Text className="text-[16px] font-semibold text-text">
+                                {c.name}
+                              </Text>
+                              <Text className="text-[13px] text-gray-500 mt-0.5">
+                                x{c.count}
+                              </Text>
+                            </View>
                           </View>
 
-                          <View>
-                            <Text className="text-[16px] font-semibold text-text">
-                              {c.name}
-                            </Text>
-                            <Text className="text-[13px] text-gray-500 mt-0.5">
-                              x{c.count}
-                            </Text>
+                          <View className="items-end flex-row">
+                            <View className="items-end mr-2">
+                              <Text className="text-[16px] font-semibold text-text">
+                                {formatEuro(c.amount)}
+                              </Text>
+                              <Text className="text-[13px] text-gray-500 mt-0.5">
+                                {formatPercent(percent)}
+                              </Text>
+                            </View>
+                            <Ionicons
+                              name={isExpanded ? "chevron-up" : "chevron-down"}
+                              size={18}
+                              color="#6B7280"
+                              style={{ marginTop: 2 }}
+                            />
                           </View>
-                        </View>
+                        </TouchableOpacity>
 
-                        <View className="items-end">
-                          <Text className="text-[16px] font-semibold text-text">
-                            {formatEuro(c.amount)}
-                          </Text>
-                          <Text className="text-[13px] text-gray-500 mt-0.5">
-                            {formatPercent(percent)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                        {isExpanded && c.subcategories.length > 0 && (
+                          <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+                            {c.subcategories.map((s, idx) => {
+                              const subPercent =
+                                c.amount > 0 ? (s.amount / c.amount) * 100 : 0;
+                              return (
+                                <View
+                                  key={`${c.name}-expense-sub-${idx}`}
+                                  style={{
+                                    flexDirection: "row",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    paddingVertical: 8,
+                                    borderTopWidth: idx === 0 ? 1 : 0,
+                                    borderTopColor: "#EEF2F7",
+                                  }}
+                                >
+                                  <View>
+                                    <Text className="text-[14px] text-gray-800 font-medium">
+                                      {s.emoji} {s.name}
+                                    </Text>
+                                    <Text className="text-[12px] text-gray-500">x{s.count}</Text>
+                                  </View>
+                                  <View className="items-end">
+                                    <Text className="text-[14px] font-semibold text-gray-800">
+                                      {formatEuro(s.amount)}
+                                    </Text>
+                                    <Text className="text-[12px] text-gray-500">
+                                      {formatPercent(subPercent)}
+                                    </Text>
+                                  </View>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                      </View>
                     );
                   })}
 
