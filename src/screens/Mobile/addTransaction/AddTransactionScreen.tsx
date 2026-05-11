@@ -25,6 +25,9 @@ import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyb
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
   const editData = (route.params as any)?.editData || null;
+  const prefillData = (route.params as any)?.prefillData || null;
+  const isEditing = !!(editData && editData.id != null);
+  const sourceData = editData ?? prefillData;
   const insets = useSafeAreaInsets();
   // BottomNav is position:absolute, height = paddingTop(14) + content(56) + paddingBottom(25) = 95px
   // SafeAreaView already pads by insets.bottom, so we only need the remaining overlap
@@ -79,6 +82,9 @@ export default function AddScreen({ navigation }: any) {
   const chipText: TextStyle = {
     fontSize: 15,
   };
+
+  const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const toAmountText = (n: number) => round2(n).toFixed(2).replace(".", ",");
 
   const blueSelected = {
     backgroundColor: "#e0f2fe",
@@ -139,7 +145,7 @@ export default function AddScreen({ navigation }: any) {
   // Selección automática de carteras
   //---------------------------------------
   useEffect(() => {
-    if (editData) return;
+    if (isEditing || prefillData) return;
     if (wallets.length === 0) return;
 
     if (type === "transfer") {
@@ -159,13 +165,13 @@ export default function AddScreen({ navigation }: any) {
         setSelectedWallet(wallets[0]);
       }
     }
-  }, [wallets, type, editData]);
+  }, [wallets, type, isEditing, prefillData]);
 
   //---------------------------------------
   // Auto-selección de asset cuando TO es wallet inversión
   //---------------------------------------
   useEffect(() => {
-    if (editData) return;
+    if (isEditing || prefillData) return;
     if (type !== "transfer") return;
 
     const toIsInvestment = selectedWalletTo?.kind === "investment";
@@ -192,7 +198,8 @@ export default function AddScreen({ navigation }: any) {
     selectedWalletTo,
     investmentAssets,
     prefillInvestmentAssetId,
-    editData,
+    isEditing,
+    prefillData,
     selectedInvestmentAsset,
   ]);
 
@@ -201,7 +208,7 @@ export default function AddScreen({ navigation }: any) {
   //---------------------------------------
   useFocusEffect(
     useCallback(() => {
-      if (!editData) {
+      if (!isEditing && !prefillData) {
         setType("expense");
         setSelectedWallet(null);
         setSelectedWalletFrom(null);
@@ -215,46 +222,46 @@ export default function AddScreen({ navigation }: any) {
         setRecurrenceInterval("never");
         setIsRecurring(false);
       }
-    }, [editData])
+    }, [isEditing, prefillData])
   );
 
   //---------------------------------------
   // Rellenar datos si venimos en modo edición
   //---------------------------------------
   useEffect(() => {
-    if (!editData || wallets.length === 0 || categories.length === 0) return;
+    if (!sourceData || wallets.length === 0 || categories.length === 0) return;
 
-    setType(editData.type);
+    setType(sourceData.type);
 
     // --------- WALLET ----------
-    if (editData.type === "transfer") {
-      const from = wallets.find((w) => w.id === editData.fromWalletId) || null;
-      const to = wallets.find((w) => w.id === editData.toWalletId) || null;
+    if (sourceData.type === "transfer") {
+      const from = wallets.find((w) => w.id === sourceData.fromWalletId) || null;
+      const to = wallets.find((w) => w.id === sourceData.toWalletId) || null;
 
       setSelectedWalletFrom(from);
       setSelectedWalletTo(to);
 
       // ✅ asset si era aportación a inversión
-      if (editData.investmentAssetId && investmentAssets.length > 0) {
+      if (sourceData.investmentAssetId && investmentAssets.length > 0) {
         const inv =
-          investmentAssets.find((a) => a.id === editData.investmentAssetId) || null;
+          investmentAssets.find((a) => a.id === sourceData.investmentAssetId) || null;
         setSelectedInvestmentAsset(inv);
       } else {
         setSelectedInvestmentAsset(null);
       }
     } else {
-      const wallet = wallets.find((w) => w.id === editData.walletId) || null;
+      const wallet = wallets.find((w) => w.id === sourceData.walletId) || null;
       setSelectedWallet(wallet);
       setSelectedInvestmentAsset(null);
     }
 
     // --------- CATEGORY ----------
-    const cat = categories.find((c) => c.id === editData.categoryId) || null;
+    const cat = categories.find((c) => c.id === sourceData.categoryId) || null;
     setSelectedCategory(cat);
 
     // --------- SUBCATEGORY ----------
     if (cat && Array.isArray(cat.subcategories)) {
-      const sub = cat.subcategories.find((s: any) => s.id === editData.subcategoryId) || null;
+      const sub = cat.subcategories.find((s: any) => s.id === sourceData.subcategoryId) || null;
       setSelectedSub(sub);
     } else {
       setSelectedSub(null);
@@ -262,23 +269,23 @@ export default function AddScreen({ navigation }: any) {
 
     // --------- CAMPOS BÁSICOS ----------
     setAmount(
-      typeof editData.amount === "number"
-        ? editData.amount.toString().replace(".", ",")
+      typeof sourceData.amount === "number"
+        ? toAmountText(sourceData.amount)
         : "0,00"
     );
 
-    setDescription(editData.description || "");
-    setDate(new Date(editData.date));
+    setDescription(sourceData.description || "");
+    setDate(new Date(sourceData.date));
 
     // --------- RECURRENCIA ----------
-    if (editData.isRecurring && editData.recurrence) {
-      setRecurrenceInterval(editData.recurrence);
+    if (sourceData.isRecurring && sourceData.recurrence) {
+      setRecurrenceInterval(sourceData.recurrence);
       setIsRecurring(true);
     } else {
       setRecurrenceInterval("never");
       setIsRecurring(false);
     }
-  }, [editData, wallets, categories, investmentAssets]);
+  }, [sourceData, wallets, categories, investmentAssets]);
 
   //---------------------------------------
   // Lógica filtrado categorías
@@ -289,7 +296,7 @@ export default function AddScreen({ navigation }: any) {
   //---------------------------------------
   // Helper: ¿esta transacción pertenece a una serie recurrente?
   //---------------------------------------
-  const isPartOfSeries = !!(editData && (editData.isRecurring || editData.parentId));
+  const isPartOfSeries = !!(isEditing && editData && (editData.isRecurring || editData.parentId));
 
   //---------------------------------------
   // Guardar (con scope para recurrentes en edición)
@@ -350,7 +357,7 @@ export default function AddScreen({ navigation }: any) {
 
     try {
       setSaving(true);
-      if (editData) {
+      if (isEditing) {
         await api.patch(`/transactions/${editData.id}`, payload, {
           params: { scope },
         });
@@ -398,14 +405,14 @@ export default function AddScreen({ navigation }: any) {
 
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text className="text-[17px] font-medium text-[#111]">
-            {editData ? "Editar" : "Añadir"}
+            {isEditing ? "Editar" : "Añadir"}
           </Text>
         </View>
 
         <View style={{ minWidth: 60, alignItems: "flex-end" }}>
           <TouchableOpacity
             onPress={() => {
-              if (editData && isPartOfSeries) {
+              if (isEditing && isPartOfSeries) {
                 appAlert("Actualizar transacción recurrente", "¿Qué quieres actualizar?", [
                   { text: "Solo esta", onPress: () => handleSubmit("single") },
                   { text: "Solo futuras", onPress: () => handleSubmit("future") },
@@ -426,7 +433,7 @@ export default function AddScreen({ navigation }: any) {
               <ActivityIndicator size="small" />
             ) : (
               <Text className="text-[15px] text-primary font-medium">
-                {editData ? "Actualizar" : "Guardar"}
+                {isEditing ? "Actualizar" : "Guardar"}
               </Text>
             )}
           </TouchableOpacity>

@@ -20,6 +20,8 @@ const formatEuro = (n: number) =>
     maximumFractionDigits: 2,
   });
 
+const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
 export default function ReconcileAccountsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [wallets, setWallets] = useState<any[]>([]);
@@ -197,11 +199,11 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                   <TouchableOpacity
                     onPress={() => {
                       const isIncome = diff > 0;
+                      const roundedAmount = round2(Math.abs(diff));
 
-                      const fakeEditData = {
-                        id: null, // para que AddScreen trate como "nuevo"
+                      const prefillData = {
                         type: isIncome ? "income" : "expense",
-                        amount: Math.abs(diff),
+                        amount: roundedAmount,
                         description: "",
                         date: new Date().toISOString(),
                         walletId: wallet.id,
@@ -210,7 +212,7 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                         recurrence: null,
                       };
 
-                      navigation.navigate("Add", { editData: fakeEditData });
+                      navigation.navigate("Add", { prefillData });
                     }}
                     className="mt-3 py-2 bg-primary/10 rounded-xl items-center"
                     activeOpacity={0.8}
