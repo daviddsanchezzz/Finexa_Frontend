@@ -35,7 +35,6 @@ type CategoryAgg = {
 
 type SubcategoryAgg = {
   name: string;
-  emoji: string;
   amount: number;
   count: number;
 };
@@ -214,7 +213,6 @@ export default function StatsScreen({ navigation }: any) {
       if (!subBucket[key][subName]) {
         subBucket[key][subName] = {
           name: subName,
-          emoji: tx.subcategory?.emoji || "•",
           amount: 0,
           count: 0,
         };
@@ -636,7 +634,16 @@ export default function StatsScreen({ navigation }: any) {
                       >
                         <TouchableOpacity
                           activeOpacity={0.7}
-                          onPress={() => toggleIncome(c.name)}
+                          onPress={() =>
+                            navigation.navigate("CategoryTransactions", {
+                              categoryName: c.name,
+                              categoryEmoji: c.emoji,
+                              categoryColor: c.color,
+                              type: "income",
+                              dateFrom,
+                              dateTo,
+                            })
+                          }
                           className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
                         >
                           <View className="flex-row items-center">
@@ -666,12 +673,17 @@ export default function StatsScreen({ navigation }: any) {
                                 {formatPercent(percent)}
                               </Text>
                             </View>
-                            <Ionicons
-                              name={isExpanded ? "chevron-up" : "chevron-down"}
-                              size={18}
-                              color="#6B7280"
-                              style={{ marginTop: 2 }}
-                            />
+                            <TouchableOpacity
+                              onPress={() => toggleIncome(c.name)}
+                              style={{ padding: 4, marginTop: 2 }}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name={isExpanded ? "chevron-up" : "chevron-down"}
+                                size={18}
+                                color="#6B7280"
+                              />
+                            </TouchableOpacity>
                           </View>
                         </TouchableOpacity>
 
@@ -681,8 +693,20 @@ export default function StatsScreen({ navigation }: any) {
                               const subPercent =
                                 c.amount > 0 ? (s.amount / c.amount) * 100 : 0;
                               return (
-                                <View
+                                <TouchableOpacity
                                   key={`${c.name}-income-sub-${idx}`}
+                                  activeOpacity={0.7}
+                                  onPress={() =>
+                                    navigation.navigate("CategoryTransactions", {
+                                      categoryName: c.name,
+                                      categoryEmoji: c.emoji,
+                                      categoryColor: c.color,
+                                      subcategoryName: s.name,
+                                      type: "income",
+                                      dateFrom,
+                                      dateTo,
+                                    })
+                                  }
                                   style={{
                                     flexDirection: "row",
                                     justifyContent: "space-between",
@@ -694,7 +718,7 @@ export default function StatsScreen({ navigation }: any) {
                                 >
                                   <View>
                                     <Text className="text-[14px] text-gray-800 font-medium">
-                                      {s.emoji} {s.name}
+                                      {s.name}
                                     </Text>
                                     <Text className="text-[12px] text-gray-500">x{s.count}</Text>
                                   </View>
@@ -706,7 +730,7 @@ export default function StatsScreen({ navigation }: any) {
                                       {formatPercent(subPercent)}
                                     </Text>
                                   </View>
-                                </View>
+                                </TouchableOpacity>
                               );
                             })}
                           </View>
@@ -764,7 +788,16 @@ export default function StatsScreen({ navigation }: any) {
                       >
                         <TouchableOpacity
                           activeOpacity={0.7}
-                          onPress={() => toggleExpense(c.name)}
+                          onPress={() =>
+                            navigation.navigate("CategoryTransactions", {
+                              categoryName: c.name,
+                              categoryEmoji: c.emoji,
+                              categoryColor: c.color,
+                              type: "expense",
+                              dateFrom,
+                              dateTo,
+                            })
+                          }
                           className="flex-row justify-between items-center py-3 px-1.5 border-b border-gray-200"
                         >
                           <View className="flex-row items-center">
@@ -794,12 +827,17 @@ export default function StatsScreen({ navigation }: any) {
                                 {formatPercent(percent)}
                               </Text>
                             </View>
-                            <Ionicons
-                              name={isExpanded ? "chevron-up" : "chevron-down"}
-                              size={18}
-                              color="#6B7280"
-                              style={{ marginTop: 2 }}
-                            />
+                            <TouchableOpacity
+                              onPress={() => toggleExpense(c.name)}
+                              style={{ padding: 4, marginTop: 2 }}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name={isExpanded ? "chevron-up" : "chevron-down"}
+                                size={18}
+                                color="#6B7280"
+                              />
+                            </TouchableOpacity>
                           </View>
                         </TouchableOpacity>
 
@@ -809,8 +847,20 @@ export default function StatsScreen({ navigation }: any) {
                               const subPercent =
                                 c.amount > 0 ? (s.amount / c.amount) * 100 : 0;
                               return (
-                                <View
+                                <TouchableOpacity
                                   key={`${c.name}-expense-sub-${idx}`}
+                                  activeOpacity={0.7}
+                                  onPress={() =>
+                                    navigation.navigate("CategoryTransactions", {
+                                      categoryName: c.name,
+                                      categoryEmoji: c.emoji,
+                                      categoryColor: c.color,
+                                      subcategoryName: s.name,
+                                      type: "expense",
+                                      dateFrom,
+                                      dateTo,
+                                    })
+                                  }
                                   style={{
                                     flexDirection: "row",
                                     justifyContent: "space-between",
@@ -822,7 +872,7 @@ export default function StatsScreen({ navigation }: any) {
                                 >
                                   <View>
                                     <Text className="text-[14px] text-gray-800 font-medium">
-                                      {s.emoji} {s.name}
+                                      {s.name}
                                     </Text>
                                     <Text className="text-[12px] text-gray-500">x{s.count}</Text>
                                   </View>
@@ -834,7 +884,7 @@ export default function StatsScreen({ navigation }: any) {
                                       {formatPercent(subPercent)}
                                     </Text>
                                   </View>
-                                </View>
+                                </TouchableOpacity>
                               );
                             })}
                           </View>

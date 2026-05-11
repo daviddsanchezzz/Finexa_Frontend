@@ -13,7 +13,15 @@ import { colors } from "../../../theme/theme";
 import TransactionsList from "../../../components/TransactionsList";
 
 export default function CategoryTransactionsScreen({ route, navigation }: any) {
-  const { categoryName, categoryEmoji, categoryColor, type, dateFrom, dateTo } =
+  const {
+    categoryName,
+    categoryEmoji,
+    categoryColor,
+    subcategoryName,
+    type,
+    dateFrom,
+    dateTo,
+  } =
     route.params;
 
   const [loading, setLoading] = useState(true);
@@ -34,6 +42,11 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
       const filtered = res.data
         .filter((tx: any) => !tx.isRecurring)
         .filter((tx: any) => tx.category?.name === categoryName)
+        .filter((tx: any) =>
+          subcategoryName
+            ? (tx.subcategory?.name || "Sin subcategoría") === subcategoryName
+            : true
+        )
         .filter((tx: any) => tx.type === type);
 
       setTransactions(filtered);
@@ -65,7 +78,7 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
           </View>
 
           <Text className="text-[20px] font-bold text-text">
-            {categoryName}
+            {subcategoryName ? `${categoryName} · ${subcategoryName}` : categoryName}
           </Text>
         </View>
       </View>
