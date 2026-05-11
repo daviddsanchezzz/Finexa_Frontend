@@ -53,6 +53,7 @@ export default function AddScreen({ navigation }: any) {
   const [selectedSub, setSelectedSub] = useState<any>(null);
   const [amount, setAmount] = useState("");
   const [calcVisible, setCalcVisible] = useState(false);
+  const [calcExpression, setCalcExpression] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -390,6 +391,7 @@ export default function AddScreen({ navigation }: any) {
 
   const closeCalc = () => {
     setCalcVisible(false);
+    setCalcExpression("");
   };
 
   //---------------------------------------
@@ -504,6 +506,11 @@ export default function AddScreen({ navigation }: any) {
               onPress={openCalc}
               className="items-center mb-8 mt-2"
             >
+              {!!calcExpression && (
+                <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", marginBottom: 2 }}>
+                  {calcExpression}
+                </Text>
+              )}
               <View className="flex-row items-end justify-center">
                 <Text
                   style={{
@@ -837,6 +844,7 @@ export default function AddScreen({ navigation }: any) {
             visible={calcVisible}
             value={amount}
             onChangeValue={setAmount}
+            onExpressionChange={setCalcExpression}
             onDone={closeCalc}
             bottomInset={tabBarHeight}
             variant="calculator"

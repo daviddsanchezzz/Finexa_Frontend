@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
@@ -10,6 +10,7 @@ type Props = {
   value: string;
   onChangeValue: (next: string) => void;
   onDone?: () => void;
+  onExpressionChange?: (expression: string) => void;
   bottomInset?: number;
   variant?: Variant;
   onMovePrev?: () => void;
@@ -42,6 +43,7 @@ export default function NumericCalculatorKeyboard({
   value,
   onChangeValue,
   onDone,
+  onExpressionChange,
   bottomInset = 0,
   variant = "calculator",
   onMovePrev,
@@ -53,6 +55,14 @@ export default function NumericCalculatorKeyboard({
 
   const isCalculator = variant === "calculator";
   const canMove = useMemo(() => !!onMovePrev || !!onMoveNext, [onMovePrev, onMoveNext]);
+  const expressionText =
+    isCalculator && calcOp && calcPrev !== null
+      ? `${formatDisplay(calcPrev)} ${calcOp}`
+      : "";
+
+  useEffect(() => {
+    onExpressionChange?.(expressionText);
+  }, [expressionText, onExpressionChange]);
 
   if (!visible) return null;
 
@@ -256,3 +266,5 @@ export default function NumericCalculatorKeyboard({
     </View>
   );
 }
+
+
