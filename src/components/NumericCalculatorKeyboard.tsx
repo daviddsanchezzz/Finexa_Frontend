@@ -57,7 +57,9 @@ export default function NumericCalculatorKeyboard({
   const canMove = useMemo(() => !!onMovePrev || !!onMoveNext, [onMovePrev, onMoveNext]);
   const expressionText =
     isCalculator && calcOp && calcPrev !== null
-      ? `${formatDisplay(calcPrev)} ${calcOp}`
+      ? calcFresh
+        ? `${formatDisplay(calcPrev)} ${calcOp}`
+        : `${formatDisplay(calcPrev)} ${calcOp} ${value || "0"}`
       : "";
 
   useEffect(() => {
