@@ -688,7 +688,13 @@ export default function StatsScreen({ navigation }: any) {
                         </TouchableOpacity>
 
                         {isExpanded && c.subcategories.length > 0 && (
-                          <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+                          <View
+                            style={{
+                              paddingHorizontal: 14,
+                              paddingBottom: 10,
+                              backgroundColor: t.background,
+                            }}
+                          >
                             {c.subcategories.map((s, idx) => {
                               const subPercent =
                                 c.amount > 0 ? (s.amount / c.amount) * 100 : 0;
@@ -842,7 +848,13 @@ export default function StatsScreen({ navigation }: any) {
                         </TouchableOpacity>
 
                         {isExpanded && c.subcategories.length > 0 && (
-                          <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+                          <View
+                            style={{
+                              paddingHorizontal: 14,
+                              paddingBottom: 10,
+                              backgroundColor: t.background,
+                            }}
+                          >
                             {c.subcategories.map((s, idx) => {
                               const subPercent =
                                 c.amount > 0 ? (s.amount / c.amount) * 100 : 0;
