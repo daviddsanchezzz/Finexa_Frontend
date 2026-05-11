@@ -1,4 +1,4 @@
-// src/screens/Transactions/AddScreen.tsx
+﻿// src/screens/Transactions/AddScreen.tsx
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
@@ -20,6 +20,7 @@ import { ViewStyle, TextStyle } from "react-native";
 import EditCategoryModal from "../../../components/EditCategoryModal";
 import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTimePicker";
 import { appAlert } from "../../../utils/appAlert";
+import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
@@ -49,9 +50,6 @@ export default function AddScreen({ navigation }: any) {
   const [selectedSub, setSelectedSub] = useState<any>(null);
   const [amount, setAmount] = useState("");
   const [calcVisible, setCalcVisible] = useState(false);
-  const [calcOp, setCalcOp] = useState<string | null>(null);
-  const [calcPrev, setCalcPrev] = useState<number | null>(null);
-  const [calcFresh, setCalcFresh] = useState(false);
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -378,71 +376,6 @@ export default function AddScreen({ navigation }: any) {
     setCategoryModalVisible(true);
   };
 
-  //---------------------------------------
-  // CALCULATOR
-  //---------------------------------------
-  const parseDisplay = (s: string) => parseFloat((s || "0").replace(",", ".")) || 0;
-
-  const formatDisplay = (n: number) => {
-    if (!isFinite(n)) return "0";
-    const rounded = Math.round(n * 100) / 100;
-    return Number.isInteger(rounded)
-      ? String(rounded)
-      : rounded.toFixed(2).replace(".", ",");
-  };
-
-  const onCalcDigit = (d: string) => {
-    if (calcFresh) {
-      setAmount(d);
-      setCalcFresh(false);
-    } else {
-      setAmount((prev) => {
-        if (prev === "0" || prev === "") return d;
-        return prev + d;
-      });
-    }
-  };
-
-  const onCalcComma = () => {
-    if (calcFresh) {
-      setAmount("0,");
-      setCalcFresh(false);
-      return;
-    }
-    setAmount((prev) => {
-      if (prev.includes(",")) return prev;
-      return (prev || "0") + ",";
-    });
-  };
-
-  const onCalcBackspace = () => {
-    setCalcFresh(false);
-    setAmount((prev) => (prev.length <= 1 ? "" : prev.slice(0, -1)));
-  };
-
-  const onCalcOperator = (op: string) => {
-    setCalcPrev(parseDisplay(amount));
-    setCalcOp(op);
-    setCalcFresh(true);
-  };
-
-  const onCalcEquals = () => {
-    if (calcOp === null || calcPrev === null) return;
-    const curr = parseDisplay(amount);
-    let result: number;
-    switch (calcOp) {
-      case "+": result = calcPrev + curr; break;
-      case "-": result = calcPrev - curr; break;
-      case "×": result = calcPrev * curr; break;
-      case "÷": result = curr !== 0 ? calcPrev / curr : 0; break;
-      default: result = curr;
-    }
-    setAmount(formatDisplay(result));
-    setCalcOp(null);
-    setCalcPrev(null);
-    setCalcFresh(true);
-  };
-
   const openCalc = () => {
     Keyboard.dismiss();
     setCalcVisible(true);
@@ -450,9 +383,6 @@ export default function AddScreen({ navigation }: any) {
 
   const closeCalc = () => {
     setCalcVisible(false);
-    setCalcOp(null);
-    setCalcPrev(null);
-    setCalcFresh(false);
   };
 
   //---------------------------------------
@@ -567,11 +497,6 @@ export default function AddScreen({ navigation }: any) {
               onPress={openCalc}
               className="items-center mb-8 mt-2"
             >
-              {calcOp && calcPrev !== null && (
-                <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", marginBottom: 2 }}>
-                  {formatDisplay(calcPrev)} {calcOp}
-                </Text>
-              )}
               <View className="flex-row items-end justify-center">
                 <Text
                   style={{
@@ -901,112 +826,14 @@ export default function AddScreen({ navigation }: any) {
             onSave={handleCategoryModalSave}
           />
 
-          {/* TECLADO CALCULADORA */}
-          {calcVisible && (
-            <View style={{
-              backgroundColor: "#F1F5F9",
-              borderTopWidth: 1,
-              borderTopColor: "#E2E8F0",
-              paddingHorizontal: 12,
-              paddingTop: 10,
-              paddingBottom: 8,
-              marginBottom: tabBarHeight,
-            }}>
-              {/* Fila operadores */}
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-                {["+", "-", "×", "÷", "="].map((op) => {
-                  const isEq = op === "=";
-                  const isActive = calcOp === op;
-                  return (
-                    <TouchableOpacity
-                      key={op}
-                      onPress={() => isEq ? onCalcEquals() : onCalcOperator(op)}
-                      activeOpacity={0.7}
-                      style={{
-                        flex: 1,
-                        height: 48,
-                        borderRadius: 14,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: isEq
-                          ? colors.primary
-                          : isActive
-                          ? "#DBEAFE"
-                          : "white",
-                        borderWidth: 1,
-                        borderColor: isEq
-                          ? colors.primary
-                          : isActive
-                          ? "#93C5FD"
-                          : "#E2E8F0",
-                        shadowColor: "#000",
-                        shadowOpacity: 0.04,
-                        shadowRadius: 2,
-                        shadowOffset: { width: 0, height: 1 },
-                      }}
-                    >
-                      <Text style={{
-                        fontSize: 20,
-                        fontWeight: "600",
-                        color: isEq ? "white" : isActive ? "#2563EB" : "#475569",
-                      }}>
-                        {op}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Grid numérico */}
-              {[
-                ["7", "8", "9"],
-                ["4", "5", "6"],
-                ["1", "2", "3"],
-              ].map((row) => (
-                <View key={row[0]} style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-                  {row.map((d) => (
-                    <TouchableOpacity
-                      key={d}
-                      onPress={() => onCalcDigit(d)}
-                      activeOpacity={0.7}
-                      style={{
-                        flex: 1, height: 56, borderRadius: 16,
-                        alignItems: "center", justifyContent: "center",
-                        backgroundColor: "white",
-                        shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
-                      }}
-                    >
-                      <Text style={{ fontSize: 22, fontWeight: "500", color: "#0F172A" }}>{d}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ))}
-              {/* Fila 0 */}
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  onPress={onCalcComma}
-                  activeOpacity={0.7}
-                  style={{ flex: 1, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "white", shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}
-                >
-                  <Text style={{ fontSize: 22, fontWeight: "500", color: "#0F172A" }}>,</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => onCalcDigit("0")}
-                  activeOpacity={0.7}
-                  style={{ flex: 1, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "white", shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}
-                >
-                  <Text style={{ fontSize: 22, fontWeight: "500", color: "#0F172A" }}>0</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={onCalcBackspace}
-                  activeOpacity={0.7}
-                  style={{ flex: 1, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "white", shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}
-                >
-                  <Ionicons name="backspace-outline" size={22} color="#475569" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          <NumericCalculatorKeyboard
+            visible={calcVisible}
+            value={amount}
+            onChangeValue={setAmount}
+            onDone={closeCalc}
+            bottomInset={tabBarHeight}
+            variant="calculator"
+          />
         </KeyboardAvoidingView>
       )}
     </SafeAreaView>

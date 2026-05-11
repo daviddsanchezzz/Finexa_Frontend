@@ -1,0 +1,203 @@
+import React, { useMemo, useState } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../theme/theme";
+
+type Variant = "calculator" | "numeric";
+
+type Props = {
+  visible: boolean;
+  value: string;
+  onChangeValue: (next: string) => void;
+  onDone?: () => void;
+  bottomInset?: number;
+  variant?: Variant;
+  onMovePrev?: () => void;
+  onMoveNext?: () => void;
+};
+
+const shellBtn = {
+  flex: 1,
+  height: 56,
+  borderRadius: 16,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  backgroundColor: "white",
+  shadowColor: "#000",
+  shadowOpacity: 0.05,
+  shadowRadius: 3,
+  shadowOffset: { width: 0, height: 1 },
+};
+
+function parseDisplay(s: string) {
+  return parseFloat((s || "0").replace(",", ".")) || 0;
+}
+
+function formatDisplay(n: number) {
+  if (!isFinite(n)) return "0";
+  const rounded = Math.round(n * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(".", ",");
+}
+
+export default function NumericCalculatorKeyboard({
+  visible,
+  value,
+  onChangeValue,
+  onDone,
+  bottomInset = 0,
+  variant = "calculator",
+  onMovePrev,
+  onMoveNext,
+}: Props) {
+  const [calcOp, setCalcOp] = useState<string | null>(null);
+  const [calcPrev, setCalcPrev] = useState<number | null>(null);
+  const [calcFresh, setCalcFresh] = useState(false);
+
+  const isCalculator = variant === "calculator";
+  const canMove = useMemo(() => !!onMovePrev || !!onMoveNext, [onMovePrev, onMoveNext]);
+
+  if (!visible) return null;
+
+  const onDigit = (d: string) => {
+    if (calcFresh) {
+      onChangeValue(d);
+      setCalcFresh(false);
+      return;
+    }
+    onChangeValue((value === "0" || value === "") ? d : value + d);
+  };
+
+  const onComma = () => {
+    if (calcFresh) {
+      onChangeValue("0,");
+      setCalcFresh(false);
+      return;
+    }
+    if (value.includes(",")) return;
+    onChangeValue((value || "0") + ",");
+  };
+
+  const onBackspace = () => {
+    setCalcFresh(false);
+    onChangeValue(value.length <= 1 ? "" : value.slice(0, -1));
+  };
+
+  const onOperator = (op: string) => {
+    setCalcPrev(parseDisplay(value));
+    setCalcOp(op);
+    setCalcFresh(true);
+  };
+
+  const onEquals = () => {
+    if (!calcOp || calcPrev === null) return;
+    const curr = parseDisplay(value);
+    let result = curr;
+    switch (calcOp) {
+      case "+":
+        result = calcPrev + curr;
+        break;
+      case "-":
+        result = calcPrev - curr;
+        break;
+      case "×":
+        result = calcPrev * curr;
+        break;
+      case "÷":
+        result = curr !== 0 ? calcPrev / curr : 0;
+        break;
+      default:
+        break;
+    }
+    onChangeValue(formatDisplay(result));
+    setCalcOp(null);
+    setCalcPrev(null);
+    setCalcFresh(true);
+  };
+
+  return (
+    <View
+      style={{
+        backgroundColor: "#F1F5F9",
+        borderTopWidth: 1,
+        borderTopColor: "#E2E8F0",
+        paddingHorizontal: 12,
+        paddingTop: 10,
+        paddingBottom: 8 + bottomInset,
+      }}
+    >
+      {(canMove || onDone || onClose) && (
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {onMovePrev && (
+              <TouchableOpacity onPress={onMovePrev} style={{ padding: 8 }}>
+                <Ionicons name="chevron-up-outline" size={22} color="#111827" />
+              </TouchableOpacity>
+            )}
+            {onMoveNext && (
+              <TouchableOpacity onPress={onMoveNext} style={{ padding: 8 }}>
+                <Ionicons name="chevron-down-outline" size={22} color="#111827" />
+              </TouchableOpacity>
+            )}
+          </View>
+          {onDone && (
+            <TouchableOpacity onPress={onDone} style={{ padding: 8 }}>
+              <Ionicons name="checkmark-outline" size={30} color="#111827" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {isCalculator && (
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+          {["+", "-", "×", "÷", "="].map((op) => {
+            const isEq = op === "=";
+            const isActive = calcOp === op;
+            return (
+              <TouchableOpacity
+                key={op}
+                onPress={() => (isEq ? onEquals() : onOperator(op))}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 14,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isEq ? colors.primary : isActive ? "#DBEAFE" : "white",
+                  borderWidth: 1,
+                  borderColor: isEq ? colors.primary : isActive ? "#93C5FD" : "#E2E8F0",
+                }}
+              >
+                <Text style={{ fontSize: 20, fontWeight: "600", color: isEq ? "white" : isActive ? "#2563EB" : "#475569" }}>
+                  {op}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {[["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"]].map((row) => (
+        <View key={row[0]} style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+          {row.map((d) => (
+            <TouchableOpacity key={d} onPress={() => onDigit(d)} activeOpacity={0.7} style={shellBtn}>
+              <Text style={{ fontSize: 22, fontWeight: "500", color: "#0F172A" }}>{d}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <TouchableOpacity onPress={onComma} activeOpacity={0.7} style={shellBtn}>
+          <Text style={{ fontSize: 22, fontWeight: "500", color: "#0F172A" }}>,</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onDigit("0")} activeOpacity={0.7} style={shellBtn}>
+          <Text style={{ fontSize: 22, fontWeight: "500", color: "#0F172A" }}>0</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onBackspace} activeOpacity={0.7} style={shellBtn}>
+          <Ionicons name="backspace-outline" size={22} color="#475569" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}

@@ -2,15 +2,15 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { Ionicons } from "@expo/vector-icons";
+import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 
 const formatEuro = (n: number) =>
   n.toLocaleString("es-ES", {
@@ -21,9 +21,11 @@ const formatEuro = (n: number) =>
   });
 
 export default function ReconcileAccountsScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [wallets, setWallets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [realValues, setRealValues] = useState<{ [key: string]: string }>({});
+  const [focusedWalletId, setFocusedWalletId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchWallets = async () => {
@@ -48,6 +50,19 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
 
   const handleChange = (id: string, value: string) =>
     setRealValues((prev) => ({ ...prev, [id]: value }));
+
+  const focusedIndex = wallets.findIndex((w) => w.id === focusedWalletId);
+  const keyboardVisible = focusedWalletId !== null;
+
+  const focusPrev = () => {
+    if (focusedIndex <= 0) return;
+    setFocusedWalletId(wallets[focusedIndex - 1].id);
+  };
+
+  const focusNext = () => {
+    if (focusedIndex < 0 || focusedIndex >= wallets.length - 1) return;
+    setFocusedWalletId(wallets[focusedIndex + 1].id);
+  };
 
   const parseEuroInput = (raw?: string): number => {
     if (!raw) return 0;
@@ -74,7 +89,7 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 80, paddingTop: 16 }}
+          contentContainerStyle={{ paddingBottom: keyboardVisible ? 330 + insets.bottom : 80, paddingTop: 16 }}
         >
           {/* Header simple con flecha */}
           <View className="px-4 mb-4 flex-row items-center">
@@ -165,12 +180,15 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                     <Text className="text-[11px] text-gray-500 mb-1 text-right">
                       Real
                     </Text>
-                    <TextInput
-                      value={realValues[wallet.id] ?? ""}
-                      onChangeText={(v) => handleChange(wallet.id, v)}
-                      keyboardType="decimal-pad"
-                      className="text-[15px] text-right bg-gray-100 px-3 py-1.5 rounded-xl"
-                    />
+                    <TouchableOpacity
+                      onPress={() => setFocusedWalletId(wallet.id)}
+                      activeOpacity={0.85}
+                      className={`px-3 py-2 rounded-xl ${focusedWalletId === wallet.id ? "bg-blue-50 border border-blue-300" : "bg-gray-100 border border-transparent"}`}
+                    >
+                      <Text className={`text-[15px] text-right ${realValues[wallet.id] ? "text-gray-900" : "text-gray-400"}`}>
+                        {realValues[wallet.id] || "0,00"}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -256,6 +274,20 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
           </View>
         </ScrollView>
       )}
+
+      <NumericCalculatorKeyboard
+        visible={keyboardVisible}
+        variant="numeric"
+        value={focusedWalletId ? realValues[focusedWalletId] ?? "" : ""}
+        onChangeValue={(next) => {
+          if (!focusedWalletId) return;
+          handleChange(String(focusedWalletId), next);
+        }}
+        onMovePrev={focusPrev}
+        onMoveNext={focusNext}
+        onDone={() => setFocusedWalletId(null)}
+        bottomInset={insets.bottom}
+      />
     </SafeAreaView>
   );
 }
