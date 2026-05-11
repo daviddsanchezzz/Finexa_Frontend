@@ -177,7 +177,7 @@ export default function NumericCalculatorKeyboard({
 
           {isCalculator && (
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
-              {calcOp && calcPrev !== null ? `${formatDisplay(calcPrev)} ${calcOp}` : "Calculadora"}
+              {calcOp && calcPrev !== null ? `${formatDisplay(calcPrev)} ${calcOp}` : ""}
             </Text>
           )}
 
