@@ -627,7 +627,7 @@ export default function StatsScreen({ navigation }: any) {
                       <View
                         key={i}
                         style={{
-                          backgroundColor: t.surface,
+                          backgroundColor: t.background,
                           borderRadius: 12,
                           marginVertical: 3,
                         }}
@@ -787,7 +787,7 @@ export default function StatsScreen({ navigation }: any) {
                       <View
                         key={i}
                         style={{
-                          backgroundColor: t.surface,
+                          backgroundColor: t.background,
                           borderRadius: 12,
                           marginVertical: 3,
                         }}
