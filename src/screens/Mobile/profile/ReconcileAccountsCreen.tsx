@@ -277,7 +277,7 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
 
       <NumericCalculatorKeyboard
         visible={keyboardVisible}
-        variant="numeric"
+        variant="calculator"
         value={focusedWalletId ? realValues[focusedWalletId] ?? "" : ""}
         onChangeValue={(next) => {
           if (!focusedWalletId) return;
