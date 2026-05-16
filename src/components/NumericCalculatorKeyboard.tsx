@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+ï»¿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, Pressable, Animated, ViewStyle, TextStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
@@ -28,17 +28,45 @@ type KeyButtonProps = {
 function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const glowOpacity = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
 
-  const animateTo = (toScale: number, toGlow: number, duration: number) => {
+  const onPressIn = () => {
     Animated.parallel([
-      Animated.timing(scale, {
-        toValue: toScale,
-        duration,
+      Animated.spring(scale, {
+        toValue: 0.94,
+        friction: 7,
+        tension: 260,
         useNativeDriver: true,
       }),
       Animated.timing(glowOpacity, {
-        toValue: toGlow,
-        duration,
+        toValue: 1,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(flashOpacity, {
+        toValue: 0.2,
+        duration: 90,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const onPressOut = () => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 6,
+        tension: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glowOpacity, {
+        toValue: 0,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.timing(flashOpacity, {
+        toValue: 0,
+        duration: 180,
         useNativeDriver: true,
       }),
     ]).start();
@@ -47,8 +75,8 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => animateTo(0.97, 1, 90)}
-      onPressOut={() => animateTo(1, 0, 140)}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       style={{ flex: style?.flex ?? 1 }}
     >
       <Animated.View
@@ -71,6 +99,19 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
           style,
         ]}
       >
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 1,
+            left: 1,
+            right: 1,
+            bottom: 1,
+            borderRadius: 15,
+            backgroundColor: "#FFFFFF",
+            opacity: flashOpacity,
+          }}
+        />
         <Animated.View
           pointerEvents="none"
           style={{
@@ -113,6 +154,13 @@ export default function NumericCalculatorKeyboard({
   onMovePrev,
   onMoveNext,
 }: Props) {
+  const operatorLabel: Record<string, string> = {
+    "+": "+",
+    "-": "-",
+    "*": "x",
+    "/": "/",
+  };
+
   const [calcOp, setCalcOp] = useState<string | null>(null);
   const [calcPrev, setCalcPrev] = useState<number | null>(null);
   const [calcFresh, setCalcFresh] = useState(false);
@@ -122,8 +170,8 @@ export default function NumericCalculatorKeyboard({
   const expressionText =
     isCalculator && calcOp && calcPrev !== null
       ? calcFresh
-        ? `${formatDisplay(calcPrev)} ${calcOp}`
-        : `${formatDisplay(calcPrev)} ${calcOp} ${value || "0"}`
+        ? `${formatDisplay(calcPrev)} ${operatorLabel[calcOp] ?? calcOp}`
+        : `${formatDisplay(calcPrev)} ${operatorLabel[calcOp] ?? calcOp} ${value || "0"}`
       : "";
 
   useEffect(() => {
@@ -173,10 +221,10 @@ export default function NumericCalculatorKeyboard({
       case "-":
         result = calcPrev - curr;
         break;
-      case "×":
+      case "*":
         result = calcPrev * curr;
         break;
-      case "÷":
+      case "/":
         result = curr !== 0 ? calcPrev / curr : 0;
         break;
       default:
@@ -253,7 +301,7 @@ export default function NumericCalculatorKeyboard({
 
           {isCalculator && showExpressionInHeader && (
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
-              {calcOp && calcPrev !== null ? `${formatDisplay(calcPrev)} ${calcOp}` : ""}
+              {calcOp && calcPrev !== null ? `${formatDisplay(calcPrev)} ${operatorLabel[calcOp] ?? calcOp}` : ""}
             </Text>
           )}
 
@@ -280,13 +328,19 @@ export default function NumericCalculatorKeyboard({
 
       {isCalculator && (
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
-          {["+", "-", "×", "÷", "="].map((op) => {
-            const isEq = op === "=";
-            const isActive = calcOp === op;
+          {[
+            { value: "+", label: "+" },
+            { value: "-", label: "-" },
+            { value: "*", label: "x" },
+            { value: "/", label: "/" },
+            { value: "=", label: "=" },
+          ].map((op) => {
+            const isEq = op.value === "=";
+            const isActive = calcOp === op.value;
             return (
               <KeyButton
-                key={op}
-                onPress={() => (isEq ? onEquals() : onOperator(op))}
+                key={op.value}
+                onPress={() => (isEq ? onEquals() : onOperator(op.value))}
                 style={{
                   flex: isEq ? 1.15 : 1,
                   height: 54,
@@ -296,14 +350,14 @@ export default function NumericCalculatorKeyboard({
                 }}
                 textStyle={{ fontSize: 20, fontWeight: "700", color: isEq ? "white" : isActive ? "#1D4ED8" : "#475569" }}
               >
-                {op}
+                {op.label}
               </KeyButton>
             );
           })}
         </View>
       )}
 
-      {[ ["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"] ].map((row) => (
+      {[["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"]].map((row) => (
         <View key={row[0]} style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
           {row.map((d) => (
             <KeyButton key={d} onPress={() => onDigit(d)} textStyle={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>
