@@ -192,7 +192,7 @@ export default function NumericCalculatorKeyboard({
     "+": "+",
     "-": "-",
     "*": "x",
-    "/": "/",
+    "/": "÷",
   };
 
   const [calcOp, setCalcOp] = useState<string | null>(null);
@@ -367,7 +367,7 @@ export default function NumericCalculatorKeyboard({
             { value: "+", label: "+" },
             { value: "-", label: "-" },
             { value: "*", label: "x" },
-            { value: "/", label: "/" },
+            { value: "/", label: "÷" },
             { value: "=", label: "=" },
           ].map((op) => {
             const isEq = op.value === "=";
