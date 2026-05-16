@@ -29,6 +29,7 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const glowOpacity = useRef(new Animated.Value(0)).current;
   const flashOpacity = useRef(new Animated.Value(0)).current;
+  const pulseScale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () => {
     Animated.parallel([
@@ -44,8 +45,8 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
         useNativeDriver: true,
       }),
       Animated.timing(flashOpacity, {
-        toValue: 0.2,
-        duration: 90,
+        toValue: 0.28,
+        duration: 70,
         useNativeDriver: true,
       }),
     ]).start();
@@ -61,20 +62,53 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
       }),
       Animated.timing(glowOpacity, {
         toValue: 0,
-        duration: 140,
+        duration: 170,
         useNativeDriver: true,
       }),
       Animated.timing(flashOpacity, {
         toValue: 0,
-        duration: 180,
+        duration: 220,
         useNativeDriver: true,
       }),
     ]).start();
   };
 
+  const onTap = () => {
+    onPress();
+    pulseScale.setValue(1);
+    flashOpacity.setValue(0.22);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(pulseScale, {
+          toValue: 0.965,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.spring(pulseScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 220,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.timing(flashOpacity, {
+          toValue: 0.3,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.timing(flashOpacity, {
+          toValue: 0,
+          duration: 170,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onTap}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       style={{ flex: style?.flex ?? 1 }}
@@ -94,7 +128,7 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
             shadowRadius: 6,
             shadowOffset: { width: 0, height: 2 },
             elevation: 1,
-            transform: [{ scale }],
+            transform: [{ scale }, { scale: pulseScale }],
           },
           style,
         ]}
@@ -167,6 +201,7 @@ export default function NumericCalculatorKeyboard({
 
   const isCalculator = variant === "calculator";
   const canMove = useMemo(() => !!onMovePrev || !!onMoveNext, [onMovePrev, onMoveNext]);
+  const isCompactHeader = !canMove;
   const expressionText =
     isCalculator && calcOp && calcPrev !== null
       ? calcFresh
@@ -250,10 +285,10 @@ export default function NumericCalculatorKeyboard({
       {(canMove || onDone) && (
         <View
           style={{
-            height: 52,
+            height: isCompactHeader ? 44 : 52,
             borderRadius: 16,
-            paddingHorizontal: 6,
-            marginBottom: 10,
+            paddingHorizontal: isCompactHeader ? 4 : 6,
+            marginBottom: isCompactHeader ? 8 : 10,
             backgroundColor: "rgba(255,255,255,0.84)",
             borderWidth: 1,
             borderColor: "#DDE5F0",
@@ -309,10 +344,10 @@ export default function NumericCalculatorKeyboard({
             <TouchableOpacity
               onPress={onDone}
               style={{
-                minWidth: 44,
-                height: 40,
+                minWidth: isCompactHeader ? 40 : 44,
+                height: isCompactHeader ? 36 : 40,
                 borderRadius: 12,
-                paddingHorizontal: 12,
+                paddingHorizontal: isCompactHeader ? 10 : 12,
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: "#DBEAFE",
@@ -320,7 +355,7 @@ export default function NumericCalculatorKeyboard({
                 borderColor: "#BFDBFE",
               }}
             >
-              <Ionicons name="checkmark-outline" size={24} color="#1E3A8A" />
+              <Ionicons name="checkmark-outline" size={isCompactHeader ? 22 : 24} color="#1E3A8A" />
             </TouchableOpacity>
           )}
         </View>
