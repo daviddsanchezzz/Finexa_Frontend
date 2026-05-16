@@ -201,6 +201,7 @@ export default function NumericCalculatorKeyboard({
 
   const isCalculator = variant === "calculator";
   const canMove = useMemo(() => !!onMovePrev || !!onMoveNext, [onMovePrev, onMoveNext]);
+  const showDoneInOperators = isCalculator && !!onDone && !canMove;
   const isCompactHeader = !canMove;
   const expressionText =
     isCalculator && calcOp && calcPrev !== null
@@ -282,7 +283,7 @@ export default function NumericCalculatorKeyboard({
         paddingBottom: 8 + bottomInset,
       }}
     >
-      {(canMove || onDone) && (
+      {(canMove || (onDone && !showDoneInOperators)) && (
         <View
           style={{
             height: isCompactHeader ? 44 : 52,
@@ -369,23 +370,25 @@ export default function NumericCalculatorKeyboard({
             { value: "*", label: "x" },
             { value: "/", label: "÷" },
             { value: "=", label: "=" },
+            ...(showDoneInOperators ? [{ value: "done", label: "done" }] : []),
           ].map((op) => {
             const isEq = op.value === "=";
+            const isDone = op.value === "done";
             const isActive = calcOp === op.value;
             return (
               <KeyButton
                 key={op.value}
-                onPress={() => (isEq ? onEquals() : onOperator(op.value))}
+                onPress={() => (isDone ? onDone?.() : isEq ? onEquals() : onOperator(op.value))}
                 style={{
-                  flex: isEq ? 1.15 : 1,
+                  flex: isEq ? 1.15 : isDone ? 0.95 : 1,
                   height: 54,
-                  backgroundColor: isEq ? colors.primary : isActive ? "#E6F0FF" : "white",
-                  borderColor: isEq ? colors.primary : isActive ? "#93C5FD" : "#E2E8F0",
-                  shadowOpacity: isEq ? 0.12 : 0.06,
+                  backgroundColor: isEq ? colors.primary : isDone ? "#DBEAFE" : isActive ? "#E6F0FF" : "white",
+                  borderColor: isEq ? colors.primary : isDone ? "#BFDBFE" : isActive ? "#93C5FD" : "#E2E8F0",
+                  shadowOpacity: isEq || isDone ? 0.12 : 0.06,
                 }}
-                textStyle={{ fontSize: 20, fontWeight: "700", color: isEq ? "white" : isActive ? "#1D4ED8" : "#475569" }}
+                textStyle={{ fontSize: 20, fontWeight: "700", color: isEq ? "white" : isDone ? "#1E3A8A" : isActive ? "#1D4ED8" : "#475569" }}
               >
-                {op.label}
+                {isDone ? <Ionicons name="checkmark-outline" size={22} color="#1E3A8A" /> : op.label}
               </KeyButton>
             );
           })}
