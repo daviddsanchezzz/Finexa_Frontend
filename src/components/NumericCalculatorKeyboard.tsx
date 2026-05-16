@@ -1,5 +1,5 @@
-ï»¿import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, Pressable, Animated, ViewStyle, TextStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 
@@ -18,16 +18,78 @@ type Props = {
   onMoveNext?: () => void;
 };
 
-const shellBtn = {
-  flex: 1,
-  height: 58,
-  borderRadius: 16,
-  alignItems: "center" as const,
-  justifyContent: "center" as const,
-  backgroundColor: "white",
-  borderWidth: 1,
-  borderColor: "#E2E8F0",
+type KeyButtonProps = {
+  onPress: () => void;
+  children: React.ReactNode;
+  style?: ViewStyle;
+  textStyle?: TextStyle;
 };
+
+function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+
+  const animateTo = (toScale: number, toGlow: number, duration: number) => {
+    Animated.parallel([
+      Animated.timing(scale, {
+        toValue: toScale,
+        duration,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glowOpacity, {
+        toValue: toGlow,
+        duration,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => animateTo(0.97, 1, 90)}
+      onPressOut={() => animateTo(1, 0, 140)}
+      style={{ flex: style?.flex ?? 1 }}
+    >
+      <Animated.View
+        style={[
+          {
+            height: 58,
+            borderRadius: 16,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "white",
+            borderWidth: 1,
+            borderColor: "#E2E8F0",
+            shadowColor: "#0F172A",
+            shadowOpacity: 0.06,
+            shadowRadius: 6,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 1,
+            transform: [{ scale }],
+          },
+          style,
+        ]}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 1,
+            left: 1,
+            right: 1,
+            bottom: 1,
+            borderRadius: 15,
+            borderWidth: 1,
+            borderColor: "#FFFFFF",
+            opacity: glowOpacity,
+          }}
+        />
+        {typeof children === "string" ? <Text style={textStyle}>{children}</Text> : children}
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 function parseDisplay(s: string) {
   return parseFloat((s || "0").replace(",", ".")) || 0;
@@ -111,10 +173,10 @@ export default function NumericCalculatorKeyboard({
       case "-":
         result = calcPrev - curr;
         break;
-      case "Ã—":
+      case "×":
         result = calcPrev * curr;
         break;
-      case "Ã·":
+      case "÷":
         result = curr !== 0 ? calcPrev / curr : 0;
         break;
       default:
@@ -218,57 +280,50 @@ export default function NumericCalculatorKeyboard({
 
       {isCalculator && (
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
-          {["+", "-", "Ã—", "Ã·", "="].map((op) => {
+          {["+", "-", "×", "÷", "="].map((op) => {
             const isEq = op === "=";
             const isActive = calcOp === op;
             return (
-              <TouchableOpacity
+              <KeyButton
                 key={op}
                 onPress={() => (isEq ? onEquals() : onOperator(op))}
-                activeOpacity={0.7}
                 style={{
                   flex: isEq ? 1.15 : 1,
                   height: 54,
-                  borderRadius: 16,
-                  alignItems: "center",
-                  justifyContent: "center",
                   backgroundColor: isEq ? colors.primary : isActive ? "#E6F0FF" : "white",
-                  borderWidth: 1,
                   borderColor: isEq ? colors.primary : isActive ? "#93C5FD" : "#E2E8F0",
+                  shadowOpacity: isEq ? 0.12 : 0.06,
                 }}
+                textStyle={{ fontSize: 20, fontWeight: "700", color: isEq ? "white" : isActive ? "#1D4ED8" : "#475569" }}
               >
-                <Text style={{ fontSize: 20, fontWeight: "700", color: isEq ? "white" : isActive ? "#1D4ED8" : "#475569" }}>
-                  {op}
-                </Text>
-              </TouchableOpacity>
+                {op}
+              </KeyButton>
             );
           })}
         </View>
       )}
 
-      {[["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"]].map((row) => (
+      {[ ["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"] ].map((row) => (
         <View key={row[0]} style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
           {row.map((d) => (
-            <TouchableOpacity key={d} onPress={() => onDigit(d)} activeOpacity={0.7} style={shellBtn}>
-              <Text style={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>{d}</Text>
-            </TouchableOpacity>
+            <KeyButton key={d} onPress={() => onDigit(d)} textStyle={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>
+              {d}
+            </KeyButton>
           ))}
         </View>
       ))}
 
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <TouchableOpacity onPress={onComma} activeOpacity={0.7} style={shellBtn}>
-          <Text style={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>,</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onDigit("0")} activeOpacity={0.7} style={shellBtn}>
-          <Text style={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>0</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onBackspace} activeOpacity={0.7} style={shellBtn}>
+        <KeyButton onPress={onComma} textStyle={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>
+          ,
+        </KeyButton>
+        <KeyButton onPress={() => onDigit("0")} textStyle={{ fontSize: 22, fontWeight: "600", color: "#0F172A" }}>
+          0
+        </KeyButton>
+        <KeyButton onPress={onBackspace}>
           <Ionicons name="backspace-outline" size={22} color="#475569" />
-        </TouchableOpacity>
+        </KeyButton>
       </View>
     </View>
   );
 }
-
-
