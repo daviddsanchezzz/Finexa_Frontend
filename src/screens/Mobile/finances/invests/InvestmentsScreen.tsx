@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   Modal,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -44,7 +45,7 @@ type MonthlyRentRow = {
 interface SummaryAssetFromApi {
   id: number;
   name: string;
-  symbol?: string | null;
+  identificator?: string | null;
   type: InvestmentAssetType;
   currency: string;
   invested: number;
@@ -607,11 +608,28 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   }, [snapshots, rentYears]);
 
   const [fabOpen, setFabOpen] = useState(false);
+  const [syncingMetadata, setSyncingMetadata] = useState(false);
+
+  const syncAllMetadata = async () => {
+    try {
+      setSyncingMetadata(true);
+      await api.post("/investments/metadata/sync-all");
+      await Promise.all([fetchExposure(), fetchSummary()]);
+      Alert.alert("Composición actualizada", "Se ha lanzado la sincronización para todos los assets.");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || "No se pudo sincronizar la composición.";
+      Alert.alert("Error", String(msg));
+    } finally {
+      setSyncingMetadata(false);
+      setFabOpen(false);
+    }
+  };
 
   const fabActions = [
-    { label: "Nueva inversión",  icon: "add-outline" as const,              route: "InvestmentForm"      },
-    { label: "Nueva valoración", icon: "calendar-outline" as const,         route: "InvestmentValuation" },
-    { label: "Nueva operación",  icon: "swap-horizontal-outline" as const,   route: "InvestmentOperation" },
+    { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
+    { label: "Nueva valoración", icon: "calendar-outline" as const, route: "InvestmentValuation" },
+    { label: "Nueva operación", icon: "swap-horizontal-outline" as const, route: "InvestmentOperation" },
+    { label: syncingMetadata ? "Actualizando composición..." : "Actualizar composición", icon: "refresh-outline" as const, onPress: syncAllMetadata },
   ];
 
   return (
@@ -1306,11 +1324,16 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
               {fabActions.map((action, idx) => (
                 <TouchableOpacity
-                  key={action.route}
+                  key={action.route || action.label}
                   activeOpacity={0.85}
+                  disabled={syncingMetadata && !action.route}
                   onPress={() => {
+                    if ((action as any).onPress) {
+                      (action as any).onPress();
+                      return;
+                    }
                     setFabOpen(false);
-                    navigation.navigate(action.route);
+                    navigation.navigate((action as any).route);
                   }}
                   style={{
                     flexDirection: "row",
@@ -1322,6 +1345,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     borderTopWidth: idx === 0 ? 1 : 0,
                     borderBottomWidth: 1,
                     borderColor: "#F1F5F9",
+                    opacity: syncingMetadata && !action.route ? 0.7 : 1,
                   }}
                 >
                   <View

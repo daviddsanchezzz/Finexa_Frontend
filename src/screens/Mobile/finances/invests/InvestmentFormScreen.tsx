@@ -44,7 +44,7 @@ const RISK_OPTIONS: {
 interface AssetFromApi {
   id: number;
   name: string;
-  symbol?: string | null;
+  identificator?: string | null;
   quantity?: number | null;
   description?: string | null;
   type: InvestmentAssetType;
@@ -85,7 +85,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [isArchived, setIsArchived] = useState(false);
 
   const [name, setName] = useState("");
-  const [symbol, setSymbol] = useState("");
+  const [identificator, setIdentificator] = useState("");
   const [quantityText, setQuantityText] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<InvestmentAssetType>("custom");
@@ -143,7 +143,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       const a: AssetFromApi = res.data;
 
       setName(a.name ?? "");
-      setSymbol(a.symbol ?? "");
+      setIdentificator(a.identificator ?? "");
       setQuantityText(
         typeof a.quantity === "number" ? String(a.quantity) : ""
       );
@@ -205,7 +205,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
     const payload: any = {
       name: name.trim(),
-      symbol: symbol.trim() ? symbol.trim().toUpperCase() : null,
+      identificator: identificator.trim() ? identificator.trim().toUpperCase() : null,
       ...(parsedQuantity !== null ? { quantity: parsedQuantity } : {}),
       description: desc ? desc : null, // ✅ importante
       type,
@@ -449,8 +449,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             >
               <Ionicons name="document-text-outline" size={16} color="#64748B" />
               <TextInput
-                value={symbol}
-                onChangeText={setSymbol}
+                value={identificator}
+                onChangeText={setIdentificator}
                 placeholder={type === "fund" ? "Ej: IE00B4L5Y983" : type === "crypto" ? "Ej: BTC" : "Ej: ticker o referencia"}
                 placeholderTextColor="#9CA3AF"
                 style={{
@@ -460,9 +460,9 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                   fontWeight: "600",
                 }}
               />
-              {!!symbol.trim() && (
+              {!!identificator.trim() && (
                 <TouchableOpacity
-                  onPress={() => setSymbol("")}
+                  onPress={() => setIdentificator("")}
                   style={{ padding: 6, borderRadius: 10 }}
                   activeOpacity={0.9}
                 >

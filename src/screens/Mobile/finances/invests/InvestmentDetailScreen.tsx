@@ -34,7 +34,7 @@ interface AssetFromApi {
   quantity?: number | null;
   active: boolean;
   createdAt?: string | null;
-  symbol?: string | null;
+  identificator?: string | null;
 }
 
 type AssetMetadataPayload = {
@@ -634,7 +634,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 </Text>
               </View>
 
-              {asset.symbol ? (
+              {asset.identificator ? (
                 <View
                   style={{
                     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
@@ -644,7 +644,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 >
                   <Ionicons name="pricetag-outline" size={13} color="white" />
                   <Text style={{ fontSize: 11, fontWeight: "800", color: "white" }}>
-                    {String(asset.symbol).toUpperCase()}
+                    {String(asset.identificator).toUpperCase()}
                   </Text>
                 </View>
               ) : null}

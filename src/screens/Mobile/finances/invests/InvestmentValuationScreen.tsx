@@ -22,7 +22,7 @@ type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 interface Asset {
   id: number;
   name: string;
-  symbol?: string | null;
+  identificator?: string | null;
   type: InvestmentAssetType;
   currency: string;
 }
@@ -282,7 +282,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
                             {a.name}
-                            {a.symbol ? ` · ${a.symbol}` : ""}
+                            {a.identificator ? ` · ${a.identificator}` : ""}
                           </Text>
                           <Text style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>
                             Divisa: {a.currency}
