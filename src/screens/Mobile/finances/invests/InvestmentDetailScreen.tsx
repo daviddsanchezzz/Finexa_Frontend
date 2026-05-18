@@ -37,6 +37,23 @@ interface AssetFromApi {
   symbol?: string | null;
 }
 
+type AssetMetadataPayload = {
+  id: number;
+  assetId: number;
+  syncedAt?: string | null;
+  countriesJson?: Record<string, number> | null;
+  sectorsJson?: Record<string, number> | null;
+  topHoldingsJson?: Array<{
+    name: string;
+    ticker?: string | null;
+    weight: number;
+    country?: string | null;
+    sector?: string | null;
+  }> | null;
+  cryptoCategory?: string | null;
+  lastError?: string | null;
+};
+
 interface SeriesPoint {
   date: string;
   value: number;
@@ -211,6 +228,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [series, setSeries] = useState<SeriesPoint[]>([]);
   const [valuations, setValuations] = useState<ValuationFromApi[]>([]);
   const [operations, setOperations] = useState<InvestmentOperationFromApi[]>([]);
+  const [metadata, setMetadata] = useState<AssetMetadataPayload | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [range, setRange] = useState<RangeKey>("3m");
   const [tab, setTab] = useState<"operations" | "valuations">("operations");
@@ -244,6 +262,9 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       const oRes = await api.get(`/investments/operations`, { params: { assetId } });
       const oList = Array.isArray(oRes.data) ? oRes.data : oRes.data?.operations ?? [];
       setOperations(Array.isArray(oList) ? oList : []);
+
+      const mRes = await api.get(`/investments/assets/${assetId}/metadata`);
+      setMetadata(mRes.data?.metadata ?? null);
     } catch (e) {
       console.error("❌ Error loading investment detail:", e);
       navigation.goBack();
@@ -835,6 +856,82 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 </Text>
               </View>
             ) : null}
+          </View>
+
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 28,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Composición</Text>
+            {metadata?.syncedAt ? (
+              <Text style={{ marginTop: 4, fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+                Datos actualizados por última vez el {formatDate(metadata.syncedAt)}
+              </Text>
+            ) : null}
+
+            {asset.type === "crypto" ? (
+              <Text style={{ marginTop: 10, fontSize: 12, fontWeight: "700", color: "#334155" }}>
+                Categoría: {metadata?.cryptoCategory || "No disponible"}
+              </Text>
+            ) : (
+              <>
+                {!metadata?.countriesJson && !metadata?.sectorsJson && !(metadata?.topHoldingsJson || []).length ? (
+                  <Text style={{ marginTop: 10, fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
+                    Composición no disponible todavía.
+                  </Text>
+                ) : (
+                  <>
+                    {!!metadata?.countriesJson && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>Regiones</Text>
+                        {Object.entries(metadata.countriesJson)
+                          .sort((a, b) => Number(b[1]) - Number(a[1]))
+                          .slice(0, 5)
+                          .map(([name, pct]) => (
+                            <View key={`country-${name}`} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{name}</Text>
+                              <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(pct).toFixed(1)}%</Text>
+                            </View>
+                          ))}
+                      </View>
+                    )}
+                    {!!metadata?.sectorsJson && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>Sectores</Text>
+                        {Object.entries(metadata.sectorsJson)
+                          .sort((a, b) => Number(b[1]) - Number(a[1]))
+                          .slice(0, 5)
+                          .map(([name, pct]) => (
+                            <View key={`sector-${name}`} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{name}</Text>
+                              <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(pct).toFixed(1)}%</Text>
+                            </View>
+                          ))}
+                      </View>
+                    )}
+                    {(metadata?.topHoldingsJson || []).length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>Top holdings</Text>
+                        {(metadata?.topHoldingsJson || []).slice(0, 5).map((h, idx) => (
+                          <View key={`holding-${idx}-${h.name}`} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                            <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>
+                              {h.name}{h.ticker ? ` (${h.ticker})` : ""}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(h.weight || 0).toFixed(1)}%</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </View>
 
           {/* ── Tabs operaciones / valoraciones ── */}

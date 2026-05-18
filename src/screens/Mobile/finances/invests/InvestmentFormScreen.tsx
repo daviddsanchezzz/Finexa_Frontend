@@ -44,6 +44,8 @@ const RISK_OPTIONS: {
 interface AssetFromApi {
   id: number;
   name: string;
+  symbol?: string | null;
+  quantity?: number | null;
   description?: string | null;
   type: InvestmentAssetType;
   riskType?: RiskOrNull;
@@ -83,6 +85,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [isArchived, setIsArchived] = useState(false);
 
   const [name, setName] = useState("");
+  const [symbol, setSymbol] = useState("");
+  const [quantityText, setQuantityText] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<InvestmentAssetType>("custom");
   const [riskType, setRiskType] = useState<RiskOrNull>(null); // ✅ null por defecto
@@ -99,6 +103,12 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
     () => parseAmount(initialInvestedText),
     [initialInvestedText]
   );
+  const quantityNumber = useMemo(() => parseAmount(quantityText), [quantityText]);
+  const identifierLabel = useMemo(() => {
+    if (type === "fund") return "ISIN";
+    if (type === "crypto") return "Símbolo";
+    return "Identificador";
+  }, [type]);
 
   // UX: sugerencia automática de riskType para tipos inequívocos
   const autoRiskForType = useCallback((t: InvestmentAssetType): RiskOrNull => {
@@ -116,9 +126,13 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       if (initialInvestedNumber === null) return false;
       if (initialInvestedNumber < 0) return false;
     }
+    if (quantityText.trim()) {
+      if (quantityNumber === null) return false;
+      if (quantityNumber < 0) return false;
+    }
 
     return true;
-  }, [name, currency, initialInvestedText, initialInvestedNumber]);
+  }, [name, currency, initialInvestedText, initialInvestedNumber, quantityText, quantityNumber]);
 
   const loadAsset = useCallback(async () => {
     if (!assetId) return;
@@ -129,6 +143,10 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       const a: AssetFromApi = res.data;
 
       setName(a.name ?? "");
+      setSymbol(a.symbol ?? "");
+      setQuantityText(
+        typeof a.quantity === "number" ? String(a.quantity) : ""
+      );
       setDescription(a.description ?? "");
       setType(a.type ?? "custom");
       setRiskType((a.riskType ?? null) as RiskOrNull);
@@ -169,12 +187,26 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       Alert.alert("Importe inválido", "El aportado previo no puede ser negativo.");
       return;
     }
+    const parsedQuantity = quantityText.trim() ? parseAmount(quantityText) : null;
+    if (quantityText.trim() && parsedQuantity === null) {
+      Alert.alert(
+        "Participaciones inválidas",
+        "Revisa las participaciones (ej: 2 o 2,5)."
+      );
+      return;
+    }
+    if (parsedQuantity !== null && parsedQuantity < 0) {
+      Alert.alert("Participaciones inválidas", "No pueden ser negativas.");
+      return;
+    }
 
     // ✅ normaliza description: si viene vacío, manda null para permitir “borrar”
     const desc = description.trim();
 
     const payload: any = {
       name: name.trim(),
+      symbol: symbol.trim() ? symbol.trim().toUpperCase() : null,
+      ...(parsedQuantity !== null ? { quantity: parsedQuantity } : {}),
       description: desc ? desc : null, // ✅ importante
       type,
       riskType: riskType ?? null, // ✅ importante (solo 2 valores o null)
@@ -404,7 +436,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             </View>
 
             {/* DESCRIPTION */}
-            <Text className="text-[11px] text-gray-400 mt-4">Descripción (opcional)</Text>
+            <Text className="text-[11px] text-gray-400 mt-4">{identifierLabel} (opcional)</Text>
             <View
               className="flex-row items-center mt-1 rounded-2xl"
               style={{
@@ -417,9 +449,9 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             >
               <Ionicons name="document-text-outline" size={16} color="#64748B" />
               <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Ej: BTC, ISIN, broker, notas…"
+                value={symbol}
+                onChangeText={setSymbol}
+                placeholder={type === "fund" ? "Ej: IE00B4L5Y983" : type === "crypto" ? "Ej: BTC" : "Ej: ticker o referencia"}
                 placeholderTextColor="#9CA3AF"
                 style={{
                   marginLeft: 10,
@@ -428,15 +460,73 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                   fontWeight: "600",
                 }}
               />
-              {!!description.trim() && (
+              {!!symbol.trim() && (
                 <TouchableOpacity
-                  onPress={() => setDescription("")}
+                  onPress={() => setSymbol("")}
                   style={{ padding: 6, borderRadius: 10 }}
                   activeOpacity={0.9}
                 >
                   <Ionicons name="close" size={16} color="#94A3B8" />
                 </TouchableOpacity>
               )}
+            </View>
+
+            <Text className="text-[11px] text-gray-400 mt-4">Participaciones (opcional)</Text>
+            <View
+              className="flex-row items-center mt-1 rounded-2xl"
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="layers-outline" size={16} color="#64748B" />
+              <TextInput
+                value={quantityText}
+                onChangeText={setQuantityText}
+                placeholder="Ej: 2,5"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                style={{
+                  marginLeft: 10,
+                  flex: 1,
+                  color: "#111827",
+                  fontWeight: "600",
+                }}
+              />
+              {quantityText.trim() && quantityNumber === null ? (
+                <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>
+                  inválido
+                </Text>
+              ) : null}
+            </View>
+
+            <Text className="text-[11px] text-gray-400 mt-4">Broker (opcional)</Text>
+            <View
+              className="flex-row items-center mt-1 rounded-2xl"
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="business-outline" size={16} color="#64748B" />
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Ej: Trade Republic, MyInvestor, Binance…"
+                placeholderTextColor="#9CA3AF"
+                style={{
+                  marginLeft: 10,
+                  flex: 1,
+                  color: "#111827",
+                  fontWeight: "600",
+                }}
+              />
             </View>
 
             {/* TYPE */}

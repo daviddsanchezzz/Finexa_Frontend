@@ -60,6 +60,14 @@ interface SummaryFromApi {
   assets: SummaryAssetFromApi[];
 }
 
+type ExposureRow = { name: string; value: number; percentage: number };
+type ExposureResponse = {
+  countries: ExposureRow[];
+  sectors: ExposureRow[];
+  indirectHoldings: Array<{ name: string; ticker?: string | null; value: number; percentage: number }>;
+  totalPortfolioValue: number;
+};
+
 type PortfolioTimelinePoint = {
   date: string;
   totalCurrentValue: number;
@@ -267,7 +275,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [rentSelectedYear, setRentSelectedYear] = useState<number | null>(null);
   const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
-  const [donutMode, setDonutMode] = useState<"asset" | "type">("asset");
+  const [donutMode, setDonutMode] = useState<"asset" | "type" | "country" | "sector">("asset");
+  const [exposure, setExposure] = useState<ExposureResponse | null>(null);
   const [otrosExpanded, setOtrosExpanded] = useState(false);
 
   const { width: SCREEN_W } = useWindowDimensions();
@@ -346,12 +355,22 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const fetchExposure = async () => {
+    try {
+      const res = await api.get("/investments/exposure");
+      setExposure(res.data || null);
+    } catch {
+      setExposure(null);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchSummary();
       fetchTimeline(range);
       fetchSnapshots();
       fetchArchived();
+      fetchExposure();
     }, [range])
   );
 
@@ -452,7 +471,56 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     return { total, slices, otherAssets: [] as DonutSlice[] };
   }, [assets]);
 
-  const activeAllocation = donutMode === "asset" ? allocation : allocationByType;
+  const allocationByCountry = useMemo(() => {
+    const total = Number(exposure?.totalPortfolioValue || 0);
+    if (!total || !exposure?.countries?.length) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
+    const base = exposure.countries
+      .map((r, idx) => ({
+        id: 2000 + idx,
+        label: r.name,
+        value: Number(r.value || 0),
+        pct: Number(r.percentage || 0) / 100,
+        color: palette[idx % palette.length],
+      }))
+      .filter((s) => s.pct > 0)
+      .sort((a, b) => b.value - a.value);
+    const big = base.slice(0, 6);
+    const small = base.slice(6);
+    if (small.length) {
+      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
+      big.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    }
+    return { total, slices: big, otherAssets: small };
+  }, [exposure]);
+
+  const allocationBySector = useMemo(() => {
+    const total = Number(exposure?.totalPortfolioValue || 0);
+    if (!total || !exposure?.sectors?.length) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
+    const base = exposure.sectors
+      .map((r, idx) => ({
+        id: 3000 + idx,
+        label: r.name,
+        value: Number(r.value || 0),
+        pct: Number(r.percentage || 0) / 100,
+        color: palette[idx % palette.length],
+      }))
+      .filter((s) => s.pct > 0)
+      .sort((a, b) => b.value - a.value);
+    const big = base.slice(0, 6);
+    const small = base.slice(6);
+    if (small.length) {
+      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
+      big.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    }
+    return { total, slices: big, otherAssets: small };
+  }, [exposure]);
+
+  const activeAllocation = useMemo(() => {
+    if (donutMode === "type") return allocationByType;
+    if (donutMode === "country") return allocationByCountry;
+    if (donutMode === "sector") return allocationBySector;
+    return allocation;
+  }, [donutMode, allocation, allocationByType, allocationByCountry, allocationBySector]);
 
   const allocationMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -884,7 +952,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
               {/* Toggle Por activo / Por tipo */}
               <View style={{ flexDirection: "row", gap: 6, marginTop: 12, backgroundColor: "#F1F5F9", borderRadius: 12, padding: 4 }}>
-                {(["asset", "type"] as const).map((mode) => (
+                {(["asset", "type", "country", "sector"] as const).map((mode) => (
                   <TouchableOpacity
                     key={mode}
                     onPress={() => { setDonutMode(mode); setSelectedSliceId(null); setOtrosExpanded(false); }}
@@ -896,7 +964,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     }}
                   >
                     <Text style={{ fontSize: 12, fontWeight: "700", color: donutMode === mode ? colors.primary : "#6B7280" }}>
-                      {mode === "asset" ? "Por activo" : "Por tipo"}
+                      {mode === "asset" ? "Por activo" : mode === "type" ? "Por tipo" : mode === "country" ? "Por país/región" : "Por sector"}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -971,7 +1039,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         </TouchableOpacity>
 
                         {/* Sub-items de "Otros" */}
-                        {isOtros && otrosExpanded && allocation.otherAssets.map((oa) => (
+                        {isOtros && otrosExpanded && activeAllocation.otherAssets.map((oa) => (
                           <View
                             key={oa.id}
                             style={{
