@@ -531,15 +531,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   const selectedSlice = useMemo(() => {
     if (!activeAllocation.slices.length) return null;
-    const found = activeAllocation.slices.find((s) => s.id === selectedSliceId);
-    return found || activeAllocation.slices[0];
+    if (selectedSliceId == null) return null;
+    return activeAllocation.slices.find((s) => s.id === selectedSliceId) || null;
   }, [activeAllocation.slices, selectedSliceId]);
 
   useEffect(() => {
-    if (!selectedSliceId) return;
-    const exists = allocation.slices.some((s) => s.id === selectedSliceId);
+    if (selectedSliceId == null) return;
+    const exists = activeAllocation.slices.some((s) => s.id === selectedSliceId);
     if (!exists) setSelectedSliceId(null);
-  }, [allocation.slices, selectedSliceId]);
+  }, [activeAllocation.slices, selectedSliceId]);
 
   // Años únicos de los snapshots (orden asc)
   const rentYears = useMemo(() => {
@@ -982,7 +982,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     }}
                   >
                     <Text style={{ fontSize: 12, fontWeight: "700", color: donutMode === mode ? colors.primary : "#6B7280" }}>
-                      {mode === "asset" ? "Por activo" : mode === "type" ? "Por tipo" : mode === "country" ? "Por país/región" : "Por sector"}
+                      {mode === "asset" ? "Activo" : mode === "type" ? "Tipo" : mode === "country" ? "Región" : "Sector"}
                     </Text>
                   </TouchableOpacity>
                 ))}
