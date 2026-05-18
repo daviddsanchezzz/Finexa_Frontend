@@ -1185,17 +1185,17 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 <View style={{ marginTop: 12 }}>
                   {activeAllocation.slices.map((s) => {
                     const isActive = (selectedSlice?.id ?? null) === s.id;
-                    const isOtros = s.id < 0 || s.label === "Otros";
+                    const isOtros = s.label === "Otros";
 
                     return (
                       <View key={s.id}>
                         <TouchableOpacity
                           activeOpacity={0.85}
-                          onPress={() => {
-                            if (isOtros) {
-                              setOtrosExpanded((p) => !p);
-                            } else {
-                              setSelectedSliceId((prev) => (prev === s.id ? null : s.id));
+                            onPress={() => {
+                              if (isOtros) {
+                                setOtrosExpanded((p) => !p);
+                              } else {
+                                setSelectedSliceId((prev) => (prev === s.id ? null : s.id));
                             }
                           }}
                           style={{
