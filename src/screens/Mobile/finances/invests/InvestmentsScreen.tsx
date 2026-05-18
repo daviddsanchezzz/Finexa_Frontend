@@ -575,7 +575,17 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const small = base.slice(6);
     if (small.length) {
       const otherValue = small.reduce((sum, s) => sum + s.value, 0);
-      big.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+      const existingOtherIdx = big.findIndex((s) => s.label === "Otros");
+      if (existingOtherIdx >= 0) {
+        const nextValue = big[existingOtherIdx].value + otherValue;
+        big[existingOtherIdx] = {
+          ...big[existingOtherIdx],
+          value: nextValue,
+          pct: nextValue / total,
+        };
+      } else {
+        big.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+      }
     }
     return { total, slices: big, otherAssets: small };
   }, [exposure]);
@@ -604,7 +614,17 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const small = base.slice(6);
     if (small.length) {
       const otherValue = small.reduce((sum, s) => sum + s.value, 0);
-      big.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+      const existingOtherIdx = big.findIndex((s) => s.label === "Otros");
+      if (existingOtherIdx >= 0) {
+        const nextValue = big[existingOtherIdx].value + otherValue;
+        big[existingOtherIdx] = {
+          ...big[existingOtherIdx],
+          value: nextValue,
+          pct: nextValue / total,
+        };
+      } else {
+        big.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+      }
     }
     return { total, slices: big, otherAssets: small };
   }, [exposure]);
@@ -640,6 +660,23 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     if (donutMode === "holding") return allocationByHolding;
     return allocation;
   }, [donutMode, allocation, allocationByType, allocationByCountry, allocationBySector, allocationByHolding]);
+
+  const visibleDonutModes = useMemo(() => {
+    const modes: Array<"asset" | "type" | "country" | "sector" | "holding"> = ["asset"];
+    if (allocationByType.slices.length > 0) modes.push("type");
+    if (allocationByCountry.slices.length > 0) modes.push("country");
+    if (allocationBySector.slices.length > 0) modes.push("sector");
+    if (allocationByHolding.slices.length > 0) modes.push("holding");
+    return modes;
+  }, [allocationByType.slices.length, allocationByCountry.slices.length, allocationBySector.slices.length, allocationByHolding.slices.length]);
+
+  useEffect(() => {
+    if (!visibleDonutModes.includes(donutMode)) {
+      setDonutMode("asset");
+      setSelectedSliceId(null);
+      setOtrosExpanded(false);
+    }
+  }, [visibleDonutModes, donutMode]);
 
   const allocationMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -1092,7 +1129,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 6, marginTop: 12, backgroundColor: "#F1F5F9", borderRadius: 12, padding: 4 }}
                 >
-                {(["asset", "type", "country", "sector", "holding"] as const).map((mode) => (
+                {visibleDonutModes.map((mode) => (
                     <TouchableOpacity
                       key={mode}
                       onPress={() => { setDonutMode(mode); setSelectedSliceId(null); setOtrosExpanded(false); }}
