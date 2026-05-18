@@ -45,6 +45,7 @@ type MonthlyRentRow = {
 interface SummaryAssetFromApi {
   id: number;
   name: string;
+  abbreviation?: string | null;
   identificator?: string | null;
   type: InvestmentAssetType;
   currency: string;
@@ -571,22 +572,24 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       }))
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.value - a.value);
-    const isSpecial = (label: string) => label === "Otros" || label === "Sin datos" || label === "Desconocido";
-    const nonSpecial = allEntries.filter((e) => !isSpecial(e.label));
-    const special = allEntries.filter((e) => isSpecial(e.label));
+    const isUnknownLike = (label: string) => label === "Otros" || label === "Sin datos" || label === "Desconocido";
+    const nonSpecial = allEntries.filter((e) => !isUnknownLike(e.label));
+    const unknownLike = allEntries.filter((e) => isUnknownLike(e.label));
 
     const top = nonSpecial.slice(0, 6);
-    const remainder = [...nonSpecial.slice(6), ...special];
+    const remainder = nonSpecial.slice(6);
     const otherValue = remainder.reduce((sum, s) => sum + s.value, 0);
     const coveredValue = allEntries.reduce((sum, s) => sum + s.value, 0);
+    const unknownLikeValue = unknownLike.reduce((sum, s) => sum + s.value, 0);
     const missingValue = Math.max(0, total - coveredValue);
+    const unknownValue = unknownLikeValue + missingValue;
 
     const slices: DonutSlice[] = [...top];
     if (otherValue > 0) {
       slices.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
     }
-    if (missingValue > 0.01) {
-      slices.push({ id: -2002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" });
+    if (unknownValue > 0.01) {
+      slices.push({ id: -2002, label: "Desconocido", value: unknownValue, pct: unknownValue / total, color: "#CBD5E1" });
     }
     return { total, slices, otherAssets: remainder };
   }, [exposure]);
@@ -611,22 +614,24 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       }))
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.value - a.value);
-    const isSpecial = (label: string) => label === "Otros" || label === "Sin datos" || label === "Desconocido";
-    const nonSpecial = allEntries.filter((e) => !isSpecial(e.label));
-    const special = allEntries.filter((e) => isSpecial(e.label));
+    const isUnknownLike = (label: string) => label === "Otros" || label === "Sin datos" || label === "Desconocido";
+    const nonSpecial = allEntries.filter((e) => !isUnknownLike(e.label));
+    const unknownLike = allEntries.filter((e) => isUnknownLike(e.label));
 
     const top = nonSpecial.slice(0, 6);
-    const remainder = [...nonSpecial.slice(6), ...special];
+    const remainder = nonSpecial.slice(6);
     const otherValue = remainder.reduce((sum, s) => sum + s.value, 0);
     const coveredValue = allEntries.reduce((sum, s) => sum + s.value, 0);
+    const unknownLikeValue = unknownLike.reduce((sum, s) => sum + s.value, 0);
     const missingValue = Math.max(0, total - coveredValue);
+    const unknownValue = unknownLikeValue + missingValue;
 
     const slices: DonutSlice[] = [...top];
     if (otherValue > 0) {
       slices.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
     }
-    if (missingValue > 0.01) {
-      slices.push({ id: -3002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" });
+    if (unknownValue > 0.01) {
+      slices.push({ id: -3002, label: "Desconocido", value: unknownValue, pct: unknownValue / total, color: "#CBD5E1" });
     }
     return { total, slices, otherAssets: remainder };
   }, [exposure]);
@@ -1004,7 +1009,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         style={{ fontSize: 14, fontWeight: "700", color: t.text, lineHeight: 18 }}
                         numberOfLines={1}
                       >
-                        {a.name}
+                        {a.abbreviation?.trim() || a.name}
                       </Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
                         <View
@@ -1075,7 +1080,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }} numberOfLines={1}>
-                    {a.name}
+                    {a.abbreviation?.trim() || a.name}
                   </Text>
                   <Text style={{ fontSize: 10, fontWeight: "600", color: "#CBD5E1", marginTop: 2 }}>
                     Archivada

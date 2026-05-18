@@ -44,6 +44,7 @@ const RISK_OPTIONS: {
 interface AssetFromApi {
   id: number;
   name: string;
+  abbreviation?: string | null;
   identificator?: string | null;
   provider?: string | null;
   metadataUrl?: string | null;
@@ -87,6 +88,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [isArchived, setIsArchived] = useState(false);
 
   const [name, setName] = useState("");
+  const [abbreviation, setAbbreviation] = useState("");
   const [identificator, setIdentificator] = useState("");
   const [quantityText, setQuantityText] = useState("");
   const [description, setDescription] = useState("");
@@ -147,6 +149,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       const a: AssetFromApi = res.data;
 
       setName(a.name ?? "");
+      setAbbreviation(a.abbreviation ?? "");
       setIdentificator(a.identificator ?? "");
       const q = a.quantity == null ? null : Number(a.quantity);
       setQuantityText(Number.isFinite(q as number) ? String(q) : "");
@@ -210,6 +213,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
     const payload: any = {
       name: name.trim(),
+      abbreviation: abbreviation.trim() ? abbreviation.trim() : null,
       identificator: identificator.trim() ? identificator.trim().toUpperCase() : null,
       ...(parsedQuantity !== null ? { quantity: parsedQuantity } : {}),
       description: desc ? desc : null, // ✅ importante
@@ -443,6 +447,32 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             </View>
 
             {/* DESCRIPTION */}
+            <Text className="text-[11px] text-gray-400 mt-4">Abreviación (opcional)</Text>
+            <View
+              className="flex-row items-center mt-1 rounded-2xl"
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="pricetag-outline" size={16} color="#64748B" />
+              <TextInput
+                value={abbreviation}
+                onChangeText={setAbbreviation}
+                placeholder="Ej: MSCI World, BTC, Polar Tech"
+                placeholderTextColor="#9CA3AF"
+                style={{
+                  marginLeft: 10,
+                  flex: 1,
+                  color: "#111827",
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+
             <Text className="text-[11px] text-gray-400 mt-4">{identifierLabel} (opcional)</Text>
             <View
               className="flex-row items-center mt-1 rounded-2xl"
