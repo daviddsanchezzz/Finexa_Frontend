@@ -51,6 +51,9 @@ type AssetMetadataPayload = {
     sector?: string | null;
   }> | null;
   cryptoCategory?: string | null;
+  source?: string | null;
+  sourceUrl?: string | null;
+  asOfDate?: string | null;
   lastError?: string | null;
 };
 
@@ -874,6 +877,16 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 Datos actualizados por última vez el {formatDate(metadata.syncedAt)}
               </Text>
             ) : null}
+            {!!metadata?.asOfDate && (
+              <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+                Dato publicado: {formatDate(metadata.asOfDate)}
+              </Text>
+            )}
+            {!!metadata?.source && (
+              <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+                Fuente: {metadata.source}
+              </Text>
+            )}
 
             {asset.type === "crypto" ? (
               <Text style={{ marginTop: 10, fontSize: 12, fontWeight: "700", color: "#334155" }}>

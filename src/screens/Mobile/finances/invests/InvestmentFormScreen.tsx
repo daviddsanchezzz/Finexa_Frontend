@@ -45,7 +45,9 @@ interface AssetFromApi {
   id: number;
   name: string;
   identificator?: string | null;
-  quantity?: number | null;
+  provider?: string | null;
+  metadataUrl?: string | null;
+  quantity?: number | string | null;
   description?: string | null;
   type: InvestmentAssetType;
   riskType?: RiskOrNull;
@@ -88,6 +90,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [identificator, setIdentificator] = useState("");
   const [quantityText, setQuantityText] = useState("");
   const [description, setDescription] = useState("");
+  const [provider, setProvider] = useState("");
+  const [metadataUrl, setMetadataUrl] = useState("");
   const [type, setType] = useState<InvestmentAssetType>("custom");
   const [riskType, setRiskType] = useState<RiskOrNull>(null); // ✅ null por defecto
   const [currency, setCurrency] = useState("EUR");
@@ -144,10 +148,11 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
       setName(a.name ?? "");
       setIdentificator(a.identificator ?? "");
-      setQuantityText(
-        typeof a.quantity === "number" ? String(a.quantity) : ""
-      );
+      const q = a.quantity == null ? null : Number(a.quantity);
+      setQuantityText(Number.isFinite(q as number) ? String(q) : "");
       setDescription(a.description ?? "");
+      setProvider(a.provider ?? "");
+      setMetadataUrl(a.metadataUrl ?? "");
       setType(a.type ?? "custom");
       setRiskType((a.riskType ?? null) as RiskOrNull);
       setCurrency((a.currency ?? "EUR").toUpperCase());
@@ -208,6 +213,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       identificator: identificator.trim() ? identificator.trim().toUpperCase() : null,
       ...(parsedQuantity !== null ? { quantity: parsedQuantity } : {}),
       description: desc ? desc : null, // ✅ importante
+      provider: provider.trim() ? provider.trim().toLowerCase() : null,
+      metadataUrl: metadataUrl.trim() ? metadataUrl.trim() : null,
       type,
       riskType: riskType ?? null, // ✅ importante (solo 2 valores o null)
       currency: currency.trim() ? currency.trim().toUpperCase() : "EUR",
@@ -520,6 +527,60 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 onChangeText={setDescription}
                 placeholder="Ej: Trade Republic, MyInvestor, Binance…"
                 placeholderTextColor="#9CA3AF"
+                style={{
+                  marginLeft: 10,
+                  flex: 1,
+                  color: "#111827",
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+
+            <Text className="text-[11px] text-gray-400 mt-4">Provider metadata (opcional)</Text>
+            <View
+              className="flex-row items-center mt-1 rounded-2xl"
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="server-outline" size={16} color="#64748B" />
+              <TextInput
+                value={provider}
+                onChangeText={setProvider}
+                placeholder="Ej: polar, fidelity, vanguard"
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
+                style={{
+                  marginLeft: 10,
+                  flex: 1,
+                  color: "#111827",
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+
+            <Text className="text-[11px] text-gray-400 mt-4">Metadata URL (opcional)</Text>
+            <View
+              className="flex-row items-center mt-1 rounded-2xl"
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="link-outline" size={16} color="#64748B" />
+              <TextInput
+                value={metadataUrl}
+                onChangeText={setMetadataUrl}
+                placeholder="https://..."
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="none"
                 style={{
                   marginLeft: 10,
                   flex: 1,
