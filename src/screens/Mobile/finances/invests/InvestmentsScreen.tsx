@@ -557,11 +557,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
     const countryValues = new Map<string, number>();
     for (const r of exposure.countries) {
-      const key = r.name === "Unknown" ? "Other" : r.name;
+      const key = r.name;
       countryValues.set(key, (countryValues.get(key) || 0) + Number(r.value || 0));
     }
 
-    const base = Array.from(countryValues.entries())
+    const allEntries = Array.from(countryValues.entries())
       .map(([name, value], idx) => ({
         id: 2000 + idx,
         label: COUNTRY_LABEL_ES[name] || name,
@@ -571,23 +571,24 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       }))
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.value - a.value);
-    const big = base.slice(0, 6);
-    const small = base.slice(6);
-    if (small.length) {
-      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
-      const existingOtherIdx = big.findIndex((s) => s.label === "Otros");
-      if (existingOtherIdx >= 0) {
-        const nextValue = big[existingOtherIdx].value + otherValue;
-        big[existingOtherIdx] = {
-          ...big[existingOtherIdx],
-          value: nextValue,
-          pct: nextValue / total,
-        };
-      } else {
-        big.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
-      }
+    const isSpecial = (label: string) => label === "Otros" || label === "Sin datos" || label === "Desconocido";
+    const nonSpecial = allEntries.filter((e) => !isSpecial(e.label));
+    const special = allEntries.filter((e) => isSpecial(e.label));
+
+    const top = nonSpecial.slice(0, 6);
+    const remainder = [...nonSpecial.slice(6), ...special];
+    const otherValue = remainder.reduce((sum, s) => sum + s.value, 0);
+    const coveredValue = allEntries.reduce((sum, s) => sum + s.value, 0);
+    const missingValue = Math.max(0, total - coveredValue);
+
+    const slices: DonutSlice[] = [...top];
+    if (otherValue > 0) {
+      slices.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
     }
-    return { total, slices: big, otherAssets: small };
+    if (missingValue > 0.01) {
+      slices.push({ id: -2002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" });
+    }
+    return { total, slices, otherAssets: remainder };
   }, [exposure]);
 
   const allocationBySector = useMemo(() => {
@@ -596,11 +597,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
     const sectorValues = new Map<string, number>();
     for (const r of exposure.sectors) {
-      const key = r.name === "Unknown" ? "Other" : r.name;
+      const key = r.name;
       sectorValues.set(key, (sectorValues.get(key) || 0) + Number(r.value || 0));
     }
 
-    const base = Array.from(sectorValues.entries())
+    const allEntries = Array.from(sectorValues.entries())
       .map(([name, value], idx) => ({
         id: 3000 + idx,
         label: SECTOR_LABEL_ES[name] || name,
@@ -610,23 +611,24 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       }))
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.value - a.value);
-    const big = base.slice(0, 6);
-    const small = base.slice(6);
-    if (small.length) {
-      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
-      const existingOtherIdx = big.findIndex((s) => s.label === "Otros");
-      if (existingOtherIdx >= 0) {
-        const nextValue = big[existingOtherIdx].value + otherValue;
-        big[existingOtherIdx] = {
-          ...big[existingOtherIdx],
-          value: nextValue,
-          pct: nextValue / total,
-        };
-      } else {
-        big.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
-      }
+    const isSpecial = (label: string) => label === "Otros" || label === "Sin datos" || label === "Desconocido";
+    const nonSpecial = allEntries.filter((e) => !isSpecial(e.label));
+    const special = allEntries.filter((e) => isSpecial(e.label));
+
+    const top = nonSpecial.slice(0, 6);
+    const remainder = [...nonSpecial.slice(6), ...special];
+    const otherValue = remainder.reduce((sum, s) => sum + s.value, 0);
+    const coveredValue = allEntries.reduce((sum, s) => sum + s.value, 0);
+    const missingValue = Math.max(0, total - coveredValue);
+
+    const slices: DonutSlice[] = [...top];
+    if (otherValue > 0) {
+      slices.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
     }
-    return { total, slices: big, otherAssets: small };
+    if (missingValue > 0.01) {
+      slices.push({ id: -3002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" });
+    }
+    return { total, slices, otherAssets: remainder };
   }, [exposure]);
 
   const allocationByHolding = useMemo(() => {
@@ -646,11 +648,18 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       .sort((a, b) => b.value - a.value);
     const big = base.slice(0, 6);
     const small = base.slice(6);
-    if (small.length) {
-      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
-      big.push({ id: -4001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    const otherValue = small.reduce((sum, s) => sum + s.value, 0);
+    const coveredValue = base.reduce((sum, s) => sum + s.value, 0);
+    const missingValue = Math.max(0, total - coveredValue);
+
+    const slices: DonutSlice[] = [...big];
+    if (otherValue > 0) {
+      slices.push({ id: -4001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
     }
-    return { total, slices: big, otherAssets: small };
+    if (missingValue > 0.01) {
+      slices.push({ id: -4002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" });
+    }
+    return { total, slices, otherAssets: small };
   }, [exposure]);
 
   const activeAllocation = useMemo(() => {
