@@ -353,7 +353,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [rentSelectedYear, setRentSelectedYear] = useState<number | null>(null);
   const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
-  const [donutMode, setDonutMode] = useState<"asset" | "type" | "country" | "sector">("asset");
+  const [donutMode, setDonutMode] = useState<"asset" | "type" | "country" | "sector" | "holding">("asset");
   const [exposure, setExposure] = useState<ExposureResponse | null>(null);
   const [otrosExpanded, setOtrosExpanded] = useState(false);
 
@@ -520,6 +520,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       stock: "#22C55E",
       etf: "#0EA5E9",
       fund: "#7C3AED",
+      cash: "#64748B",
       custom: "#64748B",
     };
     const typeNames: Record<string, string> = {
@@ -553,12 +554,19 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const allocationByCountry = useMemo(() => {
     const total = Number(exposure?.totalPortfolioValue || 0);
     if (!total || !exposure?.countries?.length) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
-    const base = exposure.countries
-      .map((r, idx) => ({
+
+    const countryValues = new Map<string, number>();
+    for (const r of exposure.countries) {
+      const key = r.name === "Unknown" ? "Other" : r.name;
+      countryValues.set(key, (countryValues.get(key) || 0) + Number(r.value || 0));
+    }
+
+    const base = Array.from(countryValues.entries())
+      .map(([name, value], idx) => ({
         id: 2000 + idx,
-        label: COUNTRY_LABEL_ES[r.name] || r.name,
-        value: Number(r.value || 0),
-        pct: Number(r.percentage || 0) / 100,
+        label: COUNTRY_LABEL_ES[name] || name,
+        value,
+        pct: value / total,
         color: palette[idx % palette.length],
       }))
       .filter((s) => s.pct > 0)
@@ -575,12 +583,19 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const allocationBySector = useMemo(() => {
     const total = Number(exposure?.totalPortfolioValue || 0);
     if (!total || !exposure?.sectors?.length) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
-    const base = exposure.sectors
-      .map((r, idx) => ({
+
+    const sectorValues = new Map<string, number>();
+    for (const r of exposure.sectors) {
+      const key = r.name === "Unknown" ? "Other" : r.name;
+      sectorValues.set(key, (sectorValues.get(key) || 0) + Number(r.value || 0));
+    }
+
+    const base = Array.from(sectorValues.entries())
+      .map(([name, value], idx) => ({
         id: 3000 + idx,
-        label: SECTOR_LABEL_ES[r.name] || r.name,
-        value: Number(r.value || 0),
-        pct: Number(r.percentage || 0) / 100,
+        label: SECTOR_LABEL_ES[name] || name,
+        value,
+        pct: value / total,
         color: palette[idx % palette.length],
       }))
       .filter((s) => s.pct > 0)
@@ -594,12 +609,37 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     return { total, slices: big, otherAssets: small };
   }, [exposure]);
 
+  const allocationByHolding = useMemo(() => {
+    const total = Number(exposure?.totalPortfolioValue || 0);
+    if (!total || !exposure?.indirectHoldings?.length) {
+      return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
+    }
+    const base = exposure.indirectHoldings
+      .map((h, idx) => ({
+        id: 4000 + idx,
+        label: h.ticker ? `${h.name} (${h.ticker})` : h.name,
+        value: Number(h.value || 0),
+        pct: Number(h.percentage || 0) / 100,
+        color: palette[idx % palette.length],
+      }))
+      .filter((s) => s.pct > 0)
+      .sort((a, b) => b.value - a.value);
+    const big = base.slice(0, 6);
+    const small = base.slice(6);
+    if (small.length) {
+      const otherValue = small.reduce((sum, s) => sum + s.value, 0);
+      big.push({ id: -4001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    }
+    return { total, slices: big, otherAssets: small };
+  }, [exposure]);
+
   const activeAllocation = useMemo(() => {
     if (donutMode === "type") return allocationByType;
     if (donutMode === "country") return allocationByCountry;
     if (donutMode === "sector") return allocationBySector;
+    if (donutMode === "holding") return allocationByHolding;
     return allocation;
-  }, [donutMode, allocation, allocationByType, allocationByCountry, allocationBySector]);
+  }, [donutMode, allocation, allocationByType, allocationByCountry, allocationBySector, allocationByHolding]);
 
   const allocationMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -1047,24 +1087,36 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               </View>
 
               {/* Toggle Por activo / Por tipo */}
-              <View style={{ flexDirection: "row", gap: 6, marginTop: 12, backgroundColor: "#F1F5F9", borderRadius: 12, padding: 4 }}>
-                {(["asset", "type", "country", "sector"] as const).map((mode) => (
-                  <TouchableOpacity
-                    key={mode}
-                    onPress={() => { setDonutMode(mode); setSelectedSliceId(null); setOtrosExpanded(false); }}
-                    activeOpacity={0.8}
-                    style={{
-                      flex: 1, paddingVertical: 7, borderRadius: 9,
-                      backgroundColor: donutMode === mode ? "white" : "transparent",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: donutMode === mode ? colors.primary : "#6B7280" }}>
-                      {mode === "asset" ? "Activo" : mode === "type" ? "Tipo" : mode === "country" ? "Región" : "Sector"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 6, marginTop: 12, backgroundColor: "#F1F5F9", borderRadius: 12, padding: 4 }}
+                >
+                {(["asset", "type", "country", "sector", "holding"] as const).map((mode) => (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => { setDonutMode(mode); setSelectedSliceId(null); setOtrosExpanded(false); }}
+                      activeOpacity={0.8}
+                      style={{
+                        minWidth: 78, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 9,
+                        backgroundColor: donutMode === mode ? "white" : "transparent",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: donutMode === mode ? colors.primary : "#6B7280" }}>
+                        {mode === "asset"
+                          ? "Activo"
+                          : mode === "type"
+                          ? "Tipo"
+                          : mode === "country"
+                          ? "Región"
+                          : mode === "sector"
+                          ? "Sector"
+                          : "Compañía"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
 
               {/* Donut */}
               <View style={{ alignItems: "center", marginTop: 14 }}>
