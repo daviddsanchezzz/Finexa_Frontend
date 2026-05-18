@@ -146,6 +146,83 @@ const typeLabel = (t: InvestmentAssetType) => {
   }
 };
 
+const COUNTRY_LABEL_ES: Record<string, string> = {
+  "United States": "Estados Unidos",
+  "United States & Canada": "Estados Unidos y Canadá",
+  "United Kingdom": "Reino Unido",
+  "South Korea": "Corea del Sur",
+  "Taiwan": "Taiwán",
+  "Japan": "Japón",
+  "China": "China",
+  "Canada": "Canadá",
+  "France": "Francia",
+  "Germany": "Alemania",
+  "Australia": "Australia",
+  "Netherlands": "Países Bajos",
+  "Switzerland": "Suiza",
+  "Spain": "España",
+  "Italy": "Italia",
+  "Israel": "Israel",
+  "Norway": "Noruega",
+  "Sweden": "Suecia",
+  "Denmark": "Dinamarca",
+  "Hong Kong": "Hong Kong",
+  "Singapore": "Singapur",
+  "India": "India",
+  "Brazil": "Brasil",
+  "Kuwait": "Kuwait",
+  "Mexico": "México",
+  "Poland": "Polonia",
+  "Malaysia": "Malasia",
+  "Thailand": "Tailandia",
+  "Indonesia": "Indonesia",
+  "Saudi Arabia": "Arabia Saudí",
+  "South Africa": "Sudáfrica",
+  "United Arab Emirates": "Emiratos Árabes Unidos",
+  "Qatar": "Qatar",
+  "Europe": "Europa",
+  "Middle East & Africa": "Oriente Medio y África",
+  "Asia Pacific ex Japan": "Asia Pacífico (ex Japón)",
+  "Cash": "Liquidez",
+  "Other": "Otros",
+  "Unknown": "Sin datos",
+};
+
+const SECTOR_LABEL_ES: Record<string, string> = {
+  "Information Technology": "Tecnología",
+  "Financials": "Finanzas",
+  "Industrials": "Industriales",
+  "Consumer Discretionary": "Consumo discrecional",
+  "Communication Services": "Servicios de comunicación",
+  "Healthcare": "Sanidad",
+  "Materials": "Materiales",
+  "Energy": "Energía",
+  "Utilities": "Servicios públicos",
+  "Real Estate": "Inmobiliario",
+  "Consumer Staples": "Consumo básico",
+  "Semiconductors": "Semiconductores",
+  "Broadline Retail": "Distribución minorista",
+  "Systems Software": "Software de sistemas",
+  "Aerospace & Defense": "Aeroespacial y defensa",
+  "Healthcare Supplies": "Suministros sanitarios",
+  "Electronic Components": "Componentes electrónicos",
+  "Automobile Manufacturers": "Fabricantes de automóviles",
+  "Communications Equipment": "Equipos de comunicaciones",
+  "Heavy Electrical Equipment": "Equipamiento eléctrico pesado",
+  "Interactive Media & Services": "Medios y servicios interactivos",
+  "Investment Banking & Brokerage": "Banca de inversión y brókeres",
+  "Electrical Components & Equipment": "Componentes y equipos eléctricos",
+  "Electronic Manufacturing Services": "Servicios de fabricación electrónica",
+  "Electronic Equipment & Instruments": "Equipos e instrumentos electrónicos",
+  "Internet Services & Infrastructure": "Servicios e infraestructura de internet",
+  "Semiconductor Materials & Equipment": "Materiales y equipos de semiconductores",
+  "Tech Hardware Storage & Peripherals": "Hardware, almacenamiento y periféricos",
+  "Wireless Telecommunication Services": "Servicios de telecomunicaciones inalámbricas",
+  "Cash": "Liquidez",
+  "Other": "Otros",
+  "Unknown": "Sin datos",
+};
+
 const formatShortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("es-ES", {
     day: "2-digit",
@@ -450,6 +527,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       stock: "Acciónes",
       etf: "ETFs",
       fund: "Fondos",
+      cash: "Liquidez",
       custom: "Custom",
     };
 
@@ -478,7 +556,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const base = exposure.countries
       .map((r, idx) => ({
         id: 2000 + idx,
-        label: r.name,
+        label: COUNTRY_LABEL_ES[r.name] || r.name,
         value: Number(r.value || 0),
         pct: Number(r.percentage || 0) / 100,
         color: palette[idx % palette.length],
@@ -500,7 +578,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const base = exposure.sectors
       .map((r, idx) => ({
         id: 3000 + idx,
-        label: r.name,
+        label: SECTOR_LABEL_ES[r.name] || r.name,
         value: Number(r.value || 0),
         pct: Number(r.percentage || 0) / 100,
         color: palette[idx % palette.length],
@@ -1009,7 +1087,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 <View style={{ marginTop: 12 }}>
                   {activeAllocation.slices.map((s) => {
                     const isActive = (selectedSlice?.id ?? null) === s.id;
-                    const isOtros = s.id === -1;
+                    const isOtros = s.id < 0 || s.label === "Otros";
 
                     return (
                       <View key={s.id}>
@@ -1038,12 +1116,16 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                               {s.label}
                             </Text>
                             {isOtros && (
-                              <Ionicons
-                                name={otrosExpanded ? "chevron-up" : "chevron-down"}
-                                size={13}
-                                color="#94A3B8"
-                                style={{ marginRight: 6 }}
-                              />
+                              <View style={{ flexDirection: "row", alignItems: "center", marginRight: 6 }}>
+                                <Text style={{ fontSize: 10, fontWeight: "800", color: "#64748B", marginRight: 4 }}>
+                                  {otrosExpanded ? "Ocultar" : `Ver ${activeAllocation.otherAssets.length} más`}
+                                </Text>
+                                <Ionicons
+                                  name={otrosExpanded ? "chevron-up" : "chevron-down"}
+                                  size={13}
+                                  color="#94A3B8"
+                                />
+                              </View>
                             )}
                           </View>
                           <View style={{ alignItems: "flex-end" }}>
