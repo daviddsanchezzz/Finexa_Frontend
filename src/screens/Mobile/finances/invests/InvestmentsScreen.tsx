@@ -492,7 +492,8 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       .map((a, idx) => {
         const value = a.currentValue || 0;
         const pct = value / total;
-        return { id: a.id, label: a.name, value, pct, color: palette[idx % palette.length] };
+        const assetLabel = a.abbreviation?.trim() || a.name;
+        return { id: a.id, label: assetLabel, value, pct, color: palette[idx % palette.length] };
       })
       .filter((s) => s.pct > 0)
       .sort((a, b) => b.value - a.value);
@@ -584,14 +585,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const missingValue = Math.max(0, total - coveredValue);
     const unknownValue = unknownLikeValue + missingValue;
 
+    const otherTotalValue = otherValue + unknownValue;
+    const unknownSubItem: DonutSlice | null = unknownValue > 0.01
+      ? { id: -2002, label: "Desconocido", value: unknownValue, pct: unknownValue / total, color: "#CBD5E1" }
+      : null;
     const slices: DonutSlice[] = [...top];
-    if (otherValue > 0) {
-      slices.push({ id: -2001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    if (otherTotalValue > 0) {
+      slices.push({ id: -2001, label: "Otros", value: otherTotalValue, pct: otherTotalValue / total, color: "#94A3B8" });
     }
-    if (unknownValue > 0.01) {
-      slices.push({ id: -2002, label: "Desconocido", value: unknownValue, pct: unknownValue / total, color: "#CBD5E1" });
-    }
-    return { total, slices, otherAssets: remainder };
+    return { total, slices, otherAssets: unknownSubItem ? [...remainder, unknownSubItem] : remainder };
   }, [exposure]);
 
   const allocationBySector = useMemo(() => {
@@ -626,14 +628,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const missingValue = Math.max(0, total - coveredValue);
     const unknownValue = unknownLikeValue + missingValue;
 
+    const otherTotalValue = otherValue + unknownValue;
+    const unknownSubItem: DonutSlice | null = unknownValue > 0.01
+      ? { id: -3002, label: "Desconocido", value: unknownValue, pct: unknownValue / total, color: "#CBD5E1" }
+      : null;
     const slices: DonutSlice[] = [...top];
-    if (otherValue > 0) {
-      slices.push({ id: -3001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    if (otherTotalValue > 0) {
+      slices.push({ id: -3001, label: "Otros", value: otherTotalValue, pct: otherTotalValue / total, color: "#94A3B8" });
     }
-    if (unknownValue > 0.01) {
-      slices.push({ id: -3002, label: "Desconocido", value: unknownValue, pct: unknownValue / total, color: "#CBD5E1" });
-    }
-    return { total, slices, otherAssets: remainder };
+    return { total, slices, otherAssets: unknownSubItem ? [...remainder, unknownSubItem] : remainder };
   }, [exposure]);
 
   const allocationByHolding = useMemo(() => {
@@ -657,14 +660,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const coveredValue = base.reduce((sum, s) => sum + s.value, 0);
     const missingValue = Math.max(0, total - coveredValue);
 
+    const otherTotalValue = otherValue + missingValue;
+    const unknownSubItem: DonutSlice | null = missingValue > 0.01
+      ? { id: -4002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" }
+      : null;
     const slices: DonutSlice[] = [...big];
-    if (otherValue > 0) {
-      slices.push({ id: -4001, label: "Otros", value: otherValue, pct: otherValue / total, color: "#94A3B8" });
+    if (otherTotalValue > 0) {
+      slices.push({ id: -4001, label: "Otros", value: otherTotalValue, pct: otherTotalValue / total, color: "#94A3B8" });
     }
-    if (missingValue > 0.01) {
-      slices.push({ id: -4002, label: "Desconocido", value: missingValue, pct: missingValue / total, color: "#CBD5E1" });
-    }
-    return { total, slices, otherAssets: small };
+    return { total, slices, otherAssets: unknownSubItem ? [...small, unknownSubItem] : small };
   }, [exposure]);
 
   const activeAllocation = useMemo(() => {
@@ -842,8 +846,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             style={{
               backgroundColor: colors.primary,
               borderRadius: 26,
-              padding: 16,
-              marginBottom: 12,
+              paddingHorizontal: 14,
+              paddingTop: 13,
+              paddingBottom: 12,
+              marginBottom: 10,
               shadowColor: "#000",
               shadowOpacity: 0.12,
               shadowRadius: 10,
@@ -854,16 +860,16 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
                 <View
                   style={{
-                    width: 42, height: 42, borderRadius: 16,
+                    width: 38, height: 38, borderRadius: 14,
                     backgroundColor: "rgba(255,255,255,0.16)",
                     alignItems: "center", justifyContent: "center",
                   }}
                 >
-                  <Ionicons name="stats-chart" size={20} color="white" />
+                  <Ionicons name="stats-chart" size={18} color="white" />
                 </View>
-                <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Text style={{ fontSize: 18, fontWeight: "800", color: "white" }}>Resumen</Text>
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={{ fontSize: 17, fontWeight: "800", color: "white" }}>Resumen</Text>
+                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", marginTop: 1 }}>
                     {hero.count} {hero.count === 1 ? "activo" : "activos"}
                     {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
                   </Text>
@@ -872,39 +878,39 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
               <View
                 style={{
-                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+                  paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999,
                   backgroundColor: "rgba(255,255,255,0.18)",
                   flexDirection: "row", alignItems: "center",
                 }}
               >
-                <Ionicons name={totalBadge.icon} size={14} color="white" />
-                <Text style={{ color: "white", fontWeight: "900", marginLeft: 6, fontSize: 12 }}>
+                <Ionicons name={totalBadge.icon} size={13} color="white" />
+                <Text style={{ color: "white", fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
                   {hero.pct.toFixed(2)}%
                 </Text>
               </View>
             </View>
 
-            <View style={{ marginTop: 12 }}>
-              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
+            <View style={{ marginTop: 9 }}>
+              <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
                 Valor actual total
               </Text>
-              <Text style={{ fontSize: 26, fontWeight: "900", color: "white", marginTop: 2 }}>
+              <Text style={{ fontSize: 22, fontWeight: "900", color: "white", marginTop: 1 }}>
                 {formatMoney(hero.totalCurrentValue, currency)}
               </Text>
             </View>
 
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 9 }}>
               <View
                 style={{
                   flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                  borderRadius: 18, padding: 12,
+                  borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10,
                 }}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Ionicons name="add-circle-outline" size={14} color="rgba(255,255,255,0.9)" />
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Invertido</Text>
+                  <Ionicons name="add-circle-outline" size={13} color="rgba(255,255,255,0.9)" />
+                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Invertido</Text>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "white", marginTop: 6 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 4 }}>
                   {formatMoney(hero.totalInvested, currency)}
                 </Text>
               </View>
@@ -912,14 +918,14 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               <View
                 style={{
                   flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                  borderRadius: 18, padding: 12,
+                  borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10,
                 }}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Ionicons name="stats-chart-outline" size={14} color="rgba(255,255,255,0.9)" />
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Resultado</Text>
+                  <Ionicons name="stats-chart-outline" size={13} color="rgba(255,255,255,0.9)" />
+                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Resultado</Text>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "white", marginTop: 6 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 4 }}>
                   {formatMoney(hero.totalPnL, currency)}
                 </Text>
               </View>

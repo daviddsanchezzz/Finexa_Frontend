@@ -37,6 +37,9 @@ interface DebtItem {
 interface InvestmentAsset {
   id: number;
   name: string;
+  abbreviation?: string | null;
+  symbol?: string | null;
+  ticker?: string | null;
   type: string;
   currentValue: number;
   pnl: number;
@@ -391,7 +394,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
                   <Row
                     key={a.id}
                     emoji={ASSET_TYPE_EMOJI[a.type] ?? "💼"}
-                    name={a.name}
+                    name={a.abbreviation?.trim() || a.name}
                     amount={a.currentValue}
                     amountColor="#16A34A"
                   />
@@ -419,3 +422,4 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
     </SafeAreaView>
   );
 }
+
