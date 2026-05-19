@@ -497,7 +497,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB",
               backgroundColor: "white", marginRight: 8, marginBottom: 4,
             }}
-          >            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>Editar</Text>
+          >
+            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>Editar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setQuickAddOpen(true)}
@@ -509,7 +510,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               marginTop: 4,
               marginBottom: 4,
             }}
-          >            <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
+          >
+            <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -520,26 +522,23 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           <Text className="text-gray-400 mt-3 text-sm">Cargando…</Text>
         </View>
       ) : (
-        <ScrollView
-          className="flex-1 px-5"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          {/* ── HERO: tarjeta azul ── */}
-          <View
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 24,
-              paddingHorizontal: 14,
-              paddingTop: 12,
-              paddingBottom: 12,
-              marginBottom: 12,
-              shadowColor: "#000",
-              shadowOpacity: 0.12,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 4 },
-            }}
-          >
+        <View className="flex-1">
+          <View className="px-5">
+            {/* ── HERO: tarjeta azul (fijo) ── */}
+            <View
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 24,
+                paddingHorizontal: 14,
+                paddingTop: 12,
+                paddingBottom: 12,
+                marginBottom: 12,
+                shadowColor: "#000",
+                shadowOpacity: 0.12,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+              }}
+            >
             {/* Fila superior: icono + tipo + nombre */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 8 }}>
@@ -616,25 +615,30 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               </View>
             </View>
 
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 6,
+                padding: 5,
+                borderRadius: 16,
+                backgroundColor: "#E2E8F0",
+                marginBottom: 10,
+              }}
+            >
+              <SegmentedTab label="Información" active={sectionTab === "info"} onPress={() => setSectionTab("info")} />
+              <SegmentedTab label="Evolución" active={sectionTab === "evolution"} onPress={() => setSectionTab("evolution")} />
+              <SegmentedTab label="Composición" active={sectionTab === "composition"} onPress={() => setSectionTab("composition")} />
+              <SegmentedTab label="Operaciones" active={sectionTab === "records"} onPress={() => setSectionTab("records")} />
+            </View>
           </View>
 
-          <View
-            style={{
-              flexDirection: "row",
-              gap: 8,
-              padding: 6,
-              borderRadius: 16,
-              backgroundColor: "white",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              marginBottom: 12,
-            }}
+          <ScrollView
+            className="flex-1 px-5"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40 }}
           >
-            <SegmentedTab label="Información" active={sectionTab === "info"} onPress={() => setSectionTab("info")} />
-            <SegmentedTab label="Evolución" active={sectionTab === "evolution"} onPress={() => setSectionTab("evolution")} />
-            <SegmentedTab label="Composición" active={sectionTab === "composition"} onPress={() => setSectionTab("composition")} />
-            <SegmentedTab label="Operaciones" active={sectionTab === "records"} onPress={() => setSectionTab("records")} />
-          </View>
 
           {sectionTab === "evolution" && (
           <View
@@ -780,50 +784,86 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               marginBottom: 12,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Información</Text>
-              <View
-                style={{
-                  paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
-                  backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB",
-                  flexDirection: "row", alignItems: "center", gap: 6,
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: "900", color: "#334155" }}>{asset.currency}</Text>
-              </View>
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A" }}>Información del activo</Text>
+              <Text style={{ marginTop: 3, fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+                Ficha técnica
+              </Text>
             </View>
 
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-              <MetricChip label="Tipo"       value={typeLabel(asset.type)}                                  icon="pricetag-outline" />
-              <MetricChip label="Riesgo"     value={riskLabel(asset.riskType)}                             icon={riskIcon(asset.riskType)} />
-              <MetricChip label="Aportado"   value={formatMoney(asset.initialInvested || 0, currency)}     icon="flag-outline" />
-              <MetricChip label="Moneda"     value={asset.currency}                                        icon="cash-outline" />
-              {Number(asset.quantity ?? 0) > 0 && (
-                <MetricChip
-                  label="Participaciones"
-                  value={Number(asset.quantity).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                  icon="layers-outline"
-                />
-              )}
-            </View>
-
-            {asset.description?.trim() ? (
-              <View
-                style={{
-                  marginTop: 12, padding: 12, borderRadius: 18,
-                  backgroundColor: "#F8FAFC",
-                  borderWidth: 1, borderColor: "#E5E7EB",
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Ionicons name="document-text-outline" size={16} color="#64748B" />
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Descripción</Text>
+            <View
+              style={{
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                backgroundColor: "#F8FAFC",
+                padding: 12,
+                marginBottom: 10,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>Nombre del activo</Text>
+                  <Text style={{ fontSize: 19, fontWeight: "900", color: "#0F172A", marginTop: 2 }}>
+                    {asset.name}
+                  </Text>
                 </View>
-                <Text style={{ marginTop: 6, fontSize: 12, fontWeight: "700", color: "#334155", lineHeight: 18 }}>
-                  {asset.description}
-                </Text>
               </View>
-            ) : null}
+            </View>
+
+            <View
+              style={{
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                backgroundColor: "white",
+                overflow: "hidden",
+              }}
+            >
+              {[
+                { label: "Tipo", value: typeLabel(asset.type), icon: "pricetag-outline" as const },
+                { label: "Riesgo", value: riskLabel(asset.riskType), icon: riskIcon(asset.riskType) },
+                {
+                  label: "Participaciones",
+                  value: Number(asset.quantity ?? 0) > 0
+                    ? Number(asset.quantity).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+                    : "—",
+                  icon: "layers-outline" as const,
+                },
+                { label: "Moneda", value: asset.currency, icon: "cash-outline" as const },
+                ...(asset.description?.trim() ? [{ label: "Broker", value: asset.description.trim(), icon: "business-outline" as const }] : []),
+                ...(asset.identificator?.trim() ? [{ label: "Identificador", value: String(asset.identificator), icon: "bookmark-outline" as const }] : []),
+              ].map((row, idx, arr) => (
+                <View
+                  key={row.label}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingHorizontal: 12,
+                    paddingVertical: 11,
+                    borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
+                    borderBottomColor: "#F1F5F9",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
+                    <View
+                      style={{
+                        width: 26, height: 26, borderRadius: 8,
+                        backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB",
+                        alignItems: "center", justifyContent: "center", marginRight: 8,
+                      }}
+                    >
+                      <Ionicons name={row.icon} size={13} color="#64748B" />
+                    </View>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B" }}>{row.label}</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+                    {row.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
           )}
 
@@ -1049,6 +1089,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           </View>
           )}
         </ScrollView>
+        </View>
       )}
 
       {/* ── Modal de acción (editar / eliminar) ── */}
