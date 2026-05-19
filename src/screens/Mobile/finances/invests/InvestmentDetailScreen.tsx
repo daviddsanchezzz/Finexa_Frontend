@@ -16,6 +16,7 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
@@ -893,7 +894,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                         .map(([name, pct]) => (
                           <View key={`country-${name}`} style={{ marginBottom: 10 }}>
                             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{name}</Text>
+                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateCountry(name)}</Text>
                               <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(pct).toFixed(1)}%</Text>
                             </View>
                             <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
@@ -911,7 +912,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                         .map(([name, pct]) => (
                           <View key={`sector-${name}`} style={{ marginBottom: 10 }}>
                             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{name}</Text>
+                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateSector(name)}</Text>
                               <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(pct).toFixed(1)}%</Text>
                             </View>
                             <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>

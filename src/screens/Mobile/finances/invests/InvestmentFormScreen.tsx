@@ -62,6 +62,8 @@ function isValidCurrencyCode(v: string) {
   return /^[A-Z]{3}$/.test(v);
 }
 
+import { numToInputStr } from "../../../../utils/investmentLabels";
+
 /** acepta "1234", "1.234,56", "1234.56" */
 function parseAmount(input: string): number | null {
   const raw = input.trim();
@@ -152,7 +154,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       setAbbreviation(a.abbreviation ?? "");
       setIdentificator(a.identificator ?? "");
       const q = a.quantity == null ? null : Number(a.quantity);
-      setQuantityText(Number.isFinite(q as number) ? String(q) : "");
+      setQuantityText(Number.isFinite(q as number) ? numToInputStr(q as number) : "");
       setDescription(a.description ?? "");
       setProvider(a.provider ?? "");
       setMetadataUrl(a.metadataUrl ?? "");
@@ -162,7 +164,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       setIsArchived(!!a.archived);
 
       setInitialInvestedText(
-        typeof a.initialInvested === "number" ? String(a.initialInvested) : "0"
+        typeof a.initialInvested === "number" ? numToInputStr(a.initialInvested, 2) : "0"
       );
     } catch (e) {
       console.error("❌ Error loading asset:", e);
@@ -525,7 +527,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 onChangeText={setQuantityText}
                 placeholder="Ej: 2,5"
                 placeholderTextColor="#9CA3AF"
-                keyboardType="decimal-pad"
+                keyboardType="numeric"
                 style={{
                   marginLeft: 10,
                   flex: 1,
@@ -768,7 +770,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 onChangeText={setInitialInvestedText}
                 placeholder="Ej: 2500"
                 placeholderTextColor="#9CA3AF"
-                keyboardType="decimal-pad"
+                keyboardType="numeric"
                 style={{
                   marginLeft: 10,
                   flex: 1,

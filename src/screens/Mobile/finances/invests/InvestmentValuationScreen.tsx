@@ -344,7 +344,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
                 onChangeText={setValueText}
                 placeholder="Ej: 3100,50"
                 placeholderTextColor="#9CA3AF"
-                keyboardType="decimal-pad"
+                keyboardType="numeric"
                 style={{ marginLeft: 10, flex: 1, color: "#111827", fontWeight: "700" }}
               />
               {valueText.trim() && parsedValue === null ? (
