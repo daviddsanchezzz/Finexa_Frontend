@@ -94,6 +94,34 @@ export const translateCountry = (name: string): string => COUNTRY_MAP[name] ?? n
 
 export const translateSector = (name: string): string => SECTOR_MAP[name] ?? name;
 
+// Reverse maps: Spanish label → English DB key (for saving back to the API)
+export const REVERSE_COUNTRY_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(COUNTRY_MAP).map(([k, v]) => [v, k])
+);
+
+export const REVERSE_SECTOR_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(SECTOR_MAP).map(([k, v]) => [v, k])
+);
+
+// Suggestion arrays for autocomplete (deduplicated by label, sorted alphabetically in Spanish)
+export const COUNTRY_SUGGESTIONS: Array<{ label: string; value: string }> = Object.entries(
+  COUNTRY_MAP
+)
+  .reduce((acc, [value, label]) => {
+    if (!acc.find((x) => x.label === label)) acc.push({ label, value });
+    return acc;
+  }, [] as Array<{ label: string; value: string }>)
+  .sort((a, b) => a.label.localeCompare(b.label, "es"));
+
+export const SECTOR_SUGGESTIONS: Array<{ label: string; value: string }> = Object.entries(
+  SECTOR_MAP
+)
+  .reduce((acc, [value, label]) => {
+    if (!acc.find((x) => x.label === label)) acc.push({ label, value });
+    return acc;
+  }, [] as Array<{ label: string; value: string }>)
+  .sort((a, b) => a.label.localeCompare(b.label, "es"));
+
 /**
  * Convierte un número a string en formato español para inputs (sin separador de miles).
  * Ej: 291.403 → "291,403" | 3702.64 → "3702,64"

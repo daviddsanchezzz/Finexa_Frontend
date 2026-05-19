@@ -41,6 +41,7 @@ export type RootStackParamList = {
   ReportsPdfViewer: undefined;
   MonthlyContributions: undefined;
   InvestmentOperation: undefined;
+  InvestmentComposition: undefined;
   Notifications: undefined;
   BiometricSetup: undefined;
   NetWorth: undefined;
@@ -268,6 +269,13 @@ export default function MobileNavigator() {
             name="InvestmentOperation"
             getComponent={() =>
               require("../screens/Mobile/finances/invests/InvestmentOperationScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="InvestmentComposition"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentCompositionScreen").default
             }
           />
 

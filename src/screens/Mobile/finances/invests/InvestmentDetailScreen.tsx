@@ -42,20 +42,17 @@ type AssetMetadataPayload = {
   id: number;
   assetId: number;
   syncedAt?: string | null;
-  countriesJson?: Record<string, number> | null;
-  sectorsJson?: Record<string, number> | null;
-  topHoldingsJson?: Array<{
-    name: string;
-    ticker?: string | null;
-    weight: number;
-    country?: string | null;
-    sector?: string | null;
-  }> | null;
   cryptoCategory?: string | null;
   source?: string | null;
   sourceUrl?: string | null;
   asOfDate?: string | null;
   lastError?: string | null;
+};
+
+type CompositionPayload = {
+  regions: Array<{ id?: number; country: string; pct: number }>;
+  sectors: Array<{ id?: number; sector: string; pct: number }>;
+  holdings: Array<{ id?: number; name: string; ticker?: string | null; weight: number }>;
 };
 
 interface SeriesPoint {
@@ -184,6 +181,12 @@ const pnlMeta = (pnl: number) => {
   return { color: "#64748B", soft: "#E5E7EB", icon: "remove-outline" as const };
 };
 
+const fmt1 = (n: number) =>
+  n.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+const fmt2 = (n: number) =>
+  n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const pnlHeroColor = (pnl: number): string => {
   if (pnl > 0) return "#86EFAC";
   if (pnl < 0) return "#FCA5A5";
@@ -239,6 +242,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [valuations, setValuations] = useState<ValuationFromApi[]>([]);
   const [operations, setOperations] = useState<InvestmentOperationFromApi[]>([]);
   const [metadata, setMetadata] = useState<AssetMetadataPayload | null>(null);
+  const [composition, setComposition] = useState<CompositionPayload | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [range, setRange] = useState<RangeKey>("3m");
   const [sectionTab, setSectionTab] = useState<"info" | "evolution" | "composition" | "records">("info");
@@ -278,6 +282,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
       const mRes = await api.get(`/investments/assets/${assetId}/metadata`);
       setMetadata(mRes.data?.metadata ?? null);
+      setComposition(mRes.data?.composition ?? null);
     } catch (e) {
       console.error("❌ Error loading investment detail:", e);
       navigation.goBack();
@@ -747,7 +752,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                       {formatMoney(chart.rangeDelta, currency)}
                     </Text>
                     <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: "#64748B" }}>
-                      {chart.rangeDeltaPct.toFixed(2)}%
+                      {fmt2(chart.rangeDeltaPct)}%
                     </Text>
                   </View>
 
@@ -766,7 +771,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                       </Text>
                     </View>
                     <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: "#64748B" }}>
-                      {chart.deltaPct.toFixed(2)}%
+                      {fmt2(chart.deltaPct)}%
                     </Text>
                   </View>
                 </View>
@@ -887,51 +892,47 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 </View>
 
                 {compositionTab === "regions" && (
-                  !metadata?.countriesJson
+                  !(composition?.regions?.length)
                     ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Datos de regiones no disponibles.</Text>
-                    : Object.entries(metadata.countriesJson)
-                        .sort((a, b) => Number(b[1]) - Number(a[1]))
-                        .map(([name, pct]) => (
-                          <View key={`country-${name}`} style={{ marginBottom: 10 }}>
-                            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateCountry(name)}</Text>
-                              <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(pct).toFixed(1)}%</Text>
-                            </View>
-                            <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
-                              <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(pct), 100)}%` as any }} />
-                            </View>
+                    : [...(composition.regions)].sort((a, b) => Number(b.pct) - Number(a.pct)).map((r) => (
+                        <View key={`country-${r.country}`} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+                            <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateCountry(r.country)}</Text>
+                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(r.pct))}%</Text>
                           </View>
-                        ))
+                          <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
+                            <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(r.pct), 100)}%` as any }} />
+                          </View>
+                        </View>
+                      ))
                 )}
 
                 {compositionTab === "sectors" && (
-                  !metadata?.sectorsJson
+                  !(composition?.sectors?.length)
                     ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Datos de sectores no disponibles.</Text>
-                    : Object.entries(metadata.sectorsJson)
-                        .sort((a, b) => Number(b[1]) - Number(a[1]))
-                        .map(([name, pct]) => (
-                          <View key={`sector-${name}`} style={{ marginBottom: 10 }}>
-                            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                              <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateSector(name)}</Text>
-                              <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(pct).toFixed(1)}%</Text>
-                            </View>
-                            <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
-                              <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(pct), 100)}%` as any }} />
-                            </View>
+                    : [...(composition.sectors)].sort((a, b) => Number(b.pct) - Number(a.pct)).map((s) => (
+                        <View key={`sector-${s.sector}`} style={{ marginBottom: 10 }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+                            <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateSector(s.sector)}</Text>
+                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(s.pct))}%</Text>
                           </View>
-                        ))
+                          <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
+                            <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(s.pct), 100)}%` as any }} />
+                          </View>
+                        </View>
+                      ))
                 )}
 
                 {compositionTab === "holdings" && (
-                  !(metadata?.topHoldingsJson || []).length
+                  !(composition?.holdings?.length)
                     ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Holdings no disponibles.</Text>
-                    : (metadata?.topHoldingsJson || []).map((h, idx) => (
+                    : [...composition.holdings].sort((a, b) => Number(b.weight || 0) - Number(a.weight || 0)).map((h, idx) => (
                         <View key={`holding-${idx}-${h.name}`} style={{ marginBottom: 10 }}>
                           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
                             <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>
                               {h.name}{h.ticker ? ` (${h.ticker})` : ""}
                             </Text>
-                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{Number(h.weight || 0).toFixed(1)}%</Text>
+                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(h.weight || 0))}%</Text>
                           </View>
                           <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
                             <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(h.weight || 0), 100)}%` as any }} />
@@ -1157,6 +1158,33 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   <Ionicons name="swap-horizontal-outline" size={18} color={colors.primary} />
                 </View>
                 <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir operación</Text>
+                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  setQuickAddOpen(false);
+                  navigation.navigate("InvestmentComposition", {
+                    assetId,
+                    assetName: asset?.name ?? "",
+                  });
+                }}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 14,
+                  paddingVertical: 15, paddingHorizontal: 12,
+                  borderRadius: 18, borderBottomWidth: 1, borderColor: "#F1F5F9",
+                }}
+              >
+                <View
+                  style={{
+                    width: 40, height: 40, borderRadius: 14,
+                    backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir composición</Text>
                 <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
 
