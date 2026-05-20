@@ -1,4 +1,4 @@
-// src/screens/Investments/InvestmentDetailScreen.tsx
+﻿// src/screens/Investments/InvestmentDetailScreen.tsx
 import React, { useCallback, useMemo, useState, useRef } from "react";
 import {
   View,
@@ -284,7 +284,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   }, [metadata?.cryptoCategory, composition?.sectors]);
 
   const fetchAll = useCallback(async () => {
-    // ── Fase 1: datos críticos (hero + info tab) ──────────────────────────────
+    // -- Fase 1: datos críticos (hero + info tab) ------------------------------
     setLoading(true);
     let newAsset: AssetFromApi | null = null;
     let newSummaryRow: SummaryAsset | null = null;
@@ -304,7 +304,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       setLoading(false);
     }
 
-    // ── Fase 2: datos secundarios en background (sin spinner) ─────────────────
+    // -- Fase 2: datos secundarios en background (sin spinner) ------------------
     const [serRes, vRes, oRes, mRes] = await Promise.allSettled([
       api.get(`/investments/assets/${assetId}/series`),
       api.get(`/investments/valuations`, { params: { assetId } }),
@@ -511,35 +511,22 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
   // Pill tabs — used only for the records sub-tabs (2 options inside a card)
   const SegmentedTab = ({
-    label, active, onPress, count,
+    label, active, onPress,
   }: {
-    label: string; active: boolean; onPress: () => void; count?: number;
+    label: string; active: boolean; onPress: () => void;
   }) => (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
       style={{
-        flex: 1, paddingVertical: 7, borderRadius: 12,
+        flex: 1, paddingVertical: 8, borderRadius: 9,
         backgroundColor: active ? "white" : "transparent",
         alignItems: "center", justifyContent: "center",
-        flexDirection: "row", gap: 6,
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: "900", color: active ? "#0F172A" : "#64748B" }}>
+      <Text style={{ fontSize: 12, fontWeight: "800", color: active ? colors.primary : "#64748B" }}>
         {label}
       </Text>
-      {typeof count === "number" ? (
-        <View
-          style={{
-            paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
-            backgroundColor: active ? "#EEF2FF" : "#E5E7EB",
-          }}
-        >
-          <Text style={{ fontSize: 11, fontWeight: "900", color: active ? colors.primary : "#475569" }}>
-            {count}
-          </Text>
-        </View>
-      ) : null}
     </TouchableOpacity>
   );
 
@@ -555,7 +542,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* ── HEADER ── */}
+      {/* -- HEADER -- */}
       <View className="px-5 pb-3">
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <TouchableOpacity
@@ -641,7 +628,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           onTouchStart={handleWebTouchStart}
           onTouchEnd={handleWebTouchEnd}
         >
-          {/* ── HERO ── */}
+          {/* -- HERO -- */}
           <View style={{ paddingHorizontal: 16 }}>
             <View
               style={{
@@ -730,7 +717,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* ── TABS: underline style, full-width scroll ── */}
+          {/* -- TABS: underline style, full-width scroll -- */}
           <View style={{ borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginTop: 12 }}>
             <ScrollView
               horizontal
@@ -785,7 +772,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               </View>
             )}
 
-          {/* ── EVOLUCIÓN ── */}
+          {/* -- EVOLUCIÓN -- */}
           {sectionTab === "evolution" && (
           <View
             style={{
@@ -919,7 +906,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           </View>
           )}
 
-          {/* ── INFORMACIÓN ── */}
+          {/* -- INFORMACIÓN -- */}
           {sectionTab === "info" && (
           <View
             style={{
@@ -992,43 +979,43 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           </View>
           )}
 
-          {/* ── COMPOSICIÓN ── */}
+          {/* -- COMPOSICIÓN -- */}
           {sectionTab === "composition" && (
-          <View
-            style={{
-              backgroundColor: "white",
-              borderRadius: 20,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              marginBottom: 12,
-            }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>Composición</Text>
-            {metadata?.syncedAt ? (
-              <Text style={{ marginTop: 4, fontSize: 11, fontWeight: "600", color: "#94A3B8", marginBottom: 14 }}>
-                Actualizado el {formatDate(metadata.syncedAt)}
-              </Text>
-            ) : <View style={{ marginBottom: 14 }} />}
+          <>
+            {/* Sub-tabs: Regiones / Sectores / Holdings */}
+            <View
+              style={{
+                flexDirection: "row", gap: 8, padding: 6,
+                borderRadius: 18, backgroundColor: "#F8FAFC",
+                borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12,
+              }}
+            >
+              <SegmentedTab label="Regiones"  active={compositionTab === "regions"}  onPress={() => setCompositionTab("regions")} />
+              <SegmentedTab label="Sectores"  active={compositionTab === "sectors"}  onPress={() => setCompositionTab("sectors")} />
+              <SegmentedTab label="Holdings"  active={compositionTab === "holdings"} onPress={() => setCompositionTab("holdings")} />
+            </View>
 
-            {asset.type === "crypto" ? (
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#334155", marginBottom: 12 }}>
-                Categoría: {cryptoCategoryLabel}
-              </Text>
-            ) : null}
-            <>
-              {/* Sub-tabs: Regiones / Sectores / Holdings */}
-              <View
-                style={{
-                  flexDirection: "row", gap: 8, padding: 6,
-                  borderRadius: 18, backgroundColor: "#F8FAFC",
-                  borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 16,
-                }}
-              >
-                <SegmentedTab label="Regiones"  active={compositionTab === "regions"}  onPress={() => setCompositionTab("regions")} />
-                <SegmentedTab label="Sectores"  active={compositionTab === "sectors"}  onPress={() => setCompositionTab("sectors")} />
-                <SegmentedTab label="Holdings"  active={compositionTab === "holdings"} onPress={() => setCompositionTab("holdings")} />
-              </View>
+            <View
+              style={{
+                backgroundColor: "white",
+                borderRadius: 20,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                marginBottom: 12,
+              }}
+            >
+              {metadata?.syncedAt ? (
+                <Text style={{ marginTop: 0, fontSize: 11, fontWeight: "600", color: "#94A3B8", marginBottom: 12 }}>
+                  Actualizado el {formatDate(metadata.syncedAt)}
+                </Text>
+              ) : null}
+
+              {asset.type === "crypto" ? (
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#334155", marginBottom: 12 }}>
+                  Categoría: {cryptoCategoryLabel}
+                </Text>
+              ) : null}
 
               {compositionTab === "regions" && (
                 !(composition?.regions?.length)
@@ -1079,12 +1066,31 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                       </View>
                     ))
               )}
-            </>
-          </View>
+            </View>
+          </>
           )}
-
-          {/* ── OPERACIONES / VALORACIONES ── */}
+          {/* -- OPERACIONES / VALORACIONES -- */}
           {sectionTab === "records" && (
+          <>
+            <View
+              style={{
+                flexDirection: "row", gap: 8, padding: 4,
+                borderRadius: 12, backgroundColor: "#F1F5F9",
+                borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12,
+              }}
+            >
+              <SegmentedTab
+                label="Operaciones"
+                active={recordsTab === "operations"}
+                onPress={() => setRecordsTab("operations")}
+              />
+              <SegmentedTab
+                label="Valoraciones"
+                active={recordsTab === "valuations"}
+                onPress={() => setRecordsTab("valuations")}
+              />
+            </View>
+
           <View
             style={{
               backgroundColor: "white",
@@ -1092,28 +1098,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               borderWidth: 1, borderColor: "#E5E7EB",
             }}
           >
-            <View
-              style={{
-                flexDirection: "row", gap: 8, padding: 6,
-                borderRadius: 18, backgroundColor: "#F8FAFC",
-                borderWidth: 1, borderColor: "#E5E7EB",
-              }}
-            >
-              <SegmentedTab
-                label="Operaciones"
-                active={recordsTab === "operations"}
-                onPress={() => setRecordsTab("operations")}
-                count={operationsRows.length}
-              />
-              <SegmentedTab
-                label="Valoraciones"
-                active={recordsTab === "valuations"}
-                onPress={() => setRecordsTab("valuations")}
-                count={valuationsRows.length}
-              />
-            </View>
-
-            <View style={{ marginTop: 14 }}>
+            <View>
               <View
                 style={{
                   flexDirection: "row", paddingVertical: 10,
@@ -1215,12 +1200,13 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               )}
             </View>
           </View>
+          </>
           )}
         </ScrollView>
         </View>
       )}
 
-      {/* ── Modal: quick add ── */}
+      {/* -- Modal: quick add -- */}
       <Modal
         visible={quickAddOpen}
         transparent
@@ -1295,7 +1281,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 >
                   <Ionicons name="swap-horizontal-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir operación</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir Operación</Text>
                 <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
 
@@ -1322,7 +1308,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 >
                   <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir composición</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir Composición</Text>
                 <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
 
@@ -1338,7 +1324,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Modal: edit / delete action ── */}
+      {/* -- Modal: edit / delete action -- */}
       <Modal
         visible={actionTarget !== null}
         transparent
@@ -1368,7 +1354,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               />
               <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A" }}>
                 {actionTarget?.kind === "valuation"
-                  ? `Valoración · ${actionTarget.item.date ? formatDate(actionTarget.item.date) : ""}`
+                  ? `valoración · ${actionTarget.item.date ? formatDate(actionTarget.item.date) : ""}`
                   : `Swap · ${actionTarget?.item.date ? formatDate(actionTarget.item.date as string) : ""}`}
               </Text>
               <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B", marginTop: 4 }}>
@@ -1452,3 +1438,5 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     </SafeAreaView>
   );
 }
+
+

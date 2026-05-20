@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import Svg, { Path, Line, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
 import { colors } from "../../../../theme/theme";
 import { useTheme } from "../../../../context/ThemeContext";
@@ -91,6 +92,13 @@ type TargetsResponse = {
   totalCurrentValue: number;
   targetSumPct: number;
   items: TargetItem[];
+};
+
+type TimelinePoint = {
+  date: string;
+  totalCurrentValue: number;
+  equity: number;
+  netContributions: number;
 };
 
 const assetTypeIcon = (type: InvestmentAssetType) => {
@@ -198,13 +206,19 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [legendOpen, setLegendOpen] = useState(true);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
-  const [rentSelectedYear, setRentSelectedYear] = useState<number | null>(null);
   const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [donutMode, setDonutMode] = useState<"asset" | "type" | "country" | "sector" | "holding">("asset");
   const [exposure, setExposure] = useState<ExposureResponse | null>(null);
   const [otrosExpanded, setOtrosExpanded] = useState(false);
   const [targets, setTargets] = useState<TargetsResponse | null>(null);
+  const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [rentView, setRentView] = useState<"grafica" | "tabla">("tabla");
+  const [rentTableMetric, setRentTableMetric] = useState<"pct" | "eur">("pct");
+  const [rentRange, setRentRange] = useState<"3m" | "6m" | "1a">("1a");
+  const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number }>(null);
+  const [barTooltip, setBarTooltip] = useState<null | { label: string; profit: number }>(null);
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getInvestmentsDataVersion());
   const [planLoading, setPlanLoading] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
@@ -259,11 +273,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         }))
         .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
       setSnapshots(mapped);
-      // Inicializar Año seleccionado al Año más reciente
-      if (mapped.length > 0) {
-        const latestYear = new Date(mapped[0].monthStart).getUTCFullYear();
-        setRentSelectedYear(latestYear);
-      }
     } catch {
       setSnapshots([]);
     } finally {
@@ -296,6 +305,25 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       setTargets(data);
     } catch {
       setTargets(null);
+    }
+  };
+
+  const fetchTimeline = async () => {
+    try {
+      setTimelineLoading(true);
+      const res = await api.get("/investments/timeline", { params: { days: 365 } });
+      const points = Array.isArray(res.data?.points) ? res.data.points : [];
+      const mapped: TimelinePoint[] = points.map((p: any) => ({
+        date: String(p.date),
+        totalCurrentValue: Number(p.totalCurrentValue ?? p.equity ?? 0),
+        equity: Number(p.equity ?? p.totalCurrentValue ?? 0),
+        netContributions: Number(p.netContributions ?? 0),
+      }));
+      setTimeline(mapped);
+    } catch {
+      setTimeline([]);
+    } finally {
+      setTimelineLoading(false);
     }
   };
 
@@ -364,6 +392,7 @@ const submitContribution = useCallback(() => {
             fetchArchived();
             fetchExposure();
             fetchTargets();
+            fetchTimeline();
           });
       }
     }, [invalidationVersion])
@@ -646,40 +675,6 @@ const submitContribution = useCallback(() => {
     return Array.from(set).sort();
   }, [snapshots]);
 
-  // Meses del Año seleccionado (orden cronológico)
-  const rentMonthRows = useMemo<MonthlyRentRow[]>(() => {
-    if (rentSelectedYear === null) return [];
-    const rows = [...snapshots]
-      .filter((s) => new Date(s.monthStart).getUTCFullYear() === rentSelectedYear);
-    const byMonth = new Map<number, PortfolioSnapshotRow>();
-    rows.forEach((r) => byMonth.set(new Date(r.monthStart).getUTCMonth(), r));
-    const fallbackCurrency = rows[0]?.currency ?? "EUR";
-
-    return new Array(12).fill(null).map((_, m) => {
-      const existing = byMonth.get(m);
-      if (existing) {
-        return {
-          monthStart: existing.monthStart,
-          currency: existing.currency,
-          startValue: existing.startValue,
-          endValue: existing.endValue,
-          cashflowNet: existing.cashflowNet,
-          profit: existing.profit,
-          returnPct: existing.returnPct,
-        };
-      }
-      return {
-        monthStart: new Date(Date.UTC(rentSelectedYear, m, 1)).toISOString(),
-        currency: fallbackCurrency,
-        startValue: null,
-        endValue: null,
-        cashflowNet: null,
-        profit: null,
-        returnPct: null,
-      };
-    });
-  }, [snapshots, rentSelectedYear]);
-
   // Agregado anual
   const rentYearRows = useMemo(() => {
     return rentYears.map((y) => {
@@ -705,6 +700,76 @@ const submitContribution = useCallback(() => {
     });
   }, [snapshots, rentYears]);
 
+  const performanceChart = useMemo(() => {
+    const points = [...timeline].filter((p) => !!p?.date);
+    if (points.length < 2) return null;
+
+    // Keep only month-end points for a cleaner chart (max 12 months)
+    const monthMap = new Map<string, TimelinePoint>();
+    for (const p of points) {
+      const d = new Date(p.date);
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      monthMap.set(key, p);
+    }
+    const monthlyAll = [...monthMap.values()];
+    const takeN = rentRange === "3m" ? 3 : rentRange === "6m" ? 6 : 12;
+    const monthly = monthlyAll.slice(-takeN);
+    if (monthly.length < 2) return null;
+
+    const W = 332;
+    const H = 180;
+    const padL = 14;
+    const padR = 10;
+    const padT = 14;
+    const padB = 28;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+
+    const eqValues = monthly.map((p) => Number(p.equity || 0));
+    const ncValues = monthly.map((p) => Number(p.netContributions || 0));
+    const rawMin = Math.min(...eqValues, ...ncValues);
+    const rawMax = Math.max(...eqValues, ...ncValues);
+    const rawSpan = Math.max(1, rawMax - rawMin);
+    const minV = rawMin - rawSpan * 0.08;
+    const maxV = rawMax + rawSpan * 0.08;
+    const span = Math.max(1, maxV - minV);
+
+    const stepX = innerW / Math.max(1, monthly.length - 1);
+    const mapY = (v: number) => padT + (1 - (v - minV) / span) * innerH;
+
+    const eqPts = monthly.map((p, i) => ({ x: padL + i * stepX, y: mapY(Number(p.equity || 0)) }));
+    const ncPts = monthly.map((p, i) => ({ x: padL + i * stepX, y: mapY(Number(p.netContributions || 0)) }));
+
+    const toPath = (arr: Array<{ x: number; y: number }>) =>
+      arr.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`).join(" ");
+
+    return {
+      W,
+      H,
+      minV,
+      maxV,
+      eqPath: toPath(eqPts),
+      ncPath: toPath(ncPts),
+      eqPts,
+      monthly,
+      firstDate: monthly[0]?.date ?? "",
+      lastDate: monthly[monthly.length - 1]?.date ?? "",
+    };
+  }, [timeline, rentRange]);
+
+  const monthlyProfitBars = useMemo(() => {
+    const months = [...snapshots].sort(
+      (a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime()
+    );
+    if (!months.length) return [];
+    const takeN = rentRange === "3m" ? 3 : rentRange === "6m" ? 6 : 12;
+    return months.slice(-takeN).map((m) => ({
+      key: m.monthStart,
+      label: new Date(m.monthStart).toLocaleDateString("es-ES", { month: "short" }),
+      profit: Number(m.profit || 0),
+    }));
+  }, [snapshots, rentRange]);
+
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -717,12 +782,24 @@ const submitContribution = useCallback(() => {
   const PULL_MAX = 65;
   const [fetchError, setFetchError] = useState(false);
   const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad">("cartera");
+  const [distributionView, setDistributionView] = useState<"actual" | "objetivo">("actual");
+  const rentAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (mainTab !== "rentabilidad" || rentView !== "grafica") return;
+    rentAnim.setValue(0);
+    Animated.timing(rentAnim, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  }, [mainTab, rentView, rentRange, rentAnim]);
 
   const syncAllMetadata = async () => {
     try {
       setSyncingMetadata(true);
       await api.post("/investments/metadata/sync-all");
-      await Promise.all([fetchExposure(), fetchSummary(), fetchTargets()]);
+      await Promise.all([fetchExposure(), fetchSummary(), fetchTargets(), fetchTimeline()]);
       Alert.alert("Composición actualizada", "Se ha lanzado la sincronización para todos los assets.");
     } catch (e: any) {
       const msg = e?.response?.data?.message || "No se pudo sincronizar la composición.";
@@ -735,7 +812,7 @@ const submitContribution = useCallback(() => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure(), fetchTargets()]);
+    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline()]);
     setRefreshing(false);
   }, []);
 
@@ -1111,11 +1188,49 @@ const submitContribution = useCallback(() => {
         {assets.length > 0 && allocation.slices.length > 0 && (
           <>
             <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
-                Actual
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  backgroundColor: "#F1F5F9",
+                  borderRadius: 12,
+                  padding: 4,
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => setDistributionView("actual")}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 9,
+                    alignItems: "center",
+                    backgroundColor: distributionView === "actual" ? "white" : "transparent",
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: distributionView === "actual" ? colors.primary : "#64748B" }}>
+                    Actual
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setDistributionView("objetivo")}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 9,
+                    alignItems: "center",
+                    backgroundColor: distributionView === "objetivo" ? "white" : "transparent",
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: distributionView === "objetivo" ? colors.primary : "#64748B" }}>
+                    Objetivo
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
+            {distributionView === "actual" && (
+              <>
             <View
               style={{
                 backgroundColor: t.surface,
@@ -1293,12 +1408,11 @@ const submitContribution = useCallback(() => {
                 </View>
               )}
             </View>
+              </>
+            )}
 
-            <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
-                Objetivo
-              </Text>
-            </View>
+            {distributionView === "objetivo" && (
+              <>
             <View
               style={{
                 backgroundColor: t.surface,
@@ -1391,6 +1505,8 @@ const submitContribution = useCallback(() => {
                 </TouchableOpacity>
               </View>
             </View>
+              </>
+            )}
           </>
         )}
 
@@ -1400,176 +1516,382 @@ const submitContribution = useCallback(() => {
         {/* == TAB: RENTABILIDAD == */}
         {mainTab === "rentabilidad" && (
           <>
-        {snapshots.length > 0 && (() => {
-          const CM = 110;
-          const CV = 112;
-          const CP = 100;
-          const hStyle = { fontSize: 13, fontWeight: "700" as const, color: "#374151" };
-          const cStyle = { fontSize: 13, fontWeight: "500" as const, color: "#374151" };
-          const hBg = { backgroundColor: "#F8FAFC", borderBottomWidth: 1 as const, borderColor: "#E5E7EB" } as const;
-          const rBorder = { borderBottomWidth: 1 as const, borderColor: "#F1F5F9" } as const;
+        <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              backgroundColor: "#F1F5F9",
+              borderRadius: 12,
+              padding: 4,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setRentView("tabla")}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                borderRadius: 9,
+                alignItems: "center",
+                backgroundColor: rentView === "tabla" ? "white" : "transparent",
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "800", color: rentView === "tabla" ? colors.primary : "#64748B" }}>
+                Tabla
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setRentView("grafica")}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                borderRadius: 9,
+                alignItems: "center",
+                backgroundColor: rentView === "grafica" ? "white" : "transparent",
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "800", color: rentView === "grafica" ? colors.primary : "#64748B" }}>
+                Gráfica
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-          const filledMonthRows = rentMonthRows.filter((r) =>
-            r.startValue != null || r.endValue != null || r.cashflowNet != null || r.profit != null
-          );
-          const totalMonthCashflow = rentMonthRows.reduce((s, r) => s + (r.cashflowNet ?? 0), 0);
-          const totalMonthProfit   = rentMonthRows.reduce((s, r) => s + (r.profit ?? 0), 0);
-          const firstMonthStartValue = filledMonthRows[0]?.startValue ?? null;
-          const totalMonthReturnPct =
-            firstMonthStartValue != null && firstMonthStartValue > 0
-              ? totalMonthProfit / firstMonthStartValue
-              : null;
-          const totalYearCashflow  = rentYearRows.reduce((s, r) => s + r.cashflowNet, 0);
-          const totalYearProfit    = rentYearRows.reduce((s, r) => s + r.profit, 0);
-          const firstYearStartValue = rentYearRows[0]?.startValue ?? null;
-          const totalGlobalReturnPct =
-            firstYearStartValue != null && firstYearStartValue > 0
-              ? totalYearProfit / firstYearStartValue
-              : null;
+        {rentView === "grafica" && (
+          <Animated.View
+            style={{
+              opacity: rentAnim,
+              transform: [
+                {
+                  translateY: rentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [8, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <View style={{ paddingHorizontal: 20, marginTop: -2, marginBottom: 10 }}>
+              <View style={{ flexDirection: "row", gap: 8, justifyContent: "flex-end" }}>
+                {([
+                  { key: "3m", label: "3M" },
+                  { key: "6m", label: "6M" },
+                  { key: "1a", label: "1A" },
+                ] as const).map((r) => (
+                  <TouchableOpacity
+                    key={r.key}
+                    onPress={() => {
+                      setRentRange(r.key);
+                      setLineTooltip(null);
+                      setBarTooltip(null);
+                    }}
+                    style={{
+                      paddingHorizontal: 10,
+                      height: 30,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: rentRange === r.key ? colors.primary : "#E5E7EB",
+                      backgroundColor: rentRange === r.key ? "#EEF2FF" : "white",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: "900", color: rentRange === r.key ? colors.primary : "#64748B" }}>
+                      {r.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
+            <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
+                Evolución
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: t.surface,
+                borderRadius: 24,
+                marginHorizontal: 20,
+                marginBottom: 10,
+                borderWidth: 1,
+                borderColor: t.border,
+                padding: 16,
+              }}
+            >
+              {timelineLoading ? (
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Cargando gráfica...</Text>
+              ) : performanceChart ? (
+                <>
+                  <Svg width={performanceChart.W} height={performanceChart.H}>
+                    <Line x1={14} y1={14} x2={14} y2={152} stroke="#E5E7EB" strokeWidth={1} />
+                    <Line x1={14} y1={152} x2={322} y2={152} stroke="#E5E7EB" strokeWidth={1} />
+                    <Line x1={14} y1={84} x2={322} y2={84} stroke="#F1F5F9" strokeWidth={1} />
+                    <Path d={performanceChart.ncPath} stroke="#94A3B8" strokeWidth={2.2} fill="none" strokeDasharray="5 4" />
+                    <Path d={performanceChart.eqPath} stroke={colors.primary} strokeWidth={2.8} fill="none" />
+                    {performanceChart.eqPts.map((pt: any, idx: number) => (
+                      <Line
+                        key={`dot-hit-${idx}`}
+                        x1={pt.x}
+                        y1={pt.y - 10}
+                        x2={pt.x}
+                        y2={pt.y + 10}
+                        stroke="transparent"
+                        strokeWidth={16}
+                        onPress={() =>
+                          setLineTooltip({
+                            x: pt.x,
+                            y: pt.y,
+                            date: performanceChart.monthly[idx]?.date ?? "",
+                            equity: Number(performanceChart.monthly[idx]?.equity || 0),
+                            net: Number(performanceChart.monthly[idx]?.netContributions || 0),
+                          })
+                        }
+                      />
+                    ))}
+                    <SvgText x={14} y={171} fontSize="10" fill="#94A3B8">
+                      {new Date(performanceChart.firstDate).toLocaleDateString("es-ES", { month: "2-digit", year: "2-digit" })}
+                    </SvgText>
+                    <SvgText x={262} y={171} fontSize="10" fill="#94A3B8">
+                      {new Date(performanceChart.lastDate).toLocaleDateString("es-ES", { month: "2-digit", year: "2-digit" })}
+                    </SvgText>
+                  </Svg>
+                  {lineTooltip ? (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
+                        borderRadius: 10,
+                        padding: 8,
+                        backgroundColor: "#F8FAFC",
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: "800", color: "#64748B" }}>
+                        {new Date(lineTooltip.date).toLocaleDateString("es-ES", { month: "long", year: "numeric" })}
+                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary, marginTop: 2 }}>
+                        Valor: {formatMoney(lineTooltip.equity, currency)}
+                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 1 }}>
+                        Aportado: {formatMoney(lineTooltip.net, currency)}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View style={{ marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ width: 14, height: 3, borderRadius: 99, backgroundColor: colors.primary }} />
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#334155" }}>Valor cartera</Text>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ width: 14, height: 3, borderRadius: 99, backgroundColor: "#94A3B8" }} />
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#334155" }}>Aportado neto</Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Sin datos suficientes para la gráfica.</Text>
+              )}
+            </View>
+
+            <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
+                Beneficio mensual
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: t.surface,
+                borderRadius: 24,
+                marginHorizontal: 20,
+                marginBottom: 10,
+                borderWidth: 1,
+                borderColor: t.border,
+                padding: 16,
+              }}
+            >
+              {!monthlyProfitBars.length ? (
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Sin datos mensuales.</Text>
+              ) : (
+                <View style={{ height: 150 }}>
+                  <View style={{ position: "absolute", left: 0, right: 0, top: 74, borderTopWidth: 1, borderTopColor: "#E5E7EB" }} />
+                  <View style={{ flexDirection: "row", alignItems: "stretch", gap: 6, height: 150 }}>
+                  {(() => {
+                    const maxAbs = Math.max(1, ...monthlyProfitBars.map((b) => Math.abs(b.profit)));
+                    return monthlyProfitBars.map((b) => {
+                      const h = Math.max(4, Math.round((Math.abs(b.profit) / maxAbs) * 60));
+                      const positive = b.profit >= 0;
+                      return (
+                        <TouchableOpacity
+                          key={b.key}
+                          activeOpacity={0.8}
+                          onPress={() => setBarTooltip({ label: b.label.replace(".", ""), profit: b.profit })}
+                          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+                        >
+                          <View
+                            style={{
+                              width: 16,
+                              height: h,
+                              borderRadius: 5,
+                              backgroundColor: positive ? "#22C55E" : "#EF4444",
+                              transform: [{ translateY: positive ? -h / 2 : h / 2 }],
+                            }}
+                          />
+                          <Text style={{ position: "absolute", bottom: 0, fontSize: 9, color: "#94A3B8", fontWeight: "700" }}>
+                            {b.label.replace(".", "")}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    });
+                  })()}
+                  </View>
+                </View>
+              )}
+              {barTooltip ? (
+                <View
+                  style={{
+                    marginTop: 10,
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 10,
+                    padding: 8,
+                    backgroundColor: "#F8FAFC",
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#64748B" }}>{barTooltip.label}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: barTooltip.profit >= 0 ? "#16A34A" : "#DC2626", marginTop: 2 }}>
+                    {barTooltip.profit >= 0 ? "+" : ""}{formatMoney(barTooltip.profit, currency)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </Animated.View>
+        )}
+
+        {rentView === "tabla" && snapshots.length > 0 && (() => {
+          const years = [...rentYearRows].map((r) => r.year).sort((a, b) => b - a).slice(0, 4);
+          const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+          const colW = years.length === 1 ? 170 : 122;
+          const rowLabelW = years.length === 1 ? 136 : 122;
           const cardStyle = {
             backgroundColor: t.surface,
             borderRadius: 24,
             marginHorizontal: 20,
-            marginBottom: 10,
+            marginBottom: 12,
             borderWidth: 1,
             borderColor: t.border,
-            shadowColor: "#000",
-            shadowOpacity: 0.04,
-            shadowRadius: 5,
-            shadowOffset: { width: 0, height: 2 },
             overflow: "hidden",
           } as const;
 
+          const monthCellByYear = new Map<number, Map<number, MonthlyRentRow>>();
+          years.forEach((y) => {
+            const mm = new Map<number, MonthlyRentRow>();
+            snapshots
+              .filter((s) => new Date(s.monthStart).getUTCFullYear() === y)
+              .forEach((s) => mm.set(new Date(s.monthStart).getUTCMonth(), s));
+            monthCellByYear.set(y, mm);
+          });
+
+          const formatCell = (value: number | null | undefined, mode: "pct" | "eur", ccy: string) => {
+            if (value == null || !Number.isFinite(value)) return "-";
+            if (mode === "pct") return `${(value * 100).toFixed(2).replace(".", ",")} %`;
+            return `${value >= 0 ? "" : "-"}${formatMoney(Math.abs(value), ccy)}`;
+          };
+
+          const cellColor = (value: number | null | undefined) => {
+            if (value == null || !Number.isFinite(value)) return "#0F172A";
+            return value >= 0 ? "#14B8A6" : "#FB7185";
+          };
+
           return (
             <>
-              {/* -- Card 1: Tabla anual -- */}
-              <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
-                  Total
-                </Text>
-              </View>
-              <View style={cardStyle}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View>
-                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg }}>
-                      <Text style={{ ...hStyle, width: CM }}>Año</Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
-                    </View>
-                    {rentYearRows.map((row, idx) => (
-                      <TouchableOpacity
-                        key={row.year}
-                        onPress={() => setRentSelectedYear(row.year)}
-                        style={{
-                          flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16,
-                          backgroundColor: rentSelectedYear === row.year ? "rgba(59,130,246,0.06)" : "transparent",
-                          ...(idx < rentYearRows.length - 1 ? rBorder : {}),
-                        }}
-                      >
-                        <View style={{ width: CM, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <Text style={{ ...cStyle, fontWeight: rentSelectedYear === row.year ? "700" : "500" }}>
-                            {row.year}
-                          </Text>
-                          {rentSelectedYear === row.year && (
-                            <Ionicons name="chevron-down" size={11} color={colors.primary} />
-                          )}
-                        </View>
-                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
-                          {formatPctRatio(row.returnPct)}
-                        </Text>
-                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
-                          {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
-                        </Text>
-                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                          {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
-                        </Text>
-                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                          {formatMoney(row.endValue, row.currency)}
-                        </Text>
-                        <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
-                          {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
-                      <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalYearProfit) }}>
-                        {formatPctRatio(totalGlobalReturnPct)}
+              <View style={{ paddingHorizontal: 20, marginTop: 4, marginBottom: 10 }}>
+                <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
+                  {([
+                    { key: "pct", label: "%" },
+                    { key: "eur", label: "€" },
+                  ] as const).map((m) => (
+                    <TouchableOpacity
+                      key={m.key}
+                      onPress={() => setRentTableMetric(m.key)}
+                      style={{
+                        width: 38,
+                        height: 30,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: rentTableMetric === m.key ? colors.primary : "#E5E7EB",
+                        backgroundColor: rentTableMetric === m.key ? "#EEF2FF" : "white",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: "900", color: rentTableMetric === m.key ? colors.primary : "#64748B" }}>
+                        {m.label}
                       </Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearProfit) }}>
-                        {totalYearProfit >= 0 ? "+" : ""}{formatMoney(totalYearProfit)}
-                      </Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
-                        {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
-                      </Text>
-                    </View>
-                  </View>
-                </ScrollView>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
-              {/* -- Card 2: Detalle mensual -- */}
-              <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
-                  {rentSelectedYear}
-                </Text>
-              </View>
               <View style={cardStyle}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View>
-                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg }}>
-                      <Text style={{ ...hStyle, width: CM }}>Mes</Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
+                    <View style={{ flexDirection: "row", paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+                      <Text style={{ width: rowLabelW, fontSize: 12, fontWeight: "800", color: "#64748B" }}>Mes</Text>
+                      {years.map((y) => (
+                        <Text key={`yh-${y}`} style={{ width: colW, fontSize: 13, fontWeight: "900", color: "#0F172A", textAlign: "center" }}>
+                          {y}
+                        </Text>
+                      ))}
                     </View>
-                    {rentMonthRows.map((row, idx) => (
+
+                    <View style={{ flexDirection: "row", backgroundColor: "#F8FAFC", paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+                      <Text style={{ width: rowLabelW, fontSize: 13, fontWeight: "900", color: "#0F172A" }}>Total</Text>
+                      {years.map((y) => {
+                        const yr = rentYearRows.find((r) => r.year === y);
+                        const value = rentTableMetric === "pct" ? (yr?.returnPct ?? null) : (yr?.profit ?? null);
+                        const ccy = yr?.currency ?? currency;
+                        return (
+                          <Text
+                            key={`total-${y}`}
+                            style={{ width: colW, textAlign: "center", fontSize: 14, fontWeight: "900", color: cellColor(value) }}
+                          >
+                            {formatCell(value, rentTableMetric, ccy)}
+                          </Text>
+                        );
+                      })}
+                    </View>
+
+                    {monthNames.map((mLabel, mIdx) => (
                       <View
-                        key={row.monthStart}
+                        key={`m-${mIdx}`}
                         style={{
-                          flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16,
-                          ...(idx < rentMonthRows.length - 1 ? rBorder : {}),
+                          flexDirection: "row",
+                          paddingVertical: 12,
+                          paddingHorizontal: 14,
+                          backgroundColor: mIdx % 2 ? "#F8FAFC" : "white",
+                          borderBottomWidth: mIdx === monthNames.length - 1 ? 0 : 1,
+                          borderBottomColor: "#F1F5F9",
                         }}
                       >
-                        <Text style={{ ...cStyle, width: CM }}>{formatMonthName(row.monthStart)}</Text>
-                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
-                          {formatPctRatio(row.returnPct)}
-                        </Text>
-                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
-                          {row.profit == null ? "-" : `${row.profit >= 0 ? "+" : ""}${formatMoney(row.profit, row.currency)}`}
-                        </Text>
-                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                          {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
-                        </Text>
-                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                          {row.endValue == null ? "-" : formatMoney(row.endValue, row.currency)}
-                        </Text>
-                        <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet ?? 0) }}>
-                          {row.cashflowNet == null ? "-" : `${row.cashflowNet >= 0 ? "+" : ""}${formatMoney(row.cashflowNet, row.currency)}`}
-                        </Text>
+                        <Text style={{ width: rowLabelW, fontSize: 13, fontWeight: "700", color: "#0F172A" }}>{mLabel}</Text>
+                        {years.map((y) => {
+                          const row = monthCellByYear.get(y)?.get(mIdx) ?? null;
+                          const value = rentTableMetric === "pct" ? (row?.returnPct ?? null) : (row?.profit ?? null);
+                          const ccy = row?.currency ?? currency;
+                          return (
+                            <Text
+                              key={`cell-${y}-${mIdx}`}
+                              style={{ width: colW, textAlign: "center", fontSize: 13, fontWeight: "800", color: cellColor(value) }}
+                            >
+                              {formatCell(value, rentTableMetric, ccy)}
+                            </Text>
+                          );
+                        })}
                       </View>
                     ))}
-                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
-                      <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalMonthProfit) }}>
-                        {formatPctRatio(totalMonthReturnPct)}
-                      </Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthProfit) }}>
-                        {totalMonthProfit >= 0 ? "+" : ""}{formatMoney(totalMonthProfit)}
-                      </Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
-                        {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
-                      </Text>
-                    </View>
                   </View>
                 </ScrollView>
               </View>
