@@ -9,6 +9,8 @@ import {
   Modal,
   Alert,
   RefreshControl,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -233,18 +235,32 @@ function toneMeta(t: Tone) {
   return                      { fg: "#0F172A", bg: "rgba(15,23,42,0.05)",   bd: "rgba(15,23,42,0.10)" };
 }
 
+type AssetCacheEntry = {
+  asset: AssetFromApi;
+  summaryRow: SummaryAsset | null;
+  series: SeriesPoint[];
+  valuations: ValuationFromApi[];
+  operations: InvestmentOperationFromApi[];
+  metadata: AssetMetadataPayload | null;
+  composition: CompositionPayload | null;
+};
+const assetDataCache = new Map<number, AssetCacheEntry>();
+
 export default function InvestmentDetailScreen({ navigation, route }: any) {
   const assetId: number = route?.params?.assetId;
 
-  const [asset, setAsset] = useState<AssetFromApi | null>(null);
-  const [summaryRow, setSummaryRow] = useState<SummaryAsset | null>(null);
-  const [series, setSeries] = useState<SeriesPoint[]>([]);
-  const [valuations, setValuations] = useState<ValuationFromApi[]>([]);
-  const [operations, setOperations] = useState<InvestmentOperationFromApi[]>([]);
-  const [metadata, setMetadata] = useState<AssetMetadataPayload | null>(null);
-  const [composition, setComposition] = useState<CompositionPayload | null>(null);
+  const [asset, setAsset] = useState<AssetFromApi | null>(() => assetDataCache.get(assetId)?.asset ?? null);
+  const [summaryRow, setSummaryRow] = useState<SummaryAsset | null>(() => assetDataCache.get(assetId)?.summaryRow ?? null);
+  const [series, setSeries] = useState<SeriesPoint[]>(() => assetDataCache.get(assetId)?.series ?? []);
+  const [valuations, setValuations] = useState<ValuationFromApi[]>(() => assetDataCache.get(assetId)?.valuations ?? []);
+  const [operations, setOperations] = useState<InvestmentOperationFromApi[]>(() => assetDataCache.get(assetId)?.operations ?? []);
+  const [metadata, setMetadata] = useState<AssetMetadataPayload | null>(() => assetDataCache.get(assetId)?.metadata ?? null);
+  const [composition, setComposition] = useState<CompositionPayload | null>(() => assetDataCache.get(assetId)?.composition ?? null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [webRefreshing, setWebRefreshing] = useState(false);
+  const webTouchStartY = useRef(0);
+  const webScrollAtTop = useRef(true);
   const [range, setRange] = useState<RangeKey>("3m");
   const [sectionTab, setSectionTab] = useState<"info" | "evolution" | "composition" | "records">("info");
   const [recordsTab, setRecordsTab] = useState<"operations" | "valuations">("operations");
@@ -262,14 +278,17 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const fetchAll = useCallback(async () => {
     // ── Fase 1: datos críticos (hero + info tab) ──────────────────────────────
     setLoading(true);
+    let newAsset: AssetFromApi | null = null;
+    let newSummaryRow: SummaryAsset | null = null;
     try {
       const [aRes, sRes] = await Promise.all([
         api.get(`/investments/assets/${assetId}`),
         api.get(`/investments/summary`),
       ]);
-      setAsset(aRes.data || null);
-      const row = (sRes.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
-      setSummaryRow(row);
+      newAsset = aRes.data || null;
+      newSummaryRow = (sRes.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
+      setAsset(newAsset);
+      setSummaryRow(newSummaryRow);
     } catch {
       navigation.goBack();
       return;
@@ -285,38 +304,60 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       api.get(`/investments/assets/${assetId}/metadata`),
     ]);
 
-    if (serRes.status === "fulfilled")
-      setSeries(Array.isArray(serRes.value.data) ? serRes.value.data : []);
+    const prev = assetDataCache.get(assetId);
+    let newSeries: SeriesPoint[] = prev?.series ?? [];
+    let newValuations: ValuationFromApi[] = prev?.valuations ?? [];
+    let newOperations: InvestmentOperationFromApi[] = prev?.operations ?? [];
+    let newMetadata: AssetMetadataPayload | null = prev?.metadata ?? null;
+    let newComposition: CompositionPayload | null = prev?.composition ?? null;
+
+    if (serRes.status === "fulfilled") {
+      newSeries = Array.isArray(serRes.value.data) ? serRes.value.data : [];
+      setSeries(newSeries);
+    }
 
     if (vRes.status === "fulfilled") {
       const vList = Array.isArray(vRes.value.data) ? vRes.value.data : vRes.value.data?.valuations ?? [];
-      setValuations(Array.isArray(vList) ? vList : []);
+      newValuations = Array.isArray(vList) ? vList : [];
+      setValuations(newValuations);
     }
 
     if (oRes.status === "fulfilled") {
       const oList = Array.isArray(oRes.value.data) ? oRes.value.data : oRes.value.data?.operations ?? [];
-      setOperations(Array.isArray(oList) ? oList : []);
+      newOperations = Array.isArray(oList) ? oList : [];
+      setOperations(newOperations);
     }
 
     if (mRes.status === "fulfilled" && mRes.value.data?.composition) {
-      setMetadata(mRes.value.data.metadata ?? null);
-      setComposition(mRes.value.data.composition);
+      newMetadata = mRes.value.data.metadata ?? null;
+      newComposition = mRes.value.data.composition;
+      setMetadata(newMetadata);
+      setComposition(newComposition);
     } else {
       try {
         const cRes = await api.get(`/investments/assets/${assetId}/composition`);
-        setComposition(cRes.data ?? null);
+        newComposition = cRes.data ?? null;
+        setComposition(newComposition);
       } catch {}
     }
+
+    assetDataCache.set(assetId, {
+      asset: newAsset!,
+      summaryRow: newSummaryRow,
+      series: newSeries,
+      valuations: newValuations,
+      operations: newOperations,
+      metadata: newMetadata,
+      composition: newComposition,
+    });
   }, [assetId, navigation]);
 
-  const hasFetched = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (!hasFetched.current) {
-        hasFetched.current = true;
+      if (!assetDataCache.has(assetId)) {
         fetchAll();
       }
-    }, [fetchAll])
+    }, [fetchAll, assetId])
   );
 
   const onRefresh = useCallback(async () => {
@@ -324,6 +365,22 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     await fetchAll();
     setRefreshing(false);
   }, [fetchAll]);
+
+  const handleWebTouchStart = useCallback((e: any) => {
+    if (Platform.OS === "web") {
+      webTouchStartY.current = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+    }
+  }, []);
+
+  const handleWebTouchEnd = useCallback(async (e: any) => {
+    if (Platform.OS !== "web" || webRefreshing) return;
+    const endY = e.nativeEvent?.changedTouches?.[0]?.pageY ?? 0;
+    if (webScrollAtTop.current && endY - webTouchStartY.current > 80) {
+      setWebRefreshing(true);
+      await onRefresh();
+      setWebRefreshing(false);
+    }
+  }, [webRefreshing, onRefresh]);
 
   const handleDeleteValuation = (id: number) => {
     Alert.alert("Eliminar valoración", "¿Seguro que quieres eliminar esta valoración?", [
@@ -570,7 +627,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           ))}
         </View>
       ) : (
-        <View className="flex-1">
+        <View
+          className="flex-1"
+          onTouchStart={handleWebTouchStart}
+          onTouchEnd={handleWebTouchEnd}
+        >
           {/* ── HERO ── */}
           <View style={{ paddingHorizontal: 16 }}>
             <View
@@ -705,10 +766,15 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             style={{ flex: 1, paddingHorizontal: 14 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-            }
+            scrollEventThrottle={16}
+            onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
+            refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
+            {Platform.OS === "web" && webRefreshing && (
+              <View style={{ alignItems: "center", paddingBottom: 8 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            )}
 
           {/* ── EVOLUCIÓN ── */}
           {sectionTab === "evolution" && (

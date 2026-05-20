@@ -10,6 +10,8 @@ import {
   Modal,
   Alert,
   RefreshControl,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -600,6 +602,9 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [webRefreshing, setWebRefreshing] = useState(false);
+  const webTouchStartY = useRef(0);
+  const webScrollAtTop = useRef(true);
   const [fetchError, setFetchError] = useState(false);
   const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad">("cartera");
 
@@ -623,6 +628,22 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure()]);
     setRefreshing(false);
   }, []);
+
+  const handleWebTouchStart = useCallback((e: any) => {
+    if (Platform.OS === "web") {
+      webTouchStartY.current = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+    }
+  }, []);
+
+  const handleWebTouchEnd = useCallback(async (e: any) => {
+    if (Platform.OS !== "web" || webRefreshing) return;
+    const endY = e.nativeEvent?.changedTouches?.[0]?.pageY ?? 0;
+    if (webScrollAtTop.current && endY - webTouchStartY.current > 80) {
+      setWebRefreshing(true);
+      await onRefresh();
+      setWebRefreshing(false);
+    }
+  }, [webRefreshing, onRefresh]);
 
   const fabActions = useMemo(() => [
     { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
@@ -681,7 +702,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       )}
 
       {!loading && !fetchError && (
-        <View style={{ flex: 1 }}>
+        <View
+          style={{ flex: 1 }}
+          onTouchStart={handleWebTouchStart}
+          onTouchEnd={handleWebTouchEnd}
+        >
 
           {/* ── Hero (fijo, no scrollea) ── */}
           <View style={{ paddingHorizontal: 20 }}>
@@ -778,8 +803,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 120, paddingTop: 14 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+            scrollEventThrottle={16}
+            onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
+            refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
+            {Platform.OS === "web" && webRefreshing && (
+              <View style={{ alignItems: "center", paddingBottom: 8 }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            )}
 
         {/* ══ TAB: CARTERA ══ */}
         {mainTab === "cartera" && (
