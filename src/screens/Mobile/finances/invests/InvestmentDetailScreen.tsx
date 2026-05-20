@@ -262,27 +262,46 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     try {
       setLoading(true);
 
-      const aRes = await api.get(`/investments/assets/${assetId}`);
-      setAsset(aRes.data || null);
+      const [aRes, sRes, serRes, vRes, oRes, mRes] = await Promise.allSettled([
+        api.get(`/investments/assets/${assetId}`),
+        api.get(`/investments/summary`),
+        api.get(`/investments/assets/${assetId}/series`),
+        api.get(`/investments/valuations`, { params: { assetId } }),
+        api.get(`/investments/operations`, { params: { assetId } }),
+        api.get(`/investments/assets/${assetId}/metadata`),
+      ]);
 
-      const sRes = await api.get(`/investments/summary`);
-      const row = (sRes.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
-      setSummaryRow(row);
+      if (aRes.status === "rejected") { navigation.goBack(); return; }
+      setAsset(aRes.value.data || null);
 
-      const serRes = await api.get(`/investments/assets/${assetId}/series`);
-      setSeries(Array.isArray(serRes.data) ? serRes.data : []);
+      if (sRes.status === "fulfilled") {
+        const row = (sRes.value.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
+        setSummaryRow(row);
+      }
 
-      const vRes = await api.get(`/investments/valuations`, { params: { assetId } });
-      const vList = Array.isArray(vRes.data) ? vRes.data : vRes.data?.valuations ?? [];
-      setValuations(Array.isArray(vList) ? vList : []);
+      if (serRes.status === "fulfilled")
+        setSeries(Array.isArray(serRes.value.data) ? serRes.value.data : []);
 
-      const oRes = await api.get(`/investments/operations`, { params: { assetId } });
-      const oList = Array.isArray(oRes.data) ? oRes.data : oRes.data?.operations ?? [];
-      setOperations(Array.isArray(oList) ? oList : []);
+      if (vRes.status === "fulfilled") {
+        const vList = Array.isArray(vRes.value.data) ? vRes.value.data : vRes.value.data?.valuations ?? [];
+        setValuations(Array.isArray(vList) ? vList : []);
+      }
 
-      const mRes = await api.get(`/investments/assets/${assetId}/metadata`);
-      setMetadata(mRes.data?.metadata ?? null);
-      setComposition(mRes.data?.composition ?? null);
+      if (oRes.status === "fulfilled") {
+        const oList = Array.isArray(oRes.value.data) ? oRes.value.data : oRes.value.data?.operations ?? [];
+        setOperations(Array.isArray(oList) ? oList : []);
+      }
+
+      if (mRes.status === "fulfilled" && mRes.value.data?.composition) {
+        setMetadata(mRes.value.data.metadata ?? null);
+        setComposition(mRes.value.data.composition);
+      } else {
+        // fallback: fetch composition from its own endpoint
+        try {
+          const cRes = await api.get(`/investments/assets/${assetId}/composition`);
+          setComposition(cRes.data ?? null);
+        } catch { /* leave composition as-is */ }
+      }
     } catch (e) {
       console.error("❌ Error loading investment detail:", e);
       navigation.goBack();
