@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 import api from "../api/api";
+import { markTransactionsDirty } from "../utils/transactionsInvalidation";
 import EditCategoryModal from "./EditCategoryModal";
 import CrossPlatformDateTimePicker from "./CrossPlatformDateTimePicker";
 
@@ -424,6 +425,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     try {
       setSaving(true);
       await api.post("/transactions", payload);
+      markTransactionsDirty();
       onSaved?.();
       onClose();
     } catch (e) {

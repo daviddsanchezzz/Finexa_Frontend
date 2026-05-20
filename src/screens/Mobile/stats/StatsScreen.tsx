@@ -24,6 +24,7 @@ import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSk
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
+import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 
 type GraphType = "expense" | "income";
 type RangeType = "week" | "month" | "year" | "all";
@@ -85,6 +86,9 @@ export default function StatsScreen({ navigation }: any) {
   const { width: SCREEN_W } = Dimensions.get("window");
   const CARD_W = SCREEN_W - 40; // mx-5 => 20 + 20
 
+  const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
+  useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
+
   const webScrollAtTop = useRef(true);
   const webTouchStartY = useRef(0);
   const pullAnim = useRef(new Animated.Value(0)).current;
@@ -92,6 +96,7 @@ export default function StatsScreen({ navigation }: any) {
   const webRefreshingRef = useRef(false);
   const hasFetched = useRef(false);
   const lastFetchKey = useRef<string>("");
+  const lastFetchedVersion = useRef<number>(-1);
   const PULL_THRESHOLD = 80;
   const PULL_MAX = 65;
 
@@ -196,11 +201,12 @@ export default function StatsScreen({ navigation }: any) {
   useFocusEffect(
     React.useCallback(() => {
       const key = `${dateFrom ?? ""}|${dateTo ?? ""}`;
-      if (hasFetched.current && lastFetchKey.current === key) return;
+      if (hasFetched.current && lastFetchKey.current === key && lastFetchedVersion.current === invalidationVersion) return;
       lastFetchKey.current = key;
       hasFetched.current = true;
+      lastFetchedVersion.current = invalidationVersion;
       fetchStats();
-    }, [dateFrom, dateTo, fetchStats])
+    }, [dateFrom, dateTo, fetchStats, invalidationVersion])
   );
 
   const handleWebTouchStart = useCallback((e: any) => {

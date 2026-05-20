@@ -20,6 +20,7 @@ import { ViewStyle, TextStyle } from "react-native";
 import EditCategoryModal from "../../../components/EditCategoryModal";
 import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTimePicker";
 import { appAlert } from "../../../utils/appAlert";
+import { markTransactionsDirty } from "../../../utils/transactionsInvalidation";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 
 export default function AddScreen({ navigation }: any) {
@@ -365,6 +366,7 @@ export default function AddScreen({ navigation }: any) {
       } else {
         await api.post("/transactions", payload);
       }
+      markTransactionsDirty();
       navigation.goBack();
     } catch (error) {
       appAlert("Error", "No se pudo guardar");

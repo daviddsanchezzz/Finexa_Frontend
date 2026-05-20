@@ -8,6 +8,7 @@ import { colors } from "../theme/theme";
 import { useTheme } from "../context/ThemeContext";
 import Modal from "react-native-modal";
 import { appAlert } from "../utils/appAlert";
+import { markTransactionsDirty } from "../utils/transactionsInvalidation";
 import RecurringScopeModal, {
   RecurringScope,
 } from "./RecurringScopeModal";
@@ -139,6 +140,7 @@ export default function TransactionsList({
   const deleteTxByScope = async (tx: any, scope: RecurringScope) => {
     try {
       await api.delete(`/transactions/${tx.id}`, { params: { scope } });
+      markTransactionsDirty();
       onDeleted?.();
     } catch (e) {
       appAlert("Error", "No se pudo eliminar");

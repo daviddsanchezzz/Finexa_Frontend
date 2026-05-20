@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Platform, Animated, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
 import { exportTransactionsCsv } from "../../../utils/csvExport";
 import { colors } from "../../../theme/theme";
+import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 
 export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -22,8 +23,12 @@ export default function HomeScreen({ navigation }: any) {
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
 
+  const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
+  useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
+
   const hasFetched = useRef(false);
   const lastFetchKey = useRef<string>("");
+  const lastFetchedVersion = useRef<number>(-1);
   const webScrollAtTop = useRef(true);
   const webTouchStartY = useRef(0);
   const pullAnim = useRef(new Animated.Value(0)).current;
@@ -101,11 +106,12 @@ export default function HomeScreen({ navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       const key = `${selectedWallet?.id ?? "all"}|${dateFrom ?? ""}|${dateTo ?? ""}`;
-      if (hasFetched.current && lastFetchKey.current === key) return;
+      if (hasFetched.current && lastFetchKey.current === key && lastFetchedVersion.current === invalidationVersion) return;
       lastFetchKey.current = key;
       hasFetched.current = true;
+      lastFetchedVersion.current = invalidationVersion;
       fetchTransactions();
-    }, [selectedWallet, dateFrom, dateTo]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedWallet, dateFrom, dateTo, invalidationVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleWebTouchStart = useCallback((e: any) => {
