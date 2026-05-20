@@ -1,10 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Platform,
+  Animated,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -81,10 +85,21 @@ export default function StatsScreen({ navigation }: any) {
   const { width: SCREEN_W } = Dimensions.get("window");
   const CARD_W = SCREEN_W - 40; // mx-5 => 20 + 20
 
+  const webScrollAtTop = useRef(true);
+  const webTouchStartY = useRef(0);
+  const pullAnim = useRef(new Animated.Value(0)).current;
+  const currentPullY = useRef(0);
+  const webRefreshingRef = useRef(false);
+  const hasFetched = useRef(false);
+  const lastFetchKey = useRef<string>("");
+  const PULL_THRESHOLD = 80;
+  const PULL_MAX = 65;
+
   // TX para breakdown en cliente (sin transfers). Totales e inversión vienen del summary2.
   const [transactions, setTransactions] = useState<TxLite[]>([]);
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
@@ -140,44 +155,81 @@ export default function StatsScreen({ navigation }: any) {
   // ------------------------------
   // FETCH: SUMMARY2 + TX
   // ------------------------------
+  const fetchStats = useCallback(async (isManual = false) => {
+    if (!dateFrom || !dateTo) return;
+    try {
+      if (!isManual) setLoading(true);
+
+      const [summaryRes, txRes] = await Promise.all([
+        api.get("/dashboard/summary2", {
+          params: { startDate: dateFrom, endDate: dateTo },
+        }),
+        api.get("/transactions", {
+          params: { dateFrom, dateTo },
+        }),
+      ]);
+
+      setSummary(summaryRes.data);
+
+      const filtered = (txRes.data || [])
+        .filter((tx: any) => tx.type !== "transfer")
+        .filter((tx: any) => tx.isRecurring === false)
+        .filter((tx: any) => tx.active !== false)
+        .filter((tx: any) => tx.excludeFromStats !== true);
+
+      setTransactions(filtered);
+    } catch (err) {
+      console.log("❌ Error cargando estadísticas:", err);
+      setSummary(null);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [dateFrom, dateTo]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchStats(true);
+  }, [fetchStats]);
+
   useFocusEffect(
     React.useCallback(() => {
-      if (!dateFrom || !dateTo) return;
-
-      const fetchStats = async () => {
-        try {
-          setLoading(true);
-
-          const [summaryRes, txRes] = await Promise.all([
-            api.get("/dashboard/summary2", {
-              params: { startDate: dateFrom, endDate: dateTo },
-            }),
-            api.get("/transactions", {
-              params: { dateFrom, dateTo },
-            }),
-          ]);
-
-          setSummary(summaryRes.data);
-
-          const filtered = (txRes.data || [])
-            .filter((tx: any) => tx.type !== "transfer")
-            .filter((tx: any) => tx.isRecurring === false)
-            .filter((tx: any) => tx.active !== false)
-            .filter((tx: any) => tx.excludeFromStats !== true);
-
-          setTransactions(filtered);
-        } catch (err) {
-          console.log("❌ Error cargando estadísticas:", err);
-          setSummary(null);
-          setTransactions([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
+      const key = `${dateFrom ?? ""}|${dateTo ?? ""}`;
+      if (hasFetched.current && lastFetchKey.current === key) return;
+      lastFetchKey.current = key;
+      hasFetched.current = true;
       fetchStats();
-    }, [dateFrom, dateTo])
+    }, [dateFrom, dateTo, fetchStats])
   );
+
+  const handleWebTouchStart = useCallback((e: any) => {
+    if (Platform.OS === "web") {
+      webTouchStartY.current = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+      currentPullY.current = 0;
+    }
+  }, []);
+
+  const handleWebTouchMove = useCallback((e: any) => {
+    if (Platform.OS !== "web" || webRefreshingRef.current || !webScrollAtTop.current) return;
+    const y = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+    const delta = Math.max(0, y - webTouchStartY.current);
+    currentPullY.current = delta;
+    pullAnim.setValue(Math.min(PULL_MAX, Math.sqrt(delta) * 4.5));
+  }, [pullAnim]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWebTouchEnd = useCallback(async () => {
+    if (Platform.OS !== "web") return;
+    const delta = currentPullY.current;
+    currentPullY.current = 0;
+    if (webScrollAtTop.current && delta > PULL_THRESHOLD && !webRefreshingRef.current) {
+      webRefreshingRef.current = true;
+      Animated.spring(pullAnim, { toValue: 36, useNativeDriver: true }).start();
+      await onRefresh();
+      webRefreshingRef.current = false;
+    }
+    Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
+  }, [pullAnim, onRefresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ------------------------------
   // AGRUPAR POR CATEGORÍA
@@ -418,10 +470,31 @@ export default function StatsScreen({ navigation }: any) {
   // RENDER
   // --------------------------------------
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
+      {Platform.OS === "web" && !loading && (
+        <View style={{ position: "absolute", top: 52, left: 0, right: 0, alignItems: "center", zIndex: 0 }}>
+          <Animated.View style={{
+            opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
+            transform: [{ scale: pullAnim.interpolate({ inputRange: [0, PULL_MAX], outputRange: [0.5, 1], extrapolate: "clamp" }) }],
+          }}>
+            <View style={{ backgroundColor: "white", borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          </Animated.View>
+        </View>
+      )}
+      <Animated.View
+        style={Platform.OS === "web" ? { flex: 1, transform: [{ translateY: pullAnim }] } : { flex: 1 }}
+        onTouchStart={handleWebTouchStart}
+        onTouchMove={handleWebTouchMove}
+        onTouchEnd={handleWebTouchEnd}
+      >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
+        scrollEventThrottle={16}
+        onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
+        refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
       >
         {/* HEADER */}
         <View className="px-5 pb-2">
@@ -972,6 +1045,7 @@ export default function StatsScreen({ navigation }: any) {
           </>
         )}
       </ScrollView>
+      </Animated.View>
 
       {/* MODAL FECHAS */}
       <DateFilterModal

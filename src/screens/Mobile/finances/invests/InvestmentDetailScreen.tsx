@@ -99,12 +99,14 @@ type InvestmentOperationFromApi = {
   type: InvestmentOperationType;
   date?: string | null;
   amount: number;
+  quantity?: string | null;
   fee?: number | null;
   transactionId?: number | null;
   swapGroupId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   active?: boolean;
+  transaction?: { fromWalletId?: number | null; toWalletId?: number | null } | null;
 };
 
 const formatMoney = (n: number, currency = "EUR") =>
@@ -439,6 +441,32 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           }
         },
       },
+    ]);
+  };
+
+  const handleDeleteOperation = (operationId: number) => {
+    const doDelete = async () => {
+      try {
+        await api.delete(`/investments/operations/${operationId}`);
+        markInvestmentsDirty();
+        setActionTarget(null);
+        fetchAll();
+      } catch {
+        if (Platform.OS === "web") {
+          window.alert("No se pudo eliminar la operación.");
+        } else {
+          Alert.alert("Error", "No se pudo eliminar la operación.");
+        }
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("¿Seguro que quieres eliminar esta operación?")) doDelete();
+      return;
+    }
+    Alert.alert("Eliminar operación", "¿Seguro que quieres eliminar esta operación? Se revertirán los movimientos en cartera.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: doDelete },
     ]);
   };
 
@@ -1193,7 +1221,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     const amount = opSignedAmount(op);
                     const tone = opTone(op.type);
                     const tm = toneMeta(tone);
-                    const isSwap = !!op.swapGroupId;
                     const icon =
                       op.type === "buy" || op.type === "transfer_in"
                         ? "add-circle-outline"
@@ -1204,8 +1231,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     return (
                       <TouchableOpacity
                         key={`op-${op.id}`}
-                        activeOpacity={isSwap ? 0.85 : 1}
-                        onPress={isSwap ? () => setActionTarget({ kind: "operation", item: op }) : undefined}
+                        activeOpacity={0.85}
+                        onPress={() => setActionTarget({ kind: "operation", item: op })}
                         style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}
                       >
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -1419,16 +1446,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             }}
           >
             <View style={{ alignItems: "center", marginBottom: 20 }}>
-              <View
-                style={{
-                  width: 40, height: 4, borderRadius: 999,
-                  backgroundColor: "#E5E7EB", marginBottom: 16,
-                }}
-              />
+              <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: "#E5E7EB", marginBottom: 16 }} />
               <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A" }}>
                 {actionTarget?.kind === "valuation"
-                  ? `valoración · ${actionTarget.item.date ? formatDate(actionTarget.item.date) : ""}`
-                  : `Swap · ${actionTarget?.item.date ? formatDate(actionTarget.item.date as string) : ""}`}
+                  ? `Valoración · ${actionTarget.item.date ? formatDate(actionTarget.item.date) : ""}`
+                  : `${opLabel((actionTarget?.item as InvestmentOperationFromApi)?.type)} · ${actionTarget?.item.date ? formatDate(actionTarget.item.date as string) : ""}`}
               </Text>
               <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B", marginTop: 4 }}>
                 {actionTarget?.kind === "valuation"
@@ -1438,41 +1460,45 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             </View>
 
             <View style={{ gap: 10 }}>
-              {actionTarget?.kind === "valuation" && (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => {
+              {/* Editar */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (actionTarget?.kind === "valuation") {
                     const v = actionTarget.item as ValuationFromApi;
                     setActionTarget(null);
                     navigation.navigate("InvestmentValuation", { assetId, editingValuationId: v.id });
-                  }}
-                  style={{
-                    flexDirection: "row", alignItems: "center", gap: 12,
-                    paddingVertical: 14, paddingHorizontal: 16,
-                    borderRadius: 18, backgroundColor: "#EEF2FF",
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 36, height: 36, borderRadius: 14,
-                      backgroundColor: colors.primary,
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Ionicons name="create-outline" size={18} color="white" />
-                  </View>
-                  <Text style={{ fontSize: 15, fontWeight: "800", color: colors.primary }}>Editar</Text>
-                </TouchableOpacity>
-              )}
+                  } else if (actionTarget?.kind === "operation") {
+                    const op = actionTarget.item as InvestmentOperationFromApi;
+                    setActionTarget(null);
+                    (navigation as any).navigate("InvestmentOperation", { operationData: op, assetId });
+                  }
+                }}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 12,
+                  paddingVertical: 14, paddingHorizontal: 16,
+                  borderRadius: 18, backgroundColor: "#EEF2FF",
+                }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 14, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="create-outline" size={18} color="white" />
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: colors.primary }}>Editar</Text>
+              </TouchableOpacity>
 
+              {/* Eliminar */}
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => {
                   if (actionTarget?.kind === "valuation") {
                     handleDeleteValuation((actionTarget.item as ValuationFromApi).id);
                   } else if (actionTarget?.kind === "operation") {
-                    const swapId = (actionTarget.item as InvestmentOperationFromApi).swapGroupId!;
-                    handleDeleteSwap(swapId);
+                    const op = actionTarget.item as InvestmentOperationFromApi;
+                    if (op.swapGroupId) {
+                      handleDeleteSwap(op.swapGroupId);
+                    } else {
+                      handleDeleteOperation(op.id);
+                    }
                   }
                 }}
                 style={{
@@ -1481,13 +1507,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   borderRadius: 18, backgroundColor: "#FEF2F2",
                 }}
               >
-                <View
-                  style={{
-                    width: 36, height: 36, borderRadius: 14,
-                    backgroundColor: "#DC2626",
-                    alignItems: "center", justifyContent: "center",
-                  }}
-                >
+                <View style={{ width: 36, height: 36, borderRadius: 14, backgroundColor: "#DC2626", alignItems: "center", justifyContent: "center" }}>
                   <Ionicons name="trash-outline" size={18} color="white" />
                 </View>
                 <Text style={{ fontSize: 15, fontWeight: "800", color: "#DC2626" }}>Eliminar</Text>

@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
+import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 
 type OperationMode = "buy" | "sell" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -138,6 +139,10 @@ function FieldRow({ label, value, onChange, placeholder, icon, right }: {
 // ── Main ────────────────────────────────────────────────────────────────────
 export default function InvestmentOperationScreen({ navigation, route }: any) {
   const defaultAssetId: number | undefined = route?.params?.assetId;
+  // editData: operation passed from InvestmentDetailScreen for editing
+  const editData: any | undefined = route?.params?.operationData;
+  const isEditing = !!editData;
+  const isSwapEdit = isEditing && !!editData?.swapGroupId;
 
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -155,6 +160,8 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   const [amount,      setAmount]      = useState("");
   const [fee,         setFee]         = useState("");
   const [description, setDescription] = useState("");
+  const [date,        setDate]        = useState<Date>(new Date());
+  const [showDate,    setShowDate]    = useState(false);
 
   const [quantity,    setQuantity]    = useState("");
   const [quantityOut, setQuantityOut] = useState("");
@@ -188,7 +195,60 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     }
   }, []);
 
+  const fmtDecimal = (n: any) => {
+    const v = Number(n);
+    if (!Number.isFinite(v) || v === 0) return "";
+    return v.toString().replace(".", ",");
+  };
+
+  const prefillFromEdit = useCallback((assetList: InvestmentAssetLite[], walletList: WalletLite[]) => {
+    if (!editData) return;
+    const opType = String(editData.type ?? "buy");
+    const isSwap = !!editData.swapGroupId;
+
+    // Date
+    const opDate = editData.date ? new Date(editData.date) : new Date();
+    setDate(Number.isFinite(opDate.getTime()) ? opDate : new Date());
+
+    if (isSwap) {
+      setMode("swap");
+      const fromA = assetList.find((a) => a.id === editData.assetId) || null;
+      setFromAsset(fromA);
+      setToAsset(null);
+      setSelectedWallet(null);
+      setAmount(fmtDecimal(Math.abs(Number(editData.amount || 0))));
+      setFee(fmtDecimal(editData.fee));
+      setQuantityOut(fmtDecimal(editData.quantity));
+      setQuantityIn("");
+      setQuantity("");
+    } else {
+      const newMode: OperationMode = opType === "sell" || opType === "transfer_out" ? "sell" : "buy";
+      setMode(newMode);
+      const asset = assetList.find((a) => a.id === editData.assetId) || null;
+      setSelectedAsset(asset);
+      setFromAsset(null);
+      setToAsset(null);
+
+      const walletId = newMode === "buy"
+        ? editData.transaction?.fromWalletId
+        : editData.transaction?.toWalletId;
+      const wallet = walletId ? walletList.find((w) => w.id === walletId) || null : walletList[0] || null;
+      setSelectedWallet(wallet);
+
+      setAmount(fmtDecimal(Math.abs(Number(editData.amount || 0))));
+      setFee(fmtDecimal(editData.fee));
+      setQuantity(fmtDecimal(editData.quantity));
+      setQuantityOut("");
+      setQuantityIn("");
+    }
+    setDescription(editData.description ?? "");
+  }, [editData]);
+
   const resetForm = useCallback((assetList: InvestmentAssetLite[], walletList: WalletLite[]) => {
+    if (isEditing) {
+      prefillFromEdit(assetList, walletList);
+      return;
+    }
     setMode("buy");
     const def   = defaultAssetId ? assetList.find((a) => a.id === defaultAssetId) || null : null;
     const first = def || assetList[0] || null;
@@ -198,7 +258,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     setSelectedWallet(walletList[0] || null);
     setAmount(""); setFee(""); setDescription("");
     setQuantity(""); setQuantityOut(""); setQuantityIn("");
-  }, [defaultAssetId]);
+  }, [defaultAssetId, isEditing, prefillFromEdit]);
 
   const bootstrap = useCallback(async () => {
     try {
@@ -249,29 +309,40 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     if (!canSave) return;
     try {
       setSaving(true);
-      const date  = new Date().toISOString();
-      const desc  = description.trim() || undefined;
-      const feeN  = fee.trim() ? parseAmount(fee) : 0;
-      const amtN  = parseAmount(amount);
+      const dateIso = date.toISOString();
+      const desc    = description.trim() || undefined;
+      const feeN    = fee.trim() ? parseAmount(fee) : 0;
+      const amtN    = parseAmount(amount);
 
       if (mode === "swap") {
         const qOutN = quantityOut.trim() ? parseQty(quantityOut) : undefined;
         const qInN  = quantityIn.trim()  ? parseQty(quantityIn)  : undefined;
-        await api.post("/investments/swap", {
+        const body = {
           fromAssetId: fromAsset!.id, toAssetId: toAsset!.id,
           amountOut: amtN, amountIn: amtN,
-          fee: feeN || 0, date, description: desc,
+          fee: feeN || 0, date: dateIso, description: desc,
           ...(qOutN !== undefined ? { quantityOut: qOutN } : {}),
           ...(qInN  !== undefined ? { quantityIn:  qInN  } : {}),
-        });
+        };
+        if (isSwapEdit) {
+          await api.patch(`/investments/swaps/${editData.swapGroupId}`, body);
+        } else {
+          await api.post("/investments/swap", body);
+        }
       } else {
         const qtyN = quantity.trim() ? parseQty(quantity) : undefined;
-        const base = { amount: amtN, fee: feeN || 0, date, description: desc,
+        const base = { amount: amtN, fee: feeN || 0, date: dateIso, description: desc,
                        ...(qtyN !== undefined ? { quantity: qtyN } : {}) };
-        if (mode === "buy") {
+        if (isEditing && !isSwapEdit) {
+          await api.patch(`/investments/operations/${editData.id}`, {
+            ...base,
+            fromWalletId: mode === "buy"  ? selectedWallet!.id : undefined,
+            toWalletId:   mode === "sell" ? selectedWallet!.id : undefined,
+          });
+        } else if (mode === "buy") {
           await api.post(`/investments/${selectedAsset!.id}/buy`,  { ...base, fromWalletId: selectedWallet!.id });
         } else {
-          await api.post(`/investments/${selectedAsset!.id}/sell`, { ...base, toWalletId:   selectedWallet!.id });
+          await api.post(`/investments/${selectedAsset!.id}/sell`, { ...base, toWalletId: selectedWallet!.id });
         }
       }
 
@@ -282,7 +353,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
     } finally {
       setSaving(false);
     }
-  }, [amount, canSave, description, fee, fromAsset, mode, navigation, quantity, quantityIn, quantityOut, selectedAsset, selectedWallet, toAsset]);
+  }, [amount, canSave, description, editData, fee, fromAsset, isEditing, isSwapEdit, mode, navigation, quantity, quantityIn, quantityOut, selectedAsset, selectedWallet, toAsset]);
 
   // ── mode change ───────────────────────────────────────────────────────────
   const onChangeMode = useCallback((next: OperationMode) => {
@@ -309,7 +380,9 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
         </TouchableOpacity>
 
         <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={{ fontSize: 17, fontWeight: "500", color: "#111" }}>Añadir operación</Text>
+          <Text style={{ fontSize: 17, fontWeight: "500", color: "#111" }}>
+            {isEditing ? "Editar operación" : "Añadir operación"}
+          </Text>
         </View>
 
         <View style={{ minWidth: 50, alignItems: "flex-end" }}>
@@ -345,10 +418,12 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
                 return (
                   <TouchableOpacity
                     key={tab.value}
-                    onPress={() => onChangeMode(tab.value)}
+                    onPress={() => !isEditing && onChangeMode(tab.value)}
+                    activeOpacity={isEditing ? 1 : 0.8}
                     style={{
                       flex: 1, paddingVertical: 10, borderRadius: 14, alignItems: "center",
                       backgroundColor: active ? tab.bg : "transparent",
+                      opacity: isEditing && !active ? 0.35 : 1,
                     }}
                   >
                     <Text style={{ fontSize: 15, fontWeight: active ? "600" : "400", color: active ? "#111827" : "#9CA3AF" }}>
@@ -360,11 +435,11 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
             </View>
 
             {/* AMOUNT */}
-            <View style={{ alignItems: "center", marginBottom: 32, marginTop: 8 }}>
+            <View style={{ width: "100%", alignItems: "center", marginBottom: 32, marginTop: 8 }}>
               {mode === "swap" && (
                 <Text style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 4 }}>Importe (venta = compra)</Text>
               )}
-              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%" }}>
                 <TextInput
                   ref={amountRef}
                   value={amount}
@@ -372,10 +447,13 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
                   placeholder="0"
                   placeholderTextColor="#D1D5DB"
                   keyboardType="decimal-pad"
-                  style={{ fontSize: 48, fontWeight: "700", color: "#0F172A", letterSpacing: -1, minWidth: 40, textAlign: "right" }}
+                  style={{
+                    fontSize: 48, fontWeight: "700", color: "#0F172A", letterSpacing: -1,
+                    textAlign: "center", minWidth: 60, maxWidth: 260,
+                  }}
                   returnKeyType="done"
                 />
-                <Text style={{ fontSize: 32, fontWeight: "600", color: "#94A3B8", marginLeft: 6, marginBottom: 6 }}>€</Text>
+                <Text style={{ fontSize: 32, fontWeight: "600", color: "#94A3B8", marginLeft: 4, marginBottom: 6 }}>€</Text>
               </View>
               <Text style={{ marginTop: 6, fontSize: 11, color: "#CBD5E1", fontWeight: "600" }}>toca para editar</Text>
             </View>
@@ -489,6 +567,28 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
               icon="pricetag-outline"
               right="€"
             />
+
+            {/* FECHA */}
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Fecha</Text>
+              <TouchableOpacity
+                onPress={() => setShowDate(true)}
+                style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 8 }}
+              >
+                <Text style={{ fontSize: 15, color: "#111827" }}>
+                  {date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}{" "}
+                  {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+              <CrossPlatformDateTimePicker
+                isVisible={showDate}
+                mode="datetime"
+                date={date}
+                onConfirm={(d) => { setShowDate(false); setDate(d); }}
+                onCancel={() => setShowDate(false)}
+              />
+            </View>
 
             {/* NOTA */}
             <View style={{ marginBottom: 24 }}>
