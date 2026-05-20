@@ -216,6 +216,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [rentView, setRentView] = useState<"grafica" | "tabla">("tabla");
   const [rentTableMetric, setRentTableMetric] = useState<"pct" | "eur">("pct");
+  const [monthPopup, setMonthPopup] = useState<{
+    label: string;
+    entries: Array<{ year: number; row: MonthlyRentRow }>;
+  } | null>(null);
   const [rentRange, setRentRange] = useState<"3m" | "6m" | "1a">("1a");
   const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number }>(null);
   const [barTooltip, setBarTooltip] = useState<null | { label: string; profit: number }>(null);
@@ -1886,8 +1890,15 @@ const submitContribution = useCallback(() => {
                     </View>
 
                     {monthNames.map((mLabel, mIdx) => (
-                      <View
+                      <TouchableOpacity
                         key={`m-${mIdx}`}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const entries = years
+                            .map((y) => ({ year: y, row: monthCellByYear.get(y)?.get(mIdx) }))
+                            .filter((e): e is { year: number; row: MonthlyRentRow } => e.row != null);
+                          if (entries.length) setMonthPopup({ label: mLabel, entries });
+                        }}
                         style={{
                           flexDirection: "row",
                           paddingVertical: 12,
@@ -1918,7 +1929,7 @@ const submitContribution = useCallback(() => {
                             </Text>
                           );
                         })}
-                      </View>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 </ScrollView>
@@ -1933,6 +1944,87 @@ const submitContribution = useCallback(() => {
           </ScrollView>
         </Animated.View>
       )}
+
+      {/* ── Popup detalle mes ── */}
+      <Modal
+        visible={monthPopup !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMonthPopup(null)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", paddingHorizontal: 28 }}
+          activeOpacity={1}
+          onPress={() => setMonthPopup(null)}
+        >
+          <TouchableOpacity activeOpacity={1} style={{ width: "100%" }} onPress={() => {}}>
+            <View style={{ backgroundColor: "white", borderRadius: 24, padding: 20, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } }}>
+
+              {/* Header */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <Text style={{ fontSize: 17, fontWeight: "900", color: "#0F172A" }}>
+                  {monthPopup?.label}
+                  {monthPopup?.entries.length === 1 ? ` · ${monthPopup.entries[0].year}` : ""}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setMonthPopup(null)}
+                  style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Ionicons name="close" size={14} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {monthPopup?.entries.map(({ year, row }, idx) => {
+                const ccy = row.currency ?? currency;
+                const signed = (v: number | null) =>
+                  v == null || !Number.isFinite(v) ? "-"
+                    : `${v >= 0 ? "+" : ""}${formatMoney(Math.abs(v), ccy)}`;
+                const neutral = (v: number | null) =>
+                  v == null || !Number.isFinite(v) ? "-" : formatMoney(v, ccy);
+                const pct = (v: number | null) =>
+                  v == null || !Number.isFinite(v) ? "-"
+                    : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(2).replace(".", ",")} %`;
+                const tone = (v: number | null) =>
+                  v == null || !Number.isFinite(v) ? "#94A3B8"
+                    : v >= 0 ? "#14B8A6" : "#FB7185";
+
+                return (
+                  <View key={year}>
+                    {(monthPopup?.entries.length ?? 0) > 1 && (
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B", marginBottom: 8, marginTop: idx > 0 ? 14 : 0 }}>
+                        {year}
+                      </Text>
+                    )}
+
+                    {([
+                      { label: "Inicio",        value: neutral(row.startValue),   color: "#0F172A" },
+                      { label: "Final",          value: neutral(row.endValue),     color: "#0F172A" },
+                      { label: "Cashflow",       value: signed(row.cashflowNet),   color: tone(row.cashflowNet) },
+                      { label: "Rentabilidad %", value: pct(row.returnPct),        color: tone(row.returnPct) },
+                      { label: "Rentabilidad €", value: signed(row.profit),        color: tone(row.profit) },
+                    ] as const).map(({ label, value, color }, i, arr) => (
+                      <View
+                        key={label}
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingVertical: 11,
+                          borderBottomWidth: i < arr.length - 1 ? 1 : 0,
+                          borderBottomColor: "#F1F5F9",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#475569" }}>{label}</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "800", color }}>{value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         visible={rebalanceModalOpen}
