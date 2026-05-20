@@ -1,12 +1,11 @@
 // src/screens/Investments/InvestmentDetailScreen.tsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useRef } from "react";
 import {
   View,
   Text,
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Modal,
   Alert,
   RefreshControl,
@@ -310,8 +309,14 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     }
   }, [assetId, navigation]);
 
+  const hasFetched = useRef(false);
   useFocusEffect(
-    useCallback(() => { fetchAll(); }, [fetchAll])
+    useCallback(() => {
+      if (!hasFetched.current) {
+        hasFetched.current = true;
+        fetchAll();
+      }
+    }, [fetchAll])
   );
 
   const onRefresh = useCallback(async () => {
@@ -495,128 +500,159 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             <Ionicons name="chevron-back" size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-            {asset?.abbreviation?.trim() || asset?.name || "Detalle inversión"}
+            {asset ? (asset.abbreviation?.trim() || asset.name) : ""}
           </Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("InvestmentForm", { assetId })}
-            activeOpacity={0.8}
-            style={{
-              flexDirection: "row", alignItems: "center", gap: 5,
-              paddingHorizontal: 12, paddingVertical: 8,
-              borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB",
-              backgroundColor: "white", marginRight: 8,
-            }}
-          >
-            <Ionicons name="pencil-outline" size={15} color="#0F172A" />
-            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>Editar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setQuickAddOpen(true)}
-            activeOpacity={0.8}
-            style={{
-              flexDirection: "row", alignItems: "center", gap: 5,
-              paddingHorizontal: 12, paddingVertical: 8,
-              borderRadius: 14, backgroundColor: "#0F172A",
-            }}
-          >
-            <Ionicons name="add-outline" size={15} color="white" />
-            <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
-          </TouchableOpacity>
+          {asset && (
+            <>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("InvestmentForm", { assetId })}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 5,
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB",
+                  backgroundColor: "white", marginRight: 8,
+                }}
+              >
+                <Ionicons name="pencil-outline" size={15} color="#0F172A" />
+                <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>Editar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setQuickAddOpen(true)}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 5,
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderRadius: 14, backgroundColor: "#0F172A",
+                }}
+              >
+                <Ionicons name="add-outline" size={15} color="white" />
+                <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
 
       {loading || !asset ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="text-gray-400 mt-3 text-sm">Cargando…</Text>
+        <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 6 }}>
+          {/* Hero skeleton */}
+          <View style={{ backgroundColor: colors.primary, borderRadius: 22, padding: 14, opacity: 0.6, marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 10 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.25)" }} />
+              <View style={{ gap: 5 }}>
+                <View style={{ width: 55, height: 8, backgroundColor: "rgba(255,255,255,0.3)", borderRadius: 4 }} />
+                <View style={{ width: 150, height: 13, backgroundColor: "rgba(255,255,255,0.3)", borderRadius: 4 }} />
+              </View>
+            </View>
+            <View style={{ width: 75, height: 9, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, marginBottom: 4 }} />
+            <View style={{ width: 140, height: 24, backgroundColor: "rgba(255,255,255,0.3)", borderRadius: 6, marginBottom: 10 }} />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flex: 1, height: 42, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 13 }} />
+              <View style={{ flex: 1, height: 42, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 13 }} />
+            </View>
+          </View>
+          {/* Tab skeleton */}
+          <View style={{ flexDirection: "row", gap: 22, paddingTop: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginBottom: 16 }}>
+            {[72, 58, 76, 80].map((w, i) => (
+              <View key={i} style={{ width: w, height: 10, backgroundColor: "#E2E8F0", borderRadius: 5 }} />
+            ))}
+          </View>
+          {/* Row skeletons */}
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={{ width: 22, height: 22, borderRadius: 7, backgroundColor: "#E2E8F0" }} />
+                <View style={{ width: 70 + (i * 13) % 50, height: 11, backgroundColor: "#E2E8F0", borderRadius: 5 }} />
+              </View>
+              <View style={{ width: 55, height: 11, backgroundColor: "#E2E8F0", borderRadius: 5 }} />
+            </View>
+          ))}
         </View>
       ) : (
         <View className="flex-1">
           {/* ── HERO ── */}
-          <View className="px-5">
+          <View style={{ paddingHorizontal: 16 }}>
             <View
               style={{
                 backgroundColor: colors.primary,
-                borderRadius: 24,
-                paddingHorizontal: 14,
-                paddingTop: 12,
-                paddingBottom: 12,
-                marginBottom: 0,
+                borderRadius: 22,
+                paddingHorizontal: 13,
+                paddingTop: 10,
+                paddingBottom: 10,
                 shadowColor: "#000",
                 shadowOpacity: 0.12,
                 shadowRadius: 10,
                 shadowOffset: { width: 0, height: 4 },
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 8 }}>
                   <View
                     style={{
-                      width: 36, height: 36, borderRadius: 13,
+                      width: 33, height: 33, borderRadius: 12,
                       backgroundColor: "rgba(255,255,255,0.16)",
-                      alignItems: "center", justifyContent: "center", marginRight: 9,
+                      alignItems: "center", justifyContent: "center", marginRight: 8,
                     }}
                   >
-                    <Ionicons name={assetTypeIcon(asset.type)} size={18} color="white" />
+                    <Ionicons name={assetTypeIcon(asset.type)} size={16} color="white" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.65)" }}>
+                    <Text style={{ fontSize: 10.5, fontWeight: "700", color: "rgba(255,255,255,0.65)" }}>
                       {typeLabel(asset.type)}
                     </Text>
                     <Text
-                      style={{ fontSize: 14.5, fontWeight: "900", color: "white", marginTop: 1 }}
+                      style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 1 }}
                       numberOfLines={2}
                     >
                       {asset.name}
                     </Text>
-                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginTop: 2, fontWeight: "600" }} numberOfLines={1}>
+                    <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontWeight: "600" }} numberOfLines={1}>
                       Última: {stats.last}
                     </Text>
                   </View>
                 </View>
-                {/* PnL badge — colored green/red on dark bg */}
                 <View
                   style={{
-                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
-                    backgroundColor: "rgba(0,0,0,0.22)",
+                    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999,
+                    backgroundColor: stats.pnl > 0 ? "rgba(34,197,94,0.25)" : stats.pnl < 0 ? "rgba(239,68,68,0.25)" : "rgba(0,0,0,0.22)",
                     flexDirection: "row", alignItems: "center",
                   }}
                 >
-                  <Ionicons name={stats.meta.icon} size={13} color={pnlHeroColor(stats.pnl)} />
-                  <Text style={{ color: pnlHeroColor(stats.pnl), fontWeight: "900", marginLeft: 6, fontSize: 12 }}>
+                  <Ionicons name={stats.meta.icon} size={12} color={pnlHeroColor(stats.pnl)} />
+                  <Text style={{ color: pnlHeroColor(stats.pnl), fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
                     {formatPct(stats.pnl, stats.invested)}
                   </Text>
                 </View>
               </View>
 
-              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>
+              <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>
                 Valor actual
               </Text>
-              <Text style={{ fontSize: 27, fontWeight: "900", color: "white", marginTop: 1 }} numberOfLines={1}>
+              <Text style={{ fontSize: 23, fontWeight: "900", color: "white", marginTop: 1 }} numberOfLines={1}>
                 {formatMoney(stats.currentValue, currency)}
               </Text>
 
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
                 <View
                   style={{
                     flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                    borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10,
+                    borderRadius: 14, paddingVertical: 7, paddingHorizontal: 10,
                   }}
                 >
-                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>Aportado</Text>
-                  <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 3 }}>
+                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>Aportado</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: "900", color: "white", marginTop: 2 }}>
                     {formatMoney(stats.invested, currency)}
                   </Text>
                 </View>
                 <View
                   style={{
                     flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                    borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10,
+                    borderRadius: 14, paddingVertical: 7, paddingHorizontal: 10,
                   }}
                 >
-                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>Resultado</Text>
-                  {/* Colored result value */}
-                  <Text style={{ fontSize: 13.5, fontWeight: "900", color: pnlHeroColor(stats.pnl), marginTop: 3 }}>
+                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>Resultado</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: "900", color: pnlHeroColor(stats.pnl), marginTop: 2 }}>
                     {formatMoney(stats.pnl, currency)}
                   </Text>
                 </View>
@@ -666,7 +702,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           </View>
 
           <ScrollView
-            className="flex-1 px-5"
+            style={{ flex: 1, paddingHorizontal: 14 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
             refreshControl={

@@ -1,5 +1,5 @@
 // src/screens/Investments/InvestmentsHomeScreen.tsx
-import React, { useCallback, useMemo, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -255,12 +255,16 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const hasFetched = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      fetchSummary();
-      fetchSnapshots();
-      fetchArchived();
-      fetchExposure();
+      if (!hasFetched.current) {
+        hasFetched.current = true;
+        fetchSummary();
+        fetchSnapshots();
+        fetchArchived();
+        fetchExposure();
+      }
     }, [])
   );
 
@@ -707,10 +711,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                     </Text>
                   </View>
                 </View>
-                <View style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons name={totalBadge.icon} size={13} color="white" />
-                  <Text style={{ color: "white", fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
-                    {hero.pct.toFixed(2)}%
+                <View style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: hero.pct > 0 ? "rgba(34,197,94,0.25)" : hero.pct < 0 ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.18)", flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons name={totalBadge.icon} size={13} color={hero.pct > 0 ? "#86EFAC" : hero.pct < 0 ? "#FCA5A5" : "white"} />
+                  <Text style={{ color: hero.pct > 0 ? "#86EFAC" : hero.pct < 0 ? "#FCA5A5" : "white", fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
+                    {hero.pct > 0 ? "+" : ""}{hero.pct.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                   </Text>
                 </View>
               </View>
@@ -780,23 +784,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         {/* ══ TAB: CARTERA ══ */}
         {mainTab === "cartera" && (
           <>
-        {(assets.length > 0 || archivedAssets.length > 0) && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "flex-end" }}>
-            {archivedAssets.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setShowArchived((v) => !v)}
-                activeOpacity={0.8}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-              >
-                <Ionicons name={showArchived ? "eye-outline" : "archive-outline"} size={13} color="#CBD5E1" />
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#CBD5E1" }}>
-                  {showArchived ? "Ocultar archivadas" : `Archivadas (${archivedAssets.length})`}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
         <View className="px-5">
           {assets.length === 0 ? (
             <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
@@ -894,6 +881,19 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             })
           )}
         </View>
+
+        {archivedAssets.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setShowArchived((v) => !v)}
+            activeOpacity={0.7}
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 6 }}
+          >
+            <Ionicons name={showArchived ? "chevron-up-outline" : "archive-outline"} size={14} color="#94A3B8" />
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
+              {showArchived ? "Ocultar archivadas" : `Ver archivadas (${archivedAssets.length})`}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* ARCHIVADAS */}
         {showArchived && archivedAssets.length > 0 && (
@@ -1181,7 +1181,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               {/* ── Card 1: Tabla anual ── */}
               <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
                 <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
-                  Por año
+                  Total
                 </Text>
               </View>
               <View style={cardStyle}>
@@ -1189,11 +1189,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   <View>
                     <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg }}>
                       <Text style={{ ...hStyle, width: CM }}>Año</Text>
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
                     </View>
                     {rentYearRows.map((row, idx) => (
                       <TouchableOpacity
@@ -1213,6 +1213,12 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                             <Ionicons name="chevron-down" size={11} color={colors.primary} />
                           )}
                         </View>
+                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
+                          {formatPctRatio(row.returnPct)}
+                        </Text>
+                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
+                          {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
+                        </Text>
                         <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
                           {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
                         </Text>
@@ -1222,26 +1228,20 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
                           {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
                         </Text>
-                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
-                          {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
-                        </Text>
-                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
-                          {formatPctRatio(row.returnPct)}
-                        </Text>
                       </TouchableOpacity>
                     ))}
                     <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
                       <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
-                        {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalYearProfit) }}>
+                        {formatPctRatio(totalGlobalReturnPct)}
                       </Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearProfit) }}>
                         {totalYearProfit >= 0 ? "+" : ""}{formatMoney(totalYearProfit)}
                       </Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalYearProfit) }}>
-                        {formatPctRatio(totalGlobalReturnPct)}
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
+                        {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
                       </Text>
                     </View>
                   </View>
@@ -1251,7 +1251,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               {/* ── Card 2: Detalle mensual ── */}
               <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
                 <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
-                  Detalle {rentSelectedYear}
+                  {rentSelectedYear}
                 </Text>
               </View>
               <View style={cardStyle}>
@@ -1259,11 +1259,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   <View>
                     <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg }}>
                       <Text style={{ ...hStyle, width: CM }}>Mes</Text>
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
                     </View>
                     {rentMonthRows.map((row, idx) => (
                       <View
@@ -1274,6 +1274,12 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         }}
                       >
                         <Text style={{ ...cStyle, width: CM }}>{formatMonthName(row.monthStart)}</Text>
+                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
+                          {formatPctRatio(row.returnPct)}
+                        </Text>
+                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
+                          {row.profit == null ? "-" : `${row.profit >= 0 ? "+" : ""}${formatMoney(row.profit, row.currency)}`}
+                        </Text>
                         <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
                           {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
                         </Text>
@@ -1283,26 +1289,20 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                         <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet ?? 0) }}>
                           {row.cashflowNet == null ? "-" : `${row.cashflowNet >= 0 ? "+" : ""}${formatMoney(row.cashflowNet, row.currency)}`}
                         </Text>
-                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
-                          {row.profit == null ? "-" : `${row.profit >= 0 ? "+" : ""}${formatMoney(row.profit, row.currency)}`}
-                        </Text>
-                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
-                          {formatPctRatio(row.returnPct)}
-                        </Text>
                       </View>
                     ))}
                     <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
                       <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
-                        {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalMonthProfit) }}>
+                        {formatPctRatio(totalMonthReturnPct)}
                       </Text>
                       <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthProfit) }}>
                         {totalMonthProfit >= 0 ? "+" : ""}{formatMoney(totalMonthProfit)}
                       </Text>
-                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalMonthProfit) }}>
-                        {formatPctRatio(totalMonthReturnPct)}
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
+                        {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
                       </Text>
                     </View>
                   </View>
