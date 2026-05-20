@@ -848,8 +848,7 @@ const submitContribution = useCallback(() => {
     { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
     { label: "Nueva valoración", icon: "calendar-outline" as const, route: "InvestmentValuation" },
     { label: "Nueva operación", icon: "swap-horizontal-outline" as const, route: "InvestmentOperation" },
-    { label: syncingMetadata ? "Actualizando composición..." : "Actualizar composición", icon: "refresh-outline" as const, onPress: syncAllMetadata },
-  ], [syncingMetadata]);
+  ], []);
 
   const TABS = [
     { key: "cartera",       label: "Cartera" },
@@ -873,7 +872,7 @@ const submitContribution = useCallback(() => {
             paddingVertical: 8, paddingHorizontal: 12, marginBottom: 4,
           }}
         >
-          <Ionicons name="trending-up-outline" size={15} color="white" />
+          <Ionicons name="add-outline" size={15} color="white" />
           <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
         </TouchableOpacity>
       </View>
@@ -1773,8 +1772,9 @@ const submitContribution = useCallback(() => {
         {rentView === "tabla" && snapshots.length > 0 && (() => {
           const years = [...rentYearRows].map((r) => r.year).sort((a, b) => b - a).slice(0, 4);
           const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-          const colW = years.length === 1 ? 170 : 122;
-          const rowLabelW = years.length === 1 ? 136 : 122;
+          const isSingleYear = years.length === 1;
+          const colW = isSingleYear ? 170 : 122;
+          const rowLabelW = isSingleYear ? 136 : 122;
           const cardStyle = {
             backgroundColor: t.surface,
             borderRadius: 24,
@@ -1836,12 +1836,26 @@ const submitContribution = useCallback(() => {
               </View>
 
               <View style={cardStyle}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View>
+                <ScrollView
+                  horizontal={!isSingleYear}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={isSingleYear ? { flexGrow: 1 } : undefined}
+                >
+                  <View style={isSingleYear ? { minWidth: "100%" } : undefined}>
                     <View style={{ flexDirection: "row", paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
                       <Text style={{ width: rowLabelW, fontSize: 12, fontWeight: "800", color: "#64748B" }}>Mes</Text>
                       {years.map((y) => (
-                        <Text key={`yh-${y}`} style={{ width: colW, fontSize: 13, fontWeight: "900", color: "#0F172A", textAlign: "center" }}>
+                        <Text
+                          key={`yh-${y}`}
+                          style={{
+                            width: isSingleYear ? undefined : colW,
+                            flex: isSingleYear ? 1 : undefined,
+                            fontSize: 13,
+                            fontWeight: "900",
+                            color: "#0F172A",
+                            textAlign: isSingleYear ? "right" : "center",
+                          }}
+                        >
                           {y}
                         </Text>
                       ))}
@@ -1856,7 +1870,14 @@ const submitContribution = useCallback(() => {
                         return (
                           <Text
                             key={`total-${y}`}
-                            style={{ width: colW, textAlign: "center", fontSize: 14, fontWeight: "900", color: cellColor(value) }}
+                            style={{
+                              width: isSingleYear ? undefined : colW,
+                              flex: isSingleYear ? 1 : undefined,
+                              textAlign: isSingleYear ? "right" : "center",
+                              fontSize: 14,
+                              fontWeight: "900",
+                              color: cellColor(value),
+                            }}
                           >
                             {formatCell(value, rentTableMetric, ccy)}
                           </Text>
@@ -1884,7 +1905,14 @@ const submitContribution = useCallback(() => {
                           return (
                             <Text
                               key={`cell-${y}-${mIdx}`}
-                              style={{ width: colW, textAlign: "center", fontSize: 13, fontWeight: "800", color: cellColor(value) }}
+                              style={{
+                                width: isSingleYear ? undefined : colW,
+                                flex: isSingleYear ? 1 : undefined,
+                                textAlign: isSingleYear ? "right" : "center",
+                                fontSize: 13,
+                                fontWeight: "800",
+                                color: cellColor(value),
+                              }}
                             >
                               {formatCell(value, rentTableMetric, ccy)}
                             </Text>
@@ -2160,5 +2188,3 @@ const submitContribution = useCallback(() => {
     </SafeAreaView>
   );
 }
-
-

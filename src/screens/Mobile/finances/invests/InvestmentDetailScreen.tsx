@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Platform,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -24,7 +25,14 @@ import { translateCountry, translateSector } from "../../../../utils/investmentL
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
 type RangeKey = "1m" | "3m" | "6m" | "1y" | "all";
-type InvestmentOperationType = "buy" | "sell" | "deposit" | "withdraw" | "swap";
+type InvestmentOperationType =
+  | "buy"
+  | "sell"
+  | "swap"
+  | "transfer_in"
+  | "transfer_out"
+  | "swap_in"
+  | "swap_out";
 
 interface AssetFromApi {
   id: number;
@@ -205,9 +213,12 @@ function opLabel(t: InvestmentOperationType) {
   switch (t) {
     case "buy":      return "Compra";
     case "sell":     return "Venta";
-    case "deposit":  return "Aportación";
-    case "withdraw": return "Retirada";
-    case "swap":     return "Swap";
+    case "transfer_in": return "Aportación";
+    case "transfer_out": return "Retirada";
+    case "swap":
+    case "swap_in":
+    case "swap_out":
+      return "Swap";
     default:         return "Operación";
   }
 }
@@ -219,14 +230,20 @@ function opIso(op: InvestmentOperationFromApi) {
 function opSignedAmount(op: InvestmentOperationFromApi) {
   const a = Math.abs(Number(op.amount || 0));
   const fee = Math.abs(Number(op.fee || 0));
-  const sign = op.type === "sell" || op.type === "withdraw" ? -1 : 1;
+  const sign =
+    op.type === "sell" || op.type === "transfer_out"
+      ? -1
+      : op.type === "swap" && Number(op.amount || 0) < 0
+      ? -1
+      : 1;
   return sign * a - fee;
 }
 
 type Tone = "neutral" | "success" | "danger";
 function opTone(t?: string | null): Tone {
-  if (t === "buy" || t === "deposit")   return "success";
-  if (t === "sell" || t === "withdraw") return "danger";
+  if (t === "buy" || t === "transfer_in" || t === "swap_in") return "success";
+  if (t === "sell" || t === "transfer_out" || t === "swap_out") return "danger";
+  if (t === "swap") return "neutral";
   return "neutral";
 }
 
@@ -390,6 +407,22 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   }, [webRefreshing, onRefresh]);
 
   const handleDeleteValuation = (id: number) => {
+    if (Platform.OS === "web") {
+      const ok = typeof window !== "undefined" ? window.confirm("¿Seguro que quieres eliminar esta valoración?") : false;
+      if (!ok) return;
+      (async () => {
+        try {
+          await api.delete(`/investments/valuations/${id}`);
+          markInvestmentsDirty();
+          setActionTarget(null);
+          fetchAll();
+        } catch {
+          if (typeof window !== "undefined") window.alert("No se pudo eliminar la valoración.");
+        }
+      })();
+      return;
+    }
+
     Alert.alert("Eliminar valoración", "¿Seguro que quieres eliminar esta valoración?", [
       { text: "Cancelar", style: "cancel" },
       {
@@ -410,6 +443,22 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   };
 
   const handleDeleteSwap = (swapGroupId: string) => {
+    if (Platform.OS === "web") {
+      const ok = typeof window !== "undefined" ? window.confirm("¿Seguro que quieres eliminar este swap?") : false;
+      if (!ok) return;
+      (async () => {
+        try {
+          await api.delete(`/investments/swaps/${swapGroupId}`);
+          markInvestmentsDirty();
+          setActionTarget(null);
+          fetchAll();
+        } catch {
+          if (typeof window !== "undefined") window.alert("No se pudo eliminar el swap.");
+        }
+      })();
+      return;
+    }
+
     Alert.alert("Eliminar swap", "¿Seguro que quieres eliminar este swap?", [
       { text: "Cancelar", style: "cancel" },
       {
@@ -553,7 +602,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             <Ionicons name="chevron-back" size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-            {asset ? (asset.abbreviation?.trim() || asset.name) : ""}
+            Inversión
           </Text>
           {asset && (
             <>
@@ -662,7 +711,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                       style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 1 }}
                       numberOfLines={2}
                     >
-                      {asset.name}
+                      {asset.abbreviation?.trim() || asset.name}
                     </Text>
                     <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontWeight: "600" }} numberOfLines={1}>
                       Última: {stats.last}
@@ -933,6 +982,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               }}
             >
               {[
+                { label: "Nombre completo", value: asset.name, icon: "text-outline" as const, fullWidth: true },
                 { label: "Tipo", value: typeLabel(asset.type), icon: "pricetag-outline" as const },
                 { label: "Riesgo", value: riskLabel(asset.riskType), icon: riskIcon(asset.riskType) },
                 {
@@ -949,30 +999,52 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 <View
                   key={row.label}
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                    flexDirection: row.fullWidth ? "column" : "row",
+                    alignItems: row.fullWidth ? "flex-start" : "center",
+                    justifyContent: row.fullWidth ? "flex-start" : "space-between",
                     paddingHorizontal: 12,
                     paddingVertical: 11,
                     borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
                     borderBottomColor: "#F1F5F9",
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
-                    <View
-                      style={{
-                        width: 26, height: 26, borderRadius: 8,
-                        backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB",
-                        alignItems: "center", justifyContent: "center", marginRight: 8,
-                      }}
-                    >
-                      <Ionicons name={row.icon} size={13} color="#64748B" />
-                    </View>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>{row.label}</Text>
-                  </View>
-                  <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-                    {row.value}
-                  </Text>
+                  {row.fullWidth ? (
+                    <>
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                        <View
+                          style={{
+                            width: 26, height: 26, borderRadius: 8,
+                            backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB",
+                            alignItems: "center", justifyContent: "center", marginRight: 8,
+                          }}
+                        >
+                          <Ionicons name={row.icon} size={13} color="#64748B" />
+                        </View>
+                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>{row.label}</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A", lineHeight: 18 }}>
+                        {row.value}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
+                        <View
+                          style={{
+                            width: 26, height: 26, borderRadius: 8,
+                            backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB",
+                            alignItems: "center", justifyContent: "center", marginRight: 8,
+                          }}
+                        >
+                          <Ionicons name={row.icon} size={13} color="#64748B" />
+                        </View>
+                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>{row.label}</Text>
+                      </View>
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+                      {row.value}
+                    </Text>
+                    </>
+                  )}
                 </View>
               ))}
             </View>
@@ -1123,11 +1195,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     const tm = toneMeta(tone);
                     const isSwap = !!op.swapGroupId;
                     const icon =
-                      op.type === "buy"      ? "add-circle-outline"    :
-                      op.type === "sell"     ? "remove-circle-outline" :
-                      op.type === "deposit"  ? "download-outline"      :
-                      op.type === "withdraw" ? "log-out-outline"       :
-                                               "swap-horizontal-outline";
+                      op.type === "buy" || op.type === "transfer_in"
+                        ? "add-circle-outline"
+                        : op.type === "sell" || op.type === "transfer_out"
+                        ? "remove-circle-outline"
+                        : "swap-horizontal-outline";
 
                     return (
                       <TouchableOpacity
@@ -1328,14 +1400,15 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       <Modal
         visible={actionTarget !== null}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setActionTarget(null)}
       >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}
-          activeOpacity={1}
-          onPress={() => setActionTarget(null)}
-        >
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <TouchableOpacity
+            style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)" }}
+            activeOpacity={1}
+            onPress={() => setActionTarget(null)}
+          />
           <View
             style={{
               backgroundColor: "white",
@@ -1433,7 +1506,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );

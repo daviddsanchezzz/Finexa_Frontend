@@ -11,10 +11,11 @@ interface Props {
   onOpenDateModal?: () => void;
   dateLabel?: string;
 
-  showProfile?: boolean;   // Muestra icono de perfil (default true)
-  showBack?: boolean;      // Muestra flecha atrás (default false)
-  title?: string;          // Texto del header
-  showDatePicker?: boolean; // Muestra selector de fecha (default true)
+  showProfile?: boolean;
+  showBack?: boolean;
+  title?: string;
+  showDatePicker?: boolean;
+  rightElement?: React.ReactNode;
 }
 
 export default function AppHeader({
@@ -24,6 +25,7 @@ export default function AppHeader({
   showBack = false,
   showDatePicker = true,
   title,
+  rightElement,
 }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -87,7 +89,7 @@ export default function AppHeader({
       {/* ------------------------------------- */}
       {/*      DERECHA: DATE PICKER             */}
       {/* ------------------------------------- */}
-      {showDatePicker && (
+      {rightElement ? rightElement : showDatePicker && (
         <TouchableOpacity
           onPress={onOpenDateModal}
           activeOpacity={0.75}

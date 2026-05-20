@@ -18,79 +18,149 @@ import { colors } from "../../../../theme/theme";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
-type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
 interface Asset {
   id: number;
   name: string;
+  abbreviation?: string | null;
   identificator?: string | null;
   type: InvestmentAssetType;
   currency: string;
 }
 
+type ValuationFromApi = {
+  id: number;
+  assetId?: number;
+  investmentAssetId?: number;
+  date?: string | null;
+  value?: number | string | null;
+  createdAt?: string | null;
+};
+
 function parseAmount(input: string): number | null {
   const raw = input.trim();
   if (!raw) return null;
-
   const normalized = raw.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
   const n = Number(normalized);
   if (Number.isNaN(n)) return null;
   return n;
 }
 
+function toInputAmount(n: number): string {
+  return n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function InvestmentValuationScreen({ navigation, route }: any) {
   const preselectedAssetId: number | undefined = route?.params?.assetId;
-
-  // ✅ cuando viene assetId por params, bloqueamos selector y solo mostramos ese
+  const editingValuationId: number | undefined = route?.params?.editingValuationId;
   const isLockedToAsset = Number.isFinite(Number(preselectedAssetId));
+  const isEditing = Number.isFinite(Number(editingValuationId));
 
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [selectedAssetId, setSelectedAssetId] = useState<number | null>(
-    preselectedAssetId ?? null
-  );
+  const [selectedAssetId, setSelectedAssetId] = useState<number | null>(preselectedAssetId ?? null);
+  const [valueText, setValueText] = useState<string>("");
+  const [multiValues, setMultiValues] = useState<Record<number, string>>({});
 
-  // ✅ fecha normal (día) + selector estilo AddScreen
   const [date, setDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const [valueText, setValueText] = useState<string>("");
-
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const visibleAssets = useMemo(() => {
+    if (!isLockedToAsset) return assets;
+    return assets.filter((a) => Number(a.id) === Number(preselectedAssetId));
+  }, [assets, isLockedToAsset, preselectedAssetId]);
 
   const selectedAsset = useMemo(
     () => assets.find((a) => a.id === selectedAssetId) || null,
     [assets, selectedAssetId]
   );
 
-  // ✅ si viene assetId, solo renderizamos ese asset
-  const visibleAssets = useMemo(() => {
-    if (!isLockedToAsset) return assets;
-    return assets.filter((a) => Number(a.id) === Number(preselectedAssetId));
-  }, [assets, isLockedToAsset, preselectedAssetId]);
-
   const parsedValue = useMemo(() => parseAmount(valueText), [valueText]);
 
+  const invalidMultiAssetIds = useMemo(() => {
+    const ids: number[] = [];
+    Object.entries(multiValues).forEach(([k, v]) => {
+      if (!v.trim()) return;
+      const parsed = parseAmount(v);
+      if (parsed === null || parsed < 0) ids.push(Number(k));
+    });
+    return ids;
+  }, [multiValues]);
+
+  const selectedMultiRows = useMemo(() => {
+    return visibleAssets
+      .map((a) => {
+        const raw = multiValues[a.id] ?? "";
+        const parsed = parseAmount(raw);
+        return { asset: a, raw, parsed };
+      })
+      .filter((r) => r.raw.trim() && r.parsed !== null && r.parsed >= 0);
+  }, [visibleAssets, multiValues]);
+
   const canSave = useMemo(() => {
-    if (!selectedAssetId) return false;
     if (!date) return false;
-    if (parsedValue === null) return false;
-    if (parsedValue < 0) return false;
-
-    // ✅ si está bloqueado, aseguramos que el selectedAssetId sea el preselected
-    if (isLockedToAsset && Number(selectedAssetId) !== Number(preselectedAssetId)) return false;
-
-    return true;
-  }, [selectedAssetId, date, parsedValue, isLockedToAsset, preselectedAssetId]);
+    if (isLockedToAsset) {
+      if (!selectedAssetId) return false;
+      if (parsedValue === null || parsedValue < 0) return false;
+      if (Number(selectedAssetId) !== Number(preselectedAssetId)) return false;
+      return true;
+    }
+    if (invalidMultiAssetIds.length > 0) return false;
+    return selectedMultiRows.length > 0;
+  }, [
+    date,
+    isLockedToAsset,
+    selectedAssetId,
+    parsedValue,
+    preselectedAssetId,
+    invalidMultiAssetIds.length,
+    selectedMultiRows.length,
+  ]);
 
   const fetchAssets = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get("/investments/assets");
+      const [assetsRes, valuationsRes, editingRes] = await Promise.all([
+        api.get("/investments/assets"),
+        api.get("/investments/valuations"),
+        isEditing ? api.get(`/investments/valuations/${editingValuationId}`) : Promise.resolve({ data: null }),
+      ]);
+
+      const rawVals = Array.isArray(valuationsRes.data)
+        ? valuationsRes.data
+        : Array.isArray(valuationsRes.data?.valuations)
+          ? valuationsRes.data.valuations
+          : [];
+      const valuations: ValuationFromApi[] = rawVals;
+
+      const latestByAsset = new Map<number, { ts: number; value: number }>();
+      valuations.forEach((v) => {
+        const id = Number(v.assetId ?? v.investmentAssetId);
+        if (!Number.isFinite(id) || id <= 0) return;
+        const num = Number(v.value ?? NaN);
+        if (!Number.isFinite(num)) return;
+        const ts = new Date(v.date || v.createdAt || 0).getTime() || 0;
+        const prev = latestByAsset.get(id);
+        if (!prev || ts >= prev.ts) {
+          latestByAsset.set(id, { ts, value: num });
+        }
+      });
+
+      const res = assetsRes;
       const list: Asset[] = Array.isArray(res.data) ? res.data : [];
       setAssets(list);
 
-      // ✅ si viene assetId, forzamos selección a ese
+      if (!isLockedToAsset) {
+        const defaults: Record<number, string> = {};
+        list.forEach((a) => {
+          const last = latestByAsset.get(a.id);
+          if (last) defaults[a.id] = toInputAmount(last.value);
+        });
+        setMultiValues(defaults);
+      }
+
       if (isLockedToAsset) {
         const exists = list.some((a) => Number(a.id) === Number(preselectedAssetId));
         if (!exists) {
@@ -99,21 +169,27 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
           return;
         }
         setSelectedAssetId(Number(preselectedAssetId));
-        return;
-      }
-
-      // ✅ si no viene assetId, comportamiento anterior
-      if (!selectedAssetId && list.length > 0) {
+        if (isEditing && editingRes.data) {
+          const ev = editingRes.data as ValuationFromApi;
+          const v = Number(ev.value ?? NaN);
+          if (Number.isFinite(v)) setValueText(toInputAmount(v));
+          const d = ev.date ? new Date(ev.date) : null;
+          if (d && !Number.isNaN(d.getTime())) setDate(d);
+        } else {
+          const singleLatest = latestByAsset.get(Number(preselectedAssetId));
+          if (singleLatest) setValueText(toInputAmount(singleLatest.value));
+        }
+      } else if (!selectedAssetId && list.length > 0) {
         setSelectedAssetId(list[0].id);
       }
     } catch (e) {
-      console.error("❌ Error fetching assets:", e);
+      console.error("Error fetching assets:", e);
       Alert.alert("Error", "No se pudieron cargar tus inversiones.");
       navigation.goBack();
     } finally {
       setLoading(false);
     }
-  }, [navigation, selectedAssetId, isLockedToAsset, preselectedAssetId]);
+  }, [navigation, selectedAssetId, isLockedToAsset, preselectedAssetId, isEditing, editingValuationId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -122,37 +198,58 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
   );
 
   const onSave = async () => {
-    if (!selectedAssetId) return;
-
-    if (isLockedToAsset && Number(selectedAssetId) !== Number(preselectedAssetId)) {
-      Alert.alert("Error", "El activo seleccionado no coincide con el activo preseleccionado.");
-      return;
-    }
-
-    const v = parseAmount(valueText);
-    if (v === null || v < 0) {
-      Alert.alert("Valor inválido", "Introduce un valor válido (ej: 3100,50).");
-      return;
-    }
-
-    // ✅ recomendado: fijar a mediodía para evitar problemas de timezone
     const safeDate = new Date(date);
     safeDate.setHours(12, 0, 0, 0);
 
     try {
       setSaving(true);
 
-      await api.post("/investments/valuations", {
-        assetId: selectedAssetId,
-        date: safeDate.toISOString(),
-        value: v,
-        currency: selectedAsset?.currency ?? "EUR",
-      });
+      if (isLockedToAsset) {
+        if (!selectedAssetId) return;
+        const v = parseAmount(valueText);
+        if (v === null || v < 0) {
+          Alert.alert("Valor inválido", "Introduce un valor válido (ej: 3100,50).");
+          return;
+        }
+        if (isEditing && editingValuationId) {
+          await api.patch(`/investments/valuations/${editingValuationId}`, {
+            assetId: selectedAssetId,
+            date: safeDate.toISOString(),
+            value: v,
+            currency: selectedAsset?.currency ?? "EUR",
+          });
+        } else {
+          await api.post("/investments/valuations", {
+            assetId: selectedAssetId,
+            date: safeDate.toISOString(),
+            value: v,
+            currency: selectedAsset?.currency ?? "EUR",
+          });
+        }
+      } else {
+        if (invalidMultiAssetIds.length > 0) {
+          Alert.alert("Valores inválidos", "Revisa los importes marcados en rojo.");
+          return;
+        }
+        if (!selectedMultiRows.length) {
+          Alert.alert("Sin datos", "Introduce al menos una valoración.");
+          return;
+        }
+
+        await api.post("/investments/valuations/batch", {
+          date: safeDate.toISOString(),
+          items: selectedMultiRows.map((row) => ({
+            assetId: row.asset.id,
+            value: Number(row.parsed),
+            currency: row.asset.currency || "EUR",
+          })),
+        });
+      }
 
       markInvestmentsDirty();
       navigation.goBack();
     } catch (e: any) {
-      console.error("❌ Error saving valuation:", e);
+      console.error("Error saving valuation:", e);
       const msg = e?.response?.data?.message || "No se pudo guardar la valoración.";
       Alert.alert("Error", String(msg));
     } finally {
@@ -163,13 +260,13 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="px-5 pb-3">
-        <AppHeader title="Añadir valoración" showProfile={false} showDatePicker={false} showBack={true} />
+        <AppHeader title={isEditing ? "Editar valoración" : "Añadir valoración"} showProfile={false} showDatePicker={false} showBack />
       </View>
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="text-gray-400 mt-3 text-sm">Cargando…</Text>
+          <Text className="text-gray-400 mt-3 text-sm">Cargando...</Text>
         </View>
       ) : (
         <ScrollView
@@ -177,7 +274,6 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 30 }}
         >
-          {/* HERO */}
           <View
             style={{
               backgroundColor: colors.primary,
@@ -203,17 +299,17 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
               >
                 <Ionicons name="calendar-outline" size={18} color="white" />
               </View>
-
               <View style={{ marginLeft: 10, flex: 1 }}>
                 <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>Valoración</Text>
                 <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
-                  Guarda el valor total de la inversión en una fecha concreta.
+                  {isLockedToAsset
+                    ? "Guarda el valor total de esta inversión para una fecha concreta."
+                    : "Guarda valoraciones de varios activos a la vez en una sola fecha."}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* FORM */}
           <View
             className="rounded-3xl mb-3"
             style={{
@@ -225,87 +321,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
               shadowOffset: { width: 0, height: 2 },
             }}
           >
-            {/* ASSET SELECT */}
-            <Text className="text-[11px] text-gray-400">Inversión</Text>
-
-            {assets.length === 0 ? (
-              <Text className="text-gray-400 mt-3 text-sm">No tienes inversiones aún. Crea una primero.</Text>
-            ) : visibleAssets.length === 0 ? (
-              <Text className="text-gray-400 mt-3 text-sm">
-                No se encontró el activo preseleccionado.
-              </Text>
-            ) : (
-              <View className="mt-2" style={{ gap: 8 }}>
-                {visibleAssets.map((a) => {
-                  const active = a.id === selectedAssetId;
-
-                  return (
-                    <TouchableOpacity
-                      key={a.id}
-                      onPress={() => {
-                        if (isLockedToAsset) return; // ✅ bloqueado
-                        setSelectedAssetId(a.id);
-                      }}
-                      activeOpacity={isLockedToAsset ? 1 : 0.9}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                        borderRadius: 16,
-                        backgroundColor: active ? "#EEF2FF" : "#F9FAFB",
-                        borderWidth: 1,
-                        borderColor: active ? colors.primary : "#E5E7EB",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        opacity: isLockedToAsset ? 1 : 1,
-                      }}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                        <View
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 14,
-                            backgroundColor: "white",
-                            borderWidth: 1,
-                            borderColor: "#E5E7EB",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            marginRight: 10,
-                          }}
-                        >
-                          <Ionicons
-                            name="layers-outline"
-                            size={16}
-                            color={active ? colors.primary : "#64748B"}
-                          />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
-                            {a.name}
-                            {a.identificator ? ` · ${a.identificator}` : ""}
-                          </Text>
-                          <Text style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>
-                            Divisa: {a.currency}
-                            {isLockedToAsset ? " · (fijado)" : ""}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {active ? (
-                        <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                      ) : (
-                        <Ionicons name="ellipse-outline" size={18} color="#CBD5E1" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* FECHA */}
-            <Text className="text-[11px] text-gray-400 mt-4">Fecha</Text>
+            <Text className="text-[11px] text-gray-400">Fecha</Text>
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
               className="py-2 flex-row justify-between items-center border-b border-gray-200 mb-2"
@@ -328,39 +344,128 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
               onCancel={() => setShowDatePicker(false)}
             />
 
-            {/* VALUE */}
-            <Text className="text-[11px] text-gray-400 mt-4">Valor total</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="cash-outline" size={16} color="#64748B" />
-              <TextInput
-                value={valueText}
-                onChangeText={setValueText}
-                placeholder="Ej: 3100,50"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-                style={{ marginLeft: 10, flex: 1, color: "#111827", fontWeight: "700" }}
-              />
-              {valueText.trim() && parsedValue === null ? (
-                <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>inválido</Text>
-              ) : null}
-            </View>
+            {isLockedToAsset ? (
+              <>
+                <Text className="text-[11px] text-gray-400 mt-4">Inversión</Text>
+                {visibleAssets[0] ? (
+                  <View
+                    style={{
+                      marginTop: 8,
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 16,
+                      backgroundColor: "#EEF2FF",
+                      borderWidth: 1,
+                      borderColor: colors.primary,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#111827" }} numberOfLines={1}>
+                      {visibleAssets[0].abbreviation?.trim() || visibleAssets[0].name}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>
+                      Divisa: {visibleAssets[0].currency}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text className="text-gray-400 mt-3 text-sm">No se encontró el activo preseleccionado.</Text>
+                )}
+
+                <Text className="text-[11px] text-gray-400 mt-4">Valor total</Text>
+                <View
+                  className="flex-row items-center mt-1 rounded-2xl"
+                  style={{
+                    backgroundColor: "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                  }}
+                >
+                  <Ionicons name="cash-outline" size={16} color="#64748B" />
+                  <TextInput
+                    value={valueText}
+                    onChangeText={setValueText}
+                    placeholder="Ej: 3100,50"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    style={{ marginLeft: 10, flex: 1, color: "#111827", fontWeight: "700" }}
+                  />
+                  {valueText.trim() && parsedValue === null ? (
+                    <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>inválido</Text>
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={{ marginTop: 14 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      paddingBottom: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#E5E7EB",
+                    }}
+                  >
+                    <Text style={{ flex: 1.5, fontSize: 11, fontWeight: "800", color: "#64748B" }}>Activo</Text>
+                    <Text style={{ width: 56, fontSize: 11, fontWeight: "800", color: "#64748B", textAlign: "center" }}>Divisa</Text>
+                    <Text style={{ width: 110, fontSize: 11, fontWeight: "800", color: "#64748B", textAlign: "right" }}>Valor</Text>
+                  </View>
+
+                  {visibleAssets.map((a, idx) => {
+                    const raw = multiValues[a.id] ?? "";
+                    const parsed = parseAmount(raw);
+                    const invalid = raw.trim().length > 0 && (parsed === null || parsed < 0);
+                    return (
+                      <View
+                        key={a.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingVertical: 10,
+                          borderBottomWidth: idx === visibleAssets.length - 1 ? 0 : 1,
+                          borderBottomColor: "#F1F5F9",
+                        }}
+                      >
+                        <Text style={{ flex: 1.5, fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                          {a.abbreviation?.trim() || a.name}
+                        </Text>
+                        <Text style={{ width: 56, fontSize: 12, fontWeight: "700", color: "#64748B", textAlign: "center" }}>
+                          {a.currency}
+                        </Text>
+                        <View style={{ width: 110, alignItems: "flex-end" }}>
+                          <TextInput
+                            value={raw}
+                            onChangeText={(txt) => setMultiValues((prev) => ({ ...prev, [a.id]: txt }))}
+                            placeholder="-"
+                            placeholderTextColor="#9CA3AF"
+                            keyboardType="numeric"
+                            style={{
+                              width: 110,
+                              textAlign: "right",
+                              fontSize: 12,
+                              fontWeight: "800",
+                              color: invalid ? "#DC2626" : "#0F172A",
+                              backgroundColor: "#F8FAFC",
+                              borderRadius: 10,
+                              borderWidth: 1,
+                              borderColor: invalid ? "#FCA5A5" : "#E5E7EB",
+                              paddingHorizontal: 10,
+                              paddingVertical: 7,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
             <Text className="text-[11px] text-gray-400 mt-3 leading-4">
-              Consejo: mete el valor total que te muestra el broker/app para esa inversión en la fecha en la que haces la
-              valoración. Si repites la misma fecha, se sobreescribe (upsert).
+              Consejo: usa el valor total que te muestra el broker para la fecha elegida. Si repites la misma fecha y activo, se sobreescribe.
             </Text>
           </View>
 
-          {/* ACTIONS */}
           <TouchableOpacity
             onPress={onSave}
             disabled={!canSave || saving || visibleAssets.length === 0}
@@ -383,7 +488,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
               className="text-sm font-semibold ml-2"
               style={{ color: !canSave || saving || visibleAssets.length === 0 ? "#64748B" : "white" }}
             >
-              Guardar valor
+              {isLockedToAsset ? "Guardar valor" : `Guardar ${selectedMultiRows.length || ""} valoración${selectedMultiRows.length === 1 ? "" : "es"}`.trim()}
             </Text>
           </TouchableOpacity>
         </ScrollView>
