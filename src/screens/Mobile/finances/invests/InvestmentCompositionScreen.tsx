@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import {
   numToInputStr,
   translateCountry,
@@ -563,6 +564,7 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
         sectors:  Object.entries(sectorsJson).map(([sector, pct]) => ({ sector, pct })),
         holdings: topHoldingsJson,
       });
+      markInvestmentsDirty();
       navigation.goBack();
     } catch (e) {
       console.error("❌ Error saving composition:", e);

@@ -16,6 +16,7 @@ import AppHeader from "../../../../components/AppHeader";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
+import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
@@ -148,6 +149,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
         currency: selectedAsset?.currency ?? "EUR",
       });
 
+      markInvestmentsDirty();
       navigation.goBack();
     } catch (e: any) {
       console.error("❌ Error saving valuation:", e);

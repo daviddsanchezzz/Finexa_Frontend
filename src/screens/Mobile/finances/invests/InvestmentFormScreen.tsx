@@ -15,6 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../../components/AppHeader";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income"; // ✅ solo dos valores
@@ -249,6 +250,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
         await api.post(`/investments/assets`, payload);
       }
 
+      markInvestmentsDirty();
       navigation.goBack();
     } catch (e: any) {
       console.error("❌ Error saving asset:", e);
@@ -276,6 +278,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             try {
               setSaving(true);
               await api.delete(`/investments/assets/${assetId}`);
+              markInvestmentsDirty();
               navigation.goBack();
             } catch (e) {
               console.error("❌ Error deleting asset:", e);
@@ -299,6 +302,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
     try {
       setSaving(true);
       await api.patch(`/investments/assets/${assetId}/archive`);
+      markInvestmentsDirty();
       navigation.goBack();
     } catch (e: any) {
       const msg =
@@ -324,6 +328,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
     try {
       setSaving(true);
       await api.patch(`/investments/assets/${assetId}/unarchive`);
+      markInvestmentsDirty();
       navigation.goBack();
     } catch (e: any) {
       const msg = e?.response?.data?.message || "No se pudo desarchivar la inversión.";

@@ -1,15 +1,26 @@
-import React, { useCallback, useState } from "react";
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from "react-native";
+ï»¿import React, { useCallback, useState } from "react";
+import {
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
 type TargetItem = {
   assetId: number;
   assetName: string;
+  assetAbbreviation?: string | null;
   assetType: InvestmentAssetType;
   currentValue: number;
   actualPct: number;
@@ -41,7 +52,7 @@ export default function InvestmentTargetAllocationScreen({ navigation }: any) {
       });
       setTargetInputs(next);
     } catch {
-      Alert.alert("Error", "No se pudo cargar la distribución objetivo.");
+      Alert.alert("Error", "No se pudo cargar la distribucion objetivo.");
     } finally {
       setLoading(false);
     }
@@ -66,17 +77,18 @@ export default function InvestmentTargetAllocationScreen({ navigation }: any) {
     });
 
     if (Math.abs(sum - 100) > 0.01) {
-      Alert.alert("Distribución objetivo", `La suma debe ser 100%. Ahora: ${sum.toFixed(2)}%`);
+      Alert.alert("Distribucion objetivo", `La suma debe ser 100%. Ahora: ${sum.toFixed(2)}%`);
       return;
     }
 
     try {
       setSaving(true);
       await api.put("/investments/targets", { items });
-      Alert.alert("Guardado", "Distribución objetivo actualizada.");
+      markInvestmentsDirty();
+      Alert.alert("Guardado", "Distribucion objetivo actualizada.");
       navigation.goBack();
     } catch {
-      Alert.alert("Error", "No se pudo guardar la distribución objetivo.");
+      Alert.alert("Error", "No se pudo guardar la distribucion objetivo.");
     } finally {
       setSaving(false);
     }
@@ -88,7 +100,7 @@ export default function InvestmentTargetAllocationScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 8 }}>
           <Ionicons name="chevron-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: "#0F172A" }}>Distribución objetivo</Text>
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: "#0F172A" }}>Distribucion objetivo</Text>
       </View>
 
       {loading ? (
@@ -118,14 +130,18 @@ export default function InvestmentTargetAllocationScreen({ navigation }: any) {
                 }}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>{it.assetName}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                    {it.assetAbbreviation?.trim() || it.assetName}
+                  </Text>
                   <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
                     Actual {Number(it.actualPct || 0).toFixed(2).replace(".", ",")}%
                   </Text>
                 </View>
                 <TextInput
                   value={targetInputs[it.assetId] ?? "0,00"}
-                  onChangeText={(v) => setTargetInputs((prev) => ({ ...prev, [it.assetId]: v.replace(/[^0-9,.-]/g, "") }))}
+                  onChangeText={(v) =>
+                    setTargetInputs((prev) => ({ ...prev, [it.assetId]: v.replace(/[^0-9,.-]/g, "") }))
+                  }
                   keyboardType="decimal-pad"
                   style={{
                     width: 90,

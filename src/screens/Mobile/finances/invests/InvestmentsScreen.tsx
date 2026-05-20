@@ -1,4 +1,4 @@
-// src/screens/Investments/InvestmentsHomeScreen.tsx
+﻿// src/screens/Investments/InvestmentsHomeScreen.tsx
 import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -23,6 +24,7 @@ import api from "../../../../api/api";
 import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/InvestmentsScreenSkeleton";
 import DonutPro, { DonutSlice } from "../../../../components/DonutPro";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
+import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../../../../utils/investmentsInvalidation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
@@ -77,6 +79,7 @@ type ExposureResponse = {
 type TargetItem = {
   assetId: number;
   assetName: string;
+  assetAbbreviation?: string | null;
   assetType: InvestmentAssetType;
   currentValue: number;
   actualPct: number;
@@ -202,6 +205,17 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [exposure, setExposure] = useState<ExposureResponse | null>(null);
   const [otrosExpanded, setOtrosExpanded] = useState(false);
   const [targets, setTargets] = useState<TargetsResponse | null>(null);
+  const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getInvestmentsDataVersion());
+  const [planLoading, setPlanLoading] = useState(false);
+  const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
+  const [contributionInputOpen, setContributionInputOpen] = useState(false);
+  const [contributionResultOpen, setContributionResultOpen] = useState(false);
+  const [contributionAmountText, setContributionAmountText] = useState("");
+  const [rebalancePlan, setRebalancePlan] = useState<{
+    sells: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
+    buys: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
+  } | null>(null);
+  const [contributionPlan, setContributionPlan] = useState<{ amount: number; rows: Array<{ assetName: string; amount: number }> } | null>(null);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
@@ -245,7 +259,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         }))
         .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
       setSnapshots(mapped);
-      // Inicializar Año seleccionado al Año má¡s reciente
+      // Inicializar Año seleccionado al Año más reciente
       if (mapped.length > 0) {
         const latestYear = new Date(mapped[0].monthStart).getUTCFullYear();
         setRentSelectedYear(latestYear);
@@ -285,21 +299,75 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const currency = useMemo(() => "EUR", []);
+
+  const handleRebalance = useCallback(async () => {
+  try {
+    setPlanLoading(true);
+    const res = await api.post("/investments/rebalance/preview", { minOperation: 1 });
+    const sells = (res.data?.sells || []) as Array<{ assetName: string; amount: number }>;
+    const buys = (res.data?.buys || []) as Array<{ assetName: string; amount: number }>;
+    setRebalancePlan({ sells, buys });
+    setRebalanceModalOpen(true);
+  } catch {
+    Alert.alert("Error", "No se pudo calcular el balanceo.");
+  } finally {
+    setPlanLoading(false);
+  }
+}, [currency]);
+
+const runContribution = useCallback(async (amount: number) => {
+  try {
+    setPlanLoading(true);
+    const res = await api.post("/investments/contribution/preview", { amount, minOperation: 1 });
+    const rows = (res.data?.allocations || []) as Array<{ assetName: string; amount: number }>;
+    setContributionPlan({ amount, rows });
+    setContributionResultOpen(true);
+  } catch {
+    Alert.alert("Error", "No se pudo calcular la aportacion.");
+  } finally {
+    setPlanLoading(false);
+  }
+}, [currency]);
+
+const handleContribution = useCallback(() => {
+  setContributionAmountText("");
+  setContributionInputOpen(true);
+}, []);
+
+const submitContribution = useCallback(() => {
+  const amount = Number((contributionAmountText || "").replace(",", "."));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    Alert.alert("Aportar", "Introduce una cantidad valida.");
+    return;
+  }
+  setContributionInputOpen(false);
+  runContribution(amount);
+}, [contributionAmountText, runContribution]);
+
   const hasFetched = useRef(false);
+  const lastFetchedInvalidationVersion = useRef<number>(-1);
+  useEffect(() => {
+    return subscribeInvestmentsInvalidation((v) => setInvalidationVersion(v));
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      if (!hasFetched.current) {
+      if (!hasFetched.current || lastFetchedInvalidationVersion.current !== invalidationVersion) {
         hasFetched.current = true;
-        fetchSummary();
-        fetchSnapshots();
-        fetchArchived();
-        fetchExposure();
-        fetchTargets();
+        lastFetchedInvalidationVersion.current = invalidationVersion;
+        // Fase 1 (crítica): solo summary para primer paint rápido
+        fetchSummary()
+          .finally(() => {
+            // Fase 2 (background): datos secundarios
+            fetchSnapshots();
+            fetchArchived();
+            fetchExposure();
+            fetchTargets();
+          });
       }
-    }, [])
+    }, [invalidationVersion])
   );
-
-  const currency = useMemo(() => "EUR", []);
 
   const hero = useMemo(() => {
     const totalInvested = summary?.totalInvested || 0;
@@ -382,7 +450,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     };
     const typeNames: Record<string, string> = {
       crypto: "Crypto",
-      stock: "Acciónes",
+      stock: "Acciones",
       etf: "ETFs",
       fund: "Fondos",
       cash: "Liquidez",
@@ -714,7 +782,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <View className="px-5 pb-3" style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={{ flex: 1 }}>
           <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={false} />
@@ -733,7 +801,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* ── Loading / Error states ── */}
+      {/* -- Loading / Error states -- */}
       {loading && <InvestmentsScreenSkeleton />}
 
       {!loading && fetchError && (
@@ -776,7 +844,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           onTouchEnd={handleWebTouchEnd}
         >
 
-          {/* ── Hero (fijo, no scrollea) ── */}
+          {/* -- Hero (fijo, no scrollea) -- */}
           <View style={{ paddingHorizontal: 20 }}>
             <View
               style={{
@@ -842,7 +910,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* ── Tabs ── */}
+          {/* -- Tabs -- */}
           <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginTop: 12 }}>
             {TABS.map(({ key, label }) => {
               const active = mainTab === key;
@@ -866,7 +934,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             })}
           </View>
 
-          {/* ── Contenido del tab ── */}
+          {/* -- Contenido del tab -- */}
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
@@ -875,7 +943,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
             refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
-        {/* ══ TAB: CARTERA ══ */}
+        {/* == TAB: CARTERA == */}
         {mainTab === "cartera" && (
           <>
         <View className="px-5">
@@ -1037,7 +1105,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* ══ TAB: DISTRIBUCIÓN ══ */}
+        {/* == TAB: DISTRIBUCIÓN == */}
         {mainTab === "distribucion" && (
           <>
         {assets.length > 0 && allocation.slices.length > 0 && (
@@ -1243,7 +1311,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Distribución deseada</Text>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Distribucion deseada</Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("InvestmentTargetAllocation")}
                   activeOpacity={0.85}
@@ -1273,10 +1341,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
-                        {it.assetName}
-                      </Text>
-                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
-                        Objetivo {Number(it.targetPct || 0).toFixed(2).replace(".", ",")}%
+                        {it.assetAbbreviation?.trim() || it.assetName}
                       </Text>
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
@@ -1290,6 +1355,41 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   </View>
                 ))}
               </View>
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+                <TouchableOpacity
+                  onPress={handleRebalance}
+                  disabled={planLoading}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#EEF2FF",
+                    opacity: planLoading ? 0.7 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: colors.primary }}>Balancear</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleContribution}
+                  disabled={planLoading}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#DCFCE7",
+                    opacity: planLoading ? 0.7 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#166534" }}>Aportar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </>
         )}
@@ -1297,7 +1397,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* ══ TAB: RENTABILIDAD ══ */}
+        {/* == TAB: RENTABILIDAD == */}
         {mainTab === "rentabilidad" && (
           <>
         {snapshots.length > 0 && (() => {
@@ -1343,7 +1443,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
           return (
             <>
-              {/* ── Card 1: Tabla anual ── */}
+              {/* -- Card 1: Tabla anual -- */}
               <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
                 <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
                   Total
@@ -1413,7 +1513,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                 </ScrollView>
               </View>
 
-              {/* ── Card 2: Detalle mensual ── */}
+              {/* -- Card 2: Detalle mensual -- */}
               <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
                 <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
                   {rentSelectedYear}
@@ -1484,7 +1584,178 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </Animated.View>
       )}
 
-      {/* ── Modal de acciones ── */}
+      <Modal
+        visible={rebalanceModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRebalanceModalOpen(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setRebalanceModalOpen(false)}
+        >
+          <View style={{ backgroundColor: "white", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A" }}>Plan de balanceo</Text>
+              <TouchableOpacity onPress={() => setRebalanceModalOpen(false)} style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="close" size={16} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            {!(rebalancePlan?.sells?.length) && !(rebalancePlan?.buys?.length) ? (
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>Tu cartera ya esta muy cerca del objetivo.</Text>
+            ) : (
+              (() => {
+                const sells = [...(rebalancePlan?.sells || [])].map((x) => ({ ...x, remaining: Number(x.amount || 0) }));
+                const buys = [...(rebalancePlan?.buys || [])].map((x) => ({ ...x, remaining: Number(x.amount || 0) }));
+                const moves: Array<{ from: string; to: string; amount: number }> = [];
+                let i = 0;
+                let j = 0;
+                while (i < sells.length && j < buys.length) {
+                  const s = sells[i];
+                  const b = buys[j];
+                  const amount = Math.min(s.remaining, b.remaining);
+                  if (amount > 0) {
+                    moves.push({
+                      from: s.assetAbbreviation?.trim() || s.assetName,
+                      to: b.assetAbbreviation?.trim() || b.assetName,
+                      amount: Number(amount.toFixed(2)),
+                    });
+                  }
+                  s.remaining = Number((s.remaining - amount).toFixed(6));
+                  b.remaining = Number((b.remaining - amount).toFixed(6));
+                  if (s.remaining <= 0.000001) i += 1;
+                  if (b.remaining <= 0.000001) j += 1;
+                }
+
+                return (
+                  <View style={{ gap: 8 }}>
+                    {moves.map((m, idx) => (
+                      <View
+                        key={`move-${idx}`}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: "#E5E7EB",
+                          borderRadius: 14,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          backgroundColor: "#F8FAFC",
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginBottom: 4 }}>
+                          Mover
+                        </Text>
+                        <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
+                          {m.from} → {m.to}
+                        </Text>
+                        <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary, marginTop: 3 }}>
+                          {formatMoney(m.amount, currency)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={contributionInputOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setContributionInputOpen(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
+          activeOpacity={1}
+          onPress={() => setContributionInputOpen(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: 320, backgroundColor: "white", borderRadius: 20, padding: 16 }}>
+            <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Plan de aportación</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 8 }}>Cantidad a aportar</Text>
+            <TextInput
+              value={contributionAmountText}
+              onChangeText={setContributionAmountText}
+              keyboardType="decimal-pad"
+              placeholder="Ej: 500"
+              style={{
+                height: 40,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 10,
+                paddingHorizontal: 10,
+                fontSize: 13,
+                fontWeight: "800",
+                color: "#0F172A",
+              }}
+            />
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={() => setContributionInputOpen(false)}
+                activeOpacity={0.85}
+                style={{ flex: 1, height: 40, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B" }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={submitContribution}
+                activeOpacity={0.85}
+                style={{ flex: 1, height: 40, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "900", color: "white" }}>Calcular</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={contributionResultOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setContributionResultOpen(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setContributionResultOpen(false)}
+        >
+          <View style={{ backgroundColor: "white", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }}>
+            <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A", marginBottom: 8 }}>
+              Plan de aportacion {contributionPlan ? `(${formatMoney(contributionPlan.amount, currency)})` : ""}
+            </Text>
+            {!(contributionPlan?.rows?.length) ? (
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>No hay propuesta para ese importe.</Text>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {contributionPlan.rows.map((x, i) => (
+                  <View
+                    key={`contrib-plan-${i}`}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                      borderRadius: 14,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      backgroundColor: "#F8FAFC",
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginBottom: 4 }}>Aportar a</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>{x.assetName}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary, marginTop: 3 }}>
+                      {formatMoney(Number(x.amount || 0), currency)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* -- Modal de acciones -- */}
       <Modal visible={fabOpen} transparent animationType="fade" onRequestClose={() => setFabOpen(false)}>
         <TouchableOpacity
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
@@ -1567,3 +1838,5 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
+
+

@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import AppHeader from "../../../../components/AppHeader";
+import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 type OperationMode = "buy" | "sell" | "deposit" | "withdraw" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -359,6 +360,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
           ...(qtyN !== undefined ? { quantity: qtyN } : {}),
         });
 
+        markInvestmentsDirty();
         navigation.goBack();
         return;
       }
@@ -383,6 +385,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
         await api.post(`/investments/${selectedAsset!.id}/withdraw`, { ...baseBody, toWalletId: selectedWallet!.id });
       }
 
+      markInvestmentsDirty();
       navigation.goBack();
     } catch (e: any) {
       console.error("InvestmentOperationScreen submit error:", e?.response?.data || e);

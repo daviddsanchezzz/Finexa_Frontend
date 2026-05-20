@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
@@ -397,6 +398,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
         onPress: async () => {
           try {
             await api.delete(`/investments/valuations/${id}`);
+            markInvestmentsDirty();
             setActionTarget(null);
             fetchAll();
           } catch {
@@ -416,6 +418,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
         onPress: async () => {
           try {
             await api.delete(`/investments/swaps/${swapGroupId}`);
+            markInvestmentsDirty();
             setActionTarget(null);
             fetchAll();
           } catch {
