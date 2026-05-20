@@ -22,6 +22,7 @@ import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTi
 import { appAlert } from "../../../utils/appAlert";
 import { markTransactionsDirty } from "../../../utils/transactionsInvalidation";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
+import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
 
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
@@ -65,6 +66,7 @@ export default function AddScreen({ navigation }: any) {
   const [descriptionY, setDescriptionY] = useState(0);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [modalEditingItem, setModalEditingItem] = useState<any>(null);
+  const [updateScopeModalVisible, setUpdateScopeModalVisible] = useState(false);
 
   //---------------------------------------
   // Estilos de chips
@@ -303,7 +305,7 @@ export default function AddScreen({ navigation }: any) {
   //---------------------------------------
   // Guardar (con scope para recurrentes en edición)
   //---------------------------------------
-  const handleSubmit = async (scope: "single" | "series" | "future" = "single") => {
+  const handleSubmit = async (scope: RecurringScope = "single") => {
     if (type === "transfer") {
       if (!selectedWalletFrom || !selectedWalletTo)
         return appAlert("Error", "Selecciona ambas carteras");
@@ -417,16 +419,7 @@ export default function AddScreen({ navigation }: any) {
           <TouchableOpacity
             onPress={() => {
               if (isEditing && isPartOfSeries) {
-                appAlert("Actualizar transacción recurrente", "¿Qué quieres actualizar?", [
-                  { text: "Solo esta", onPress: () => handleSubmit("single") },
-                  { text: "Solo futuras", onPress: () => handleSubmit("future") },
-                  {
-                    text: "Toda la serie",
-                    style: "destructive",
-                    onPress: () => handleSubmit("series"),
-                  },
-                  { text: "Cancelar", style: "cancel" },
-                ]);
+                setUpdateScopeModalVisible(true);
               } else {
                 handleSubmit("single");
               }
@@ -854,6 +847,16 @@ export default function AddScreen({ navigation }: any) {
           />
         </KeyboardAvoidingView>
       )}
+
+      <RecurringScopeModal
+        visible={updateScopeModalVisible}
+        mode="update"
+        onClose={() => setUpdateScopeModalVisible(false)}
+        onSelect={(scope) => {
+          setUpdateScopeModalVisible(false);
+          handleSubmit(scope);
+        }}
+      />
     </SafeAreaView>
   );
 }
