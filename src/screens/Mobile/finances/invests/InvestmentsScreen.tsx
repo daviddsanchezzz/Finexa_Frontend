@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   Modal,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -17,8 +18,8 @@ import { colors } from "../../../../theme/theme";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
 import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/InvestmentsScreenSkeleton";
-
-import Svg, { G, Path, Circle } from "react-native-svg";
+import DonutPro, { DonutSlice } from "../../../../components/DonutPro";
+import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 
@@ -68,11 +69,6 @@ type ExposureResponse = {
   sectors: ExposureRow[];
   indirectHoldings: Array<{ name: string; ticker?: string | null; value: number; percentage: number }>;
   totalPortfolioValue: number;
-};
-
-type PortfolioTimelinePoint = {
-  date: string;
-  totalCurrentValue: number;
 };
 
 const assetTypeIcon = (type: InvestmentAssetType) => {
@@ -147,82 +143,6 @@ const typeLabel = (t: InvestmentAssetType) => {
   }
 };
 
-const COUNTRY_LABEL_ES: Record<string, string> = {
-  "United States": "Estados Unidos",
-  "United States & Canada": "Estados Unidos y Canadá",
-  "United Kingdom": "Reino Unido",
-  "South Korea": "Corea del Sur",
-  "Taiwan": "Taiwán",
-  "Japan": "Japón",
-  "China": "China",
-  "Canada": "Canadá",
-  "France": "Francia",
-  "Germany": "Alemania",
-  "Australia": "Australia",
-  "Netherlands": "Países Bajos",
-  "Switzerland": "Suiza",
-  "Spain": "España",
-  "Italy": "Italia",
-  "Israel": "Israel",
-  "Norway": "Noruega",
-  "Sweden": "Suecia",
-  "Denmark": "Dinamarca",
-  "Hong Kong": "Hong Kong",
-  "Singapore": "Singapur",
-  "India": "India",
-  "Brazil": "Brasil",
-  "Kuwait": "Kuwait",
-  "Mexico": "México",
-  "Poland": "Polonia",
-  "Malaysia": "Malasia",
-  "Thailand": "Tailandia",
-  "Indonesia": "Indonesia",
-  "Saudi Arabia": "Arabia Saudí",
-  "South Africa": "Sudáfrica",
-  "United Arab Emirates": "Emiratos Árabes Unidos",
-  "Qatar": "Qatar",
-  "Europe": "Europa",
-  "Middle East & Africa": "Oriente Medio y África",
-  "Asia Pacific ex Japan": "Asia Pacífico (ex Japón)",
-  "Cash": "Liquidez",
-  "Other": "Otros",
-  "Unknown": "Sin datos",
-};
-
-const SECTOR_LABEL_ES: Record<string, string> = {
-  "Information Technology": "Tecnología",
-  "Financials": "Finanzas",
-  "Industrials": "Industriales",
-  "Consumer Discretionary": "Consumo discrecional",
-  "Communication Services": "Servicios de comunicación",
-  "Healthcare": "Sanidad",
-  "Materials": "Materiales",
-  "Energy": "Energía",
-  "Utilities": "Servicios públicos",
-  "Real Estate": "Inmobiliario",
-  "Consumer Staples": "Consumo básico",
-  "Semiconductors": "Semiconductores",
-  "Broadline Retail": "Distribución minorista",
-  "Systems Software": "Software de sistemas",
-  "Aerospace & Defense": "Aeroespacial y defensa",
-  "Healthcare Supplies": "Suministros sanitarios",
-  "Electronic Components": "Componentes electrónicos",
-  "Automobile Manufacturers": "Fabricantes de automóviles",
-  "Communications Equipment": "Equipos de comunicaciones",
-  "Heavy Electrical Equipment": "Equipamiento eléctrico pesado",
-  "Interactive Media & Services": "Medios y servicios interactivos",
-  "Investment Banking & Brokerage": "Banca de inversión y brókeres",
-  "Electrical Components & Equipment": "Componentes y equipos eléctricos",
-  "Electronic Manufacturing Services": "Servicios de fabricación electrónica",
-  "Electronic Equipment & Instruments": "Equipos e instrumentos electrónicos",
-  "Internet Services & Infrastructure": "Servicios e infraestructura de internet",
-  "Semiconductor Materials & Equipment": "Materiales y equipos de semiconductores",
-  "Tech Hardware Storage & Peripherals": "Hardware, almacenamiento y periféricos",
-  "Wireless Telecommunication Services": "Servicios de telecomunicaciones inalámbricas",
-  "Cash": "Liquidez",
-  "Other": "Otros",
-  "Unknown": "Sin datos",
-};
 
 const formatShortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("es-ES", {
@@ -246,109 +166,14 @@ const formatPctRatio = (p: number | null | undefined) => {
 const toneColor = (v: number) => (v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#64748B");
 const toneBg   = (v: number) => (v > 0 ? "#DCFCE7" : v < 0 ? "#FEE2E2" : "#E5E7EB");
 
-type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
-const rangeToDays: Record<RangeKey, number> = {
-  "1M": 30, "3M": 90, "6M": 180, "1Y": 365, ALL: 365,
-};
-
-type DonutSlice = {
-  id: number;
-  label: string;
-  value: number;
-  pct: number;
-  color: string;
-};
-
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-const deg2rad = (d: number) => (d * Math.PI) / 180;
-
-const polarToCartesian = (cx: number, cy: number, r: number, angleDeg: number) => {
-  const a = deg2rad(angleDeg);
-  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
-};
-
-const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
-  const start = polarToCartesian(cx, cy, r, startAngle);
-  const end = polarToCartesian(cx, cy, r, endAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
-};
-
-const DonutPro = ({
-  slices,
-  size,
-  strokeWidth,
-  selectedId,
-  onSelect,
-  centerValueText,
-}: {
-  slices: DonutSlice[];
-  size: number;
-  strokeWidth: number;
-  selectedId: number | null;
-  onSelect: (id: number) => void;
-  centerValueText: string;
-}) => {
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = (size - strokeWidth) / 2;
-  const startAt = -90;
-  let accDeg = 0;
-
-  return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <Circle cx={cx} cy={cy} r={r} stroke="#E2E8F0" strokeWidth={strokeWidth} fill="transparent" />
-        <G>
-          {slices.map((s) => {
-            const pct = clamp01(s.pct);
-            const sweep = Math.max(0, pct * 360);
-            if (sweep <= 0.2) { accDeg += sweep; return null; }
-            const segStart = startAt + accDeg;
-            const segEnd = startAt + accDeg + sweep;
-            accDeg += sweep;
-            const isSelected = selectedId != null ? s.id === selectedId : false;
-            const dimOthers = selectedId != null;
-            const d = describeArc(cx, cy, r, segStart, segEnd);
-            return (
-              <Path
-                key={s.id}
-                d={d}
-                stroke={s.color}
-                strokeWidth={isSelected ? strokeWidth + 2 : strokeWidth}
-                strokeLinecap="butt"
-                fill="none"
-                opacity={dimOthers ? (isSelected ? 1 : 0.28) : 1}
-                onPress={() => onSelect(s.id)}
-              />
-            );
-          })}
-        </G>
-      </Svg>
-
-      <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 }}>
-        <Text
-          style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", textAlign: "center" }}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          {centerValueText}
-        </Text>
-      </View>
-    </View>
-  );
-};
 
 export default function InvestmentsHomeScreen({ navigation }: any) {
   const { isDark, colors: t } = useTheme();
   const [summary, setSummary] = useState<SummaryFromApi | null>(null);
   const [loading, setLoading] = useState(false);
-  const [timeline, setTimeline] = useState<PortfolioTimelinePoint[]>([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-  const [range, setRange] = useState<RangeKey>("ALL");
   const [selectedSliceId, setSelectedSliceId] = useState<number | null>(null);
-  const [legendOpen, setLegendOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(true);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
   const [rentSelectedYear, setRentSelectedYear] = useState<number | null>(null);
@@ -373,10 +198,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const fetchSummary = async () => {
     try {
       setLoading(true);
+      setFetchError(false);
       const res = await api.get("/investments/summary");
       setSummary(res.data || null);
-    } catch (err) {
-      console.error("Error al obtener investments summary:", err);
+    } catch {
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -411,20 +237,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
-  const fetchTimeline = async (rk: RangeKey) => {
-    try {
-      setTimelineLoading(true);
-      const days = rangeToDays[rk];
-      const res = await api.get(`/investments/timeline?days=${days}`);
-      setTimeline(res.data?.points || []);
-    } catch (err) {
-      console.error("Error al obtener investments timeline:", err);
-      setTimeline([]);
-    } finally {
-      setTimelineLoading(false);
-    }
-  };
-
   const fetchArchived = async () => {
     try {
       const res = await api.get("/investments/assets/archived");
@@ -446,11 +258,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       fetchSummary();
-      fetchTimeline(range);
       fetchSnapshots();
       fetchArchived();
       fetchExposure();
-    }, [range])
+    }, [])
   );
 
   const currency = useMemo(() => "EUR", []);
@@ -566,7 +377,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const allEntries = Array.from(countryValues.entries())
       .map(([name, value], idx) => ({
         id: 2000 + idx,
-        label: COUNTRY_LABEL_ES[name] || name,
+        label: translateCountry(name),
         value,
         pct: value / total,
         color: palette[idx % palette.length],
@@ -609,7 +420,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     const allEntries = Array.from(sectorValues.entries())
       .map(([name, value], idx) => ({
         id: 3000 + idx,
-        label: SECTOR_LABEL_ES[name] || name,
+        label: translateSector(name),
         value,
         pct: value / total,
         color: palette[idx % palette.length],
@@ -697,10 +508,12 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   }, [visibleDonutModes, donutMode]);
 
   const allocationMap = useMemo(() => {
+    const total = allocation.total;
+    if (!total) return new Map<number, number>();
     const m = new Map<number, number>();
-    for (const s of allocation.slices) m.set(s.id, s.pct);
+    for (const a of assets) m.set(a.id, (a.currentValue || 0) / total);
     return m;
-  }, [allocation.slices]);
+  }, [assets, allocation.total]);
 
   const selectedSlice = useMemo(() => {
     if (!activeAllocation.slices.length) return null;
@@ -782,6 +595,9 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+  const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad">("cartera");
 
   const syncAllMetadata = async () => {
     try {
@@ -798,15 +614,28 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
-  const fabActions = [
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure()]);
+    setRefreshing(false);
+  }, []);
+
+  const fabActions = useMemo(() => [
     { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
     { label: "Nueva valoración", icon: "calendar-outline" as const, route: "InvestmentValuation" },
     { label: "Nueva operación", icon: "swap-horizontal-outline" as const, route: "InvestmentOperation" },
     { label: syncingMetadata ? "Actualizando composición..." : "Actualizar composición", icon: "refresh-outline" as const, onPress: syncAllMetadata },
-  ];
+  ], [syncingMetadata]);
+
+  const TABS = [
+    { key: "cartera",       label: "Cartera" },
+    { key: "distribucion",  label: "Distribución" },
+    { key: "rentabilidad",  label: "Rentabilidad" },
+  ] as const;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
+      {/* ── Header ── */}
       <View className="px-5 pb-3" style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={{ flex: 1 }}>
           <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
@@ -815,14 +644,9 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           onPress={() => setFabOpen(true)}
           activeOpacity={0.8}
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            backgroundColor: "#0F172A",
-            borderRadius: 14,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            marginBottom: 4,
+            flexDirection: "row", alignItems: "center", gap: 6,
+            backgroundColor: "#0F172A", borderRadius: 14,
+            paddingVertical: 8, paddingHorizontal: 12, marginBottom: 4,
           }}
         >
           <Ionicons name="trending-up-outline" size={15} color="white" />
@@ -830,116 +654,134 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
-        {loading && <InvestmentsScreenSkeleton />}
+      {/* ── Loading / Error states ── */}
+      {loading && <InvestmentsScreenSkeleton />}
 
-        {!loading && (
-        <>
-
-        {/* HERO */}
-        <View className="px-5 mb-4">
-          <View
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 26,
-              paddingHorizontal: 14,
-              paddingTop: 13,
-              paddingBottom: 12,
-              marginBottom: 10,
-              shadowColor: "#000",
-              shadowOpacity: 0.12,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 4 },
-            }}
+      {!loading && fetchError && (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 }}>
+          <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="cloud-offline-outline" size={30} color="#DC2626" />
+          </View>
+          <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>Error al cargar</Text>
+          <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", textAlign: "center" }}>
+            No se pudieron cargar las inversiones. Comprueba tu conexión.
+          </Text>
+          <TouchableOpacity
+            onPress={() => { fetchSummary(); fetchSnapshots(); fetchArchived(); fetchExposure(); }}
+            activeOpacity={0.8}
+            style={{ marginTop: 4, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 24 }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                <View
-                  style={{
-                    width: 38, height: 38, borderRadius: 14,
-                    backgroundColor: "rgba(255,255,255,0.16)",
-                    alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="stats-chart" size={18} color="white" />
+            <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!loading && !fetchError && (
+        <View style={{ flex: 1 }}>
+
+          {/* ── Hero (fijo, no scrollea) ── */}
+          <View style={{ paddingHorizontal: 20 }}>
+            <View
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 26,
+                paddingHorizontal: 14,
+                paddingTop: 13,
+                paddingBottom: 12,
+                shadowColor: "#000",
+                shadowOpacity: 0.12,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                  <View style={{ width: 38, height: 38, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="stats-chart" size={18} color="white" />
+                  </View>
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: "800", color: "white" }}>Resumen</Text>
+                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", marginTop: 1 }}>
+                      {hero.count} {hero.count === 1 ? "activo" : "activos"}
+                      {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ marginLeft: 8, flex: 1 }}>
-                  <Text style={{ fontSize: 17, fontWeight: "800", color: "white" }}>Resumen</Text>
-                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", marginTop: 1 }}>
-                    {hero.count} {hero.count === 1 ? "activo" : "activos"}
-                    {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
+                <View style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons name={totalBadge.icon} size={13} color="white" />
+                  <Text style={{ color: "white", fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
+                    {hero.pct.toFixed(2)}%
                   </Text>
                 </View>
               </View>
 
-              <View
-                style={{
-                  paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.18)",
-                  flexDirection: "row", alignItems: "center",
-                }}
-              >
-                <Ionicons name={totalBadge.icon} size={13} color="white" />
-                <Text style={{ color: "white", fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
-                  {hero.pct.toFixed(2)}%
-                </Text>
-              </View>
-            </View>
-
-            <View style={{ marginTop: 9 }}>
-              <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>
-                Valor actual total
-              </Text>
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "white", marginTop: 1 }}>
-                {formatMoney(hero.totalCurrentValue, currency)}
-              </Text>
-            </View>
-
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 9 }}>
-              <View
-                style={{
-                  flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                  borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Ionicons name="add-circle-outline" size={13} color="rgba(255,255,255,0.9)" />
-                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Invertido</Text>
-                </View>
-                <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 4 }}>
-                  {formatMoney(hero.totalInvested, currency)}
+              <View style={{ marginTop: 9 }}>
+                <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>Valor actual total</Text>
+                <Text style={{ fontSize: 22, fontWeight: "900", color: "white", marginTop: 1 }}>
+                  {formatMoney(hero.totalCurrentValue, currency)}
                 </Text>
               </View>
 
-              <View
-                style={{
-                  flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                  borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Ionicons name="stats-chart-outline" size={13} color="rgba(255,255,255,0.9)" />
-                  <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Resultado</Text>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 9 }}>
+                <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons name="add-circle-outline" size={13} color="rgba(255,255,255,0.9)" />
+                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Invertido</Text>
+                  </View>
+                  <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 4 }}>
+                    {formatMoney(hero.totalInvested, currency)}
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 4 }}>
-                  {formatMoney(hero.totalPnL, currency)}
-                </Text>
+                <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons name={totalBadge.icon} size={13} color="rgba(255,255,255,0.9)" />
+                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Resultado</Text>
+                  </View>
+                  <Text style={{ fontSize: 13.5, fontWeight: "900", marginTop: 4, color: hero.totalPnL > 0 ? "#86EFAC" : hero.totalPnL < 0 ? "#FCA5A5" : "white" }}>
+                    {hero.totalPnL >= 0 ? "+" : ""}{formatMoney(hero.totalPnL, currency)}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
 
-        </View>
+          {/* ── Tabs ── */}
+          <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginTop: 12 }}>
+            {TABS.map(({ key, label }) => {
+              const active = mainTab === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => setMainTab(key)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, alignItems: "center",
+                    paddingVertical: 11,
+                    borderBottomWidth: 2.5,
+                    borderBottomColor: active ? colors.primary : "transparent",
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        {/* LISTA */}
+          {/* ── Contenido del tab ── */}
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120, paddingTop: 14 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          >
+
+        {/* ══ TAB: CARTERA ══ */}
+        {mainTab === "cartera" && (
+          <>
         {(assets.length > 0 || archivedAssets.length > 0) && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ fontSize: 13, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
-              Tu cartera
-            </Text>
+          <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "flex-end" }}>
             {archivedAssets.length > 0 && (
               <TouchableOpacity
                 onPress={() => setShowArchived((v) => !v)}
@@ -1098,14 +940,14 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* DONUT */}
-        {!loading && assets.length > 0 && allocation.slices.length > 0 && (
+          </>
+        )}
+
+        {/* ══ TAB: DISTRIBUCIÓN ══ */}
+        {mainTab === "distribucion" && (
           <>
-            <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
-              <Text style={{ fontSize: 13, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
-                Distribución
-              </Text>
-            </View>
+        {assets.length > 0 && allocation.slices.length > 0 && (
+          <>
 
             <View
               style={{
@@ -1287,14 +1129,19 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* ── Rentabilidad mensual (estilo AdvancedStats) ── */}
+          </>
+        )}
+
+        {/* ══ TAB: RENTABILIDAD ══ */}
+        {mainTab === "rentabilidad" && (
+          <>
         {snapshots.length > 0 && (() => {
-          const CM = 110; // mes/año
-          const CV = 112; // valores monetarios
-          const CP = 100; // porcentaje
-          const hStyle = { fontSize: 14, fontWeight: "600" as const, color: "#1F2937" };
+          const CM = 110;
+          const CV = 112;
+          const CP = 100;
+          const hStyle = { fontSize: 13, fontWeight: "700" as const, color: "#374151" };
           const cStyle = { fontSize: 13, fontWeight: "500" as const, color: "#374151" };
-          const hBg = { backgroundColor: "rgba(0,0,0,0.04)", borderBottomWidth: 1 as const, borderColor: "#E5E7EB" } as const;
+          const hBg = { backgroundColor: "#F8FAFC", borderBottomWidth: 1 as const, borderColor: "#E5E7EB" } as const;
           const rBorder = { borderBottomWidth: 1 as const, borderColor: "#F1F5F9" } as const;
 
           const filledMonthRows = rentMonthRows.filter((r) =>
@@ -1309,183 +1156,168 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
               : null;
           const totalYearCashflow  = rentYearRows.reduce((s, r) => s + r.cashflowNet, 0);
           const totalYearProfit    = rentYearRows.reduce((s, r) => s + r.profit, 0);
+          const firstYearStartValue = rentYearRows[0]?.startValue ?? null;
+          const totalGlobalReturnPct =
+            firstYearStartValue != null && firstYearStartValue > 0
+              ? totalYearProfit / firstYearStartValue
+              : null;
+
+          const cardStyle = {
+            backgroundColor: t.surface,
+            borderRadius: 24,
+            marginHorizontal: 20,
+            marginBottom: 10,
+            borderWidth: 1,
+            borderColor: t.border,
+            shadowColor: "#000",
+            shadowOpacity: 0.04,
+            shadowRadius: 5,
+            shadowOffset: { width: 0, height: 2 },
+            overflow: "hidden",
+          } as const;
 
           return (
             <>
-              {/* ── Resumen Año ── */}
-              <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
-                <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A" }}>
-                  Rentabilidad {rentSelectedYear}
+              {/* ── Card 1: Tabla anual ── */}
+              <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
+                  Por año
                 </Text>
               </View>
-
-              {/* Selector de Año */}
-              {rentYears.length > 1 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 10 }}
-                >
-                  {rentYears.map((y) => {
-                    const active = rentSelectedYear === y;
-                    return (
+              <View style={cardStyle}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View>
+                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg }}>
+                      <Text style={{ ...hStyle, width: CM }}>Año</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+                    </View>
+                    {rentYearRows.map((row, idx) => (
                       <TouchableOpacity
-                        key={y}
-                        onPress={() => setRentSelectedYear(y)}
+                        key={row.year}
+                        onPress={() => setRentSelectedYear(row.year)}
                         style={{
-                          paddingHorizontal: 14, paddingVertical: 6,
-                          borderRadius: 999,
-                          backgroundColor: active ? colors.primary : "white",
-                          borderWidth: 1,
-                          borderColor: active ? colors.primary : "#E5E7EB",
+                          flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16,
+                          backgroundColor: rentSelectedYear === row.year ? "rgba(59,130,246,0.06)" : "transparent",
+                          ...(idx < rentYearRows.length - 1 ? rBorder : {}),
                         }}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: active ? "white" : "#374151" }}>
-                          {y}
+                        <View style={{ width: CM, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={{ ...cStyle, fontWeight: rentSelectedYear === row.year ? "700" : "500" }}>
+                            {row.year}
+                          </Text>
+                          {rentSelectedYear === row.year && (
+                            <Ionicons name="chevron-down" size={11} color={colors.primary} />
+                          )}
+                        </View>
+                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                          {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
+                        </Text>
+                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                          {formatMoney(row.endValue, row.currency)}
+                        </Text>
+                        <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
+                          {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
+                        </Text>
+                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
+                          {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
+                        </Text>
+                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
+                          {formatPctRatio(row.returnPct)}
                         </Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 20 }}
-              >
-                <View>
-                  {/* Header */}
-                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg }}>
-                    <Text style={{ ...hStyle, width: CM }}>Mes</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
-                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
-                  </View>
-
-                  {/* Filas mensuales */}
-                  {rentMonthRows.map((row, idx) => (
-                    <View
-                      key={row.monthStart}
-                      style={{
-                        flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8,
-                        ...(idx < rentMonthRows.length - 1 ? rBorder : {}),
-                      }}
-                    >
-                      <Text style={{ ...cStyle, width: CM }}>{formatMonthName(row.monthStart)}</Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
+                    ))}
+                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
+                      <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
+                        {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
                       </Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {row.endValue == null ? "-" : formatMoney(row.endValue, row.currency)}
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearProfit) }}>
+                        {totalYearProfit >= 0 ? "+" : ""}{formatMoney(totalYearProfit)}
                       </Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet ?? 0) }}>
-                        {row.cashflowNet == null ? "-" : `${row.cashflowNet >= 0 ? "+" : ""}${formatMoney(row.cashflowNet, row.currency)}`}
-                      </Text>
-                      <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
-                        {row.profit == null ? "-" : `${row.profit >= 0 ? "+" : ""}${formatMoney(row.profit, row.currency)}`}
-                      </Text>
-                      <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
-                        {formatPctRatio(row.returnPct)}
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalYearProfit) }}>
+                        {formatPctRatio(totalGlobalReturnPct)}
                       </Text>
                     </View>
-                  ))}
-
-                  {/* Total año */}
-                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
-                    <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
-                      {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
-                    </Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthProfit) }}>
-                      {totalMonthProfit >= 0 ? "+" : ""}{formatMoney(totalMonthProfit)}
-                    </Text>
-                    <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalMonthProfit) }}>{formatPctRatio(totalMonthReturnPct)}</Text>
                   </View>
-                </View>
-              </ScrollView>
-
-              {/* ── Resumen global ── */}
-              <View style={{ paddingHorizontal: 20, marginTop: 28, marginBottom: 8 }}>
-                <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A" }}>
-                  Rentabilidad global
-                </Text>
+                </ScrollView>
               </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 20 }}
-              >
-                <View>
-                  {/* Header */}
-                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg }}>
-                    <Text style={{ ...hStyle, width: CM }}>Año</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
-                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+              {/* ── Card 2: Detalle mensual ── */}
+              <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
+                  Detalle {rentSelectedYear}
+                </Text>
+              </View>
+              <View style={cardStyle}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View>
+                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg }}>
+                      <Text style={{ ...hStyle, width: CM }}>Mes</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Inicio</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Fin</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Cashflow</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>Beneficio</Text>
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>Rent. %</Text>
+                    </View>
+                    {rentMonthRows.map((row, idx) => (
+                      <View
+                        key={row.monthStart}
+                        style={{
+                          flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16,
+                          ...(idx < rentMonthRows.length - 1 ? rBorder : {}),
+                        }}
+                      >
+                        <Text style={{ ...cStyle, width: CM }}>{formatMonthName(row.monthStart)}</Text>
+                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                          {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
+                        </Text>
+                        <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
+                          {row.endValue == null ? "-" : formatMoney(row.endValue, row.currency)}
+                        </Text>
+                        <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet ?? 0) }}>
+                          {row.cashflowNet == null ? "-" : `${row.cashflowNet >= 0 ? "+" : ""}${formatMoney(row.cashflowNet, row.currency)}`}
+                        </Text>
+                        <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
+                          {row.profit == null ? "-" : `${row.profit >= 0 ? "+" : ""}${formatMoney(row.profit, row.currency)}`}
+                        </Text>
+                        <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit ?? 0) }}>
+                          {formatPctRatio(row.returnPct)}
+                        </Text>
+                      </View>
+                    ))}
+                    <View style={{ flexDirection: "row", paddingVertical: 11, paddingHorizontal: 16, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
+                      <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthCashflow) }}>
+                        {totalMonthCashflow >= 0 ? "+" : ""}{formatMoney(totalMonthCashflow)}
+                      </Text>
+                      <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalMonthProfit) }}>
+                        {totalMonthProfit >= 0 ? "+" : ""}{formatMoney(totalMonthProfit)}
+                      </Text>
+                      <Text style={{ ...hStyle, width: CP, textAlign: "center", color: toneColor(totalMonthProfit) }}>
+                        {formatPctRatio(totalMonthReturnPct)}
+                      </Text>
+                    </View>
                   </View>
-
-                  {/* Filas anuales */}
-                  {rentYearRows.map((row, idx) => (
-                    <TouchableOpacity
-                      key={row.year}
-                      onPress={() => setRentSelectedYear(row.year)}
-                      style={{
-                        flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8,
-                        backgroundColor: rentSelectedYear === row.year ? "rgba(59,130,246,0.05)" : "transparent",
-                        ...(idx < rentYearRows.length - 1 ? rBorder : {}),
-                      }}
-                    >
-                      <Text style={{ ...cStyle, width: CM, fontWeight: rentSelectedYear === row.year ? "700" : "500" }}>
-                        {row.year}
-                      </Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {row.startValue == null ? "-" : formatMoney(row.startValue, row.currency)}
-                      </Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center" }}>
-                        {formatMoney(row.endValue, row.currency)}
-                      </Text>
-                      <Text style={{ ...cStyle, width: CV, textAlign: "center", color: toneColor(row.cashflowNet) }}>
-                        {row.cashflowNet >= 0 ? "+" : ""}{formatMoney(row.cashflowNet, row.currency)}
-                      </Text>
-                      <Text style={{ fontWeight: "600", width: CV, textAlign: "center", color: toneColor(row.profit) }}>
-                        {row.profit >= 0 ? "+" : ""}{formatMoney(row.profit, row.currency)}
-                      </Text>
-                      <Text style={{ fontWeight: "600", width: CP, textAlign: "center", color: toneColor(row.profit) }}>
-                        {formatPctRatio(row.returnPct)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-
-                  {/* Total global */}
-                  <View style={{ flexDirection: "row", paddingVertical: 12, paddingHorizontal: 8, ...hBg, borderTopWidth: 1, borderBottomWidth: 0 }}>
-                    <Text style={{ ...hStyle, width: CM }}>TOTAL</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center" }}>-</Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearCashflow) }}>
-                      {totalYearCashflow >= 0 ? "+" : ""}{formatMoney(totalYearCashflow)}
-                    </Text>
-                    <Text style={{ ...hStyle, width: CV, textAlign: "center", color: toneColor(totalYearProfit) }}>
-                      {totalYearProfit >= 0 ? "+" : ""}{formatMoney(totalYearProfit)}
-                    </Text>
-                    <Text style={{ ...hStyle, width: CP, textAlign: "center" }}>-</Text>
-                  </View>
-                </View>
-              </ScrollView>
+                </ScrollView>
+              </View>
             </>
           );
         })()}
 
-        </>
+          </>
         )}
-      </ScrollView>
+
+          </ScrollView>
+        </View>
+      )}
 
       {/* ── Modal de acciones ── */}
       <Modal visible={fabOpen} transparent animationType="fade" onRequestClose={() => setFabOpen(false)}>

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -244,6 +245,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [metadata, setMetadata] = useState<AssetMetadataPayload | null>(null);
   const [composition, setComposition] = useState<CompositionPayload | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<RangeKey>("3m");
   const [sectionTab, setSectionTab] = useState<"info" | "evolution" | "composition" | "records">("info");
   const [recordsTab, setRecordsTab] = useState<"operations" | "valuations">("operations");
@@ -259,60 +261,64 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
 
   const fetchAll = useCallback(async () => {
+    // ── Fase 1: datos críticos (hero + info tab) ──────────────────────────────
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const [aRes, sRes, serRes, vRes, oRes, mRes] = await Promise.allSettled([
+      const [aRes, sRes] = await Promise.all([
         api.get(`/investments/assets/${assetId}`),
         api.get(`/investments/summary`),
-        api.get(`/investments/assets/${assetId}/series`),
-        api.get(`/investments/valuations`, { params: { assetId } }),
-        api.get(`/investments/operations`, { params: { assetId } }),
-        api.get(`/investments/assets/${assetId}/metadata`),
       ]);
-
-      if (aRes.status === "rejected") { navigation.goBack(); return; }
-      setAsset(aRes.value.data || null);
-
-      if (sRes.status === "fulfilled") {
-        const row = (sRes.value.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
-        setSummaryRow(row);
-      }
-
-      if (serRes.status === "fulfilled")
-        setSeries(Array.isArray(serRes.value.data) ? serRes.value.data : []);
-
-      if (vRes.status === "fulfilled") {
-        const vList = Array.isArray(vRes.value.data) ? vRes.value.data : vRes.value.data?.valuations ?? [];
-        setValuations(Array.isArray(vList) ? vList : []);
-      }
-
-      if (oRes.status === "fulfilled") {
-        const oList = Array.isArray(oRes.value.data) ? oRes.value.data : oRes.value.data?.operations ?? [];
-        setOperations(Array.isArray(oList) ? oList : []);
-      }
-
-      if (mRes.status === "fulfilled" && mRes.value.data?.composition) {
-        setMetadata(mRes.value.data.metadata ?? null);
-        setComposition(mRes.value.data.composition);
-      } else {
-        // fallback: fetch composition from its own endpoint
-        try {
-          const cRes = await api.get(`/investments/assets/${assetId}/composition`);
-          setComposition(cRes.data ?? null);
-        } catch { /* leave composition as-is */ }
-      }
-    } catch (e) {
-      console.error("❌ Error loading investment detail:", e);
+      setAsset(aRes.data || null);
+      const row = (sRes.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
+      setSummaryRow(row);
+    } catch {
       navigation.goBack();
+      return;
     } finally {
       setLoading(false);
+    }
+
+    // ── Fase 2: datos secundarios en background (sin spinner) ─────────────────
+    const [serRes, vRes, oRes, mRes] = await Promise.allSettled([
+      api.get(`/investments/assets/${assetId}/series`),
+      api.get(`/investments/valuations`, { params: { assetId } }),
+      api.get(`/investments/operations`, { params: { assetId } }),
+      api.get(`/investments/assets/${assetId}/metadata`),
+    ]);
+
+    if (serRes.status === "fulfilled")
+      setSeries(Array.isArray(serRes.value.data) ? serRes.value.data : []);
+
+    if (vRes.status === "fulfilled") {
+      const vList = Array.isArray(vRes.value.data) ? vRes.value.data : vRes.value.data?.valuations ?? [];
+      setValuations(Array.isArray(vList) ? vList : []);
+    }
+
+    if (oRes.status === "fulfilled") {
+      const oList = Array.isArray(oRes.value.data) ? oRes.value.data : oRes.value.data?.operations ?? [];
+      setOperations(Array.isArray(oList) ? oList : []);
+    }
+
+    if (mRes.status === "fulfilled" && mRes.value.data?.composition) {
+      setMetadata(mRes.value.data.metadata ?? null);
+      setComposition(mRes.value.data.composition);
+    } else {
+      try {
+        const cRes = await api.get(`/investments/assets/${assetId}/composition`);
+        setComposition(cRes.data ?? null);
+      } catch {}
     }
   }, [assetId, navigation]);
 
   useFocusEffect(
     useCallback(() => { fetchAll(); }, [fetchAll])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAll();
+    setRefreshing(false);
+  }, [fetchAll]);
 
   const handleDeleteValuation = (id: number) => {
     Alert.alert("Eliminar valoración", "¿Seguro que quieres eliminar esta valoración?", [
@@ -663,6 +669,9 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             className="flex-1 px-5"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            }
           >
 
           {/* ── EVOLUCIÓN ── */}
