@@ -274,6 +274,13 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [actionTarget, setActionTarget] = useState<ActionTarget>(null);
 
   const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
+  const cryptoCategoryLabel = useMemo(() => {
+    const direct = metadata?.cryptoCategory?.trim();
+    if (direct) return direct;
+    const topSector = composition?.sectors?.[0]?.sector;
+    if (topSector) return translateSector(topSector);
+    return "No disponible";
+  }, [metadata?.cryptoCategory, composition?.sectors]);
 
   const fetchAll = useCallback(async () => {
     // ── Fase 1: datos críticos (hero + info tab) ──────────────────────────────
@@ -354,9 +361,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
   useFocusEffect(
     useCallback(() => {
-      if (!assetDataCache.has(assetId)) {
-        fetchAll();
-      }
+      // Keep instant paint from cache but always refresh on focus.
+      fetchAll();
     }, [fetchAll, assetId])
   );
 
@@ -1003,75 +1009,74 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             ) : <View style={{ marginBottom: 14 }} />}
 
             {asset.type === "crypto" ? (
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#334155" }}>
-                Categoría: {metadata?.cryptoCategory || "No disponible"}
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#334155", marginBottom: 12 }}>
+                Categoría: {cryptoCategoryLabel}
               </Text>
-            ) : (
-              <>
-                {/* Sub-tabs: Regiones / Sectores / Holdings */}
-                <View
-                  style={{
-                    flexDirection: "row", gap: 8, padding: 6,
-                    borderRadius: 18, backgroundColor: "#F8FAFC",
-                    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 16,
-                  }}
-                >
-                  <SegmentedTab label="Regiones"  active={compositionTab === "regions"}  onPress={() => setCompositionTab("regions")} />
-                  <SegmentedTab label="Sectores"  active={compositionTab === "sectors"}  onPress={() => setCompositionTab("sectors")} />
-                  <SegmentedTab label="Holdings"  active={compositionTab === "holdings"} onPress={() => setCompositionTab("holdings")} />
-                </View>
+            ) : null}
+            <>
+              {/* Sub-tabs: Regiones / Sectores / Holdings */}
+              <View
+                style={{
+                  flexDirection: "row", gap: 8, padding: 6,
+                  borderRadius: 18, backgroundColor: "#F8FAFC",
+                  borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 16,
+                }}
+              >
+                <SegmentedTab label="Regiones"  active={compositionTab === "regions"}  onPress={() => setCompositionTab("regions")} />
+                <SegmentedTab label="Sectores"  active={compositionTab === "sectors"}  onPress={() => setCompositionTab("sectors")} />
+                <SegmentedTab label="Holdings"  active={compositionTab === "holdings"} onPress={() => setCompositionTab("holdings")} />
+              </View>
 
-                {compositionTab === "regions" && (
-                  !(composition?.regions?.length)
-                    ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Datos de regiones no disponibles.</Text>
-                    : [...(composition.regions)].sort((a, b) => Number(b.pct) - Number(a.pct)).map((r) => (
-                        <View key={`country-${r.country}`} style={{ marginBottom: 10 }}>
-                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                            <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateCountry(r.country)}</Text>
-                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(r.pct))}%</Text>
-                          </View>
-                          <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
-                            <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(r.pct), 100)}%` as any }} />
-                          </View>
+              {compositionTab === "regions" && (
+                !(composition?.regions?.length)
+                  ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Datos de regiones no disponibles.</Text>
+                  : [...(composition.regions)].sort((a, b) => Number(b.pct) - Number(a.pct)).map((r) => (
+                      <View key={`country-${r.country}`} style={{ marginBottom: 10 }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+                          <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateCountry(r.country)}</Text>
+                          <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(r.pct))}%</Text>
                         </View>
-                      ))
-                )}
+                        <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
+                          <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(r.pct), 100)}%` as any }} />
+                        </View>
+                      </View>
+                    ))
+              )}
 
-                {compositionTab === "sectors" && (
-                  !(composition?.sectors?.length)
-                    ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Datos de sectores no disponibles.</Text>
-                    : [...(composition.sectors)].sort((a, b) => Number(b.pct) - Number(a.pct)).map((s) => (
-                        <View key={`sector-${s.sector}`} style={{ marginBottom: 10 }}>
-                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                            <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateSector(s.sector)}</Text>
-                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(s.pct))}%</Text>
-                          </View>
-                          <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
-                            <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(s.pct), 100)}%` as any }} />
-                          </View>
+              {compositionTab === "sectors" && (
+                !(composition?.sectors?.length)
+                  ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Datos de sectores no disponibles.</Text>
+                  : [...(composition.sectors)].sort((a, b) => Number(b.pct) - Number(a.pct)).map((s) => (
+                      <View key={`sector-${s.sector}`} style={{ marginBottom: 10 }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+                          <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>{translateSector(s.sector)}</Text>
+                          <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(s.pct))}%</Text>
                         </View>
-                      ))
-                )}
+                        <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
+                          <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(s.pct), 100)}%` as any }} />
+                        </View>
+                      </View>
+                    ))
+              )}
 
-                {compositionTab === "holdings" && (
-                  !(composition?.holdings?.length)
-                    ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Holdings no disponibles.</Text>
-                    : [...composition.holdings].sort((a, b) => Number(b.weight || 0) - Number(a.weight || 0)).map((h, idx) => (
-                        <View key={`holding-${idx}-${h.name}`} style={{ marginBottom: 10 }}>
-                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-                            <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>
-                              {h.name}{h.ticker ? ` (${h.ticker})` : ""}
-                            </Text>
-                            <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(h.weight || 0))}%</Text>
-                          </View>
-                          <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
-                            <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(h.weight || 0), 100)}%` as any }} />
-                          </View>
+              {compositionTab === "holdings" && (
+                !(composition?.holdings?.length)
+                  ? <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>Holdings no disponibles.</Text>
+                  : [...composition.holdings].sort((a, b) => Number(b.weight || 0) - Number(a.weight || 0)).map((h, idx) => (
+                      <View key={`holding-${idx}-${h.name}`} style={{ marginBottom: 10 }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+                          <Text style={{ fontSize: 12, color: "#334155", fontWeight: "700" }}>
+                            {h.name}{h.ticker ? ` (${h.ticker})` : ""}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: "#64748B", fontWeight: "800" }}>{fmt1(Number(h.weight || 0))}%</Text>
                         </View>
-                      ))
-                )}
-              </>
-            )}
+                        <View style={{ height: 4, backgroundColor: "#E5E7EB", borderRadius: 999 }}>
+                          <View style={{ height: 4, backgroundColor: colors.primary, borderRadius: 999, width: `${Math.min(Number(h.weight || 0), 100)}%` as any }} />
+                        </View>
+                      </View>
+                    ))
+              )}
+            </>
           </View>
           )}
 

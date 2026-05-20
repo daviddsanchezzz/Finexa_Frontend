@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import React, { useState, useCallback, useRef } from "react";
+import { View, Text, TouchableOpacity, ScrollView, Platform, Animated, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -10,6 +10,7 @@ import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
 import { exportTransactionsCsv } from "../../../utils/csvExport";
+import { colors } from "../../../theme/theme";
 
 export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -21,6 +22,15 @@ export default function HomeScreen({ navigation }: any) {
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
 
+  const hasFetched = useRef(false);
+  const lastFetchKey = useRef<string>("");
+  const webScrollAtTop = useRef(true);
+  const webTouchStartY = useRef(0);
+  const pullAnim = useRef(new Animated.Value(0)).current;
+  const currentPullY = useRef(0);
+  const webRefreshingRef = useRef(false);
+  const PULL_THRESHOLD = 80;
+  const PULL_MAX = 65;
 
   function isMonthlyReportBannerVisible(now = new Date()) {
     const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
@@ -47,9 +57,9 @@ export default function HomeScreen({ navigation }: any) {
 
   const formatEuro = (n: number) => n.toFixed(2).replace(".", ",");
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (isManual = false) => {
     try {
-      if (!refreshing) setLoading(true);
+      if (!isManual) setLoading(true);
 
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -83,11 +93,48 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTransactions(true);
+  }, [selectedWallet, dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useFocusEffect(
     useCallback(() => {
+      const key = `${selectedWallet?.id ?? "all"}|${dateFrom ?? ""}|${dateTo ?? ""}`;
+      if (hasFetched.current && lastFetchKey.current === key) return;
+      lastFetchKey.current = key;
+      hasFetched.current = true;
       fetchTransactions();
-    }, [selectedWallet, dateFrom, dateTo])
+    }, [selectedWallet, dateFrom, dateTo]) // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  const handleWebTouchStart = useCallback((e: any) => {
+    if (Platform.OS === "web") {
+      webTouchStartY.current = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+      currentPullY.current = 0;
+    }
+  }, []);
+
+  const handleWebTouchMove = useCallback((e: any) => {
+    if (Platform.OS !== "web" || webRefreshingRef.current || !webScrollAtTop.current) return;
+    const y = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+    const delta = Math.max(0, y - webTouchStartY.current);
+    currentPullY.current = delta;
+    pullAnim.setValue(Math.min(PULL_MAX, Math.sqrt(delta) * 4.5));
+  }, [pullAnim]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWebTouchEnd = useCallback(async () => {
+    if (Platform.OS !== "web") return;
+    const delta = currentPullY.current;
+    currentPullY.current = 0;
+    if (webScrollAtTop.current && delta > PULL_THRESHOLD && !webRefreshingRef.current) {
+      webRefreshingRef.current = true;
+      Animated.spring(pullAnim, { toValue: 36, useNativeDriver: true }).start();
+      await onRefresh();
+      webRefreshingRef.current = false;
+    }
+    Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
+  }, [pullAnim, onRefresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toSigned = (tx: any) =>
     tx.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
@@ -101,7 +148,7 @@ export default function HomeScreen({ navigation }: any) {
     .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
       {/* HEADER */}
       <View className="px-5 pb-2">
         <AppHeader
@@ -113,6 +160,19 @@ export default function HomeScreen({ navigation }: any) {
         />
       </View>
 
+      {Platform.OS === "web" && !loading && (
+        <View style={{ position: "absolute", top: 52, left: 0, right: 0, alignItems: "center", zIndex: 0 }}>
+          <Animated.View style={{
+            opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
+            transform: [{ scale: pullAnim.interpolate({ inputRange: [0, PULL_MAX], outputRange: [0.5, 1], extrapolate: "clamp" }) }],
+          }}>
+            <View style={{ backgroundColor: "white", borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          </Animated.View>
+        </View>
+      )}
+
       {loading ? (
         <ScrollView
           className="flex-1 px-5"
@@ -122,7 +182,12 @@ export default function HomeScreen({ navigation }: any) {
           <HomeScreenSkeleton />
         </ScrollView>
       ) : (
-        <>
+        <Animated.View
+          style={Platform.OS === "web" ? { flex: 1, transform: [{ translateY: pullAnim }] } : { flex: 1 }}
+          onTouchStart={handleWebTouchStart}
+          onTouchMove={handleWebTouchMove}
+          onTouchEnd={handleWebTouchEnd}
+        >
           <View className="px-5 pb-2">
             {/* TARJETA PRINCIPAL */}
             <View className="bg-primary rounded-3xl p-6 shadow-md mb-4 items-center">
@@ -204,6 +269,9 @@ export default function HomeScreen({ navigation }: any) {
             className="flex-1 px-5 pt-0 mb-8"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 70 }}
+            scrollEventThrottle={16}
+            onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
+            refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
             <TransactionsList
               transactions={transactions}
@@ -235,7 +303,7 @@ export default function HomeScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
           </ScrollView>
-        </>
+        </Animated.View>
       )}
 
       {/* MODALES */}

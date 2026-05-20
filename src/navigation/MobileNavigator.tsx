@@ -42,6 +42,7 @@ export type RootStackParamList = {
   MonthlyContributions: undefined;
   InvestmentOperation: undefined;
   InvestmentComposition: undefined;
+  InvestmentTargetAllocation: undefined;
   Notifications: undefined;
   BiometricSetup: undefined;
   NetWorth: undefined;
@@ -276,6 +277,12 @@ export default function MobileNavigator() {
             name="InvestmentComposition"
             getComponent={() =>
               require("../screens/Mobile/finances/invests/InvestmentCompositionScreen").default
+            }
+          />
+          <Stack.Screen
+            name="InvestmentTargetAllocation"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentTargetAllocationScreen").default
             }
           />
 

@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Platform,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -71,6 +72,22 @@ type ExposureResponse = {
   sectors: ExposureRow[];
   indirectHoldings: Array<{ name: string; ticker?: string | null; value: number; percentage: number }>;
   totalPortfolioValue: number;
+};
+
+type TargetItem = {
+  assetId: number;
+  assetName: string;
+  assetType: InvestmentAssetType;
+  currentValue: number;
+  actualPct: number;
+  targetPct: number;
+  driftPct: number;
+};
+
+type TargetsResponse = {
+  totalCurrentValue: number;
+  targetSumPct: number;
+  items: TargetItem[];
 };
 
 const assetTypeIcon = (type: InvestmentAssetType) => {
@@ -184,6 +201,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [donutMode, setDonutMode] = useState<"asset" | "type" | "country" | "sector" | "holding">("asset");
   const [exposure, setExposure] = useState<ExposureResponse | null>(null);
   const [otrosExpanded, setOtrosExpanded] = useState(false);
+  const [targets, setTargets] = useState<TargetsResponse | null>(null);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
@@ -257,6 +275,16 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
+  const fetchTargets = async () => {
+    try {
+      const res = await api.get("/investments/targets");
+      const data = (res.data || null) as TargetsResponse | null;
+      setTargets(data);
+    } catch {
+      setTargets(null);
+    }
+  };
+
   const hasFetched = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -266,6 +294,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         fetchSnapshots();
         fetchArchived();
         fetchExposure();
+        fetchTargets();
       }
     }, [])
   );
@@ -329,6 +358,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     return { total, slices: big, otherAssets: small };
   }, [assets]);
 
+  const totalWithoutCash = useMemo(
+    () =>
+      (assets || []).reduce(
+        (sum, a) => sum + (a.type === "cash" ? 0 : Number(a.currentValue || 0)),
+        0
+      ),
+    [assets]
+  );
+
   const allocationByType = useMemo(() => {
     const list = assets || [];
     const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
@@ -371,11 +409,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   }, [assets]);
 
   const allocationByCountry = useMemo(() => {
-    const total = Number(exposure?.totalPortfolioValue || 0);
-    if (!total || !exposure?.countries?.length) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
+    const total = Number(totalWithoutCash || 0);
+    if (!total) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
 
     const countryValues = new Map<string, number>();
-    for (const r of exposure.countries) {
+    for (const r of exposure?.countries || []) {
       const key = r.name;
       countryValues.set(key, (countryValues.get(key) || 0) + Number(r.value || 0));
     }
@@ -411,14 +449,14 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       slices.push({ id: -2001, label: "Otros", value: otherTotalValue, pct: otherTotalValue / total, color: "#94A3B8" });
     }
     return { total, slices, otherAssets: unknownSubItem ? [...remainder, unknownSubItem] : remainder };
-  }, [exposure]);
+  }, [totalWithoutCash, exposure]);
 
   const allocationBySector = useMemo(() => {
-    const total = Number(exposure?.totalPortfolioValue || 0);
-    if (!total || !exposure?.sectors?.length) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
+    const total = Number(totalWithoutCash || 0);
+    if (!total) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
 
     const sectorValues = new Map<string, number>();
-    for (const r of exposure.sectors) {
+    for (const r of exposure?.sectors || []) {
       const key = r.name;
       sectorValues.set(key, (sectorValues.get(key) || 0) + Number(r.value || 0));
     }
@@ -454,19 +492,19 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       slices.push({ id: -3001, label: "Otros", value: otherTotalValue, pct: otherTotalValue / total, color: "#94A3B8" });
     }
     return { total, slices, otherAssets: unknownSubItem ? [...remainder, unknownSubItem] : remainder };
-  }, [exposure]);
+  }, [totalWithoutCash, exposure]);
 
   const allocationByHolding = useMemo(() => {
-    const total = Number(exposure?.totalPortfolioValue || 0);
-    if (!total || !exposure?.indirectHoldings?.length) {
+    const total = Number(totalWithoutCash || 0);
+    if (!total) {
       return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
     }
-    const base = exposure.indirectHoldings
+    const base = (exposure?.indirectHoldings || [])
       .map((h, idx) => ({
         id: 4000 + idx,
         label: h.ticker ? `${h.name} (${h.ticker})` : h.name,
         value: Number(h.value || 0),
-        pct: Number(h.percentage || 0) / 100,
+        pct: Number(h.value || 0) / total,
         color: palette[idx % palette.length],
       }))
       .filter((s) => s.pct > 0)
@@ -486,7 +524,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       slices.push({ id: -4001, label: "Otros", value: otherTotalValue, pct: otherTotalValue / total, color: "#94A3B8" });
     }
     return { total, slices, otherAssets: unknownSubItem ? [...small, unknownSubItem] : small };
-  }, [exposure]);
+  }, [totalWithoutCash, exposure]);
 
   const activeAllocation = useMemo(() => {
     if (donutMode === "type") return allocationByType;
@@ -602,9 +640,13 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [webRefreshing, setWebRefreshing] = useState(false);
   const webTouchStartY = useRef(0);
   const webScrollAtTop = useRef(true);
+  const pullAnim = useRef(new Animated.Value(0)).current;
+  const currentPullY = useRef(0);
+  const webRefreshingRef = useRef(false);
+  const PULL_THRESHOLD = 80;
+  const PULL_MAX = 65;
   const [fetchError, setFetchError] = useState(false);
   const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad">("cartera");
 
@@ -612,7 +654,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     try {
       setSyncingMetadata(true);
       await api.post("/investments/metadata/sync-all");
-      await Promise.all([fetchExposure(), fetchSummary()]);
+      await Promise.all([fetchExposure(), fetchSummary(), fetchTargets()]);
       Alert.alert("Composición actualizada", "Se ha lanzado la sincronización para todos los assets.");
     } catch (e: any) {
       const msg = e?.response?.data?.message || "No se pudo sincronizar la composición.";
@@ -625,25 +667,37 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure()]);
+    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure(), fetchTargets()]);
     setRefreshing(false);
   }, []);
 
   const handleWebTouchStart = useCallback((e: any) => {
     if (Platform.OS === "web") {
       webTouchStartY.current = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+      currentPullY.current = 0;
     }
   }, []);
 
-  const handleWebTouchEnd = useCallback(async (e: any) => {
-    if (Platform.OS !== "web" || webRefreshing) return;
-    const endY = e.nativeEvent?.changedTouches?.[0]?.pageY ?? 0;
-    if (webScrollAtTop.current && endY - webTouchStartY.current > 80) {
-      setWebRefreshing(true);
+  const handleWebTouchMove = useCallback((e: any) => {
+    if (Platform.OS !== "web" || webRefreshingRef.current || !webScrollAtTop.current) return;
+    const y = e.nativeEvent?.touches?.[0]?.pageY ?? 0;
+    const delta = Math.max(0, y - webTouchStartY.current);
+    currentPullY.current = delta;
+    pullAnim.setValue(Math.min(PULL_MAX, Math.sqrt(delta) * 4.5));
+  }, [pullAnim, PULL_MAX]);
+
+  const handleWebTouchEnd = useCallback(async () => {
+    if (Platform.OS !== "web") return;
+    const delta = currentPullY.current;
+    currentPullY.current = 0;
+    if (webScrollAtTop.current && delta > PULL_THRESHOLD && !webRefreshingRef.current) {
+      webRefreshingRef.current = true;
+      Animated.spring(pullAnim, { toValue: 36, useNativeDriver: true }).start();
       await onRefresh();
-      setWebRefreshing(false);
+      webRefreshingRef.current = false;
     }
-  }, [webRefreshing, onRefresh]);
+    Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
+  }, [pullAnim, onRefresh, PULL_THRESHOLD]);
 
   const fabActions = useMemo(() => [
     { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
@@ -659,11 +713,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   ] as const;
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
       {/* ── Header ── */}
       <View className="px-5 pb-3" style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={{ flex: 1 }}>
-          <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
+          <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={false} />
         </View>
         <TouchableOpacity
           onPress={() => setFabOpen(true)}
@@ -692,7 +746,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             No se pudieron cargar las inversiones. Comprueba tu conexión.
           </Text>
           <TouchableOpacity
-            onPress={() => { fetchSummary(); fetchSnapshots(); fetchArchived(); fetchExposure(); }}
+            onPress={() => { fetchSummary(); fetchSnapshots(); fetchArchived(); fetchExposure(); fetchTargets(); }}
             activeOpacity={0.8}
             style={{ marginTop: 4, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 24 }}
           >
@@ -701,10 +755,24 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         </View>
       )}
 
+      {Platform.OS === "web" && !loading && !fetchError && (
+        <View style={{ position: "absolute", top: 52, left: 0, right: 0, alignItems: "center", zIndex: 0 }}>
+          <Animated.View style={{
+            opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
+            transform: [{ scale: pullAnim.interpolate({ inputRange: [0, PULL_MAX], outputRange: [0.5, 1], extrapolate: "clamp" }) }],
+          }}>
+            <View style={{ backgroundColor: "white", borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          </Animated.View>
+        </View>
+      )}
+
       {!loading && !fetchError && (
-        <View
-          style={{ flex: 1 }}
+        <Animated.View
+          style={Platform.OS === "web" ? { flex: 1, transform: [{ translateY: pullAnim }] } : { flex: 1 }}
           onTouchStart={handleWebTouchStart}
+          onTouchMove={handleWebTouchMove}
           onTouchEnd={handleWebTouchEnd}
         >
 
@@ -807,12 +875,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
             onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
             refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
-            {Platform.OS === "web" && webRefreshing && (
-              <View style={{ alignItems: "center", paddingBottom: 8 }}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            )}
-
         {/* ══ TAB: CARTERA ══ */}
         {mainTab === "cartera" && (
           <>
@@ -980,6 +1042,11 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
           <>
         {assets.length > 0 && allocation.slices.length > 0 && (
           <>
+            <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
+                Actual
+              </Text>
+            </View>
 
             <View
               style={{
@@ -1157,6 +1224,72 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
                   })}
                 </View>
               )}
+            </View>
+
+            <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: "#374151" }}>
+                Objetivo
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: t.surface,
+                borderRadius: 24,
+                padding: 16,
+                marginBottom: 10,
+                marginHorizontal: 20,
+                borderWidth: 1,
+                borderColor: t.border,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Distribución deseada</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("InvestmentTargetAllocation")}
+                  activeOpacity={0.85}
+                  style={{
+                    backgroundColor: "#EEF2FF",
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: colors.primary }}>Editar</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ marginTop: 12 }}>
+                {(targets?.items || []).map((it) => (
+                  <View
+                    key={`target-${it.assetId}`}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#F1F5F9",
+                      gap: 10,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                        {it.assetName}
+                      </Text>
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
+                        Objetivo {Number(it.targetPct || 0).toFixed(2).replace(".", ",")}%
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
+                        {Number(it.targetPct || 0).toFixed(2).replace(".", ",")}%
+                      </Text>
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }}>
+                        Actual {Number(it.actualPct || 0).toFixed(2).replace(".", ",")}%
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
           </>
         )}
@@ -1348,7 +1481,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
         )}
 
           </ScrollView>
-        </View>
+        </Animated.View>
       )}
 
       {/* ── Modal de acciones ── */}
@@ -1434,7 +1567,3 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
-
-
-
-
