@@ -26,7 +26,7 @@ import DonutPro, { DonutSlice } from "../../../../components/DonutPro";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../../../../utils/investmentsInvalidation";
 
-type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
+type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
 type PortfolioSnapshotRow = {
   monthStart: string;

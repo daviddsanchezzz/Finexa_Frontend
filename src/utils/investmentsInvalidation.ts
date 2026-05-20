@@ -10,5 +10,7 @@ export const markInvestmentsDirty = () => {
 
 export const subscribeInvestmentsInvalidation = (cb: (version: number) => void) => {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 };
