@@ -1340,7 +1340,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 activeOpacity={0.85}
                 onPress={() => {
                   setQuickAddOpen(false);
-                  navigation.navigate("InvestmentValuation", { assetId, editingValuationId: null });
+                  navigation.navigate("InvestmentValuation", { assetId });
                 }}
                 style={{
                   flexDirection: "row", alignItems: "center", gap: 14,

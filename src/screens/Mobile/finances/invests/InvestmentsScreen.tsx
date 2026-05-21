@@ -196,7 +196,54 @@ const formatPctRatio = (p: number | null | undefined) => {
 const toneColor = (v: number) => (v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#64748B");
 const toneBg   = (v: number) => (v > 0 ? "#DCFCE7" : v < 0 ? "#FEE2E2" : "#E5E7EB");
 
+type InvestmentOperationType =
+  | "buy" | "sell" | "swap" | "transfer_in" | "transfer_out" | "swap_in" | "swap_out";
 
+type AllOperationFromApi = {
+  id: number;
+  assetId: number;
+  type: InvestmentOperationType;
+  date?: string | null;
+  amount: number;
+  quantity?: string | null;
+  fee?: number | null;
+  createdAt?: string | null;
+};
+
+function opLabel(t: InvestmentOperationType) {
+  switch (t) {
+    case "buy":          return "Compra";
+    case "sell":         return "Venta";
+    case "transfer_in":  return "Aportación";
+    case "transfer_out": return "Retirada";
+    case "swap":
+    case "swap_in":
+    case "swap_out":     return "Swap";
+    default:             return "Operación";
+  }
+}
+
+function opTypeColor(t: InvestmentOperationType) {
+  switch (t) {
+    case "buy":          return { color: "#16A34A", bg: "#DCFCE7" };
+    case "sell":         return { color: "#DC2626", bg: "#FEE2E2" };
+    case "transfer_in":  return { color: "#2563EB", bg: "#EEF2FF" };
+    case "transfer_out": return { color: "#EA580C", bg: "#FEF3C7" };
+    default:             return { color: "#64748B", bg: "#F1F5F9" };
+  }
+}
+
+function opSignedAmount(op: AllOperationFromApi) {
+  const a = Math.abs(Number(op.amount || 0));
+  const fee = Math.abs(Number(op.fee || 0));
+  const sign =
+    op.type === "sell" || op.type === "transfer_out"
+      ? -1
+      : op.type === "swap" && Number(op.amount || 0) < 0
+      ? -1
+      : 1;
+  return sign * a - fee;
+}
 
 export default function InvestmentsHomeScreen({ navigation }: any) {
   const { isDark, colors: t } = useTheme();
@@ -234,6 +281,9 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     buys: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
   } | null>(null);
   const [contributionPlan, setContributionPlan] = useState<{ amount: number; rows: Array<{ assetName: string; amount: number }> } | null>(null);
+  const [allOperations, setAllOperations] = useState<AllOperationFromApi[]>([]);
+  const [allOperationsLoading, setAllOperationsLoading] = useState(false);
+  const allOperationsFetchedRef = useRef(false);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
@@ -330,6 +380,26 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       setTimelineLoading(false);
     }
   };
+
+  const fetchAllOperations = useCallback(async (force = false) => {
+    if (!force && allOperationsFetchedRef.current) return;
+    try {
+      setAllOperationsLoading(true);
+      const res = await api.get("/investments/operations");
+      const list: AllOperationFromApi[] = Array.isArray(res.data) ? res.data : [];
+      list.sort((a, b) => {
+        const da = new Date(a.date || a.createdAt || 0).getTime();
+        const db = new Date(b.date || b.createdAt || 0).getTime();
+        return db - da;
+      });
+      setAllOperations(list);
+      allOperationsFetchedRef.current = true;
+    } catch {
+      setAllOperations([]);
+    } finally {
+      setAllOperationsLoading(false);
+    }
+  }, []);
 
   const currency = useMemo(() => "EUR", []);
 
@@ -785,9 +855,13 @@ const submitContribution = useCallback(() => {
   const PULL_THRESHOLD = 80;
   const PULL_MAX = 65;
   const [fetchError, setFetchError] = useState(false);
-  const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad">("cartera");
+  const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad" | "operaciones">("cartera");
   const [distributionView, setDistributionView] = useState<"actual" | "objetivo">("actual");
   const rentAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (mainTab === "operaciones") fetchAllOperations();
+  }, [mainTab, fetchAllOperations]);
 
   useEffect(() => {
     if (mainTab !== "rentabilidad" || rentView !== "grafica") return;
@@ -816,9 +890,10 @@ const submitContribution = useCallback(() => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline()]);
+    allOperationsFetchedRef.current = false;
+    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline(), fetchAllOperations(true)]);
     setRefreshing(false);
-  }, []);
+  }, [fetchAllOperations]);
 
   const handleWebTouchStart = useCallback((e: any) => {
     if (Platform.OS === "web") {
@@ -855,10 +930,31 @@ const submitContribution = useCallback(() => {
   ], []);
 
   const TABS = [
-    { key: "cartera",       label: "Cartera" },
-    { key: "distribucion",  label: "Distribución" },
-    { key: "rentabilidad",  label: "Rentabilidad" },
+    { key: "cartera",      label: "Cartera" },
+    { key: "distribucion", label: "Distribución" },
+    { key: "rentabilidad", label: "Rentabilidad" },
+    { key: "operaciones",  label: "Operaciones" },
   ] as const;
+
+  const assetMapForOps = useMemo(() => {
+    const m = new Map<number, SummaryAssetFromApi>();
+    (summary?.assets ?? []).forEach((a) => m.set(a.id, a));
+    return m;
+  }, [summary]);
+
+  const operationsByMonth = useMemo(() => {
+    const groups = new Map<string, { label: string; ops: AllOperationFromApi[] }>();
+    allOperations.forEach((op) => {
+      const d = new Date(op.date || op.createdAt || 0);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!groups.has(key)) {
+        const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+        groups.set(key, { label: label.charAt(0).toUpperCase() + label.slice(1), ops: [] });
+      }
+      groups.get(key)!.ops.push(op);
+    });
+    return [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [allOperations]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
@@ -1939,6 +2035,101 @@ const submitContribution = useCallback(() => {
         })()}
 
           </>
+        )}
+
+        {/* == TAB: OPERACIONES == */}
+        {mainTab === "operaciones" && (
+          <View style={{ paddingHorizontal: 20 }}>
+            {allOperationsLoading ? (
+              <View style={{ alignItems: "center", paddingTop: 40 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ color: "#94A3B8", marginTop: 10, fontSize: 13, fontWeight: "600" }}>Cargando operaciones...</Text>
+              </View>
+            ) : allOperations.length === 0 ? (
+              <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
+                <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="swap-horizontal-outline" size={30} color="#94A3B8" />
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>Sin operaciones</Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8", textAlign: "center" }}>
+                  Añade una operación desde el botón + Añadir.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 16 }}>
+                {operationsByMonth.map(([monthKey, { label, ops }]) => (
+                  <View key={monthKey}>
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B", letterSpacing: 0.4, marginBottom: 8, marginLeft: 2 }}>
+                      {label.toUpperCase()}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: 20,
+                        shadowColor: "#000",
+                        shadowOpacity: 0.05,
+                        shadowRadius: 6,
+                        shadowOffset: { width: 0, height: 2 },
+                        overflow: "hidden",
+                      }}
+                    >
+                      {ops.map((op, idx) => {
+                        const asset = assetMapForOps.get(op.assetId);
+                        const assetName = asset?.abbreviation?.trim() || asset?.name || `Activo #${op.assetId}`;
+                        const signed = opSignedAmount(op);
+                        const { color, bg } = opTypeColor(op.type);
+                        const dateStr = new Date(op.date || op.createdAt || 0).toLocaleDateString("es-ES", {
+                          day: "2-digit", month: "short",
+                        });
+                        return (
+                          <TouchableOpacity
+                            key={op.id}
+                            activeOpacity={0.75}
+                            onPress={() => navigation.navigate("InvestmentDetail", { assetId: op.assetId })}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              paddingVertical: 12,
+                              paddingHorizontal: 14,
+                              borderBottomWidth: idx < ops.length - 1 ? 1 : 0,
+                              borderBottomColor: "#F1F5F9",
+                              gap: 12,
+                            }}
+                          >
+                            <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
+                              <Ionicons
+                                name={
+                                  op.type === "buy" || op.type === "transfer_in" ? "arrow-down-outline"
+                                  : op.type === "sell" || op.type === "transfer_out" ? "arrow-up-outline"
+                                  : "swap-horizontal-outline"
+                                }
+                                size={17}
+                                color={color}
+                              />
+                            </View>
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                                {assetName}
+                              </Text>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: bg }}>
+                                  <Text style={{ fontSize: 10, fontWeight: "800", color }}>{opLabel(op.type)}</Text>
+                                </View>
+                                <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8" }}>{dateStr}</Text>
+                              </View>
+                            </View>
+                            <Text style={{ fontSize: 13, fontWeight: "900", color: signed >= 0 ? "#16A34A" : "#DC2626" }}>
+                              {signed >= 0 ? "+" : ""}{formatMoney(signed, asset?.currency ?? "EUR")}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
           </ScrollView>
