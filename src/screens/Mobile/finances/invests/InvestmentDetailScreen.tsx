@@ -1356,7 +1356,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 >
                   <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir inversión</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir valoración</Text>
                 <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
 

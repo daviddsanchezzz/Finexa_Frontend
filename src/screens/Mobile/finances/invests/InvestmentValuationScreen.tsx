@@ -387,7 +387,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
                     onChangeText={setValueText}
                     placeholder="Ej: 3100,50"
                     placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     style={{ marginLeft: 10, flex: 1, color: "#111827", fontWeight: "700" }}
                   />
                   {valueText.trim() && parsedValue === null ? (
@@ -438,7 +438,7 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
                             onChangeText={(txt) => setMultiValues((prev) => ({ ...prev, [a.id]: txt }))}
                             placeholder="-"
                             placeholderTextColor="#9CA3AF"
-                            keyboardType="numeric"
+                            keyboardType="decimal-pad"
                             style={{
                               width: 110,
                               textAlign: "right",
