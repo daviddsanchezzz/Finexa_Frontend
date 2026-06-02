@@ -273,6 +273,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [contributionInputOpen, setContributionInputOpen] = useState(false);
   const [contributionResultOpen, setContributionResultOpen] = useState(false);
   const [contributionAmountText, setContributionAmountText] = useState("");
+  const [rebuildSnapshotLoading, setRebuildSnapshotLoading] = useState(false);
   const [rebalancePlan, setRebalancePlan] = useState<{
     sells: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
     buys: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
@@ -429,10 +430,36 @@ const runContribution = useCallback(async (amount: number) => {
   }
 }, [currency]);
 
-const handleContribution = useCallback(() => {
-  setContributionAmountText("");
-  setContributionInputOpen(true);
-}, []);
+  const handleContribution = useCallback(() => {
+    setContributionAmountText("");
+    setContributionInputOpen(true);
+  }, []);
+
+  const rebuildMaySnapshot = useCallback(async () => {
+    try {
+      setRebuildSnapshotLoading(true);
+      await api.post("/investments/snapshots/rebuild?monthStart=2026-05-01");
+      Alert.alert("Listo", "Snapshot de mayo reconstruido.");
+      await Promise.all([fetchSummary(), fetchSnapshots()]);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || "No se pudo reconstruir el snapshot.";
+      Alert.alert("Error", String(msg));
+    } finally {
+      setRebuildSnapshotLoading(false);
+    }
+  }, [fetchSnapshots, fetchSummary]);
+
+  const confirmRebuildMay = useCallback(() => {
+    if (rebuildSnapshotLoading) return;
+    Alert.alert(
+      "Reconstruir snapshot",
+      "Se recalculará el snapshot de mayo de 2026 para el usuario actual.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Reconstruir", style: "destructive", onPress: rebuildMaySnapshot },
+      ]
+    );
+  }, [rebuildMaySnapshot, rebuildSnapshotLoading]);
 
 const submitContribution = useCallback(() => {
   const amount = Number((contributionAmountText || "").replace(",", "."));
@@ -985,6 +1012,20 @@ const submitContribution = useCallback(() => {
         <View style={{ flex: 1 }}>
           <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={false} />
         </View>
+        <TouchableOpacity
+          onLongPress={confirmRebuildMay}
+          delayLongPress={450}
+          accessibilityLabel="Mantenimiento de inversiones"
+          style={{
+            position: "absolute",
+            right: 78,
+            top: 6,
+            width: 42,
+            height: 28,
+            opacity: 0.05,
+            zIndex: 20,
+          }}
+        />
         <TouchableOpacity
           onPress={() => setFabOpen(true)}
           activeOpacity={0.8}
