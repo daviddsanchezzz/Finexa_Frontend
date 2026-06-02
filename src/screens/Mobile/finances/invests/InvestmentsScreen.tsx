@@ -274,7 +274,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [contributionResultOpen, setContributionResultOpen] = useState(false);
   const [contributionAmountText, setContributionAmountText] = useState("");
   const [rebuildSnapshotLoading, setRebuildSnapshotLoading] = useState(false);
-  const [selectedRebuildMonth, setSelectedRebuildMonth] = useState<string>("");
+  const [selectedRebuildMonth, setSelectedRebuildMonth] = useState<string>("2026-05");
   const [rebalancePlan, setRebalancePlan] = useState<{
     sells: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
     buys: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
@@ -332,18 +332,6 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       setSnapshotsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (selectedRebuildMonth) return;
-    if (rebuildMonthOptions.some((option) => option.value === "2026-05")) {
-      setSelectedRebuildMonth("2026-05");
-      return;
-    }
-    if (!snapshots.length) return;
-    const first = snapshots[0]?.monthStart;
-    if (!first) return;
-    setSelectedRebuildMonth(first.slice(0, 7));
-  }, [selectedRebuildMonth, snapshots, rebuildMonthOptions]);
 
   const fetchArchived = async () => {
     try {
