@@ -26,6 +26,7 @@ import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/Inve
 import DonutPro, { DonutSlice } from "../../../../components/DonutPro";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../../../../utils/investmentsInvalidation";
+import { useUIStore } from "../../../../store/uiStore";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -244,6 +245,7 @@ function opSignedAmount(op: AllOperationFromApi) {
 
 export default function InvestmentsHomeScreen({ navigation }: any) {
   const { isDark, colors: t } = useTheme();
+  const showToast = useUIStore((s) => s.showToast);
   const [summary, setSummary] = useState<SummaryFromApi | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedSliceId, setSelectedSliceId] = useState<number | null>(null);
@@ -441,28 +443,25 @@ const runContribution = useCallback(async (amount: number) => {
     try {
       setRebuildSnapshotLoading(true);
       await api.post(`/investments/snapshots/rebuild?monthStart=${encodeURIComponent(monthStart)}`);
-      Alert.alert("Listo", `Snapshot de ${monthStart.slice(0, 7)} reconstruido.`);
+      showToast(`Snapshot de ${monthStart.slice(0, 7)} reconstruido.`, "success");
       await Promise.all([fetchSummary(), fetchSnapshots()]);
     } catch (e: any) {
       const msg = e?.response?.data?.message || "No se pudo reconstruir el snapshot.";
-      Alert.alert("Error", String(msg));
+      showToast(String(msg), "error");
     } finally {
       setRebuildSnapshotLoading(false);
     }
-  }, [fetchSnapshots, fetchSummary, selectedRebuildMonth]);
+  }, [fetchSnapshots, fetchSummary, selectedRebuildMonth, showToast]);
 
   const confirmRebuildMay = useCallback(() => {
     if (rebuildSnapshotLoading) return;
     const monthLabel = selectedRebuildMonth || "2026-05";
-    Alert.alert(
-      "Reconstruir snapshot",
-      `Se recalculará el snapshot de ${monthLabel} para el usuario actual.`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Reconstruir", style: "destructive", onPress: rebuildMaySnapshot },
-      ]
-    );
-  }, [rebuildMaySnapshot, rebuildSnapshotLoading]);
+    const confirmed = Platform.OS === "web"
+      ? window.confirm(`Se recalculará el snapshot de ${monthLabel} para el usuario actual.`)
+      : true;
+    if (!confirmed) return;
+    rebuildMaySnapshot();
+  }, [rebuildMaySnapshot, rebuildSnapshotLoading, selectedRebuildMonth]);
 
 const submitContribution = useCallback(() => {
   const amount = Number((contributionAmountText || "").replace(",", "."));
