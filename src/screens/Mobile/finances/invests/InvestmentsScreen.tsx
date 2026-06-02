@@ -274,6 +274,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [contributionResultOpen, setContributionResultOpen] = useState(false);
   const [contributionAmountText, setContributionAmountText] = useState("");
   const [rebuildSnapshotLoading, setRebuildSnapshotLoading] = useState(false);
+  const [selectedRebuildMonth, setSelectedRebuildMonth] = useState<string>("");
   const [rebalancePlan, setRebalancePlan] = useState<{
     sells: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
     buys: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
@@ -331,6 +332,14 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       setSnapshotsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedRebuildMonth) return;
+    if (!snapshots.length) return;
+    const first = snapshots[0]?.monthStart;
+    if (!first) return;
+    setSelectedRebuildMonth(first.slice(0, 7));
+  }, [selectedRebuildMonth, snapshots]);
 
   const fetchArchived = async () => {
     try {
@@ -436,10 +445,11 @@ const runContribution = useCallback(async (amount: number) => {
   }, []);
 
   const rebuildMaySnapshot = useCallback(async () => {
+    const monthStart = selectedRebuildMonth ? `${selectedRebuildMonth}-01` : "2026-05-01";
     try {
       setRebuildSnapshotLoading(true);
-      await api.post("/investments/snapshots/rebuild?monthStart=2026-05-01");
-      Alert.alert("Listo", "Snapshot de mayo reconstruido.");
+      await api.post(`/investments/snapshots/rebuild?monthStart=${encodeURIComponent(monthStart)}`);
+      Alert.alert("Listo", `Snapshot de ${monthStart.slice(0, 7)} reconstruido.`);
       await Promise.all([fetchSummary(), fetchSnapshots()]);
     } catch (e: any) {
       const msg = e?.response?.data?.message || "No se pudo reconstruir el snapshot.";
@@ -447,13 +457,14 @@ const runContribution = useCallback(async (amount: number) => {
     } finally {
       setRebuildSnapshotLoading(false);
     }
-  }, [fetchSnapshots, fetchSummary]);
+  }, [fetchSnapshots, fetchSummary, selectedRebuildMonth]);
 
   const confirmRebuildMay = useCallback(() => {
     if (rebuildSnapshotLoading) return;
+    const monthLabel = selectedRebuildMonth || "2026-05";
     Alert.alert(
       "Reconstruir snapshot",
-      "Se recalculará el snapshot de mayo de 2026 para el usuario actual.",
+      `Se recalculará el snapshot de ${monthLabel} para el usuario actual.`,
       [
         { text: "Cancelar", style: "cancel" },
         { text: "Reconstruir", style: "destructive", onPress: rebuildMaySnapshot },
@@ -798,6 +809,25 @@ const submitContribution = useCallback(() => {
     });
   }, [snapshots, rentYears]);
 
+  const rebuildMonthOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return [...snapshots]
+      .slice()
+      .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime())
+      .map((snapshot) => {
+        const month = snapshot.monthStart.slice(0, 7);
+        if (seen.has(month)) return null;
+        seen.add(month);
+        const date = new Date(`${month}-01T00:00:00.000Z`);
+        const label = date.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+        return {
+          value: month,
+          label: label.charAt(0).toUpperCase() + label.slice(1),
+        };
+      })
+      .filter((option): option is { value: string; label: string } => option != null);
+  }, [snapshots]);
+
   const performanceChart = useMemo(() => {
     const allPoints = [...timeline]
       .filter((p) => !!p?.date)
@@ -1012,20 +1042,6 @@ const submitContribution = useCallback(() => {
         <View style={{ flex: 1 }}>
           <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={false} />
         </View>
-        <TouchableOpacity
-          onLongPress={confirmRebuildMay}
-          delayLongPress={450}
-          accessibilityLabel="Mantenimiento de inversiones"
-          style={{
-            position: "absolute",
-            right: 78,
-            top: 6,
-            width: 42,
-            height: 28,
-            opacity: 0.05,
-            zIndex: 20,
-          }}
-        />
         <TouchableOpacity
           onPress={() => setFabOpen(true)}
           activeOpacity={0.8}
@@ -1948,13 +1964,6 @@ const submitContribution = useCallback(() => {
                         </Text>
                       </View>
                     )}
-                  </>
-                );
-              })()}
-            </View>
-          </Animated.View>
-        )}
-
         {rentView === "tabla" && snapshots.length > 0 && (() => {
           const years = [...rentYearRows].map((r) => r.year).sort((a, b) => b - a).slice(0, 4);
           const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -2093,9 +2102,6 @@ const submitContribution = useCallback(() => {
             </>
           );
         })()}
-
-          </>
-        )}
 
         {/* == TAB: OPERACIONES == */}
         {mainTab === "operaciones" && (
