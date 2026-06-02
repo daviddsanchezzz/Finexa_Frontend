@@ -366,7 +366,9 @@ function opSignedAmount(op: InvestmentOperationFromApi) {
     case "sell":
       return -(amount - fee);
     case "swap_in":
+      return amount - fee;
     case "swap_out":
+      return -(amount - fee);
     default:
       return 0;
   }

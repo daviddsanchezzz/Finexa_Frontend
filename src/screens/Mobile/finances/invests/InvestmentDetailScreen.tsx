@@ -28,7 +28,6 @@ type RangeKey = "1m" | "3m" | "6m" | "1y" | "all";
 type InvestmentOperationType =
   | "buy"
   | "sell"
-  | "swap"
   | "transfer_in"
   | "transfer_out"
   | "swap_in"
@@ -217,7 +216,6 @@ function opLabel(t: InvestmentOperationType) {
     case "sell":     return "Venta";
     case "transfer_in": return "Aportación";
     case "transfer_out": return "Retirada";
-    case "swap":
     case "swap_in":
     case "swap_out":
       return "Swap";
@@ -233,10 +231,10 @@ function opSignedAmount(op: InvestmentOperationFromApi) {
   const a = Math.abs(Number(op.amount || 0));
   const fee = Math.abs(Number(op.fee || 0));
   const sign =
-    op.type === "sell" || op.type === "transfer_out"
+    op.type === "sell" || op.type === "transfer_out" || op.type === "swap_out"
       ? -1
-      : op.type === "swap" && Number(op.amount || 0) < 0
-      ? -1
+      : op.type === "swap_in"
+      ? 1
       : 1;
   return sign * a - fee;
 }
@@ -245,7 +243,6 @@ type Tone = "neutral" | "success" | "danger";
 function opTone(t?: string | null): Tone {
   if (t === "buy" || t === "transfer_in" || t === "swap_in") return "success";
   if (t === "sell" || t === "transfer_out" || t === "swap_out") return "danger";
-  if (t === "swap") return "neutral";
   return "neutral";
 }
 
@@ -1531,5 +1528,3 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     </SafeAreaView>
   );
 }
-
-

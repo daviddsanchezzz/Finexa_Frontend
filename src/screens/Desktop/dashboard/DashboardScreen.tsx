@@ -1,4 +1,4 @@
-﻿// src/screens/Desktop/dashboard/DashboardScreen.tsx
+﻿﻿﻿﻿// src/screens/Desktop/dashboard/DashboardScreen.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -24,7 +24,6 @@ import { WalletPickerModal } from "../../../components/WalletPickerModal";
 import { textStyles, typography } from "../../../theme/typography";
 import { useCreateTxModal } from "../../../context/CreateTxModalContext";
 import DesktopTransactionsTable from "../../../components/DesktopTransactionsTable";
-import { KpiCard } from "../../../components/KpiCard";
 
 type GraphType = "expense" | "income";
 type RangeType = "week" | "month" | "year" | "all";
@@ -213,7 +212,7 @@ function useUiScale() {
   return { s, px, fs, width };
 }
 
-/** Encabezado secciÃ³n (sin cajita) */
+/** Encabezado sección (sin cajita) */
 function SectionTitle({
   title,
   right,
@@ -256,7 +255,7 @@ function Segmented({
   const items: Array<{ key: RangeType; label: string }> = [
     { key: "week", label: "Semana" },
     { key: "month", label: "Mes" },
-    { key: "year", label: "AÃ±o" },
+    { key: "year", label: "Año" },
   ];
 
   return (
@@ -333,7 +332,7 @@ function TopButton({
         paddingHorizontal: label ? px(12) : 0,
         width: label ? undefined : px(40),
         borderRadius: px(12),
-        backgroundColor: hover ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.90)",
+        backgroundColor: hover ? "rgba(255,255,255,1.0)" : "rgba(255,255,255,0.88)",
         borderWidth: 1,
         borderColor: "rgba(148,163,184,0.25)",
         flexDirection: "row",
@@ -428,7 +427,7 @@ function daysBetweenInclusive(fromISO: string | null, toISO: string | null) {
   return Math.max(1, diff + 1);
 }
 
-/** Header sticky para la secciÃ³n de transacciones */
+/** Header sticky para la sección de transacciones */
 function StickyTxHeader({
   title,
   right,
@@ -548,7 +547,7 @@ export default function DashboardScreen({ navigation }: any) {
         savingsRate: localSavingsRate,
       });
     } catch (e) {
-      console.error("âŒ Error cargando dashboard:", e);
+      console.error("Error cargando dashboard", e);
       setSummary(null);
       setTransactions([]);
       setWallets([]);
@@ -653,154 +652,98 @@ export default function DashboardScreen({ navigation }: any) {
           alignSelf: "center",
         }}
       >
-                {/* ===== Header hero (alineado con mobile) ===== */}
+        {/* ===== Hero desktop ===== */}
         <View
           style={{
             backgroundColor: colors.primary,
             borderRadius: px(24),
-            padding: px(18),
+            padding: px(24),
             marginBottom: px(14),
             shadowColor: "#0B1220",
-            shadowOpacity: 0.12,
-            shadowRadius: px(18),
-            shadowOffset: { width: 0, height: px(10) },
+            shadowOpacity: 0.16,
+            shadowRadius: px(22),
+            shadowOffset: { width: 0, height: px(12) },
           }}
         >
-          <Text style={[textStyles.label, { color: "rgba(255,255,255,0.85)", fontSize: fs(12) }]}>
-            {selectedWallet ? selectedWallet.name : "Todas las carteras"}
-          </Text>
-          <Text style={[textStyles.h1, { color: "white", fontSize: fs(26), marginTop: px(4), fontWeight: "800" }]}>
-            {loading ? "—" : formatEuro(balancePeriod)}
-          </Text>
-          <Text style={[textStyles.bodyMuted, { color: "rgba(255,255,255,0.85)", marginTop: px(2), fontSize: fs(12) }]}>
-            {dateLabel || "—"}
-          </Text>
-
-          <View style={{ marginTop: px(14), flexDirection: "row", alignItems: "center", gap: px(10), flexWrap: "wrap" }}>
-            <TopButton icon="calendar-outline" label="Fechas" onPress={() => setDateModalVisible(true)} px={px} fs={fs} />
-            <TopButton
-              icon="wallet-outline"
-              label={selectedWallet ? "Cartera" : "Carteras"}
-              onPress={() => setWalletModalVisible(true)}
-              px={px}
-              fs={fs}
-            />
-            <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
+          {/* Fila superior: label + controles */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: fs(13), fontWeight: "600" }}>
+              {selectedWallet ? selectedWallet.name : "Todas las carteras"}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
+              <TopButton icon="calendar-outline" label="Fechas" onPress={() => setDateModalVisible(true)} px={px} fs={fs} />
+              <TopButton
+                icon="wallet-outline"
+                label={selectedWallet ? "Cartera" : "Carteras"}
+                onPress={() => setWalletModalVisible(true)}
+                px={px}
+                fs={fs}
+              />
+              <TopButton icon="refresh-outline" onPress={fetchAll} px={px} fs={fs} />
+            </View>
           </View>
-        </View>
 
-        {Platform.OS === "web" && (
+          {/* Fila principal: patrimonio + mini stats del período */}
           <View
             style={{
-              height: px(42),
-              borderRadius: px(14),
-              borderWidth: 1,
-              borderColor: "rgba(148,163,184,0.22)",
-              backgroundColor: "rgba(255,255,255,0.96)",
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: px(12),
-              gap: px(8),
-              marginBottom: px(14),
+              flexDirection: width >= 960 ? "row" : "column",
+              alignItems: width >= 960 ? "flex-end" : "flex-start",
+              justifyContent: "space-between",
+              marginTop: px(22),
+              gap: px(16),
             }}
           >
-            <Ionicons name="search-outline" size={px(16)} color="#64748B" />
-            {/* @ts-ignore */}
-            <input
-              value={txQuery}
-              onChange={(e: any) => setTxQuery(e?.target?.value ?? "")}
-              placeholder="Buscar transacciones..."
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                fontSize: fs(13),
-                fontFamily: typography.family.base,
-                fontWeight: 600,
-                background: "transparent",
-                color: "#0F172A",
-              }}
-            />
-            {!!txQuery && (
-              <TouchableOpacity activeOpacity={0.9} onPress={() => setTxQuery("")}>
-                <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* ===== KPI row ===== */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: px(14) }}>
-          <KpiCard
-            title="PATRIMONIO TOTAL"
-            value={loading ? "â€”" : formatEuro(netWorth)}
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
-                {selectedWallet ? "Balance de la cartera" : "Suma de balances de carteras"}
+            {/* Patrimonio total */}
+            <View>
+              <Text style={{ color: "rgba(255,255,255,0.50)", fontSize: fs(11), fontWeight: "700", letterSpacing: 0.8 }}>
+                PATRIMONIO TOTAL
               </Text>
-            }
-            icon="briefcase-outline"
-            variant="premium"
-            px={px}
-            fs={fs}
-          />
+              <Text style={{ color: "white", fontSize: fs(42), fontWeight: "800", marginTop: px(4), letterSpacing: -0.5 }}>
+                {loading ? "—" : formatEuro(netWorth)}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.50)", marginTop: px(4), fontSize: fs(13), fontWeight: "600" }}>
+                {dateLabel || "—"}
+              </Text>
+            </View>
 
-          <KpiCard
-            title="BALANCE"
-            value={loading ? "â€”" : formatEuro(balancePeriod)}
-            subtitle={
-              loading ? null : (
-                <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
-                  Ahorro:{" "}
-                  <Text style={{ color: balancePeriod >= 0 ? "#16A34A" : "#DC2626", fontWeight: "900" }}>
-                    {formatPercent(savingsRate)}
+            {/* Mini stats del período */}
+            <View style={{ flexDirection: "row", gap: px(10), flexWrap: "wrap" }}>
+              {[
+                {
+                  label: "Balance",
+                  value: formatEuro(balancePeriod),
+                  color: loading ? "rgba(255,255,255,0.35)" : balancePeriod >= 0 ? "#4ADE80" : "#F87171",
+                },
+                { label: "Ingresos", value: formatEuro(totalIncome), color: loading ? "rgba(255,255,255,0.35)" : "white" },
+                { label: "Gastos", value: formatEuro(totalExpenses), color: loading ? "rgba(255,255,255,0.35)" : "white" },
+                { label: "Ahorro", value: formatPercent(savingsRate), color: loading ? "rgba(255,255,255,0.35)" : "white" },
+              ].map((stat) => (
+                <View
+                  key={stat.label}
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                    borderRadius: px(16),
+                    paddingHorizontal: px(16),
+                    paddingVertical: px(12),
+                    alignItems: "flex-end",
+                    minWidth: px(112),
+                  }}
+                >
+                  <Text style={{ color: "rgba(255,255,255,0.60)", fontSize: fs(11), fontWeight: "600" }}>
+                    {stat.label}
                   </Text>
-                </Text>
-              )
-            }
-            icon="stats-chart-outline"
-            tone="info"
-            px={px}
-            fs={fs}
-          />
-
-          <KpiCard
-            title="INGRESOS"
-            value={loading ? "â€”" : formatEuro(totalIncome)}
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
-                {dateLabel || ""}
-              </Text>
-            }
-            icon="arrow-up-outline"
-            tone="success"
-            px={px}
-            fs={fs}
-          />
-
-          <KpiCard
-            title="GASTOS"
-            value={loading ? "â€”" : formatEuro(totalExpenses)}
-            subtitle={
-              <Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8", fontWeight: "800" }]} numberOfLines={1}>
-                {dateLabel || ""}
-              </Text>
-            }
-            icon="arrow-down-outline"
-            tone="danger"
-            px={px}
-            fs={fs}
-          />
+                  <Text style={{ color: stat.color, fontSize: fs(stat.label === "Ahorro" ? 20 : 16), fontWeight: "800", marginTop: px(4) }}>
+                    {loading ? "—" : stat.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
 
-        {/* ===== Controls row ===== */}
-        <View style={{ marginTop: px(14), flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <GraphTypePill value={graphType} onChange={setGraphType} px={px} fs={fs} />
-        </View>
-
-        {/* ===== Charts row (sin â€œTop categoriesâ€) ===== */}
-        <View style={{ marginTop: px(12), flexDirection: width >= 1120 ? "row" : "column", gap: px(12) }}>
-          {/* EvoluciÃ³n */}
+        {/* ===== Charts row ===== */}
+        <View style={{ marginTop: px(14), flexDirection: width >= 1120 ? "row" : "column", gap: px(12) }}>
+          {/* Evolución */}
           <View
             style={{
               flex: 1,
@@ -814,8 +757,13 @@ export default function DashboardScreen({ navigation }: any) {
             }}
           >
             <SectionTitle
-              title={graphType === "expense" ? "EvoluciÃ³n de gastos" : "EvoluciÃ³n de ingresos"}
-              right={<Segmented value={rangeType} onChange={setRangeType} px={px} fs={fs} />}
+              title={graphType === "expense" ? "Evolución de gastos" : "Evolución de ingresos"}
+              right={
+                <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
+                  <GraphTypePill value={graphType} onChange={setGraphType} px={px} fs={fs} />
+                  <Segmented value={rangeType} onChange={setRangeType} px={px} fs={fs} />
+                </View>
+              }
               px={px}
               fs={fs}
             />
@@ -843,7 +791,7 @@ export default function DashboardScreen({ navigation }: any) {
               shadowOffset: { width: 0, height: px(10) },
             }}
           >
-            <SectionTitle title="DistribuciÃ³n por categorÃ­as" px={px} fs={fs} />
+            <SectionTitle title="Distribución por categorías" px={px} fs={fs} />
             <View style={{ marginTop: px(10), height: CHART_H, alignItems: "center", justifyContent: "center" }}>
               {loading ? (
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -859,8 +807,48 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* ===== Transacciones a TODO ANCHO: tabla sobre el fondo + header sticky + divider ===== */}
+        {/* ===== Transacciones ===== */}
         <View style={{ marginTop: px(16) }}>
+          {Platform.OS === "web" && (
+            <View
+              style={{
+                height: px(42),
+                borderRadius: px(14),
+                borderWidth: 1,
+                borderColor: "rgba(148,163,184,0.22)",
+                backgroundColor: "rgba(255,255,255,0.96)",
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: px(12),
+                gap: px(8),
+                marginBottom: px(10),
+              }}
+            >
+              <Ionicons name="search-outline" size={px(16)} color="#64748B" />
+              {/* @ts-ignore */}
+              <input
+                value={txQuery}
+                onChange={(e: any) => setTxQuery(e?.target?.value ?? "")}
+                placeholder="Buscar transacciones..."
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  fontSize: fs(13),
+                  fontFamily: typography.family.base,
+                  fontWeight: 600,
+                  background: "transparent",
+                  color: "#0F172A",
+                }}
+              />
+              {!!txQuery && (
+                <TouchableOpacity activeOpacity={0.9} onPress={() => setTxQuery("")}>
+                  <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           <StickyTxHeader
             title="Transacciones del periodo"
             right={
@@ -912,7 +900,7 @@ export default function DashboardScreen({ navigation }: any) {
                   transactions={txPreview}
                   onEditTx={(tx) => openEditTx(tx)}
                   onDeleteTx={(tx) => {
-                    // tu lÃ³gica existente
+                    // tu lógica existente
                   }}
                 />
               </View>

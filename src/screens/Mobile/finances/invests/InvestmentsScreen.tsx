@@ -197,7 +197,7 @@ const toneColor = (v: number) => (v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#6474
 const toneBg   = (v: number) => (v > 0 ? "#DCFCE7" : v < 0 ? "#FEE2E2" : "#E5E7EB");
 
 type InvestmentOperationType =
-  | "buy" | "sell" | "swap" | "transfer_in" | "transfer_out" | "swap_in" | "swap_out";
+  | "buy" | "sell" | "transfer_in" | "transfer_out" | "swap_in" | "swap_out";
 
 type AllOperationFromApi = {
   id: number;
@@ -216,7 +216,6 @@ function opLabel(t: InvestmentOperationType) {
     case "sell":         return "Venta";
     case "transfer_in":  return "Aportación";
     case "transfer_out": return "Retirada";
-    case "swap":
     case "swap_in":
     case "swap_out":     return "Swap";
     default:             return "Operación";
@@ -237,9 +236,7 @@ function opSignedAmount(op: AllOperationFromApi) {
   const a = Math.abs(Number(op.amount || 0));
   const fee = Math.abs(Number(op.fee || 0));
   const sign =
-    op.type === "sell" || op.type === "transfer_out"
-      ? -1
-      : op.type === "swap" && Number(op.amount || 0) < 0
+    op.type === "sell" || op.type === "transfer_out" || op.type === "swap_out"
       ? -1
       : 1;
   return sign * a - fee;
