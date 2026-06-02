@@ -818,6 +818,7 @@ const submitContribution = useCallback(() => {
         });
       }
     });
+    
 
     return options.sort((a, b) => b.value.localeCompare(a.value));
   }, [snapshots]);
