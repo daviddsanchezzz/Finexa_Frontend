@@ -1964,6 +1964,13 @@ const submitContribution = useCallback(() => {
                         </Text>
                       </View>
                     )}
+                  </>
+                );
+              })()}
+              </View>
+          </Animated.View>
+        )}
+
         {rentView === "tabla" && snapshots.length > 0 && (() => {
           const years = [...rentYearRows].map((r) => r.year).sort((a, b) => b - a).slice(0, 4);
           const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -2102,6 +2109,85 @@ const submitContribution = useCallback(() => {
             </>
           );
         })()}
+
+        <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 8 }}>
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 20,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              shadowColor: "#000",
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 2 },
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A", marginBottom: 4 }}>
+              Reconstruir snapshot
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 12 }}>
+              Selecciona el mes y vuelve a calcular el snapshot mensual desde el front.
+            </Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
+              {rebuildMonthOptions.length ? rebuildMonthOptions.map((option) => {
+                const active = selectedRebuildMonth === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setSelectedRebuildMonth(option.value)}
+                    activeOpacity={0.8}
+                    style={{
+                      paddingHorizontal: 14,
+                      height: 34,
+                      borderRadius: 11,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary : "#E5E7EB",
+                      backgroundColor: active ? "#EEF2FF" : "#F8FAFC",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: active ? colors.primary : "#475569" }}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }) : (
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>
+                  No hay snapshots disponibles para seleccionar.
+                </Text>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              onPress={confirmRebuildMay}
+              disabled={rebuildSnapshotLoading}
+              activeOpacity={0.85}
+              style={{
+                marginTop: 14,
+                height: 42,
+                borderRadius: 12,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: rebuildSnapshotLoading ? "#CBD5E1" : colors.primary,
+                opacity: rebuildSnapshotLoading ? 0.75 : 1,
+              }}
+            >
+              {rebuildSnapshotLoading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text style={{ fontSize: 13, fontWeight: "900", color: "white" }}>
+                  Reconstruir snapshot
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        </>)}
 
         {/* == TAB: OPERACIONES == */}
         {mainTab === "operaciones" && (
