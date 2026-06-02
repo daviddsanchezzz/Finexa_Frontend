@@ -335,11 +335,15 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
 
   useEffect(() => {
     if (selectedRebuildMonth) return;
+    if (rebuildMonthOptions.some((option) => option.value === "2026-05")) {
+      setSelectedRebuildMonth("2026-05");
+      return;
+    }
     if (!snapshots.length) return;
     const first = snapshots[0]?.monthStart;
     if (!first) return;
     setSelectedRebuildMonth(first.slice(0, 7));
-  }, [selectedRebuildMonth, snapshots]);
+  }, [selectedRebuildMonth, snapshots, rebuildMonthOptions]);
 
   const fetchArchived = async () => {
     try {
@@ -810,22 +814,24 @@ const submitContribution = useCallback(() => {
   }, [snapshots, rentYears]);
 
   const rebuildMonthOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return [...snapshots]
-      .slice()
-      .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime())
-      .map((snapshot) => {
-        const month = snapshot.monthStart.slice(0, 7);
-        if (seen.has(month)) return null;
-        seen.add(month);
-        const date = new Date(`${month}-01T00:00:00.000Z`);
+    const years = new Set<number>();
+    snapshots.forEach((snapshot) => years.add(new Date(snapshot.monthStart).getUTCFullYear()));
+    if (!years.size) years.add(new Date().getUTCFullYear());
+
+    const options: Array<{ value: string; label: string }> = [];
+    years.forEach((year) => {
+      for (let month = 0; month < 12; month += 1) {
+        const value = `${year}-${String(month + 1).padStart(2, "0")}`;
+        const date = new Date(`${value}-01T00:00:00.000Z`);
         const label = date.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-        return {
-          value: month,
+        options.push({
+          value,
           label: label.charAt(0).toUpperCase() + label.slice(1),
-        };
-      })
-      .filter((option): option is { value: string; label: string } => option != null);
+        });
+      }
+    });
+
+    return options.sort((a, b) => b.value.localeCompare(a.value));
   }, [snapshots]);
 
   const performanceChart = useMemo(() => {
