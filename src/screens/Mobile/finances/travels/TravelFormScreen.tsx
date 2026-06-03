@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   Dimensions,
@@ -18,6 +17,7 @@ import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { CountrySelect } from "../../../../components/CountrySelect";
+import { appAlert } from "../../../../utils/appAlert";
 
 type TripStatus = "seen" | "planning" | "wishlist";
 type DateField = "start" | "end" | null;
@@ -267,29 +267,29 @@ export default function TripFormScreen({ route, navigation }: any) {
 
   const validate = () => {
     if (!name.trim()) {
-      Alert.alert("Falta el nombre", "Añade un nombre para el viaje.");
+      appAlert("Falta el nombre", "Añade un nombre para el viaje.");
       return false;
     }
     if (!(countryCode || "").trim()) {
-      Alert.alert("Falta el país", "Selecciona un país.");
+      appAlert("Falta el país", "Selecciona un país.");
       return false;
     }
     if (!startDate || !endDate) {
-      Alert.alert("Fechas incompletas", "Indica fechas de inicio y fin.");
+      appAlert("Fechas incompletas", "Indica fechas de inicio y fin.");
       return false;
     }
     if (endDate < startDate) {
-      Alert.alert("Rango inválido", "La fecha de fin no puede ser anterior a la de inicio.");
+      appAlert("Rango inválido", "La fecha de fin no puede ser anterior a la de inicio.");
       return false;
     }
     const cost = costText.trim() ? parseMoney(costText) : 0;
     if (cost < 0) {
-      Alert.alert("Coste inválido", "El coste no puede ser negativo.");
+      appAlert("Coste inválido", "El coste no puede ser negativo.");
       return false;
     }
     const b = budgetText.trim() ? parseMoney(budgetText) : 0;
     if (b < 0) {
-      Alert.alert("Presupuesto inválido", "El presupuesto no puede ser negativo.");
+      appAlert("Presupuesto inválido", "El presupuesto no puede ser negativo.");
       return false;
     }
     return true;
@@ -304,8 +304,8 @@ export default function TripFormScreen({ route, navigation }: any) {
       name: name.trim(),
       destination: (countryCode || "").trim() || null,
 
-      startDate,
-      endDate,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
 
       companions: companionsArray,
 
@@ -330,7 +330,7 @@ export default function TripFormScreen({ route, navigation }: any) {
       navigation.goBack();
     } catch (err) {
       console.error("❌ Error al guardar viaje:", err);
-      Alert.alert("Error", "Ha ocurrido un error al guardar el viaje. Inténtalo de nuevo.");
+      appAlert("Error", "Ha ocurrido un error al guardar el viaje. Inténtalo de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -339,7 +339,7 @@ export default function TripFormScreen({ route, navigation }: any) {
   const handleDelete = () => {
     if (!editTrip || deleting) return;
 
-    Alert.alert("Eliminar viaje", "¿Seguro que quieres eliminar este viaje? Esta acción no se puede deshacer.", [
+    appAlert("Eliminar viaje", "¿Seguro que quieres eliminar este viaje? Esta acción no se puede deshacer.", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
@@ -351,7 +351,7 @@ export default function TripFormScreen({ route, navigation }: any) {
             navigation.goBack();
           } catch (err) {
             console.error("❌ Error al eliminar viaje:", err);
-            Alert.alert("Error", "Ha ocurrido un error al eliminar el viaje. Inténtalo de nuevo.");
+            appAlert("Error", "Ha ocurrido un error al eliminar el viaje. Inténtalo de nuevo.");
           } finally {
             setDeleting(false);
           }
