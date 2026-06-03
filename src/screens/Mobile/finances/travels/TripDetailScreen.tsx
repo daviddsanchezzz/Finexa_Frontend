@@ -890,7 +890,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}
+          contentContainerStyle={{ paddingBottom: 28 }}
         >
         {/* CONTENIDO POR TAB */}
         <View style={{ flex: 1 }}>
