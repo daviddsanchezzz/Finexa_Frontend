@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
   Modal,
   Switch,
   Alert,
@@ -845,10 +846,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
         </View>
 
         {/* WEATHER WIDGET — solo viajes próximos / en curso con destino */}
-        {(status === "upcoming" || status === "ongoing") && !!countryCode && (
-          <WeatherWidget countryCode={countryCode} />
-        )}
-
         {/* SELECTOR TABS */}
         <View className="mb-3">
           <View className="flex-row rounded-2xl bg-slate-50 p-1">
@@ -890,22 +887,33 @@ export default function TripDetailScreen({ route, navigation }: any) {
           </View>
         </View>
 
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}
+        >
         {/* CONTENIDO POR TAB */}
         <View style={{ flex: 1 }}>
           {tab === "summary" && (
-            <TripExpenseSummarySection
-              px={(n) => n}
-              fs={(n) => n}
-              tasks={tasks}
-              notes={notes}
-              onCreateTask={createTripTask}
-              onToggleTask={toggleTripTask}
-              onDeleteTask={deleteTripTask}
-              onUpdateTask={updateTripTask}
-              onCreateNote={createTripNote}
-              onUpdateNote={updateTripNote}
-              onDeleteNote={deleteTripNote}
-            />
+            <View style={{ gap: 12 }}>
+              {(status === "upcoming" || status === "ongoing") && !!countryCode && (
+                <WeatherWidget countryCode={countryCode} />
+              )}
+
+              <TripExpenseSummarySection
+                px={(n) => n}
+                fs={(n) => n}
+                tasks={tasks}
+                notes={notes}
+                onCreateTask={createTripTask}
+                onToggleTask={toggleTripTask}
+                onDeleteTask={deleteTripTask}
+                onUpdateTask={updateTripTask}
+                onCreateNote={createTripNote}
+                onUpdateNote={updateTripNote}
+                onDeleteNote={deleteTripNote}
+              />
+            </View>
           )}
 
           {tab === "expenses" && (
@@ -920,6 +928,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
             <TripLogisticsSection tripId={trip.id} planItems={planItems} onRefresh={fetchTrip} />
           )}
         </View>
+        </ScrollView>
       </View>
 
       {/* MODAL EXPORTAR PDF */}
