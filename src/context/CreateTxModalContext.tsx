@@ -11,6 +11,7 @@ export type CreateTxPrefill = {
   assetId?: number;
   amount?: number;
   description?: string;
+  cardName?: string;
 };
 
 /**

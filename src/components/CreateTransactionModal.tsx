@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 import api from "../api/api";
 import { markTransactionsDirty } from "../utils/transactionsInvalidation";
+import { matchWalletByCard } from "../utils/quickAdd";
 import EditCategoryModal from "./EditCategoryModal";
 import CrossPlatformDateTimePicker from "./CrossPlatformDateTimePicker";
 
@@ -28,6 +29,7 @@ type Prefill = {
   assetId?: number;
   amount?: number;
   description?: string;
+  cardName?: string;
 };
 
 type Props = {
@@ -316,7 +318,13 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     if (!visible) return;
     if (!wallets.length) return;
 
-    const pre = prefill?.walletId ? wallets.find((w) => w.id === prefill.walletId) : null;
+    let pre: Wallet | null = null;
+    if (prefill?.walletId) {
+      pre = wallets.find((w) => w.id === prefill.walletId) ?? null;
+    } else if (prefill?.cardName) {
+      const matchedId = matchWalletByCard(prefill.cardName, wallets);
+      if (matchedId != null) pre = wallets.find((w) => w.id === matchedId) ?? null;
+    }
 
     if (type === "transfer") {
       if (!selectedWalletFrom) setSelectedWalletFrom(pre || wallets[0] || null);
