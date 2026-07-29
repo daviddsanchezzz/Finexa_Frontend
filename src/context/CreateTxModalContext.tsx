@@ -9,6 +9,8 @@ export type CreateTxPrefill = {
   type?: "expense" | "income" | "transfer";
   date?: string; // ISO
   assetId?: number;
+  amount?: number;
+  description?: string;
 };
 
 /**

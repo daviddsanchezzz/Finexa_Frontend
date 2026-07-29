@@ -1,11 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import MobileNavigator from "./MobileNavigator";
 import DesktopNavigator from "./DesktopNavigator";
 import { useLayoutMode } from "../hooks/useLayoutMode";
+import { readQuickAddFromUrl, saveQuickAddToSession } from "../utils/quickAdd";
 
 export default function AppNavigator() {
   const { loaded, mode } = useLayoutMode();
+
+  useEffect(() => {
+    const params = readQuickAddFromUrl();
+    if (params) {
+      saveQuickAddToSession(params);
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
 
   if (!loaded) {
     return (

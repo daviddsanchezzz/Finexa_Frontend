@@ -26,6 +26,8 @@ type Prefill = {
   type?: TxType;
   date?: string; // ISO
   assetId?: number;
+  amount?: number;
+  description?: string;
 };
 
 type Props = {
@@ -286,8 +288,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
   const resetForm = useCallback(() => {
     setType(prefill?.type ?? "expense");
-    setAmount("");
-    setDescription("");
+    setAmount(prefill?.amount != null ? String(prefill.amount).replace('.', ',') : "");
+    setDescription(prefill?.description ?? "");
     setDate(prefill?.date ? new Date(prefill.date) : new Date());
     setRecurrenceInterval("never");
 

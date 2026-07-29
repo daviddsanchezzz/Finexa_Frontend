@@ -20,6 +20,7 @@ import {
   CreateTxPrefill,
   EditTxData,
 } from "../context/CreateTxModalContext";
+import { readQuickAddFromSession, clearQuickAddFromSession } from "../utils/quickAdd";
 
 import InitialsAvatar from "../components/InitialsAvatar";
 import TripDetailDesktopScreen from "../screens/Desktop/travel/TripDetailDesktopScreen";
@@ -100,15 +101,7 @@ function DesktopShellLayout({
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const [isCreateTxOpen, setIsCreateTxOpen] = useState(false);
-  const [createTxPrefill, setCreateTxPrefill] = useState<
-    | {
-        walletId?: number;
-        type?: "expense" | "income" | "transfer";
-        date?: string;
-        assetId?: number;
-      }
-    | undefined
-  >(undefined);
+  const [createTxPrefill, setCreateTxPrefill] = useState<CreateTxPrefill | undefined>(undefined);
   const [editTx, setEditTx] = useState<EditTxData | null>(null);
 
   const openCreateTx = useCallback((prefill?: CreateTxPrefill) => {
@@ -116,6 +109,16 @@ function DesktopShellLayout({
     setCreateTxPrefill(prefill);
     setIsCreateTxOpen(true);
   }, []);
+
+  useEffect(() => {
+    const params = readQuickAddFromSession();
+    if (!params) return;
+    clearQuickAddFromSession();
+    const id = setTimeout(() => {
+      openCreateTx({ amount: params.amount, description: params.merchant });
+    }, 300);
+    return () => clearTimeout(id);
+  }, [openCreateTx]);
 
   const closeCreateTx = useCallback(() => {
     setIsCreateTxOpen(false);
