@@ -1,20 +1,22 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import MobileNavigator from "./MobileNavigator";
 import DesktopNavigator from "./DesktopNavigator";
 import { useLayoutMode } from "../hooks/useLayoutMode";
 import { readQuickAddFromUrl, saveQuickAddToSession } from "../utils/quickAdd";
 
+// Lee los params síncronamente al cargar el módulo, antes de que
+// React Navigation pueda modificar la URL.
+if (typeof window !== 'undefined') {
+  const _quickAddParams = readQuickAddFromUrl();
+  if (_quickAddParams) {
+    saveQuickAddToSession(_quickAddParams);
+    window.history.replaceState({}, '', '/');
+  }
+}
+
 export default function AppNavigator() {
   const { loaded, mode } = useLayoutMode();
-
-  useEffect(() => {
-    const params = readQuickAddFromUrl();
-    if (params) {
-      saveQuickAddToSession(params);
-      window.history.replaceState({}, '', '/');
-    }
-  }, []);
 
   if (!loaded) {
     return (

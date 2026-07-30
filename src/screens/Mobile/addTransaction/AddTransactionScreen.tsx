@@ -21,6 +21,7 @@ import EditCategoryModal from "../../../components/EditCategoryModal";
 import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTimePicker";
 import { appAlert } from "../../../utils/appAlert";
 import { markTransactionsDirty } from "../../../utils/transactionsInvalidation";
+import { matchWalletByCard } from "../../../utils/quickAdd";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
 
@@ -254,8 +255,12 @@ export default function AddScreen({ navigation }: any) {
         setSelectedInvestmentAsset(null);
       }
     } else {
-      const wallet = wallets.find((w) => w.id === sourceData.walletId) || null;
-      setSelectedWallet(wallet);
+      let wallet = wallets.find((w: any) => w.id === sourceData.walletId) || null;
+      if (!wallet && sourceData.cardName) {
+        const matchedId = matchWalletByCard(sourceData.cardName, wallets);
+        wallet = wallets.find((w: any) => w.id === matchedId) ?? wallets[0] ?? null;
+      }
+      setSelectedWallet(wallet || wallets[0] || null);
       setSelectedInvestmentAsset(null);
     }
 
