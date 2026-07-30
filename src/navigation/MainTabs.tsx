@@ -17,6 +17,7 @@ export default function MainTabs({ navigation }: any) {
           amount: params.amount,
           description: params.merchant,
           cardName: params.cardName,
+          date: new Date().toISOString(),
         },
       });
     }, 300);

@@ -284,7 +284,7 @@ export default function AddScreen({ navigation }: any) {
     );
 
     setDescription(sourceData.description || "");
-    setDate(new Date(sourceData.date));
+    setDate(sourceData.date ? new Date(sourceData.date) : new Date());
 
     // --------- RECURRENCIA ----------
     if (sourceData.isRecurring && sourceData.recurrence) {
