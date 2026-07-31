@@ -483,6 +483,8 @@ export default function TripPlanFormScreen({
   // ==================== COMMON STATE ====================
 
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // ==================== SAVE HANDLERS ====================
@@ -701,6 +703,23 @@ export default function TripPlanFormScreen({
       Alert.alert("Error", "No se pudo guardar el gasto");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (!planItem?.id) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!planItem?.id) return;
+    try {
+      setDeleting(true);
+      await api.delete(`/trips/${tripId}/plan-items/${planItem.id}`);
+      navigation.goBack();
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -1334,9 +1353,11 @@ export default function TripPlanFormScreen({
           left: 0,
           right: 0,
           padding: 16,
+          paddingBottom: 24,
           backgroundColor: "white",
           borderTopWidth: 1,
           borderTopColor: UI.border,
+          gap: 10,
         }}
       >
         <PrimaryButton
@@ -1345,7 +1366,47 @@ export default function TripPlanFormScreen({
           disabled={saving}
           onPress={handleSave}
         />
+        {isEdit && (
+          <TouchableOpacity
+            onPress={handleDelete}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              paddingVertical: 10,
+            }}
+          >
+            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#EF4444" }}>Eliminar elemento</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal visible={showDeleteConfirm} transparent animationType="fade" onRequestClose={() => setShowDeleteConfirm(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} activeOpacity={1} onPress={() => setShowDeleteConfirm(false)} />
+        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "white", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24, paddingBottom: 40, gap: 8 }}>
+          <Text style={{ fontSize: 17, fontWeight: "800", color: UI.text, textAlign: "center" }}>Eliminar elemento</Text>
+          <Text style={{ fontSize: 14, color: UI.muted, textAlign: "center", marginBottom: 8 }}>¿Seguro que quieres eliminar este elemento del viaje? Esta acción no se puede deshacer.</Text>
+          <TouchableOpacity
+            onPress={confirmDelete}
+            disabled={deleting}
+            style={{ backgroundColor: "#EF4444", borderRadius: 14, paddingVertical: 14, alignItems: "center", opacity: deleting ? 0.6 : 1 }}
+          >
+            {deleting
+              ? <ActivityIndicator color="white" />
+              : <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Eliminar</Text>
+            }
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowDeleteConfirm(false)}
+            style={{ paddingVertical: 12, alignItems: "center" }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "700", color: UI.muted }}>Cancelar</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* CURRENCY PICKER MODAL */}
       <Modal visible={currencyModalOpen} transparent animationType="slide" onRequestClose={() => setCurrencyModalOpen(false)}>
