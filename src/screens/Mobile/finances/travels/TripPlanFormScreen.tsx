@@ -832,7 +832,11 @@ export default function TripPlanFormScreen({
         {mainTab === "transport" && (
           <View>
             {/* Transport Subtabs */}
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, marginTop: 8 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ flexDirection: "row", gap: 8, marginBottom: 16, marginTop: 8 }}
+            >
               {[
                 { key: "flight" as TransportSubTab, label: "Vuelo", icon: "airplane-outline" as keyof typeof Ionicons.glyphMap },
                 { key: "train" as TransportSubTab, label: "Tren", icon: "train-outline" as keyof typeof Ionicons.glyphMap },
@@ -847,7 +851,7 @@ export default function TripPlanFormScreen({
                   onPress={() => setTransportTab(subtab.key)}
                 />
               ))}
-            </View>
+            </ScrollView>
 
             {/* Flight Form */}
             {transportTab === "flight" && (

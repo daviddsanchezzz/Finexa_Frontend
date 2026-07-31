@@ -738,6 +738,8 @@ export default function TripPlanningSectionRedesign({
       const accName = item.accommodationDetails?.name || item.title;
       const checkInAt = item.accommodationDetails?.checkInAt;
       const checkOutAt = item.accommodationDetails?.checkOutAt;
+      const accLocation = [item.accommodationDetails?.address, item.accommodationDetails?.city]
+        .filter(Boolean).join(", ") || item.location || null;
       if (checkInAt) {
         events.push({
           ...item,
@@ -749,6 +751,7 @@ export default function TripPlanningSectionRedesign({
           endAt: null,
           endTime: null,
           title: `Check-in · ${accName}`,
+          location: accLocation,
         } as any);
       }
       if (checkOutAt) {
@@ -762,6 +765,7 @@ export default function TripPlanningSectionRedesign({
           endAt: null,
           endTime: null,
           title: `Check-out · ${accName}`,
+          location: accLocation,
         } as any);
       }
     }
@@ -793,9 +797,15 @@ export default function TripPlanningSectionRedesign({
     }
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
-        const as = fmtTime(a.startAt ?? a.startTime ?? null) || "99:99";
-        const bs = fmtTime(b.startAt ?? b.startTime ?? null) || "99:99";
-        if (as !== bs) return as.localeCompare(bs);
+        const tsOf = (it: TripPlanItem) => {
+          const raw = it.startAt ?? it.startTime ?? null;
+          if (!raw) return Infinity;
+          const d = new Date(raw);
+          return Number.isNaN(d.getTime()) ? Infinity : d.getTime();
+        };
+        const ta = tsOf(a);
+        const tb = tsOf(b);
+        if (ta !== tb) return ta - tb;
         return (a.title || "").localeCompare(b.title || "");
       });
     }
