@@ -47,6 +47,7 @@ export interface TripPlanItem {
   transactionId?: number | null;
   cost?: number | null;
   logistics?: boolean | null;
+  metadata?: { expenseCategory?: string | null } | null;
   flightDetails?: {
     flightNumber?: string | null;
     airlineName?: string | null;
@@ -229,12 +230,17 @@ const TYPE_META: Partial<Record<TripPlanItemType, TypeMeta>> = {
     badgeBg: "rgba(15,23,42,0.06)",
     badgeBorder: "rgba(148,163,184,0.28)",
   },
-  other: {
-    icon: "options-outline",
-    accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.06)",
-    badgeBorder: "rgba(148,163,184,0.28)",
-  },
+};
+
+const EXPENSE_CAT_META: Record<string, TypeMeta> = {
+  transport_main: { icon: "airplane-outline", accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)", badgeBorder: "rgba(37,99,235,0.20)" },
+  transport_local: { icon: "car-outline", accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)", badgeBorder: "rgba(14,165,233,0.20)" },
+  accommodation: { icon: "bed-outline", accent: "#16A34A", badgeBg: "rgba(22,163,74,0.12)", badgeBorder: "rgba(22,163,74,0.20)" },
+  food: { icon: "restaurant-outline", accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)", badgeBorder: "rgba(239,68,68,0.20)" },
+  activities: { icon: "map-outline", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)", badgeBorder: "rgba(168,85,247,0.20)" },
+  shopping: { icon: "cart-outline", accent: "#64748B", badgeBg: "rgba(100,116,139,0.12)", badgeBorder: "rgba(100,116,139,0.20)" },
+  leisure: { icon: "wine-outline", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)", badgeBorder: "rgba(249,115,22,0.20)" },
+  other: { icon: "options-outline", accent: UI.text, badgeBg: "rgba(15,23,42,0.06)", badgeBorder: "rgba(148,163,184,0.28)" },
 };
 
 const NO_DATE = "SIN_FECHA";
@@ -432,12 +438,14 @@ function ActivityCard({
   currentDay: string;
   onPress: () => void;
 }) {
-  const meta = TYPE_META[item.type] ?? TYPE_META.other ?? {
-    icon: "options-outline",
+  const baseMeta = TYPE_META[item.type] ?? TYPE_META.other ?? {
+    icon: "options-outline" as keyof typeof Ionicons.glyphMap,
     accent: UI.text,
     badgeBg: "rgba(15,23,42,0.06)",
     badgeBorder: UI.border,
   };
+  const expCat = item.type === "expense" ? (item.metadata?.expenseCategory ?? null) : null;
+  const meta = (expCat && EXPENSE_CAT_META[expCat]) ? { ...baseMeta, ...EXPENSE_CAT_META[expCat] } : baseMeta;
 
   const start = item.startAt ?? item.startTime ?? null;
   const end = item.endAt ?? item.endTime ?? null;

@@ -62,7 +62,7 @@ const ACTIVITY_TYPES: ActivityType[] = [
 ];
 
 const EXPENSE_CATEGORIES = [
-  { label: "Transporte", value: BudgetCategoryType.transport_main, icon: "car-outline" },
+  { label: "Transporte", value: BudgetCategoryType.transport_local, icon: "car-outline" },
   { label: "Alojamiento", value: BudgetCategoryType.accommodation, icon: "bed-outline" },
   { label: "Comida", value: BudgetCategoryType.food, icon: "restaurant-outline" },
   { label: "Actividades", value: BudgetCategoryType.activities, icon: "ticket-outline" },
