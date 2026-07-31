@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../../../api/api";
+import { colors } from "../../../../theme/theme";
 import { TripPlanItemType, BudgetCategoryType, RoomType, BathroomType } from "../../../../types/enums/travel";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
@@ -39,13 +40,12 @@ interface ActivityType {
 
 // ==================== CONSTANTS ====================
 
-// Desktop color scheme
 const UI = {
   text: "#0B1220",
   muted: "#64748B",
   muted2: "#94A3B8",
   border: "rgba(226,232,240,0.95)",
-  primary: "#0B1220",
+  primary: colors.primary,
 };
 
 const ACTIVITY_TYPES: ActivityType[] = [

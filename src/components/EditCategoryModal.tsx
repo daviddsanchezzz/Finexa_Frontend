@@ -331,7 +331,7 @@ export default function EditCategoryModal({
               <TextInput
                 value={emoji}
                 onChangeText={setEmoji}
-                maxLength={2}
+                maxLength={8}
                 className="border border-slate-200 rounded-xl px-3 py-2 w-16 text-center mr-2 text-[18px] bg-gray-50"
               />
               <Text className="text-[11px] text-gray-500 flex-1">
