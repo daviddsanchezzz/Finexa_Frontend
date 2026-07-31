@@ -1,6 +1,6 @@
 // src/screens/Trips/components/TripExpensesSection.tsx
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Linking, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
@@ -412,6 +412,16 @@ function ExpenseRow({
           <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
             {meta}
           </Text>
+        ) : null}
+        {item.location ? (
+          <TouchableOpacity
+            onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3, alignSelf: "flex-start" }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="location-outline" size={11} color={colors.primary} />
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }} numberOfLines={1}>{item.location}</Text>
+          </TouchableOpacity>
         ) : null}
       </View>
 

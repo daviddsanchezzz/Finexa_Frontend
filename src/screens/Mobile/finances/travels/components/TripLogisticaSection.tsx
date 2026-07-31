@@ -1,6 +1,6 @@
 // src/screens/Trips/components/TripLogisticsSection.tsx
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
@@ -309,12 +309,16 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
 
             {/* Address */}
             {(address || city) && (
-              <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 4 }}>
-                <Ionicons name="location-outline" size={12} color="#94A3B8" style={{ marginTop: 1 }} />
-                <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8", marginLeft: 4, flex: 1 }} numberOfLines={1}>
-                  {address || city}
+              <TouchableOpacity
+                onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent([address, city].filter(Boolean).join(", "))}`); }}
+                style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 4 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="location-outline" size={12} color={colors.primary} style={{ marginTop: 1 }} />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary, marginLeft: 4, flex: 1 }} numberOfLines={1}>
+                  {[address, city].filter(Boolean).join(", ")}
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Check-in / Check-out */}

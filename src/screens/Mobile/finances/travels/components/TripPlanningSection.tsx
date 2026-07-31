@@ -682,14 +682,28 @@ function ActivityCard({
         })()}
 
         {item.type !== "flight" && !!(item.location || item.notes) && (
-          <Text
-            style={{ marginTop: 3, fontSize: 11, fontWeight: "700", color: UI.muted2 }}
-            numberOfLines={2}
-          >
-            {item.location || ""}
-            {item.location && item.notes ? " · " : ""}
-            {item.notes || ""}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 3, gap: 3 }}>
+            {item.location ? (
+              <TouchableOpacity
+                onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="location-outline" size={11} color={colors.primary} />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }} numberOfLines={1}>
+                  {item.location}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {item.location && item.notes ? (
+              <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2 }}> · </Text>
+            ) : null}
+            {item.notes ? (
+              <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, flexShrink: 1 }} numberOfLines={1}>
+                {item.notes}
+              </Text>
+            ) : null}
+          </View>
         )}
       </View>
 
