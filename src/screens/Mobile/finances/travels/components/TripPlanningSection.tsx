@@ -1,9 +1,10 @@
 // src/screens/Trips/components/TripPlanningSection.redesign.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Pressable, useWindowDimensions, Linking, TouchableOpacity } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Linking, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
+import api from "../../../../../api/api";
 
 type TripPlanItemType =
   | "flight"
@@ -243,6 +244,26 @@ const EXPENSE_CAT_META: Record<string, TypeMeta> = {
   other: { icon: "options-outline", accent: UI.text, badgeBg: "rgba(15,23,42,0.06)", badgeBorder: "rgba(148,163,184,0.28)" },
 };
 
+const QUICK_TYPES: Array<{ value: TripPlanItemType; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  { value: "activity", label: "Actividad", icon: "flash-outline" },
+  { value: "restaurant", label: "Restaurante", icon: "restaurant-outline" },
+  { value: "museum", label: "Museo", icon: "library-outline" },
+  { value: "monument", label: "Monumento", icon: "business-outline" },
+  { value: "beach", label: "Playa", icon: "sunny-outline" },
+  { value: "free_tour", label: "Tour", icon: "walk-outline" },
+  { value: "concert", label: "Concierto", icon: "musical-notes-outline" },
+  { value: "bar_party", label: "Ocio", icon: "wine-outline" },
+  { value: "shopping", label: "Compras", icon: "cart-outline" },
+  { value: "expense", label: "Gasto", icon: "receipt-outline" },
+];
+
+function parseCostQuick(input: string): number | null {
+  const s = (input || "").trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return isFinite(n) && n >= 0 ? n : null;
+}
+
 const NO_DATE = "SIN_FECHA";
 
 const safeDate = (input?: string | null) => {
@@ -385,6 +406,127 @@ function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string): string {
       // End day: "→ 18:00"
       return `→ ${fmtTime(end)}`;
   }
+}
+
+function QuickAddForm({
+  quickType, setQuickType, quickTitle, setQuickTitle,
+  quickCostStr, setQuickCostStr, quickSaving, onSave, onFullForm, onCancel,
+}: {
+  quickType: TripPlanItemType;
+  setQuickType: (t: TripPlanItemType) => void;
+  quickTitle: string;
+  setQuickTitle: (v: string) => void;
+  quickCostStr: string;
+  setQuickCostStr: (v: string) => void;
+  quickSaving: boolean;
+  onSave: () => void;
+  onFullForm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, padding: 14, gap: 12 }}>
+      {/* Type selector */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+        {QUICK_TYPES.map((qt) => {
+          const active = quickType === qt.value;
+          const meta = TYPE_META[qt.value] ?? { accent: UI.text, badgeBg: "rgba(15,23,42,0.06)", badgeBorder: UI.border };
+          return (
+            <Pressable
+              key={qt.value}
+              onPress={() => setQuickType(qt.value)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 7,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: active ? meta.badgeBorder : UI.border,
+                backgroundColor: active ? meta.badgeBg : "transparent",
+              }}
+            >
+              <Ionicons name={qt.icon} size={14} color={active ? meta.accent : UI.muted2} />
+              <Text style={{ fontSize: 11, fontWeight: "800", color: active ? meta.accent : UI.muted2 }}>{qt.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Title input */}
+      <TextInput
+        value={quickTitle}
+        onChangeText={setQuickTitle}
+        placeholder="¿Qué vas a hacer?"
+        placeholderTextColor={UI.muted2}
+        autoFocus
+        style={{
+          height: 42,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: UI.border,
+          paddingHorizontal: 12,
+          fontSize: 13,
+          fontWeight: "700",
+          color: UI.text,
+          backgroundColor: "#F8FAFC",
+        }}
+      />
+
+      {/* Cost row */}
+      <View style={{ flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, borderColor: UI.border, backgroundColor: "#F8FAFC", paddingHorizontal: 12, height: 38 }}>
+        <Ionicons name="wallet-outline" size={14} color={UI.muted2} style={{ marginRight: 6 }} />
+        <TextInput
+          value={quickCostStr}
+          onChangeText={setQuickCostStr}
+          placeholder="Coste (opcional)"
+          placeholderTextColor={UI.muted2}
+          keyboardType="decimal-pad"
+          style={{ flex: 1, fontSize: 13, fontWeight: "700", color: UI.text }}
+        />
+        <Text style={{ fontSize: 12, color: UI.muted2, fontWeight: "700" }}>€</Text>
+      </View>
+
+      {/* Action buttons */}
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Pressable
+          onPress={onCancel}
+          style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: UI.border }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted }}>Cancelar</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onFullForm}
+          style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: UI.border, flexDirection: "row", alignItems: "center", gap: 4 }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted }}>Detalles</Text>
+          <Ionicons name="chevron-forward" size={12} color={UI.muted} />
+        </Pressable>
+
+        <Pressable
+          onPress={onSave}
+          disabled={!quickTitle.trim() || quickSaving}
+          style={({ pressed }) => ({
+            flex: 1,
+            paddingVertical: 9,
+            borderRadius: 12,
+            backgroundColor: !quickTitle.trim() ? "#E2E8F0" : colors.primary,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.9 : 1,
+            flexDirection: "row",
+            gap: 6,
+          })}
+        >
+          {quickSaving
+            ? <ActivityIndicator size="small" color="white" />
+            : <Text style={{ fontSize: 12, fontWeight: "800", color: !quickTitle.trim() ? UI.muted : "white" }}>Añadir</Text>
+          }
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
 function EmptyDayCard({ onPress }: { onPress: () => void }) {
@@ -567,52 +709,37 @@ export default function TripPlanningSectionRedesign({
   tripId,
   trip,
   planItems,
+  onRefresh,
 }: TripPlanningSectionProps) {
   const navigation = useNavigation<any>();
   const { height } = useWindowDimensions();
   const LIST_MAX_H = Math.max(220, Math.round(height * 0.56));
 
-  const handleCreate = (dateISO?: string) => {
-    navigation.navigate("TripPlanForm", { tripId, presetDay: dateISO || "" });
-  };
+  // ── Derived data ──────────────────────────────────────────────────────────
 
-  const handleEdit = (item: TripPlanItem) => {
-    navigation.navigate("TripPlanForm", { tripId, planItem: item });
-  };
-
-  // 1) Filtrado: excluimos accommodation; dejamos items sin fecha para "Sin fecha"
   const planningItems = useMemo(
     () => planItems.filter((i) => i.type !== "accommodation"),
     [planItems]
   );
 
-  // 2) Days: preferimos trip.startDate/endDate. Si no hay, inferimos del planning.
   const days = useMemo(() => {
     const byTrip = trip?.startDate && trip?.endDate ? daysBetween(trip.startDate, trip.endDate) : [];
     if (byTrip.length) return byTrip;
-
     const dated = planningItems
       .map((i) => isoDay(i.day ?? i.date ?? null))
       .filter((d): d is string => !!d);
-
     if (!dated.length) return [];
     const sorted = [...dated].sort();
     return daysBetween(sorted[0], sorted[sorted.length - 1]);
   }, [trip?.startDate, trip?.endDate, planningItems]);
 
-  // 3) Agrupar por día + NO_DATE (including multi-day spans)
   const byDate = useMemo(() => {
     const map: Record<string, TripPlanItem[]> = {};
-
-    // Group items by all days they span
     for (const it of planningItems) {
-      const days = getDaysSpanned(it);
-      for (const day of days) {
+      for (const day of getDaysSpanned(it)) {
         (map[day] ||= []).push(it);
       }
     }
-
-    // Sort items of each day by start time
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
         const as = fmtTime(a.startAt ?? a.startTime ?? null) || "99:99";
@@ -621,7 +748,6 @@ export default function TripPlanningSectionRedesign({
         return (a.title || "").localeCompare(b.title || "");
       });
     }
-
     return map;
   }, [planningItems]);
 
@@ -632,16 +758,65 @@ export default function TripPlanningSectionRedesign({
     return hasNoDate ? [...base, NO_DATE] : base;
   }, [days, hasNoDate]);
 
+  // ── State ─────────────────────────────────────────────────────────────────
+
   const [selectedDay, setSelectedDay] = useState<string>(dayKeys[0] ?? NO_DATE);
 
   useEffect(() => {
-    if (!dayKeys.length) {
-      setSelectedDay(NO_DATE);
-      return;
-    }
+    if (!dayKeys.length) { setSelectedDay(NO_DATE); return; }
     if (!dayKeys.includes(selectedDay)) setSelectedDay(dayKeys[0] ?? NO_DATE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayKeys.join("|")]);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickType, setQuickType] = useState<TripPlanItemType>("activity");
+  const [quickTitle, setQuickTitle] = useState("");
+  const [quickCostStr, setQuickCostStr] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleCreate = (_dateISO?: string) => {
+    setQuickType("activity");
+    setQuickTitle("");
+    setQuickCostStr("");
+    setShowQuickAdd(true);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+  };
+
+  const handleEdit = (item: TripPlanItem) => {
+    navigation.navigate("TripPlanForm", { tripId, planItem: item });
+  };
+
+  const handleQuickSave = async () => {
+    if (!quickTitle.trim() || quickSaving) return;
+    setQuickSaving(true);
+    try {
+      const cost = parseCostQuick(quickCostStr);
+      const startTime = (selectedDay && selectedDay !== NO_DATE) ? `${selectedDay}T09:00:00` : undefined;
+      await api.post(`/trips/${tripId}/plan-items`, {
+        type: quickType,
+        title: quickTitle.trim(),
+        ...(cost !== null ? { cost } : {}),
+        ...(startTime ? { startTime } : {}),
+      });
+      setShowQuickAdd(false);
+      setQuickTitle("");
+      setQuickCostStr("");
+      onRefresh?.();
+    } catch (e) {
+      console.error("Error guardando plan item rápido:", e);
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const handleOpenFullForm = () => {
+    setShowQuickAdd(false);
+    const presetDay = selectedDay !== NO_DATE ? selectedDay : "";
+    navigation.navigate("TripPlanForm", { tripId, presetDay, presetType: quickType });
+  };
 
   const dayItems = byDate[selectedDay] ?? [];
   const isNoDate = selectedDay === NO_DATE;
@@ -656,31 +831,47 @@ export default function TripPlanningSectionRedesign({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 22 }}
         >
-          <View style={{ marginTop: 28, alignItems: "center", paddingHorizontal: 14 }}>
-            <Text style={{ textAlign: "center", color: UI.muted2, fontSize: 11, fontWeight: "700", marginBottom: 10 }}>
-              Aún no tienes nada en el planning de este viaje.
-            </Text>
-
-            <Pressable
-              onPress={() => handleCreate("")}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 9,
-                paddingHorizontal: 12,
-                borderRadius: 14,
-                backgroundColor: "rgba(37,99,235,0.10)",
-                borderWidth: 1,
-                borderColor: "rgba(37,99,235,0.22)",
-                opacity: pressed ? 0.95 : 1,
-              })}
-            >
-              <Ionicons name="add-outline" size={16} color={colors.primary} />
-              <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: "rgba(30,64,175,1)" }}>
-                Añadir primer plan
-              </Text>
-            </Pressable>
+          <View style={{ marginTop: 28, paddingHorizontal: 4 }}>
+            {showQuickAdd ? (
+              <QuickAddForm
+                quickType={quickType}
+                setQuickType={setQuickType}
+                quickTitle={quickTitle}
+                setQuickTitle={setQuickTitle}
+                quickCostStr={quickCostStr}
+                setQuickCostStr={setQuickCostStr}
+                quickSaving={quickSaving}
+                onSave={handleQuickSave}
+                onFullForm={handleOpenFullForm}
+                onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
+              />
+            ) : (
+              <View style={{ alignItems: "center" }}>
+                <Text style={{ textAlign: "center", color: UI.muted2, fontSize: 11, fontWeight: "700", marginBottom: 10 }}>
+                  Aún no tienes nada en el planning de este viaje.
+                </Text>
+                <Pressable
+                  onPress={() => handleCreate("")}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 14,
+                    backgroundColor: "rgba(37,99,235,0.10)",
+                    borderWidth: 1,
+                    borderColor: "rgba(37,99,235,0.22)",
+                    opacity: pressed ? 0.95 : 1,
+                  })}
+                >
+                  <Ionicons name="add-outline" size={16} color={colors.primary} />
+                  <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: "rgba(30,64,175,1)" }}>
+                    Añadir primer plan
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -731,7 +922,9 @@ export default function TripPlanningSectionRedesign({
                   style={{ marginTop: 1, fontSize: 10, fontWeight: "700", color: active ? "rgba(37,99,235,0.85)" : UI.muted2 }}
                   numberOfLines={1}
                 >
-                  {noDate ? "Items sin día" : fmtDayTitle(d)}
+                  {noDate
+                    ? `${byDate[NO_DATE]?.length ?? 0} sin fecha`
+                    : `${fmtDayTitle(d)}${(byDate[d]?.length ?? 0) > 0 ? ` · ${byDate[d].length}` : ""}`}
                 </Text>
               </Pressable>
             );
@@ -741,6 +934,7 @@ export default function TripPlanningSectionRedesign({
 
       {/* Timeline + content */}
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 18 }}
       >
@@ -780,27 +974,42 @@ export default function TripPlanningSectionRedesign({
               </View>
             )}
 
-            {/* Bottom add button */}
+            {/* Bottom add button / quick-add form */}
             <View style={{ marginTop: 12 }}>
-              <Pressable
-                onPress={() => handleCreate(isNoDate ? "" : selectedDay)}
-                style={({ pressed }) => ({
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 9,
-                  borderRadius: 14,
-                  backgroundColor: "rgba(248,250,252,1)",
-                  borderWidth: 1,
-                  borderColor: UI.border,
-                  opacity: pressed ? 0.96 : 1,
-                })}
-              >
-                <Ionicons name="add-outline" size={16} color={UI.muted2} />
-                <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>
-                  Añadir al planning
-                </Text>
-              </Pressable>
+              {showQuickAdd ? (
+                <QuickAddForm
+                  quickType={quickType}
+                  setQuickType={setQuickType}
+                  quickTitle={quickTitle}
+                  setQuickTitle={setQuickTitle}
+                  quickCostStr={quickCostStr}
+                  setQuickCostStr={setQuickCostStr}
+                  quickSaving={quickSaving}
+                  onSave={handleQuickSave}
+                  onFullForm={handleOpenFullForm}
+                  onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
+                />
+              ) : (
+                <Pressable
+                  onPress={() => handleCreate()}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 9,
+                    borderRadius: 14,
+                    backgroundColor: "rgba(248,250,252,1)",
+                    borderWidth: 1,
+                    borderColor: UI.border,
+                    opacity: pressed ? 0.96 : 1,
+                  })}
+                >
+                  <Ionicons name="add-outline" size={16} color={UI.muted2} />
+                  <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>
+                    Añadir al planning
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </View>
         </View>
