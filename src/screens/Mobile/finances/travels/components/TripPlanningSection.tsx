@@ -681,31 +681,30 @@ function ActivityCard({
           );
         })()}
 
-        {item.type !== "flight" && !!(item.location || item.notes) && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
-            {item.location ? (
-              <TouchableOpacity
-                onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="location-outline" size={13} color={colors.primary} />
-              </TouchableOpacity>
-            ) : null}
-            {item.notes ? (
-              <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, flexShrink: 1 }} numberOfLines={1}>
-                {item.notes}
-              </Text>
-            ) : null}
-          </View>
+        {item.type !== "flight" && !!item.notes && (
+          <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, marginTop: 2 }} numberOfLines={1}>
+            {item.notes}
+          </Text>
         )}
       </View>
 
-      {/* Right meta (hora) */}
-      {!!time && (
-        <View style={{ alignItems: "flex-end", paddingLeft: 6, minWidth: 64 }}>
-          <Text style={{ marginTop: 1, fontSize: 11, fontWeight: "900", color: UI.muted }}>
-            {time}
-          </Text>
+      {/* Right col: hora + pin */}
+      {(!!time || !!item.location) && (
+        <View style={{ alignItems: "flex-end", justifyContent: "space-between", paddingLeft: 6, minWidth: 52, alignSelf: "stretch" }}>
+          {!!time && (
+            <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted }}>
+              {time}
+            </Text>
+          )}
+          {item.type !== "flight" && !!item.location && (
+            <TouchableOpacity
+              onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
+              activeOpacity={0.7}
+              style={{ marginTop: "auto" as any }}
+            >
+              <Ionicons name="location-outline" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </Pressable>
