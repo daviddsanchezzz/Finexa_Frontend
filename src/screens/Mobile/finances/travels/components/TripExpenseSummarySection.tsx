@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, Platform, TextInput, Modal, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../../../../../theme/theme";
 
 const UI = {
   text: "#0B1220",
@@ -504,7 +505,7 @@ function TasksPanel({
                   height: px(36),
                   paddingHorizontal: px(16),
                   borderRadius: px(12),
-                  backgroundColor: "rgba(15,23,42,0.95)",
+                  backgroundColor: colors.primary,
                   alignItems: "center",
                   justifyContent: "center",
                   opacity: pressed ? 0.92 : 1,

@@ -187,7 +187,7 @@ interface WeatherDay {
   min: number;
 }
 
-function WeatherWidget({ countryCode }: { countryCode: string }) {
+function WeatherWidget({ countryCode, tripName }: { countryCode: string; tripName?: string }) {
   const [days, setDays] = useState<WeatherDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState("");
@@ -197,18 +197,39 @@ function WeatherWidget({ countryCode }: { countryCode: string }) {
     async function load() {
       try {
         setLoading(true);
-        // 1. capital coords from restcountries
-        const rc = await fetch(
-          `https://restcountries.com/v3.1/alpha/${countryCode}?fields=capital,capitalInfo`
-        );
-        const rcData = await rc.json();
-        const capitalName: string = rcData?.capital?.[0] || "";
-        const lat: number | undefined = rcData?.capitalInfo?.latlng?.[0];
-        const lon: number | undefined = rcData?.capitalInfo?.latlng?.[1];
-        if (!lat || !lon || cancelled) return;
-        if (!cancelled) setCity(capitalName);
+        let lat: number | undefined;
+        let lon: number | undefined;
+        let resolvedCity = "";
 
-        // 2. weather from open-meteo (free, no key)
+        // 1. Try geocoding the trip name directly (e.g. "Sicilia", "París")
+        if (tripName) {
+          const geoRes = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(tripName)}&count=1&language=es&format=json`
+          );
+          const geoData = await geoRes.json();
+          if (geoData?.results?.length > 0) {
+            const r = geoData.results[0];
+            lat = r.latitude;
+            lon = r.longitude;
+            resolvedCity = r.name || tripName;
+          }
+        }
+
+        // 2. Fallback: country capital from restcountries
+        if (!lat || !lon) {
+          const rc = await fetch(
+            `https://restcountries.com/v3.1/alpha/${countryCode}?fields=capital,capitalInfo`
+          );
+          const rcData = await rc.json();
+          resolvedCity = rcData?.capital?.[0] || "";
+          lat = rcData?.capitalInfo?.latlng?.[0];
+          lon = rcData?.capitalInfo?.latlng?.[1];
+        }
+
+        if (!lat || !lon || cancelled) return;
+        if (!cancelled) setCity(resolvedCity);
+
+        // 3. Weather from open-meteo (free, no key)
         const wRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
           `&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`
@@ -232,7 +253,7 @@ function WeatherWidget({ countryCode }: { countryCode: string }) {
     }
     load();
     return () => { cancelled = true; };
-  }, [countryCode]);
+  }, [countryCode, tripName]);
 
   if (loading) {
     return (
@@ -888,7 +909,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
           {tab === "summary" && (
             <View style={{ gap: 12 }}>
               {(status === "upcoming" || status === "ongoing") && !!countryCode && (
-                <WeatherWidget countryCode={countryCode} />
+                <WeatherWidget countryCode={countryCode} tripName={trip?.name} />
               )}
 
               <TripExpenseSummarySection
