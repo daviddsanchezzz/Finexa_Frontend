@@ -469,42 +469,44 @@ function TasksPanel({
               );
             })}
           </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: px(10),
-              borderRadius: px(14),
-              borderWidth: 1,
-              borderColor: UI.border,
-              backgroundColor: "white",
-              paddingHorizontal: px(12),
-              height: px(48),
-            }}
-          >
-            <Ionicons name="add-circle-outline" size={px(18)} color={UI.muted} />
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Añadir nueva tarea…"
-              placeholderTextColor={UI.muted2}
-              onSubmitEditing={create}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
+            <View
               style={{
                 flex: 1,
-                fontSize: fs(13),
-                fontWeight: "700",
-                color: UI.text,
-                outlineStyle: "none" as any,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: px(10),
+                borderRadius: px(14),
+                borderWidth: 1,
+                borderColor: UI.border,
+                backgroundColor: "white",
+                paddingHorizontal: px(12),
+                height: px(48),
               }}
-            />
-
+            >
+              <Ionicons name="add-circle-outline" size={px(18)} color={UI.muted} />
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Añadir nueva tarea…"
+                placeholderTextColor={UI.muted2}
+                onSubmitEditing={create}
+                style={{
+                  flex: 1,
+                  fontSize: fs(13),
+                  fontWeight: "700",
+                  color: UI.text,
+                  outlineStyle: "none" as any,
+                }}
+              />
+            </View>
             <Pressable
               onPress={create}
               style={({ pressed }) => [
                 {
-                  height: px(36),
-                  paddingHorizontal: px(16),
-                  borderRadius: px(12),
+                  height: px(48),
+                  paddingHorizontal: px(18),
+                  borderRadius: px(14),
                   backgroundColor: colors.primary,
                   alignItems: "center",
                   justifyContent: "center",
@@ -512,7 +514,7 @@ function TasksPanel({
                 },
               ]}
             >
-              <Text style={{ fontSize: fs(12), fontWeight: "900", color: "white" }}>Añadir</Text>
+              <Text style={{ fontSize: fs(13), fontWeight: "900", color: "white" }}>Añadir</Text>
             </Pressable>
           </View>
         </View>
