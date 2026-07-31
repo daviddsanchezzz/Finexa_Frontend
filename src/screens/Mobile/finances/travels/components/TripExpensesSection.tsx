@@ -451,6 +451,7 @@ export default function TripExpensesSection({
 }: Props) {
   const navigation = useNavigation<any>();
   const [cat, setCat] = useState<BudgetCategoryType | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "summary">("list");
 
 const entries = useMemo(() => {
   const withCost = (planItems || []).filter((i) => safeNumber(i.cost) > 0);
@@ -579,8 +580,78 @@ const entries = useMemo(() => {
           );
         })()}
 
-        {/* KPI horizontal (solo cards con barra) */}
-        {visibleKpis.length > 0 ? (
+        {/* Toggle Lista / Resumen */}
+        {visibleKpis.length > 0 && (
+          <View style={{ flexDirection: "row", marginHorizontal: 14, marginBottom: 10, backgroundColor: "rgba(148,163,184,0.12)", borderRadius: 10, padding: 3 }}>
+            {(["list", "summary"] as const).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                onPress={() => setViewMode(mode)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  alignItems: "center",
+                  backgroundColor: viewMode === mode ? "white" : "transparent",
+                  shadowColor: viewMode === mode ? "#000" : "transparent",
+                  shadowOpacity: 0.06,
+                  shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 1 },
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "800", color: viewMode === mode ? UI.text : UI.muted }}>
+                  {mode === "list" ? "Por ítem" : "Resumen"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* RESUMEN VERTICAL por categoría */}
+        {viewMode === "summary" && visibleKpis.length > 0 && (
+          <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
+            {/* Total */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: UI.muted }}>Total gastado</Text>
+              <Text style={{ fontSize: 20, fontWeight: "900", color: UI.text }}>{formatEuro(totalSpent)}</Text>
+            </View>
+            {/* Categorías */}
+            <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden" }}>
+              {visibleKpis.map((def, idx) => {
+                const amount = totalsByCategory[def.key] || 0;
+                const pct = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
+                const isLast = idx === visibleKpis.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={def.key}
+                    onPress={() => { setCat((prev) => prev === def.key ? null : def.key); setViewMode("list"); }}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      borderBottomWidth: isLast ? 0 : 1,
+                      borderBottomColor: UI.border,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
+                      <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: def.badgeBg, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                        <Ionicons name={def.icon} size={15} color={def.accent} />
+                      </View>
+                      <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: UI.text }}>{def.label}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(amount)}</Text>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted, marginLeft: 8, minWidth: 32, textAlign: "right" }}>{Math.round(pct)}%</Text>
+                    </View>
+                    <View style={{ height: 4, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)" }}>
+                      <View style={{ height: 4, borderRadius: 99, backgroundColor: def.accent, width: `${Math.round(pct)}%` }} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* KPI horizontal (solo cards con barra) — solo en modo lista */}
+        {viewMode === "list" && visibleKpis.length > 0 ? (
           <View style={{ marginBottom: 10 }}>
             <ScrollView
               horizontal
@@ -601,8 +672,8 @@ const entries = useMemo(() => {
           </View>
         ) : null}
 
-        {/* Lista plan items */}
-        {filtered.length > 0 && (
+        {/* Lista plan items — solo en modo lista */}
+        {viewMode === "list" && filtered.length > 0 && (
           <View
             style={{
               marginHorizontal: 14,
@@ -631,8 +702,8 @@ const entries = useMemo(() => {
           </View>
         )}
 
-        {/* Transacciones registradas */}
-        {visibleTxs.length > 0 && (
+        {/* Transacciones registradas — solo en modo lista */}
+        {viewMode === "list" && visibleTxs.length > 0 && (
           <View style={{ marginHorizontal: 14, marginTop: filtered.length > 0 ? 12 : 0 }}>
             <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 4 }}>
               REGISTRADAS
