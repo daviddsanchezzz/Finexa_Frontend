@@ -300,7 +300,9 @@ export default function AddScreen({ navigation }: any) {
   // Lógica filtrado categorías
   //---------------------------------------
   const filteredCategories = categories.filter((c) => c.type === type);
-  const subcategories = selectedCategory?.subcategories || [];
+  const subcategories = (selectedCategory?.subcategories || [])
+    .filter((s: any) => s.active !== false)
+    .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
 
   //---------------------------------------
   // Helper: ¿esta transacción pertenece a una serie recurrente?

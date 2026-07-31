@@ -267,7 +267,13 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     return recentIds.map((id) => map.get(id)).filter(Boolean) as Category[];
   }, [recentIds, filteredCategories]);
 
-  const subcategories = useMemo(() => selectedCategory?.subcategories || [], [selectedCategory]);
+  const subcategories = useMemo(
+    () =>
+      (selectedCategory?.subcategories || [])
+        .filter((s: any) => s.active !== false)
+        .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
+    [selectedCategory]
+  );
 
   const fetchData = useCallback(async () => {
     try {
