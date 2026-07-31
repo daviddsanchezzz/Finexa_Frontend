@@ -692,23 +692,26 @@ export default function TripDetailScreen({ route, navigation }: any) {
           <Text className="text-lg font-semibold text-gray-900">Detalle de viaje</Text>
         </View>
 
-        <View className="flex-row items-center">
+        <View className="flex-row items-center" style={{ gap: 4 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("TripPlanForm", { tripId, presetDay: "" })}
+            style={{ padding: 6 }}
+          >
+            <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
-            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            style={{ padding: 6 }}
           >
-            <Text className="text-[14px] font-semibold" style={{ color: colors.primary }}>
-              Editar
-            </Text>
+            <Ionicons name="create-outline" size={24} color={colors.primary} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setExportModalVisible(true)}
-            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            style={{ padding: 6 }}
           >
-            <Text className="text-[14px] font-semibold" style={{ color: colors.primary }}>
-              Exportar
-            </Text>
+            <Ionicons name="share-outline" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -851,8 +854,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
           <View className="flex-row rounded-2xl bg-slate-50 p-1">
             {[
               { key: "summary" as TripTab, label: "Resumen" },
-              { key: "expenses" as TripTab, label: "Gastos" },
               { key: "planning" as TripTab, label: "Planificación" },
+              { key: "expenses" as TripTab, label: "Gastos" },
               { key: "info" as TripTab, label: "Logística" },
             ].map((opt) => {
               const active = tab === opt.key;
