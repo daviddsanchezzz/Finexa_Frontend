@@ -54,6 +54,16 @@ const TRANSPORT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   taxi: "car-sport-outline",
 };
 
+function transportIcon(item: TripPlanItem): keyof typeof Ionicons.glyphMap {
+  if (item.type === "flight") return "airplane-outline";
+  if (item.type === "taxi") return "car-sport-outline";
+  const mode = item.destinationTransport?.mode;
+  if (mode === "car") return "car-outline";
+  if (mode === "bus") return "bus-outline";
+  if (mode === "train") return "train-outline";
+  return TRANSPORT_ICONS[item.type] || "bus-outline";
+}
+
 const ICONS: Record<LogisticsFilter, keyof typeof Ionicons.glyphMap> = {
   transport: "airplane-outline",
   accommodation: "bed-outline",
@@ -139,7 +149,7 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
   const hasLogistics = summaryTotal > 0;
 
   const renderTransportCard = (item: TripPlanItem) => {
-    const icon = TRANSPORT_ICONS[item.type] || "airplane-outline";
+    const icon = transportIcon(item);
     const date = formatDate(item.startAt || item.date || item.startTime);
     const time = formatTime(item.startAt || item.startTime);
 

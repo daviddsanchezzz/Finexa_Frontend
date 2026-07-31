@@ -358,12 +358,17 @@ export default function TripPlanFormScreen({
 
   const getInitialTransportTab = (): TransportSubTab => {
     if (presetType === "flight" || planItem?.type === "flight") return "flight";
+    const mode = planItem?.destinationTransport?.mode;
+    if (mode === "car") return "car";
+    if (mode === "bus") return "bus";
     return "train";
   };
 
   const [mainTab, setMainTab] = useState<MainTab>(getInitialTab());
   const [transportTab, setTransportTab] = useState<TransportSubTab>(getInitialTransportTab());
-  const [transportKind, setTransportKind] = useState<TransportKind>("principal");
+  const [transportKind, setTransportKind] = useState<TransportKind>(
+    planItem?.type === TripPlanItemType.transport_local ? "local" : "principal"
+  );
 
   // ==================== FLIGHT STATE ====================
 
