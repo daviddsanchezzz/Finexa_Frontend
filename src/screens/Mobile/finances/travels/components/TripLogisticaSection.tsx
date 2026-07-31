@@ -335,7 +335,7 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
                 activeOpacity={0.7}
               >
                 <Ionicons name="location-outline" size={11} color={colors.primary} style={{ flexShrink: 0 }} />
-                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary, flexShrink: 1 }} numberOfLines={1}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary, flexShrink: 1 }} numberOfLines={2}>
                   {mapsQuery}
                 </Text>
               </TouchableOpacity>
