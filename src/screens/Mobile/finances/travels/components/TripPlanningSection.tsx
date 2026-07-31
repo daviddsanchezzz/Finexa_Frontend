@@ -774,6 +774,7 @@ export default function TripPlanningSectionRedesign({
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCostStr, setQuickCostStr] = useState("");
   const [quickSaving, setQuickSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<"day" | "summary">("day");
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -880,140 +881,208 @@ export default function TripPlanningSectionRedesign({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Day selector */}
+      {/* ── Top bar: toggle + (day mode) day pills ── */}
       <View style={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: 4 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 4, gap: 8 }}
-        >
-          {dayKeys.map((d, idx) => {
-            const active = d === selectedDay;
-            const noDate = d === NO_DATE;
-
+        {/* View mode toggle */}
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: viewMode === "day" ? 8 : 0 }}>
+          {(["day", "summary"] as const).map((mode) => {
+            const active = viewMode === mode;
             return (
               <Pressable
-                key={d}
-                onPress={() => setSelectedDay(d)}
-                style={({ pressed }) => ({
-                  height: 40,
-                  minWidth: 104,
-                  paddingHorizontal: 10,
-                  borderRadius: 14,
-                  backgroundColor: active ? "rgba(37,99,235,0.12)" : UI.surface,
-                  borderWidth: 1,
-                  borderColor: active ? "rgba(37,99,235,0.32)" : UI.border,
-                  justifyContent: "center",
-                  opacity: pressed ? 0.96 : 1,
-                })}
+                key={mode}
+                onPress={() => setViewMode(mode)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 5,
+                  borderRadius: 10,
+                  backgroundColor: active ? "rgba(37,99,235,0.12)" : "transparent",
+                  borderWidth: active ? 1 : 0,
+                  borderColor: "rgba(37,99,235,0.28)",
+                  marginLeft: 4,
+                }}
               >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: "900",
-                    color: active ? colors.primary : UI.text,
-                  }}
-                  numberOfLines={1}
-                >
-                  {noDate ? "Sin fecha" : `Día ${idx + 1}`}
-                </Text>
-
-                <Text
-                  style={{ marginTop: 1, fontSize: 10, fontWeight: "700", color: active ? "rgba(37,99,235,0.85)" : UI.muted2 }}
-                  numberOfLines={1}
-                >
-                  {noDate
-                    ? `${byDate[NO_DATE]?.length ?? 0} sin fecha`
-                    : `${fmtDayTitle(d)}${(byDate[d]?.length ?? 0) > 0 ? ` · ${byDate[d].length}` : ""}`}
+                <Text style={{ fontSize: 11, fontWeight: "800", color: active ? colors.primary : UI.muted2 }}>
+                  {mode === "day" ? "Por día" : "Resumen"}
                 </Text>
               </Pressable>
             );
           })}
-        </ScrollView>
-      </View>
-
-      {/* Timeline + content */}
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 18 }}
-      >
-        {/* Header */}
-        <View style={{ marginTop: 4, marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-          <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
-            {isNoDate ? "Día: Sin fecha" : `Día ${dayNumber}:`}
-          </Text>
-          {!isNoDate && (
-            <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2 }}>
-              {fmtDayTitle(selectedDay)}
-            </Text>
-          )}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-          {/* rail */}
-          <View style={{ width: 16, alignItems: "center" }}>
-            <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: UI.text, marginTop: 6 }} />
-            <View style={{ width: 2, backgroundColor: UI.rail, flex: 1, minHeight: 110, marginTop: 6 }} />
-          </View>
-
-          {/* list */}
-          <View style={{ flex: 1, minWidth: 0 }}>
-            {dayItems.length === 0 ? (
-              <EmptyDayCard onPress={() => handleCreate(isNoDate ? "" : selectedDay)} />
-            ) : (
-              <View style={{ maxHeight: LIST_MAX_H, gap: 10 }}>
-                {dayItems.map((it) => (
-                  <ActivityCard
-                    key={it.id}
-                    item={it}
-                    currentDay={selectedDay}
-                    onPress={() => handleEdit(it)}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Bottom add button / quick-add form */}
-            <View style={{ marginTop: 12 }}>
-              {showQuickAdd ? (
-                <QuickAddForm
-                  quickType={quickType}
-                  setQuickType={setQuickType}
-                  quickTitle={quickTitle}
-                  setQuickTitle={setQuickTitle}
-                  quickCostStr={quickCostStr}
-                  setQuickCostStr={setQuickCostStr}
-                  quickSaving={quickSaving}
-                  onSave={handleQuickSave}
-                  onFullForm={handleOpenFullForm}
-                  onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
-                />
-              ) : (
+        {/* Day pills — only in day mode */}
+        {viewMode === "day" && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 4, gap: 8 }}
+          >
+            {dayKeys.map((d, idx) => {
+              const active = d === selectedDay;
+              const noDate = d === NO_DATE;
+              return (
                 <Pressable
-                  onPress={() => handleCreate()}
+                  key={d}
+                  onPress={() => setSelectedDay(d)}
                   style={({ pressed }) => ({
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 9,
+                    height: 40,
+                    minWidth: 104,
+                    paddingHorizontal: 10,
                     borderRadius: 14,
-                    backgroundColor: "rgba(248,250,252,1)",
+                    backgroundColor: active ? "rgba(37,99,235,0.12)" : UI.surface,
                     borderWidth: 1,
-                    borderColor: UI.border,
+                    borderColor: active ? "rgba(37,99,235,0.32)" : UI.border,
+                    justifyContent: "center",
                     opacity: pressed ? 0.96 : 1,
                   })}
                 >
-                  <Ionicons name="add-outline" size={16} color={UI.muted2} />
-                  <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>
-                    Añadir al planning
+                  <Text style={{ fontSize: 11, fontWeight: "900", color: active ? colors.primary : UI.text }} numberOfLines={1}>
+                    {noDate ? "Sin fecha" : `Día ${idx + 1}`}
+                  </Text>
+                  <Text style={{ marginTop: 1, fontSize: 10, fontWeight: "700", color: active ? "rgba(37,99,235,0.85)" : UI.muted2 }} numberOfLines={1}>
+                    {noDate
+                      ? `${byDate[NO_DATE]?.length ?? 0} sin fecha`
+                      : `${fmtDayTitle(d)}${(byDate[d]?.length ?? 0) > 0 ? ` · ${byDate[d].length}` : ""}`}
                   </Text>
                 </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
+
+      {/* ── DAY MODE ── */}
+      {viewMode === "day" && (
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 18 }}
+        >
+          <View style={{ marginTop: 4, marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
+              {isNoDate ? "Día: Sin fecha" : `Día ${dayNumber}:`}
+            </Text>
+            {!isNoDate && (
+              <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2 }}>{fmtDayTitle(selectedDay)}</Text>
+            )}
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+            <View style={{ width: 16, alignItems: "center" }}>
+              <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: UI.text, marginTop: 6 }} />
+              <View style={{ width: 2, backgroundColor: UI.rail, flex: 1, minHeight: 110, marginTop: 6 }} />
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {dayItems.length === 0 ? (
+                <EmptyDayCard onPress={() => handleCreate(isNoDate ? "" : selectedDay)} />
+              ) : (
+                <View style={{ maxHeight: LIST_MAX_H, gap: 10 }}>
+                  {dayItems.map((it) => (
+                    <ActivityCard key={it.id} item={it} currentDay={selectedDay} onPress={() => handleEdit(it)} />
+                  ))}
+                </View>
               )}
+
+              <View style={{ marginTop: 12 }}>
+                {showQuickAdd ? (
+                  <QuickAddForm
+                    quickType={quickType}
+                    setQuickType={setQuickType}
+                    quickTitle={quickTitle}
+                    setQuickTitle={setQuickTitle}
+                    quickCostStr={quickCostStr}
+                    setQuickCostStr={setQuickCostStr}
+                    quickSaving={quickSaving}
+                    onSave={handleQuickSave}
+                    onFullForm={handleOpenFullForm}
+                    onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
+                  />
+                ) : (
+                  <Pressable
+                    onPress={() => handleCreate()}
+                    style={({ pressed }) => ({
+                      flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 9, borderRadius: 14,
+                      backgroundColor: "rgba(248,250,252,1)", borderWidth: 1, borderColor: UI.border,
+                      opacity: pressed ? 0.96 : 1,
+                    })}
+                  >
+                    <Ionicons name="add-outline" size={16} color={UI.muted2} />
+                    <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      )}
+
+      {/* ── SUMMARY MODE ── */}
+      {viewMode === "summary" && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 32 }}
+        >
+          {dayKeys.map((d, idx) => {
+            const noDate = d === NO_DATE;
+            const items = byDate[d] ?? [];
+            const dayNum = noDate ? null : idx + 1;
+            const dayCost = items.reduce((sum, it) => sum + (it.cost ? Number(it.cost) : 0), 0);
+
+            return (
+              <View key={d} style={{ marginBottom: 20 }}>
+                {/* Day separator header */}
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 8 }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: UI.border }} />
+                  <View style={{ alignItems: "center" }}>
+                    <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted, letterSpacing: 0.5 }}>
+                      {noDate ? "SIN FECHA" : `DÍA ${dayNum} · ${fmtDayTitle(d).toUpperCase()}`}
+                    </Text>
+                    {!noDate && (items.length > 0 || dayCost > 0) && (
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: UI.muted2, marginTop: 1 }}>
+                        {items.length > 0 ? `${items.length} actividad${items.length !== 1 ? "es" : ""}` : ""}
+                        {items.length > 0 && dayCost > 0 ? " · " : ""}
+                        {dayCost > 0 ? `${dayCost.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €` : ""}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, height: 1, backgroundColor: UI.border }} />
+                </View>
+
+                {/* Items */}
+                {items.length === 0 ? (
+                  <Pressable
+                    onPress={() => { setViewMode("day"); setSelectedDay(d); handleCreate(d); }}
+                    style={{ paddingVertical: 8, alignItems: "center" }}
+                  >
+                    <Text style={{ fontSize: 11, color: UI.muted2, fontWeight: "600" }}>Sin actividades — toca para añadir</Text>
+                  </Pressable>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    {items.map((it) => (
+                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} onPress={() => handleEdit(it)} />
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+
+          {/* Add button at bottom */}
+          <Pressable
+            onPress={() => { setViewMode("day"); handleCreate(); }}
+            style={({ pressed }) => ({
+              flexDirection: "row", alignItems: "center", justifyContent: "center",
+              paddingVertical: 9, borderRadius: 14, marginTop: 4,
+              backgroundColor: "rgba(248,250,252,1)", borderWidth: 1, borderColor: UI.border,
+              opacity: pressed ? 0.96 : 1,
+            })}
+          >
+            <Ionicons name="add-outline" size={16} color={UI.muted2} />
+            <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
+          </Pressable>
+        </ScrollView>
+      )}
     </View>
   );
 }
