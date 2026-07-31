@@ -35,23 +35,12 @@ interface Tx {
   amount: number;
   type: TxType;
   description?: string;
-  category?: {
-    id: number;
-    name: string;
-    emoji?: string;
-    color?: string;
-  };
-  subcategory?: {
-    id: number;
-    name: string;
-    emoji?: string;
-    color?: string;
-  };
-  wallet?: {
-    id: number;
-    name: string;
-    emoji?: string;
-  };
+  walletId?: number | null;
+  categoryId?: number | null;
+  subcategoryId?: number | null;
+  category?: { id: number; name: string; emoji?: string; color?: string } | null;
+  subcategory?: { id: number; name: string; emoji?: string; color?: string } | null;
+  wallet?: { id: number; name: string; emoji?: string } | null;
 }
 
 export interface TripPlanItem {
@@ -366,8 +355,14 @@ export default function TripDetailScreen({ route, navigation }: any) {
   }, [trip]);
 
   const planItems: TripPlanItem[] = trip?.planItems || [];
+  const tripTransactions = (trip?.transactions || []).filter((tx) => tx.type === "expense");
   const tasks: TripTask[] = trip?.tasks || [];
   const notes: TripNote[] = trip?.notes || [];
+
+  // Compute total from live data (planItems + linked transactions) to avoid stale trip.cost
+  const totalGastado =
+    planItems.reduce((sum, it) => sum + (it.cost ? Number(it.cost) : 0), 0) +
+    tripTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   const countryCode = (trip?.destination || "").trim().toUpperCase() || null;
   const countryLabel = countryCode ? countryNameEs(countryCode) : "Sin destino";
@@ -805,14 +800,14 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 Total gastado
               </Text>
               <Text style={{ fontSize: 16, fontWeight: "800", color: "white", marginTop: 2 }}>
-                {formatEuro(trip.cost || 0)}
+                {formatEuro(totalGastado)}
               </Text>
             </View>
           </View>
 
           {/* BUDGET PROGRESS BAR */}
           {!!trip.budget && trip.budget > 0 && (() => {
-            const spent = trip.cost || 0;
+            const spent = totalGastado;
             const pct = Math.min(spent / trip.budget, 1);
             const over = spent > trip.budget;
             const barColor = over ? "#F87171" : pct > 0.8 ? "#FBBF24" : "#4ADE80";
@@ -913,7 +908,27 @@ export default function TripDetailScreen({ route, navigation }: any) {
           )}
 
           {tab === "expenses" && (
-            <TripExpensesSection tripId={trip.id} planItems={planItems} budget={trip.budget ?? null} />
+            <TripExpensesSection
+              tripId={trip.id}
+              planItems={planItems}
+              budget={trip.budget ?? null}
+              transactions={tripTransactions}
+              onPressTransaction={(tx) =>
+                navigation.navigate("Add", {
+                  editData: {
+                    id: tx.id,
+                    type: tx.type,
+                    amount: tx.amount,
+                    description: tx.description,
+                    date: tx.date,
+                    walletId: tx.walletId ?? tx.wallet?.id,
+                    categoryId: tx.categoryId ?? tx.category?.id,
+                    subcategoryId: tx.subcategoryId ?? tx.subcategory?.id,
+                    tripId: trip.id,
+                  },
+                })
+              }
+            />
           )}
 
           {tab === "planning" && (
