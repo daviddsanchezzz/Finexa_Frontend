@@ -1,8 +1,7 @@
 // src/components/CrossPlatformDateTimePicker.tsx
 import React, { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { colors } from "../theme/theme";
 
 interface Props {
   isVisible: boolean;
@@ -110,81 +109,52 @@ export default function CrossPlatformDateTimePicker({
     const previewDate = value ? parseValueToDate(value) : safeDate;
 
     return (
-      <View className="fixed inset-0 z-[9999] flex items-end justify-center">
-        {/* Backdrop clickable => cancel */}
-        {/* @ts-ignore */}
-        <div
-          className="absolute inset-0 bg-black/40"
-          onClick={onCancel}
-        />
-
-        {/* Sheet */}
-        {/* @ts-ignore */}
-        <div className="relative w-full max-w-md mx-auto px-4 pb-6">
-          {/* @ts-ignore */}
-          <div
-            className="
-              bg-white rounded-3xl border border-gray-200 shadow-xl 
-              overflow-hidden transition-transform duration-200
-            "
-          >
+      <Modal
+        visible={isVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={onCancel}
+        statusBarTranslucent
+      >
+        <View style={s.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+          <View style={s.sheet}>
             {/* Handle */}
+            <View style={s.handle} />
+
+            {/* Title */}
+            <Text style={s.title}>{getTitle()}</Text>
+
+            {/* Native date/time input */}
             {/* @ts-ignore */}
-            <div className="pt-3 pb-2 flex justify-center">
-              <div className="h-1 w-10 rounded-full bg-gray-300" />
-            </div>
+            <input
+              type={inputType}
+              value={value}
+              onChange={(e: any) => setWebValue(e.target.value)}
+              style={{
+                width: "100%",
+                height: 44,
+                borderRadius: 12,
+                border: "1px solid #D1D5DB",
+                backgroundColor: "#F9FAFB",
+                textAlign: "center",
+                fontSize: 16,
+                color: "#111827",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
 
-            {/* Content */}
-            {/* @ts-ignore */}
-            <div className="px-4 pb-4">
-              {/* Title + preview */}
-              {/* @ts-ignore */}
-              <div className="mb-4 text-center">
-                <p className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
-                  {getTitle()}
-                </p>
-              </div>
-
-              {/* Input */}
-              {/* @ts-ignore */}
-              <div className="px-1">
-                {/* @ts-ignore */}
-                <input
-                  type={inputType}
-                  value={value}
-                  onChange={(e: any) => setWebValue(e.target.value)}
-                  className="
-                    w-full h-11 rounded-xl border border-gray-300 
-                    bg-gray-50 text-center text-lg text-gray-900 
-                    outline-none shadow-sm
-                    focus:bg-white focus:border-blue-500 
-                    focus:ring-2 focus:ring-blue-500/40
-                    transition
-                  "
-                />
-              </div>
-
-              {/* Confirm button */}
-              {/* @ts-ignore */}
-              <button
-                type="button"
-                onClick={handleConfirmClick}
-                className="
-                  mt-5 w-full py-3 rounded-full 
-                  bg-blue-500 text-white text-[15px] font-semibold 
-                  cursor-pointer active:scale-[0.98] 
-                  transition transform shadow-sm
-                "
-                style={{
-                  backgroundColor: colors.primary,
-                }}
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      </View>
+            {/* Confirm */}
+            <Pressable
+              onPress={handleConfirmClick}
+              style={({ pressed }) => [s.confirmBtn, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={s.confirmText}>Confirmar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     );
   }
 
@@ -202,3 +172,52 @@ export default function CrossPlatformDateTimePicker({
     />
   );
 }
+
+const s = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -4 },
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6B7280",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  confirmBtn: {
+    marginTop: 20,
+    backgroundColor: "#2563EB",
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  confirmText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+});
