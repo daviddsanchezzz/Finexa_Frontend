@@ -9,6 +9,8 @@ type TripPlanItemType =
   | "flight"
   | "accommodation"
   | "transport"
+  | "transport_destination"
+  | "transport_local"
   | "taxi"
   | "museum"
   | "monument"
@@ -103,6 +105,8 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
     () => planItems.filter((i) =>
       i.type === "flight" ||
       i.type === "transport" ||
+      i.type === "transport_destination" ||
+      i.type === "transport_local" ||
       i.type === "taxi" ||
       i.type === "accommodation"
     ),

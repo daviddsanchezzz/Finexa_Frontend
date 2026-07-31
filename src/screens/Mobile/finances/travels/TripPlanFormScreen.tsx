@@ -499,12 +499,13 @@ export default function TripPlanFormScreen({
       const payload = {
         tripId,
         type: TripPlanItemType.flight,
+        title: `${flightFrom} → ${flightTo}`,
         cost: parseCost(costStr),
         currency,
         flightDetails: {
           provider: "manual",
           airlineName: flightAirline,
-          flightNumber: flightNumber || null,
+          flightNumberRaw: flightNumber || null,
           fromIata: flightFrom,
           toIata: flightTo,
           depAt: flightDep?.toISOString() || null,
@@ -544,14 +545,15 @@ export default function TripPlanFormScreen({
       const payload = {
         tripId,
         type,
+        title: `${from} → ${to}`,
         cost: parseCost(costStr),
         currency,
-        destinationTransport: {
+        destinationTransportDetails: {
           mode: transportTab === "car" ? "car" : transportTab === "bus" ? "bus" : "train",
           company: company || null,
           bookingRef: bookingRef || null,
-          from,
-          to,
+          fromName: from,
+          toName: to,
           depAt: dep?.toISOString() || null,
           arrAt: arr?.toISOString() || null,
         },
@@ -585,6 +587,7 @@ export default function TripPlanFormScreen({
       const payload = {
         tripId,
         type: TripPlanItemType.accommodation,
+        title: accName,
         cost: parseCost(accCostStr),
         currency: accCurrency,
         accommodationDetails: {
