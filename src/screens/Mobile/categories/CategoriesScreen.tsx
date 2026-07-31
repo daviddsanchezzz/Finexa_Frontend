@@ -24,6 +24,8 @@ type Subcategory = {
   id: number;
   name: string;
   emoji: string;
+  active: boolean;
+  position: number;
 };
 
 type Category = {
@@ -53,6 +55,10 @@ export default function CategoriesScreen({ navigation }: any) {
 
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+
+  const [subReorderCatId, setSubReorderCatId] = useState<number | null>(null);
+  const [savingSubOrder, setSavingSubOrder] = useState(false);
+  const [showArchivedForCat, setShowArchivedForCat] = useState<Set<number>>(new Set());
 
   // 🔹 Cargar categorías desde el backend
   const fetchCategories = async () => {
@@ -173,6 +179,73 @@ export default function CategoriesScreen({ navigation }: any) {
   const handleCancelReorder = async () => {
     setReorderMode(false);
     await fetchCategories();
+  };
+
+  const moveSubUp = (catId: number, index: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCategories((prev) =>
+      prev.map((cat) => {
+        if (cat.id !== catId) return cat;
+        const active = (cat.subcategories ?? []).filter((s) => s.active);
+        const inactive = (cat.subcategories ?? []).filter((s) => !s.active);
+        return { ...cat, subcategories: [...moveItem(active, index, index - 1), ...inactive] };
+      })
+    );
+  };
+
+  const moveSubDown = (catId: number, index: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCategories((prev) =>
+      prev.map((cat) => {
+        if (cat.id !== catId) return cat;
+        const active = (cat.subcategories ?? []).filter((s) => s.active);
+        const inactive = (cat.subcategories ?? []).filter((s) => !s.active);
+        return { ...cat, subcategories: [...moveItem(active, index, index + 1), ...inactive] };
+      })
+    );
+  };
+
+  const handleSaveSubOrder = async (catId: number) => {
+    try {
+      setSavingSubOrder(true);
+      const cat = categories.find((c) => c.id === catId);
+      if (!cat) return;
+      const order = (cat.subcategories ?? []).filter((s) => s.active).map((s) => s.id);
+      await api.patch(`/categories/${catId}/subcategories/reorder`, { order });
+      setSubReorderCatId(null);
+      await fetchCategories();
+    } catch (e: any) {
+      Alert.alert("Error", "No se pudo guardar el orden.");
+    } finally {
+      setSavingSubOrder(false);
+    }
+  };
+
+  const handleArchiveSub = async (catId: number, subId: number) => {
+    try {
+      await api.patch(`/categories/${catId}/subcategories/${subId}`, { active: false });
+      await fetchCategories();
+    } catch {
+      Alert.alert("Error", "No se pudo archivar la subcategoría.");
+    }
+  };
+
+  const handleRestoreSub = async (catId: number, subId: number) => {
+    try {
+      await api.patch(`/categories/${catId}/subcategories/${subId}`, { active: true });
+      await fetchCategories();
+    } catch {
+      Alert.alert("Error", "No se pudo restaurar la subcategoría.");
+    }
+  };
+
+  const toggleShowArchived = (catId: number) => {
+    setShowArchivedForCat((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
   };
 
   return (
@@ -364,42 +437,141 @@ export default function CategoriesScreen({ navigation }: any) {
                 </View>
 
                 {/* Subcategorías */}
-                {expanded && !reorderMode && (
-                  <View className="mt-3 border-t border-gray-100 pt-3">
-                    {cat.subcategories?.map((sub) => (
-                      <TouchableOpacity
-                        key={sub.id}
-                        activeOpacity={0.7}
-                        onPress={() => openModal(sub, true, cat.id)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        className="flex-row items-center justify-between py-2"
-                      >
-                        <View className="flex-row items-center">
-                          <Text className="text-[20px] mr-4">{sub.emoji}</Text>
-                          <Text className="text-[16px] text-gray-700">{sub.name}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+                {expanded && !reorderMode && (() => {
+                  const activeSubs = (cat.subcategories ?? []).filter((s) => s.active);
+                  const inactiveSubs = (cat.subcategories ?? []).filter((s) => !s.active);
+                  const isSubReorder = subReorderCatId === cat.id;
+                  const showArchived = showArchivedForCat.has(cat.id);
 
-                    {/* Crear nueva subcategoría */}
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      className="flex-row items-center mt-2"
-                      onPress={() => openModal(null, true, cat.id)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons
-                        name="add-outline"
-                        size={18}
-                        color={colors.primary}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text className="text-[15px] text-primary font-semibold">
-                        Crear subcategoría
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+                  return (
+                    <View className="mt-3 border-t border-gray-100 pt-3">
+                      {isSubReorder ? (
+                        <>
+                          {activeSubs.map((sub, idx) => (
+                            <View key={sub.id} className="flex-row items-center py-2">
+                              <Text className="text-[20px] mr-3">{sub.emoji}</Text>
+                              <Text className="text-[15px] text-gray-700 flex-1">{sub.name}</Text>
+                              <View style={{ flexDirection: "column", marginRight: 4 }}>
+                                <TouchableOpacity
+                                  onPress={() => moveSubUp(cat.id, idx)}
+                                  disabled={idx === 0}
+                                  style={{ opacity: idx === 0 ? 0.3 : 1, paddingVertical: 2 }}
+                                >
+                                  <Ionicons name="arrow-up-outline" size={16} color="#6b7280" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => moveSubDown(cat.id, idx)}
+                                  disabled={idx === activeSubs.length - 1}
+                                  style={{ opacity: idx === activeSubs.length - 1 ? 0.3 : 1, paddingVertical: 2 }}
+                                >
+                                  <Ionicons name="arrow-down-outline" size={16} color="#6b7280" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))}
+                          <View className="flex-row justify-end mt-3" style={{ gap: 8 }}>
+                            <TouchableOpacity
+                              onPress={() => { setSubReorderCatId(null); fetchCategories(); }}
+                              className="rounded-full p-2 bg-gray-100"
+                            >
+                              <Ionicons name="close-outline" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleSaveSubOrder(cat.id)}
+                              disabled={savingSubOrder}
+                              className="rounded-full p-2 bg-primary/10"
+                            >
+                              {savingSubOrder ? (
+                                <ActivityIndicator size="small" color={colors.primary} />
+                              ) : (
+                                <Ionicons name="checkmark-outline" size={20} color={colors.primary} />
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        </>
+                      ) : (
+                        <>
+                          {activeSubs.map((sub) => (
+                            <View key={sub.id} className="flex-row items-center justify-between py-2">
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() => openModal(sub, true, cat.id)}
+                                className="flex-row items-center flex-1"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              >
+                                <Text className="text-[20px] mr-4">{sub.emoji}</Text>
+                                <Text className="text-[16px] text-gray-700">{sub.name}</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => handleArchiveSub(cat.id, sub.id)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                style={{ padding: 4 }}
+                              >
+                                <Ionicons name="archive-outline" size={17} color="#D1D5DB" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+
+                          {inactiveSubs.length > 0 && (
+                            <>
+                              <TouchableOpacity
+                                onPress={() => toggleShowArchived(cat.id)}
+                                className="flex-row items-center mt-2 mb-1"
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons
+                                  name={showArchived ? "chevron-up-outline" : "chevron-down-outline"}
+                                  size={14}
+                                  color="#9CA3AF"
+                                  style={{ marginRight: 4 }}
+                                />
+                                <Text className="text-[12px] text-gray-400">
+                                  {inactiveSubs.length} archivada{inactiveSubs.length !== 1 ? "s" : ""}
+                                </Text>
+                              </TouchableOpacity>
+                              {showArchived && inactiveSubs.map((sub) => (
+                                <View key={sub.id} className="flex-row items-center justify-between py-1.5">
+                                  <View className="flex-row items-center flex-1">
+                                    <Text className="text-[18px] mr-4" style={{ opacity: 0.4 }}>{sub.emoji}</Text>
+                                    <Text className="text-[15px] text-gray-400">{sub.name}</Text>
+                                  </View>
+                                  <TouchableOpacity
+                                    onPress={() => handleRestoreSub(cat.id, sub.id)}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    style={{ padding: 4 }}
+                                  >
+                                    <Ionicons name="arrow-undo-outline" size={17} color="#9CA3AF" />
+                                  </TouchableOpacity>
+                                </View>
+                              ))}
+                            </>
+                          )}
+
+                          <View className="flex-row items-center justify-between mt-2">
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              className="flex-row items-center"
+                              onPress={() => openModal(null, true, cat.id)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="add-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
+                              <Text className="text-[15px] text-primary font-semibold">Crear subcategoría</Text>
+                            </TouchableOpacity>
+                            {activeSubs.length > 1 && (
+                              <TouchableOpacity
+                                onPress={() => setSubReorderCatId(cat.id)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={{ padding: 4 }}
+                              >
+                                <Ionicons name="reorder-three-outline" size={20} color="#9CA3AF" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  );
+                })()}
               </View>
             );
           })
