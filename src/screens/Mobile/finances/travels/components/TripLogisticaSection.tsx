@@ -327,20 +327,23 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
               </Text>
             </View>
 
-            {/* Address + guests/rooms inline */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-              {!!mapsQuery && (
-                <TouchableOpacity
-                  onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsQuery)}`); }}
-                  style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="location-outline" size={11} color={colors.primary} />
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }} numberOfLines={1}>
-                    {mapsQuery}
-                  </Text>
-                </TouchableOpacity>
-              )}
+            {/* Address */}
+            {!!mapsQuery && (
+              <TouchableOpacity
+                onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsQuery)}`); }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="location-outline" size={11} color={colors.primary} style={{ flexShrink: 0 }} />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary, flexShrink: 1 }} numberOfLines={1}>
+                  {mapsQuery}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Guests + rooms */}
+            {(!!guests || !!rooms) && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 3 }}>
               {!!guests && (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                   <Ionicons name="people-outline" size={11} color="#94A3B8" />
@@ -353,7 +356,8 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
                   <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{rooms} hab.</Text>
                 </View>
               )}
-            </View>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
