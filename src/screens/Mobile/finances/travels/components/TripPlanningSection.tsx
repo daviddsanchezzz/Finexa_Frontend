@@ -731,9 +731,46 @@ export default function TripPlanningSectionRedesign({
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
+  const accommodationEvents = useMemo(() => {
+    const events: TripPlanItem[] = [];
+    for (const item of planItems) {
+      if (item.type !== "accommodation") continue;
+      const accName = item.accommodationDetails?.name || item.title;
+      const checkInAt = item.accommodationDetails?.checkInAt;
+      const checkOutAt = item.accommodationDetails?.checkOutAt;
+      if (checkInAt) {
+        events.push({
+          ...item,
+          id: -(item.id * 2),
+          _realId: item.id,
+          startAt: checkInAt,
+          startTime: checkInAt,
+          day: isoDay(checkInAt) ?? undefined,
+          endAt: null,
+          endTime: null,
+          title: `Check-in · ${accName}`,
+        } as any);
+      }
+      if (checkOutAt) {
+        events.push({
+          ...item,
+          id: -(item.id * 2 + 1),
+          _realId: item.id,
+          startAt: checkOutAt,
+          startTime: checkOutAt,
+          day: isoDay(checkOutAt) ?? undefined,
+          endAt: null,
+          endTime: null,
+          title: `Check-out · ${accName}`,
+        } as any);
+      }
+    }
+    return events;
+  }, [planItems]);
+
   const planningItems = useMemo(
-    () => planItems.filter((i) => i.type !== "accommodation"),
-    [planItems]
+    () => [...planItems.filter((i) => i.type !== "accommodation"), ...accommodationEvents],
+    [planItems, accommodationEvents]
   );
 
   const days = useMemo(() => {
@@ -801,7 +838,10 @@ export default function TripPlanningSectionRedesign({
   };
 
   const handleEdit = (item: TripPlanItem) => {
-    navigation.navigate("TripPlanForm", { tripId, planItem: item });
+    const realItem = (item as any)._realId
+      ? { ...item, id: (item as any)._realId }
+      : item;
+    navigation.navigate("TripPlanForm", { tripId, planItem: realItem });
   };
 
   const handleQuickSave = async () => {

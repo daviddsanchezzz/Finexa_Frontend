@@ -600,7 +600,7 @@ const entries = useMemo(() => {
                 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: "800", color: viewMode === mode ? UI.text : UI.muted }}>
-                  {mode === "list" ? "Por ítem" : "Resumen"}
+                  {mode === "list" ? "Por ítem" : "Por categoría"}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -617,7 +617,7 @@ const entries = useMemo(() => {
             </View>
             {/* Categorías */}
             <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden" }}>
-              {visibleKpis.map((def, idx) => {
+              {[...visibleKpis].sort((a, b) => (totalsByCategory[b.key] || 0) - (totalsByCategory[a.key] || 0)).map((def, idx) => {
                 const amount = totalsByCategory[def.key] || 0;
                 const pct = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
                 const isLast = idx === visibleKpis.length - 1;

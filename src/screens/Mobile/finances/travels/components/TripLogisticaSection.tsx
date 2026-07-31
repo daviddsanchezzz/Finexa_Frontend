@@ -259,17 +259,22 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
   };
 
   const renderAccommodationCard = (item: TripPlanItem) => {
-    const checkIn = item.date || item.accommodationDetails?.checkInAt;
-    const checkOut = item.endTime || item.accommodationDetails?.checkOutAt;
-
-    const checkInDate = formatDate(checkIn);
-    const checkOutDate = formatDate(checkOut);
-
+    const checkIn = item.accommodationDetails?.checkInAt || item.date;
+    const checkOut = item.accommodationDetails?.checkOutAt || item.endTime;
     const name = item.accommodationDetails?.name;
     const address = item.accommodationDetails?.address;
     const city = item.accommodationDetails?.city;
     const guests = item.accommodationDetails?.guests;
     const rooms = item.accommodationDetails?.rooms;
+    const mapsQuery = [address, city].filter(Boolean).join(", ");
+
+    // Don't repeat subtitle if same as title
+    const subtitle = name && name.trim() !== item.title.trim() ? name : null;
+
+    const checkInDate = formatDate(checkIn);
+    const checkInTime = formatTime(checkIn);
+    const checkOutDate = formatDate(checkOut);
+    const checkOutTime = formatTime(checkOut);
 
     return (
       <TouchableOpacity
@@ -278,104 +283,77 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
         onPress={() => handleOpenItem(item)}
         style={{
           backgroundColor: "white",
-          borderRadius: 16,
-          padding: 14,
-          marginBottom: 10,
+          borderRadius: 14,
+          padding: 12,
+          marginBottom: 8,
           borderWidth: 1,
           borderColor: "#E5E7EB",
-          shadowColor: "#000",
-          shadowOpacity: 0.03,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-          {/* Icon */}
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: "rgba(139,92,246,0.10)",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 12,
-            }}
-          >
-            <Ionicons name="bed-outline" size={22} color="#8B5CF6" />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(139,92,246,0.10)", alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="bed-outline" size={18} color="#8B5CF6" />
           </View>
 
-          {/* Content */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: "800", color: "#0B1220" }} numberOfLines={1}>
-              {item.title}
-            </Text>
-
-            {name && (
-              <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginTop: 2 }} numberOfLines={1}>
-                {name}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {/* Title + cost on same row */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 13, fontWeight: "800", color: "#0B1220", flex: 1 }} numberOfLines={1}>
+                {item.title}
               </Text>
-            )}
-
-            {/* Address */}
-            {(address || city) && (
-              <TouchableOpacity
-                onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent([address, city].filter(Boolean).join(", "))}`); }}
-                style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 4 }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="location-outline" size={12} color={colors.primary} style={{ marginTop: 1 }} />
-                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary, marginLeft: 4, flex: 1 }} numberOfLines={1}>
-                  {[address, city].filter(Boolean).join(", ")}
+              {item.cost != null && (
+                <Text style={{ fontSize: 13, fontWeight: "900", color: "#0B1220", marginLeft: 8 }}>
+                  {Number(item.cost).toFixed(0)} €
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Check-in / Check-out */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 8 }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons name="enter-outline" size={12} color="#10B981" />
-                <Text style={{ fontSize: 11, fontWeight: "600", color: "#10B981", marginLeft: 4 }}>
-                  {checkInDate}
-                </Text>
-              </View>
-              <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8" }}>→</Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons name="exit-outline" size={12} color="#EF4444" />
-                <Text style={{ fontSize: 11, fontWeight: "600", color: "#EF4444", marginLeft: 4 }}>
-                  {checkOutDate}
-                </Text>
-              </View>
+              )}
             </View>
 
-            {/* Guests & Rooms */}
-            {(guests || rooms) && (
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 10 }}>
-                {guests && (
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Ionicons name="people-outline" size={12} color="#94A3B8" />
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginLeft: 4 }}>
-                      {guests} {guests === 1 ? "huésped" : "huéspedes"}
-                    </Text>
-                  </View>
-                )}
-                {rooms && (
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Ionicons name="home-outline" size={12} color="#94A3B8" />
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginLeft: 4 }}>
-                      {rooms} {rooms === 1 ? "hab." : "habs."}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Cost */}
-            {item.cost != null && (
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#10B981", marginTop: 6 }}>
-                {typeof item.cost === 'number' ? item.cost.toFixed(2) : item.cost} €
+            {subtitle && (
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginTop: 1 }} numberOfLines={1}>
+                {subtitle}
               </Text>
             )}
+
+            {/* Check-in → Check-out inline */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5 }}>
+              <Ionicons name="enter-outline" size={11} color="#10B981" />
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#10B981" }}>
+                {checkInDate}{checkInTime ? ` · ${checkInTime}` : ""}
+              </Text>
+              <Text style={{ fontSize: 11, color: "#94A3B8", marginHorizontal: 2 }}>→</Text>
+              <Ionicons name="exit-outline" size={11} color="#EF4444" />
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#EF4444" }}>
+                {checkOutDate}{checkOutTime ? ` · ${checkOutTime}` : ""}
+              </Text>
+            </View>
+
+            {/* Address + guests/rooms inline */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+              {!!mapsQuery && (
+                <TouchableOpacity
+                  onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsQuery)}`); }}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="location-outline" size={11} color={colors.primary} />
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }} numberOfLines={1}>
+                    {mapsQuery}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {!!guests && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                  <Ionicons name="people-outline" size={11} color="#94A3B8" />
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{guests}</Text>
+                </View>
+              )}
+              {!!rooms && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                  <Ionicons name="home-outline" size={11} color="#94A3B8" />
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{rooms} hab.</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </TouchableOpacity>
