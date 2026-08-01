@@ -1,7 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
-import WebView from "react-native-webview";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { View, Text, ActivityIndicator, Platform } from "react-native";
 import { TripPlanItem } from "./TripPlanningSection";
+
+// Only import WebView on native — react-native-webview doesn't support web
+let NativeWebView: any = null;
+if (Platform.OS !== "web") {
+  NativeWebView = require("react-native-webview").default;
+}
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface GeoPoint { lat: number; lng: number }
 interface MapMarker extends GeoPoint {
@@ -10,6 +17,8 @@ interface MapMarker extends GeoPoint {
   items: string[];
   order: number;
 }
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const TYPE_COLOR: Partial<Record<string, string>> = {
   accommodation: "#16A34A",
@@ -21,6 +30,8 @@ const TYPE_COLOR: Partial<Record<string, string>> = {
   cafe: "#EA580C",
 };
 const DEFAULT_COLOR = "#A855F7";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function geocode(query: string): Promise<GeoPoint | null> {
   try {
@@ -35,25 +46,17 @@ async function geocode(query: string): Promise<GeoPoint | null> {
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-// Escape HTML to prevent XSS from user-entered plan item titles
-function esc(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function buildLeafletHTML(markers: MapMarker[]): string {
-  // Escape all user content before embedding in HTML
-  const safeMarkers = markers.map(m => ({
-    ...m,
-    title: esc(m.title),
-    items: m.items.map(esc),
-  }));
-  const ms = JSON.stringify(safeMarkers);
-  const rt = JSON.stringify(safeMarkers.slice().sort((a, b) => a.order - b.order));
+  const safe = markers.map(m => ({ ...m, title: esc(m.title), items: m.items.map(esc) }));
+  const ms = JSON.stringify(safe);
+  const rt = JSON.stringify(safe.slice().sort((a, b) => a.order - b.order));
+
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -66,7 +69,7 @@ function buildLeafletHTML(markers: MapMarker[]): string {
 html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 #map{width:100%;height:100%}
 .leaflet-popup-content-wrapper{border-radius:14px;padding:0;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
-.leaflet-popup-content{margin:0;min-width:140px;max-width:200px}
+.leaflet-popup-content{margin:0;min-width:140px;max-width:210px}
 .pu{padding:10px 13px}
 .pu-title{font-weight:700;font-size:13px;color:#0f172a;font-family:-apple-system,sans-serif;margin-bottom:4px}
 .pu-item{font-size:11px;color:#475569;font-family:-apple-system,sans-serif;line-height:1.6}
@@ -77,7 +80,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 (function(){
   var ms=${ms},rt=${rt};
   if(!ms.length){
-    document.getElementById('map').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:sans-serif;color:#94a3b8;font-size:14px;padding:24px;text-align:center">Sin ubicaciones disponibles para mostrar en el mapa</div>';
+    document.getElementById('map').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:sans-serif;color:#94a3b8;font-size:14px;padding:24px;text-align:center">Sin ubicaciones disponibles</div>';
     return;
   }
   var avgLat=ms.reduce(function(s,m){return s+m.lat},0)/ms.length;
@@ -90,10 +93,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
     }).addTo(map);
   }
   ms.forEach(function(m,i){
-    var num=i+1;
     var icon=L.divIcon({
       className:'',
-      html:'<div style="width:32px;height:32px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:11px;font-weight:800;font-family:sans-serif">'+num+'</span></div>',
+      html:'<div style="width:32px;height:32px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:11px;font-weight:800;font-family:sans-serif">'+(i+1)+'</span></div>',
       iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-36]
     });
     var items=m.items.map(function(t){return'<div class="pu-item">· '+t+'</div>'}).join('');
@@ -108,17 +110,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 </body></html>`;
 }
 
-interface Props {
-  planItems: TripPlanItem[];
+// ─── Platform-specific map frame ─────────────────────────────────────────────
+
+function WebIframe({ html }: { html: string }) {
+  const containerRef = useRef<any>(null);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    // In React Native Web, View ref gives us the real DOM element
+    const domNode = node as unknown as HTMLElement;
+    domNode.innerHTML = "";
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("srcdoc", html);
+    iframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
+    domNode.appendChild(iframe);
+    return () => { domNode.innerHTML = ""; };
+  }, [html]);
+
+  return <View ref={containerRef} style={{ flex: 1 }} />;
 }
 
-export default function TripMapView({ planItems }: Props) {
-  const [markers, setMarkers] = useState<MapMarker[]>([]);
+function MapFrame({ html }: { html: string }) {
+  if (Platform.OS === "web") {
+    return <WebIframe html={html} />;
+  }
+  return (
+    <NativeWebView
+      source={{ html }}
+      style={{ flex: 1 }}
+      scrollEnabled={false}
+      originWhitelist={["*"]}
+      javaScriptEnabled
+    />
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }) {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState("");
   const [html, setHtml] = useState("");
 
-  // Collect unique location queries with metadata
   const locRequests = useMemo(() => {
     const seen = new Map<string, { color: string; displayName: string; itemTitle: string; order: number }[]>();
 
@@ -133,8 +167,7 @@ export default function TripMapView({ planItems }: Props) {
       if (item.type === "accommodation" && item.accommodationDetails) {
         const d = item.accommodationDetails;
         const q = [d.address, d.city, d.country].filter(Boolean).join(", ");
-        const name = d.city || d.name || item.title;
-        push(q, "#16A34A", name, item.title, idx);
+        if (q) push(q, "#16A34A", d.city || d.name || item.title, item.title, idx);
       } else if (item.location) {
         push(item.location, color, item.location, item.title, idx);
       }
@@ -151,20 +184,17 @@ export default function TripMapView({ planItems }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
 
     (async () => {
-      setLoading(true);
-      setMarkers([]);
-
       const entries = [...locRequests.entries()];
       if (entries.length === 0) {
-        setLoading(false);
         setHtml(buildLeafletHTML([]));
+        setLoading(false);
         return;
       }
 
       const result: MapMarker[] = [];
-      const cache = new Map<string, GeoPoint | null>();
 
       for (let i = 0; i < entries.length; i++) {
         if (cancelled) return;
@@ -172,10 +202,8 @@ export default function TripMapView({ planItems }: Props) {
         setProgress(`${i + 1} / ${entries.length}`);
 
         const geo = await geocode(query);
-        cache.set(query, geo);
 
         if (geo) {
-          // Merge nearby points (same city)
           const nearby = result.find(
             m => Math.abs(m.lat - geo.lat) < 0.002 && Math.abs(m.lng - geo.lng) < 0.002
           );
@@ -186,8 +214,7 @@ export default function TripMapView({ planItems }: Props) {
           } else {
             const first = metas[0];
             result.push({
-              lat: geo.lat,
-              lng: geo.lng,
+              lat: geo.lat, lng: geo.lng,
               title: first.displayName,
               color: first.color,
               items: metas.map(m => m.itemTitle),
@@ -196,11 +223,10 @@ export default function TripMapView({ planItems }: Props) {
           }
         }
 
-        if (i < entries.length - 1) await sleep(1150); // Nominatim 1 req/s
+        if (i < entries.length - 1) await sleep(1150);
       }
 
       if (!cancelled) {
-        setMarkers(result);
         setHtml(buildLeafletHTML(result));
         setLoading(false);
       }
@@ -213,7 +239,8 @@ export default function TripMapView({ planItems }: Props) {
     <View style={{ flex: 1, borderRadius: 16, overflow: "hidden", marginTop: 8 }}>
       {loading && (
         <View style={{
-          position: "absolute", inset: 0 as any,
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: "#f8fafc",
           alignItems: "center", justifyContent: "center",
           zIndex: 10,
@@ -228,19 +255,11 @@ export default function TripMapView({ planItems }: Props) {
             </Text>
           ) : null}
           <Text style={{ marginTop: 6, fontSize: 10, color: "#CBD5E1" }}>
-            OpenStreetMap · 1 petición / segundo
+            OpenStreetMap · 1 req/seg
           </Text>
         </View>
       )}
-      {html ? (
-        <WebView
-          source={{ html }}
-          style={{ flex: 1 }}
-          scrollEnabled={false}
-          originWhitelist={["*"]}
-          javaScriptEnabled
-        />
-      ) : null}
+      {html ? <MapFrame html={html} /> : null}
     </View>
   );
 }
