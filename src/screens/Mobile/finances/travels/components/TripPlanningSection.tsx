@@ -810,7 +810,7 @@ export default function TripPlanningSectionRedesign({
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
         const tsOf = (it: TripPlanItem) => {
-          const raw = it.startAt ?? it.startTime ?? it.flightDetails?.depAt ?? it.destinationTransport?.depAt ?? null;
+          const raw = it.startAt ?? it.startTime ?? it.flightDetails?.depAt ?? it.destinationTransport?.depAt ?? it.day ?? it.date ?? null;
           if (!raw) return Infinity;
           // Si es hora sola ("13:00" o "13:00:00"), combinamos con el día del item
           const isTimeOnly = /^\d{1,2}:\d{2}(:\d{2})?$/.test(raw);
