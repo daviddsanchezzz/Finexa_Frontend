@@ -393,8 +393,8 @@ export default function TripPlanFormScreen({
 
   const [company, setCompany] = useState(planItem?.destinationTransport?.company || "");
   const [bookingRef, setBookingRef] = useState(planItem?.destinationTransport?.bookingRef || "");
-  const [from, setFrom] = useState(planItem?.destinationTransport?.from || "");
-  const [to, setTo] = useState(planItem?.destinationTransport?.to || "");
+  const [from, setFrom] = useState(planItem?.destinationTransport?.fromName || "");
+  const [to, setTo] = useState(planItem?.destinationTransport?.toName || "");
   const [dep, setDep] = useState<Date | null>(
     planItem?.destinationTransport?.depAt ? new Date(planItem.destinationTransport.depAt) : null
   );

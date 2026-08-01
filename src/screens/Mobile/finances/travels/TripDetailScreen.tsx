@@ -731,8 +731,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
         <View
           style={{
             borderRadius: 24,
-            padding: 18,
-            marginBottom: 16,
+            padding: 14,
+            marginBottom: 10,
             backgroundColor: colors.primary,
             shadowColor: "#000",
             shadowOpacity: 0.12,
@@ -742,7 +742,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
           }}
         >
           {/* TOP ROW: flag + country + name | status */}
-          <View className="flex-row justify-between items-start mb-10">
+          <View className="flex-row justify-between items-start mb-3">
             <View className="flex-row items-center flex-1 pr-3">
               <View
                 style={{
@@ -833,8 +833,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
             const over = spent > trip.budget;
             const barColor = over ? "#F87171" : pct > 0.8 ? "#FBBF24" : "#4ADE80";
             return (
-              <View style={{ marginTop: 14 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+              <View style={{ marginTop: 8 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
                   <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
                     {over ? "⚠️ Presupuesto superado" : `Presupuesto · ${Math.round(pct * 100)}%`}
                   </Text>

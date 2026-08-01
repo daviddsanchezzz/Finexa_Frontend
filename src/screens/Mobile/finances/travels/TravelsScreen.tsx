@@ -705,6 +705,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                       const laneBars = weekBars.filter(b => b.lane === lane);
                       return (
                         <View key={lane} style={{ flexDirection: "row", height: 16, marginBottom: 2 }}>
+                          {/* Segmentos de color */}
                           {Array.from({ length: 7 }, (_, col) => {
                             const bar = laneBars.find(b => col >= b.startCol && col <= b.endCol);
                             if (!bar) return <View key={col} style={{ flex: 1 }} />;
@@ -722,18 +723,31 @@ export default function TripsHomeScreen({ navigation }: any) {
                                   borderBottomRightRadius: isLast ? 7 : 0,
                                   marginLeft: isFirst ? 2 : 0,
                                   marginRight: isLast ? 2 : 0,
-                                  justifyContent: "center",
-                                  overflow: "hidden",
                                 }}
-                              >
-                                {isFirst ? (
-                                  <Text style={{ fontSize: 9, color: "white", fontWeight: "700", paddingLeft: 5, lineHeight: 14 }} numberOfLines={1}>
-                                    {bar.trip.name}
-                                  </Text>
-                                ) : null}
-                              </View>
+                              />
                             );
                           })}
+                          {/* Texto del viaje como overlay absoluto para aprovechar todo el ancho del bar */}
+                          {laneBars.map(bar => (
+                            <View
+                              key={bar.trip.id}
+                              pointerEvents="none"
+                              style={{
+                                position: "absolute",
+                                left: `${(bar.startCol / 7) * 100}%` as any,
+                                width: `${((bar.endCol - bar.startCol + 1) / 7) * 100}%` as any,
+                                top: 1, height: 14,
+                                justifyContent: "center",
+                                paddingLeft: 8,
+                                paddingRight: 4,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <Text style={{ fontSize: 9, color: "white", fontWeight: "700", lineHeight: 14 }} numberOfLines={1}>
+                                {bar.trip.name}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
                       );
                     })}

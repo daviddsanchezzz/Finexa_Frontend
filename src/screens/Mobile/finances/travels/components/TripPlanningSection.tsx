@@ -57,6 +57,15 @@ export interface TripPlanItem {
     depAt?: string | null;
     arrAt?: string | null;
   } | null;
+  destinationTransport?: {
+    mode?: string | null;
+    company?: string | null;
+    bookingRef?: string | null;
+    fromName?: string | null;
+    toName?: string | null;
+    depAt?: string | null;
+    arrAt?: string | null;
+  } | null;
 }
 
 type TripLike = { startDate?: string | null; endDate?: string | null };
@@ -587,7 +596,18 @@ function ActivityCard({
     badgeBorder: UI.border,
   };
   const expCat = item.type === "expense" ? (item.metadata?.expenseCategory ?? null) : null;
-  const meta = (expCat && EXPENSE_CAT_META[expCat]) ? { ...baseMeta, ...EXPENSE_CAT_META[expCat] } : baseMeta;
+  const transportMode = (item.type === "transport_local" || item.type === "transport_destination")
+    ? (item.destinationTransport?.mode ?? null) : null;
+  const transportIcon: keyof typeof Ionicons.glyphMap | null =
+    transportMode === "car" ? "car-outline"
+    : transportMode === "train" ? "train-outline"
+    : transportMode === "bus" ? "bus-outline"
+    : null;
+  const meta = (expCat && EXPENSE_CAT_META[expCat])
+    ? { ...baseMeta, ...EXPENSE_CAT_META[expCat] }
+    : transportIcon
+    ? { ...baseMeta, icon: transportIcon }
+    : baseMeta;
 
   const start = item.startAt ?? item.startTime ?? null;
   const end = item.endAt ?? item.endTime ?? null;
@@ -790,7 +810,7 @@ export default function TripPlanningSectionRedesign({
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
         const tsOf = (it: TripPlanItem) => {
-          const raw = it.startAt ?? it.startTime ?? null;
+          const raw = it.startAt ?? it.startTime ?? it.flightDetails?.depAt ?? it.destinationTransport?.depAt ?? null;
           if (!raw) return Infinity;
           // Si es hora sola ("13:00" o "13:00:00"), combinamos con el día del item
           const isTimeOnly = /^\d{1,2}:\d{2}(:\d{2})?$/.test(raw);
