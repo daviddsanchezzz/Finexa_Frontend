@@ -84,6 +84,11 @@ const CAL_STATUS_COLORS: Record<TripStatus, string> = {
   wishlist: "#F59E0B",
 };
 
+const CAL_TRIP_PALETTE = [
+  "#2563EB", "#D97706", "#7C3AED", "#DC2626",
+  "#059669", "#DB2777", "#0891B2", "#65A30D", "#EA580C",
+];
+
 function getCalCells(year: number, month: number): (number | null)[] {
   const first = new Date(year, month, 1).getDay();
   const offset = first === 0 ? 6 : first - 1; // lunes primero
@@ -371,6 +376,13 @@ export default function TripsHomeScreen({ navigation }: any) {
     if (selectedCalDay === null) return tripsInCalMonth;
     return (tripDayMap[selectedCalDay] ?? []).map(d => d.trip);
   }, [selectedCalDay, tripDayMap, tripsInCalMonth]);
+
+  const calTripColors = useMemo(() => {
+    const sorted = [...calTrips].sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
+    const map = new Map<number, string>();
+    sorted.forEach((t, i) => map.set(t.id, CAL_TRIP_PALETTE[i % CAL_TRIP_PALETTE.length]));
+    return map;
+  }, [calTrips]);
   // ──────────────────────────────────────────────────────────────────────────
 
   const continentPills = useMemo(() => {
@@ -609,51 +621,120 @@ export default function TripsHomeScreen({ navigation }: any) {
             </View>
 
             {/* Grid del calendario */}
-            <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 4, paddingHorizontal: 4, marginBottom: 16 }}>
+            <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 6, paddingHorizontal: 4, marginBottom: 16 }}>
               {Array.from({ length: calCells.length / 7 }, (_, weekIdx) => {
                 const week = calCells.slice(weekIdx * 7, weekIdx * 7 + 7);
-                return (
-                  <View key={weekIdx} style={{ flexDirection: "row" }}>
-                    {week.map((day, dayIdx) => {
-                      const todayObj = new Date();
-                      const isToday    = day != null && todayObj.getFullYear() === calYear && todayObj.getMonth() === calMonth && todayObj.getDate() === day;
-                      const isSelected = day === selectedCalDay;
-                      const dayTrips   = day ? (tripDayMap[day] ?? []) : [];
 
-                      return (
-                        <TouchableOpacity
-                          key={dayIdx}
-                          onPress={() => {
-                            if (!day || dayTrips.length === 0) return;
-                            setSelectedCalDay(prev => prev === day ? null : day);
-                          }}
-                          disabled={!day || dayTrips.length === 0}
-                          activeOpacity={0.7}
-                          style={{ flex: 1, height: 52, alignItems: "center", paddingTop: 5 }}
-                        >
-                          {day != null ? (
-                            <>
+                // Compute trip bars for this week
+                const laneEnds: number[] = [];
+                const weekBars: Array<{
+                  trip: TripUI; color: string;
+                  startCol: number; endCol: number;
+                  isStart: boolean; isEnd: boolean; lane: number;
+                }> = [];
+
+                for (const trip of calTrips) {
+                  const tripStart = new Date(trip.startDate!);
+                  const tripEnd = trip.endDate && isValidISODate(trip.endDate) ? new Date(trip.endDate) : new Date(trip.startDate!);
+                  let startCol = -1, endCol = -1, isStart = false, isEnd = false;
+                  for (let col = 0; col < 7; col++) {
+                    const day = week[col];
+                    if (day == null) continue;
+                    const cellDate = new Date(calYear, calMonth, day);
+                    const cellEnd  = new Date(calYear, calMonth, day, 23, 59, 59);
+                    if (tripStart <= cellEnd && tripEnd >= cellDate) {
+                      if (startCol === -1) startCol = col;
+                      endCol = col;
+                      if (tripStart.getFullYear() === calYear && tripStart.getMonth() === calMonth && tripStart.getDate() === day) isStart = true;
+                      if (tripEnd.getFullYear() === calYear && tripEnd.getMonth() === calMonth && tripEnd.getDate() === day) isEnd = true;
+                    }
+                  }
+                  if (startCol === -1) continue;
+                  let lane = 0;
+                  while (lane < laneEnds.length && laneEnds[lane] >= startCol) lane++;
+                  laneEnds[lane] = endCol;
+                  if (lane < 3) {
+                    weekBars.push({ trip, color: calTripColors.get(trip.id) ?? "#2563EB", startCol, endCol, isStart, isEnd, lane });
+                  }
+                }
+
+                const maxLane = weekBars.length > 0 ? Math.max(...weekBars.map(b => b.lane)) : -1;
+                const todayObj = new Date();
+
+                return (
+                  <View key={weekIdx} style={{ marginBottom: 4 }}>
+                    {/* Día numbers row */}
+                    <View style={{ flexDirection: "row" }}>
+                      {week.map((day, dayIdx) => {
+                        const isToday    = day != null && todayObj.getFullYear() === calYear && todayObj.getMonth() === calMonth && todayObj.getDate() === day;
+                        const isSelected = day === selectedCalDay;
+                        const hasTrips   = day ? (tripDayMap[day]?.length ?? 0) > 0 : false;
+                        return (
+                          <TouchableOpacity
+                            key={dayIdx}
+                            onPress={() => {
+                              if (!day || !hasTrips) return;
+                              setSelectedCalDay(prev => prev === day ? null : day);
+                            }}
+                            disabled={!day || !hasTrips}
+                            activeOpacity={0.7}
+                            style={{ flex: 1, height: 34, alignItems: "center", justifyContent: "center" }}
+                          >
+                            {day != null ? (
                               <View style={{
-                                width: 30, height: 30, borderRadius: 15,
+                                width: 28, height: 28, borderRadius: 14,
                                 backgroundColor: isSelected ? colors.primary : isToday ? "#EEF2FF" : "transparent",
                                 alignItems: "center", justifyContent: "center",
                               }}>
                                 <Text style={{
                                   fontSize: 13,
-                                  fontWeight: (isToday || isSelected || dayTrips.length > 0) ? "800" : "400",
-                                  color: isSelected ? "white" : isToday ? colors.primary : dayTrips.length > 0 ? "#0F172A" : "#94A3B8",
+                                  fontWeight: (isToday || isSelected || hasTrips) ? "800" : "400",
+                                  color: isSelected ? "white" : isToday ? colors.primary : hasTrips ? "#0F172A" : "#94A3B8",
                                 }}>
                                   {day}
                                 </Text>
                               </View>
-                              <View style={{ flexDirection: "row", gap: 2, marginTop: 3, height: 6, alignItems: "center" }}>
-                                {dayTrips.slice(0, 3).map((dt, i) => (
-                                  <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: isSelected ? "rgba(255,255,255,0.85)" : dt.color }} />
-                                ))}
+                            ) : null}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {/* Trip bars — una fila por lane */}
+                    {Array.from({ length: maxLane + 1 }, (_, lane) => {
+                      const laneBars = weekBars.filter(b => b.lane === lane);
+                      return (
+                        <View key={lane} style={{ flexDirection: "row", height: 16, marginBottom: 2 }}>
+                          {Array.from({ length: 7 }, (_, col) => {
+                            const bar = laneBars.find(b => col >= b.startCol && col <= b.endCol);
+                            if (!bar) return <View key={col} style={{ flex: 1 }} />;
+                            const isFirst = col === bar.startCol;
+                            const isLast  = col === bar.endCol;
+                            return (
+                              <View
+                                key={col}
+                                style={{
+                                  flex: 1, height: 14, marginTop: 1,
+                                  backgroundColor: bar.color,
+                                  borderTopLeftRadius: isFirst ? 7 : 0,
+                                  borderBottomLeftRadius: isFirst ? 7 : 0,
+                                  borderTopRightRadius: isLast ? 7 : 0,
+                                  borderBottomRightRadius: isLast ? 7 : 0,
+                                  marginLeft: isFirst ? 2 : 0,
+                                  marginRight: isLast ? 2 : 0,
+                                  justifyContent: "center",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {isFirst ? (
+                                  <Text style={{ fontSize: 9, color: "white", fontWeight: "700", paddingLeft: 5, lineHeight: 14 }} numberOfLines={1}>
+                                    {bar.trip.name}
+                                  </Text>
+                                ) : null}
                               </View>
-                            </>
-                          ) : null}
-                        </TouchableOpacity>
+                            );
+                          })}
+                        </View>
                       );
                     })}
                   </View>
@@ -661,18 +742,17 @@ export default function TripsHomeScreen({ navigation }: any) {
               })}
             </View>
 
-            {/* Leyenda de colores */}
-            <View style={{ flexDirection: "row", gap: 14, marginBottom: 14, flexWrap: "wrap" }}>
-              {[
-                { status: "planning" as TripStatus, label: "Organizando" },
-                { status: "seen" as TripStatus, label: "Visitado" },
-              ].map(({ status, label }) => (
-                <View key={status} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: CAL_STATUS_COLORS[status] }} />
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{label}</Text>
-                </View>
-              ))}
-            </View>
+            {/* Leyenda por viaje */}
+            {tripsInCalMonth.length > 0 && (
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+                {tripsInCalMonth.map(t => (
+                  <View key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: calTripColors.get(t.id) ?? "#2563EB" }} />
+                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }} numberOfLines={1}>{t.name}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {/* Header lista */}
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
@@ -698,9 +778,9 @@ export default function TripsHomeScreen({ navigation }: any) {
             ) : (
               <View style={{ gap: 8 }}>
                 {displayedCalTrips.map(t => {
-                  const dateLabel   = formatDateRange(t.startDate, t.endDate);
-                  const statusColor = CAL_STATUS_COLORS[t.status];
-                  const meta        = STATUS_META[t.status];
+                  const dateLabel  = formatDateRange(t.startDate, t.endDate);
+                  const tripColor  = calTripColors.get(t.id) ?? CAL_STATUS_COLORS[t.status];
+                  const meta       = STATUS_META[t.status];
                   return (
                     <TouchableOpacity
                       key={t.id}
@@ -712,7 +792,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                         borderWidth: 1,
                         borderColor: "#EEF2F7",
                         borderLeftWidth: 3,
-                        borderLeftColor: statusColor,
+                        borderLeftColor: tripColor,
                         paddingVertical: 12,
                         paddingHorizontal: 14,
                         flexDirection: "row",
@@ -727,8 +807,8 @@ export default function TripsHomeScreen({ navigation }: any) {
                           <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600", marginTop: 2 }}>{dateLabel}</Text>
                         ) : null}
                       </View>
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: statusColor + "1A" }}>
-                        <Text style={{ fontSize: 10, fontWeight: "800", color: statusColor }}>{meta.label}</Text>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: tripColor + "1A" }}>
+                        <Text style={{ fontSize: 10, fontWeight: "800", color: tripColor }}>{meta.label}</Text>
                       </View>
                     </TouchableOpacity>
                   );

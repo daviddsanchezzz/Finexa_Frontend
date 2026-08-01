@@ -509,6 +509,9 @@ export default function TripPlanFormScreen({
         title: `${flightFrom} → ${flightTo}`,
         cost: parseCost(costStr),
         currency,
+        startAt: flightDep?.toISOString() || null,
+        endAt: flightArr?.toISOString() || null,
+        day: flightDep ? flightDep.toISOString().slice(0, 10) : null,
         flightDetails: {
           provider: "manual",
           airlineName: flightAirline,
@@ -555,6 +558,9 @@ export default function TripPlanFormScreen({
         title: `${from} → ${to}`,
         cost: parseCost(costStr),
         currency,
+        startAt: dep?.toISOString() || null,
+        endAt: arr?.toISOString() || null,
+        day: dep ? dep.toISOString().slice(0, 10) : null,
         destinationTransportDetails: {
           mode: transportTab === "car" ? "car" : transportTab === "bus" ? "bus" : "train",
           company: company || null,
@@ -888,7 +894,7 @@ export default function TripPlanFormScreen({
                     <DateTimeField
                       label="SALIDA"
                       value={flightDep}
-                      onChange={setFlightDep}
+                      onChange={(v) => { setFlightDep(v); if (!flightArr) setFlightArr(v); }}
                       placeholder="Seleccionar"
                     />
                   </View>
@@ -976,7 +982,7 @@ export default function TripPlanFormScreen({
                     <DateTimeField
                       label="SALIDA"
                       value={dep}
-                      onChange={setDep}
+                      onChange={(v) => { setDep(v); if (!arr) setArr(v); }}
                       placeholder="Seleccionar"
                     />
                   </View>
