@@ -370,7 +370,7 @@ export default function TripLogisticsSection({ tripId, planItems }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: 40,
-          paddingHorizontal: 16,
+          paddingHorizontal: 0,
           paddingTop: 12,
         }}
       >

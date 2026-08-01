@@ -77,6 +77,27 @@ type ContinentStat = {
 
 type ContinentsStatsDto = ContinentStat[];
 
+/* ─── Calendar helpers ─── */
+const CAL_STATUS_COLORS: Record<TripStatus, string> = {
+  planning: "#2563EB",
+  seen: "#22C55E",
+  wishlist: "#F59E0B",
+};
+
+function getCalCells(year: number, month: number): (number | null)[] {
+  const first = new Date(year, month, 1).getDay();
+  const offset = first === 0 ? 6 : first - 1; // lunes primero
+  const numDays = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = Array(offset).fill(null);
+  for (let d = 1; d <= numDays; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function capitalize(s: string) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 /* ─── Flag helpers ─── */
 export function flagEmojiFromISO2(code?: string | null) {
   const c = (code || "").trim().toUpperCase();
@@ -161,6 +182,10 @@ export default function TripsHomeScreen({ navigation }: any) {
   const [statusSelected, setStatusSelected] = useState<TripStatus>("planning");
   const [continentSelected, setContinentSelected] = useState<string>("europe");
   const [yearSelected, setYearSelected]     = useState<string>("unknown");
+
+  const [viewType, setViewType]                 = useState<"list" | "calendar">("list");
+  const [calDate, setCalDate]                   = useState(() => new Date());
+  const [selectedCalDay, setSelectedCalDay]     = useState<number | null>(null);
 
   const [loading, setLoading]                   = useState(true);
   const [trips, setTrips]                       = useState<TripUI[]>([]);
@@ -302,6 +327,51 @@ export default function TripsHomeScreen({ navigation }: any) {
     const visitedPct = summary?.visitedPct ?? 0;
     return { totalSpent, totalTrips: trips.length, seenCount: seenTrips.length, visited, visitedPct };
   }, [trips, summary]);
+
+  // ── Calendar derived values ───────────────────────────────────────────────
+  const calYear  = calDate.getFullYear();
+  const calMonth = calDate.getMonth();
+
+  const calCells = useMemo(() => getCalCells(calYear, calMonth), [calYear, calMonth]);
+
+  const calTrips = useMemo(
+    () => trips.filter(t => (t.status === "planning" || t.status === "seen") && !!t.startDate && isValidISODate(t.startDate)),
+    [trips]
+  );
+
+  const tripDayMap = useMemo(() => {
+    const map: Record<number, Array<{ id: number; color: string; trip: TripUI }>> = {};
+    const numDays = new Date(calYear, calMonth + 1, 0).getDate();
+    for (let day = 1; day <= numDays; day++) {
+      const dayStart = new Date(calYear, calMonth, day);
+      const dayEnd   = new Date(calYear, calMonth, day, 23, 59, 59);
+      const hits = calTrips.filter(t => {
+        const start = new Date(t.startDate!);
+        const end   = t.endDate && isValidISODate(t.endDate) ? new Date(t.endDate) : start;
+        return start <= dayEnd && end >= dayStart;
+      });
+      if (hits.length > 0) map[day] = hits.map(t => ({ id: t.id, color: CAL_STATUS_COLORS[t.status], trip: t }));
+    }
+    return map;
+  }, [calYear, calMonth, calTrips]);
+
+  const tripsInCalMonth = useMemo(() => {
+    const monthStart = new Date(calYear, calMonth, 1);
+    const monthEnd   = new Date(calYear, calMonth + 1, 0, 23, 59, 59);
+    return calTrips
+      .filter(t => {
+        const start = new Date(t.startDate!);
+        const end   = t.endDate && isValidISODate(t.endDate) ? new Date(t.endDate) : start;
+        return start <= monthEnd && end >= monthStart;
+      })
+      .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
+  }, [calYear, calMonth, calTrips]);
+
+  const displayedCalTrips = useMemo(() => {
+    if (selectedCalDay === null) return tripsInCalMonth;
+    return (tripDayMap[selectedCalDay] ?? []).map(d => d.trip);
+  }, [selectedCalDay, tripDayMap, tripsInCalMonth]);
+  // ──────────────────────────────────────────────────────────────────────────
 
   const continentPills = useMemo(() => {
     const order = ["europe", "africa", "asia", "north_america", "south_america", "oceania", "antarctica", "unknown"];
@@ -488,8 +558,188 @@ export default function TripsHomeScreen({ navigation }: any) {
           )}
         </View>
 
-        {/* ── Mode selector (tabs compactos) ── */}
-        <View
+        {/* ── Toggle Lista / Calendario ── */}
+        <View style={{ marginHorizontal: 20, flexDirection: "row", marginBottom: 12, backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
+          {(["list", "calendar"] as const).map(type => {
+            const active = viewType === type;
+            return (
+              <TouchableOpacity
+                key={type}
+                onPress={() => { setViewType(type); setSelectedCalDay(null); }}
+                activeOpacity={0.8}
+                style={{ flex: 1, paddingVertical: 7, borderRadius: 9, backgroundColor: active ? "white" : "transparent", alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 5 }}
+              >
+                <Ionicons name={type === "list" ? "list-outline" : "calendar-outline"} size={14} color={active ? colors.primary : "#6B7280"} />
+                <Text style={{ fontSize: 12, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
+                  {type === "list" ? "Lista" : "Calendario"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {viewType === "calendar" && (
+          <View style={{ paddingHorizontal: 20 }}>
+            {/* Navegación de mes */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <TouchableOpacity
+                onPress={() => { setCalDate(new Date(calYear, calMonth - 1, 1)); setSelectedCalDay(null); }}
+                style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+              >
+                <Ionicons name="chevron-back" size={18} color="#374151" />
+              </TouchableOpacity>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>
+                {capitalize(new Date(calYear, calMonth).toLocaleDateString("es-ES", { month: "long", year: "numeric" }))}
+              </Text>
+              <TouchableOpacity
+                onPress={() => { setCalDate(new Date(calYear, calMonth + 1, 1)); setSelectedCalDay(null); }}
+                style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+              >
+                <Ionicons name="chevron-forward" size={18} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Cabecera días */}
+            <View style={{ flexDirection: "row", marginBottom: 4 }}>
+              {["L", "M", "X", "J", "V", "S", "D"].map(d => (
+                <View key={d} style={{ flex: 1, alignItems: "center" }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{d}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Grid del calendario */}
+            <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 4, paddingHorizontal: 4, marginBottom: 16 }}>
+              {Array.from({ length: calCells.length / 7 }, (_, weekIdx) => {
+                const week = calCells.slice(weekIdx * 7, weekIdx * 7 + 7);
+                return (
+                  <View key={weekIdx} style={{ flexDirection: "row" }}>
+                    {week.map((day, dayIdx) => {
+                      const todayObj = new Date();
+                      const isToday    = day != null && todayObj.getFullYear() === calYear && todayObj.getMonth() === calMonth && todayObj.getDate() === day;
+                      const isSelected = day === selectedCalDay;
+                      const dayTrips   = day ? (tripDayMap[day] ?? []) : [];
+
+                      return (
+                        <TouchableOpacity
+                          key={dayIdx}
+                          onPress={() => {
+                            if (!day || dayTrips.length === 0) return;
+                            setSelectedCalDay(prev => prev === day ? null : day);
+                          }}
+                          disabled={!day || dayTrips.length === 0}
+                          activeOpacity={0.7}
+                          style={{ flex: 1, height: 52, alignItems: "center", paddingTop: 5 }}
+                        >
+                          {day != null ? (
+                            <>
+                              <View style={{
+                                width: 30, height: 30, borderRadius: 15,
+                                backgroundColor: isSelected ? colors.primary : isToday ? "#EEF2FF" : "transparent",
+                                alignItems: "center", justifyContent: "center",
+                              }}>
+                                <Text style={{
+                                  fontSize: 13,
+                                  fontWeight: (isToday || isSelected || dayTrips.length > 0) ? "800" : "400",
+                                  color: isSelected ? "white" : isToday ? colors.primary : dayTrips.length > 0 ? "#0F172A" : "#94A3B8",
+                                }}>
+                                  {day}
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: "row", gap: 2, marginTop: 3, height: 6, alignItems: "center" }}>
+                                {dayTrips.slice(0, 3).map((dt, i) => (
+                                  <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: isSelected ? "rgba(255,255,255,0.85)" : dt.color }} />
+                                ))}
+                              </View>
+                            </>
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Leyenda de colores */}
+            <View style={{ flexDirection: "row", gap: 14, marginBottom: 14, flexWrap: "wrap" }}>
+              {[
+                { status: "planning" as TripStatus, label: "Organizando" },
+                { status: "seen" as TripStatus, label: "Visitado" },
+              ].map(({ status, label }) => (
+                <View key={status} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: CAL_STATUS_COLORS[status] }} />
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Header lista */}
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+              {selectedCalDay ? (
+                <TouchableOpacity onPress={() => setSelectedCalDay(null)} style={{ marginRight: 6 }}>
+                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              ) : null}
+              <Text style={{ fontSize: 11, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textTransform: "uppercase" }}>
+                {selectedCalDay
+                  ? `${selectedCalDay} de ${new Date(calYear, calMonth).toLocaleDateString("es-ES", { month: "long" })}`
+                  : "Viajes en este mes"}
+              </Text>
+            </View>
+
+            {/* Lista de viajes */}
+            {displayedCalTrips.length === 0 ? (
+              <View style={{ alignItems: "center", paddingVertical: 24 }}>
+                <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600" }}>
+                  {selectedCalDay ? "No hay viajes este día" : "No hay viajes en este mes"}
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {displayedCalTrips.map(t => {
+                  const dateLabel   = formatDateRange(t.startDate, t.endDate);
+                  const statusColor = CAL_STATUS_COLORS[t.status];
+                  const meta        = STATUS_META[t.status];
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => navigation.navigate("TripDetail", { tripId: t.id })}
+                      activeOpacity={0.85}
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: "#EEF2F7",
+                        borderLeftWidth: 3,
+                        borderLeftColor: statusColor,
+                        paddingVertical: 12,
+                        paddingHorizontal: 14,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <CountryBadge code={t.destination} size={22} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>{t.name}</Text>
+                        {dateLabel ? (
+                          <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600", marginTop: 2 }}>{dateLabel}</Text>
+                        ) : null}
+                      </View>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: statusColor + "1A" }}>
+                        <Text style={{ fontSize: 10, fontWeight: "800", color: statusColor }}>{meta.label}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Contenido de vista lista ── */}
+        {viewType === "list" && (<><View
           style={{
             marginHorizontal: 20,
             flexDirection: "row",
@@ -702,6 +952,7 @@ export default function TripsHomeScreen({ navigation }: any) {
             </View>
           )}
         </View>
+        </>)}
       </ScrollView>
     </SafeAreaView>
   );

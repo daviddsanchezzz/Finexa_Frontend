@@ -792,7 +792,12 @@ export default function TripPlanningSectionRedesign({
         const tsOf = (it: TripPlanItem) => {
           const raw = it.startAt ?? it.startTime ?? null;
           if (!raw) return Infinity;
-          const d = new Date(raw);
+          // Si es hora sola ("13:00" o "13:00:00"), combinamos con el día del item
+          const isTimeOnly = /^\d{1,2}:\d{2}(:\d{2})?$/.test(raw);
+          const fullRaw = isTimeOnly
+            ? `${it.day ?? it.date ?? k}T${raw}`
+            : raw;
+          const d = new Date(fullRaw);
           return Number.isNaN(d.getTime()) ? Infinity : d.getTime();
         };
         const ta = tsOf(a);
@@ -886,7 +891,7 @@ export default function TripPlanningSectionRedesign({
       <View style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 22 }}
+          contentContainerStyle={{ paddingHorizontal: 0, paddingTop: 14, paddingBottom: 22 }}
         >
           <View style={{ marginTop: 28, paddingHorizontal: 4 }}>
             {showQuickAdd ? (
@@ -938,7 +943,7 @@ export default function TripPlanningSectionRedesign({
   return (
     <View style={{ flex: 1 }}>
       {/* ── Top bar: toggle + (day mode) day pills ── */}
-      <View style={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: 4 }}>
+      <View style={{ paddingHorizontal: 0, paddingTop: 6, paddingBottom: 4 }}>
         {/* View mode toggle */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: viewMode === "day" ? 8 : 0 }}>
           {(["day", "summary"] as const).map((mode) => {
@@ -1011,7 +1016,7 @@ export default function TripPlanningSectionRedesign({
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 18 }}
+          contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 18 }}
         >
           <View style={{ marginTop: 4, marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
             <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
@@ -1077,7 +1082,7 @@ export default function TripPlanningSectionRedesign({
       {viewMode === "summary" && (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 32 }}
+          contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 32 }}
         >
           {dayKeys.map((d, idx) => {
             const noDate = d === NO_DATE;

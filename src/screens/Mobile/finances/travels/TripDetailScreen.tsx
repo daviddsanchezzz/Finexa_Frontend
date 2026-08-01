@@ -934,6 +934,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
               planItems={planItems}
               budget={trip.budget ?? null}
               transactions={tripTransactions}
+              onRefresh={fetchTrip}
               onPressTransaction={(tx) =>
                 navigation.navigate("Add", {
                   editData: {
