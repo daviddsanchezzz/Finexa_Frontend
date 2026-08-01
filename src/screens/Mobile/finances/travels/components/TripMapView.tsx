@@ -222,6 +222,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
         const [query, metas] = entries[i];
         setProgress(`${i + 1} / ${entries.length}`);
 
+        const wasCached = GEO_CACHE.has(query);
         const geo = await geocode(query);
 
         if (geo) {
@@ -244,7 +245,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
           }
         }
 
-        if (i < entries.length - 1) await sleep(1150);
+        if (!wasCached && i < entries.length - 1) await sleep(1150);
       }
 
       if (!cancelled) {
