@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
 import api from "../../../../../api/api";
+import TripMapView from "./TripMapView";
 
 type TripPlanItemType =
   | "flight"
@@ -65,6 +66,14 @@ export interface TripPlanItem {
     toName?: string | null;
     depAt?: string | null;
     arrAt?: string | null;
+  } | null;
+  accommodationDetails?: {
+    name?: string | null;
+    address?: string | null;
+    city?: string | null;
+    country?: string | null;
+    checkInAt?: string | null;
+    checkOutAt?: string | null;
   } | null;
 }
 
@@ -852,7 +861,7 @@ export default function TripPlanningSectionRedesign({
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCostStr, setQuickCostStr] = useState("");
   const [quickSaving, setQuickSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<"day" | "summary">("day");
+  const [viewMode, setViewMode] = useState<"day" | "summary" | "map">("day");
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -966,7 +975,7 @@ export default function TripPlanningSectionRedesign({
       <View style={{ paddingHorizontal: 0, paddingTop: 6, paddingBottom: 4 }}>
         {/* View mode toggle */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: viewMode === "day" ? 8 : 0 }}>
-          {(["day", "summary"] as const).map((mode) => {
+          {(["day", "summary", "map"] as const).map((mode) => {
             const active = viewMode === mode;
             return (
               <Pressable
@@ -980,10 +989,16 @@ export default function TripPlanningSectionRedesign({
                   borderWidth: active ? 1 : 0,
                   borderColor: "rgba(37,99,235,0.28)",
                   marginLeft: 4,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
                 }}
               >
+                {mode === "map" && (
+                  <Ionicons name="map-outline" size={11} color={active ? colors.primary : UI.muted2} />
+                )}
                 <Text style={{ fontSize: 11, fontWeight: "800", color: active ? colors.primary : UI.muted2 }}>
-                  {mode === "day" ? "Por día" : "Resumen"}
+                  {mode === "day" ? "Por día" : mode === "summary" ? "Resumen" : "Mapa"}
                 </Text>
               </Pressable>
             );
@@ -1163,6 +1178,11 @@ export default function TripPlanningSectionRedesign({
             <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
           </Pressable>
         </ScrollView>
+      )}
+
+      {/* ── MAP MODE ── */}
+      {viewMode === "map" && (
+        <TripMapView planItems={planItems} />
       )}
     </View>
   );
