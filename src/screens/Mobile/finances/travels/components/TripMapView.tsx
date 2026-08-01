@@ -31,17 +31,24 @@ const TYPE_COLOR: Partial<Record<string, string>> = {
 };
 const DEFAULT_COLOR = "#A855F7";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Module-level geocoding cache (persists across tab switches & navigation) ─
+
+const GEO_CACHE = new Map<string, GeoPoint | null>();
 
 async function geocode(query: string): Promise<GeoPoint | null> {
+  if (GEO_CACHE.has(query)) return GEO_CACHE.get(query)!;
   try {
     const url =
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=0`;
     const res = await fetch(url, { headers: { "User-Agent": "SpendlyApp/1.0" } });
     const data = await res.json();
-    if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-  } catch {}
-  return null;
+    const result = data[0] ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
+    GEO_CACHE.set(query, result);
+    return result;
+  } catch {
+    GEO_CACHE.set(query, null);
+    return null;
+  }
 }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }

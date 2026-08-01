@@ -1,6 +1,7 @@
 // src/screens/Trips/components/TripPlanningSection.redesign.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, Pressable, useWindowDimensions, Linking, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Linking, TouchableOpacity, TextInput, ActivityIndicator, Modal } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
@@ -861,7 +862,8 @@ export default function TripPlanningSectionRedesign({
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCostStr, setQuickCostStr] = useState("");
   const [quickSaving, setQuickSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<"day" | "summary" | "map">("day");
+  const [viewMode, setViewMode] = useState<"day" | "summary">("day");
+  const [showMap, setShowMap] = useState(false);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -973,9 +975,9 @@ export default function TripPlanningSectionRedesign({
     <View style={{ flex: 1 }}>
       {/* ── Top bar: toggle + (day mode) day pills ── */}
       <View style={{ paddingHorizontal: 0, paddingTop: 6, paddingBottom: 4 }}>
-        {/* View mode toggle */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: viewMode === "day" ? 8 : 0 }}>
-          {(["day", "summary", "map"] as const).map((mode) => {
+        {/* View mode toggle + map button */}
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: viewMode === "day" ? 8 : 4 }}>
+          {(["day", "summary"] as const).map((mode) => {
             const active = viewMode === mode;
             return (
               <Pressable
@@ -989,20 +991,33 @@ export default function TripPlanningSectionRedesign({
                   borderWidth: active ? 1 : 0,
                   borderColor: "rgba(37,99,235,0.28)",
                   marginLeft: 4,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
                 }}
               >
-                {mode === "map" && (
-                  <Ionicons name="map-outline" size={11} color={active ? colors.primary : UI.muted2} />
-                )}
                 <Text style={{ fontSize: 11, fontWeight: "800", color: active ? colors.primary : UI.muted2 }}>
-                  {mode === "day" ? "Por día" : mode === "summary" ? "Resumen" : "Mapa"}
+                  {mode === "day" ? "Por día" : "Resumen"}
                 </Text>
               </Pressable>
             );
           })}
+          {/* Botón mapa — abre modal pantalla completa */}
+          <Pressable
+            onPress={() => setShowMap(true)}
+            style={{
+              marginLeft: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 10,
+              backgroundColor: "rgba(37,99,235,0.08)",
+              borderWidth: 1,
+              borderColor: "rgba(37,99,235,0.22)",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Ionicons name="map-outline" size={12} color={colors.primary} />
+            <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Mapa</Text>
+          </Pressable>
         </View>
 
         {/* Day pills — only in day mode */}
@@ -1180,10 +1195,25 @@ export default function TripPlanningSectionRedesign({
         </ScrollView>
       )}
 
-      {/* ── MAP MODE ── */}
-      {viewMode === "map" && (
-        <TripMapView planItems={planItems} />
-      )}
+      {/* ── MODAL MAPA ── */}
+      <Modal visible={showMap} animationType="slide" onRequestClose={() => setShowMap(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <View style={{
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 16, paddingVertical: 12,
+            borderBottomWidth: 1, borderBottomColor: "#E2E8F0",
+          }}>
+            <Ionicons name="map-outline" size={18} color={colors.primary} />
+            <Text style={{ flex: 1, marginLeft: 10, fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
+              Mapa del viaje
+            </Text>
+            <Pressable onPress={() => setShowMap(false)} hitSlop={12}>
+              <Ionicons name="close" size={22} color="#64748B" />
+            </Pressable>
+          </View>
+          <TripMapView planItems={planItems} />
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
