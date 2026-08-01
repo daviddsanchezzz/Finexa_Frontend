@@ -60,10 +60,8 @@ function buildLeafletHTML(markers: MapMarker[]): string {
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPvE=" crossorigin="anonymous"><\/script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
@@ -114,18 +112,34 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 
 function WebIframe({ html }: { html: string }) {
   const containerRef = useRef<any>(null);
+  const blobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const node = containerRef.current;
+    const node = containerRef.current as unknown as HTMLElement;
     if (!node) return;
-    // In React Native Web, View ref gives us the real DOM element
-    const domNode = node as unknown as HTMLElement;
-    domNode.innerHTML = "";
+
+    // Revoke previous blob URL
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    node.innerHTML = "";
+
+    // blob: URL gives the iframe a real origin so external CDN scripts load
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    blobUrlRef.current = url;
+
     const iframe = document.createElement("iframe");
-    iframe.setAttribute("srcdoc", html);
+    iframe.src = url;
     iframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
-    domNode.appendChild(iframe);
-    return () => { domNode.innerHTML = ""; };
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+    node.appendChild(iframe);
+
+    return () => {
+      node.innerHTML = "";
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
   }, [html]);
 
   return <View ref={containerRef} style={{ flex: 1 }} />;
@@ -236,7 +250,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
   }, [locRequests]);
 
   return (
-    <View style={{ flex: 1, borderRadius: 16, overflow: "hidden", marginTop: 8 }}>
+    <View style={{ flex: 1, minHeight: 420, borderRadius: 16, overflow: "hidden", marginTop: 8 }}>
       {loading && (
         <View style={{
           position: "absolute",
