@@ -185,18 +185,28 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
 
     planItems.forEach((item, idx) => {
       const color = TYPE_COLOR[item.type] ?? DEFAULT_COLOR;
-      if (item.type === "accommodation" && item.accommodationDetails) {
+      if (item.type === "accommodation") {
         const d = item.accommodationDetails;
-        const q = [d.address, d.city, d.country].filter(Boolean).join(", ");
-        if (q) push(q, "#16A34A", d.city || d.name || item.title, item.title, idx);
+        // Build query: prefer full address, fall back to name → location → title
+        const q = (d ? [d.address, d.city, d.country].filter(Boolean).join(", ") || d.name || null : null)
+          ?? item.location
+          ?? null;
+        const displayName = d?.city || d?.name || item.location || item.title;
+        if (q) push(q, "#16A34A", displayName, item.title, idx);
       } else if (item.location) {
         push(item.location, color, item.location, item.title, idx);
       }
-      if (item.destinationTransport?.fromName) {
-        push(item.destinationTransport.fromName, "#0EA5E9", item.destinationTransport.fromName, item.title, idx);
+
+      const dt = item.destinationTransport;
+      if (dt?.fromName) {
+        push(dt.fromName, "#0EA5E9", dt.fromName, item.title, idx);
       }
-      if (item.destinationTransport?.toName) {
-        push(item.destinationTransport.toName, "#0EA5E9", item.destinationTransport.toName, item.title, idx + 0.5);
+      if (dt?.toName) {
+        push(dt.toName, "#0EA5E9", dt.toName, item.title, idx + 0.5);
+      }
+      // Fallback when destinationTransport has no fromName/toName but item has location
+      if (dt && !dt.fromName && !dt.toName && item.location) {
+        push(item.location, "#0EA5E9", item.location, item.title, idx);
       }
     });
 
