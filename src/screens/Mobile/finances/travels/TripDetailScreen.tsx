@@ -705,8 +705,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* ── HERO ── */}
-        {(() => {
+        {/* ── HERO (solo en Resumen) / COMPACT HEADER ── */}
+        {tab === "summary" ? (() => {
           const heroInner = (
             <>
               {/* Overlay oscuro (solo cuando hay foto) */}
@@ -778,13 +778,13 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
                   {/* Derecha: fechas + gasto */}
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }} numberOfLines={1}>
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }} numberOfLines={1}>
                       {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
                     </Text>
                     {days > 0 && (
-                      <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{days} días</Text>
+                      <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{days} días</Text>
                     )}
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "white", marginTop: 5 }} numberOfLines={1}>
+                    <Text style={{ fontSize: 15, fontWeight: "800", color: "white", marginTop: 5 }} numberOfLines={1}>
                       {formatEuro(totalGastado)}
                     </Text>
                     {trip.budget && trip.budget > 0 ? (
@@ -843,10 +843,28 @@ export default function TripDetailScreen({ route, navigation }: any) {
               {heroInner}
             </LinearGradient>
           );
-        })()}
+        })() : (
+          <View style={{ backgroundColor: colors.primary, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingTop: 12, paddingBottom: 14 }}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="chevron-back" size={22} color="white" />
+            </TouchableOpacity>
+            <Text style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: "800", color: "white" }} numberOfLines={1}>
+              {trip.name}
+            </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+              style={{ width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color="white" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── TABS ── */}
-        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 18, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: tab === "summary" ? 18 : 12, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
           {([
             { key: "summary"  as TripTab, label: "Resumen" },
             { key: "planning" as TripTab, label: "Planificación" },
@@ -860,13 +878,14 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 onPress={() => setTab(opt.key)}
                 activeOpacity={0.8}
                 style={{
-                  paddingVertical: 10, paddingHorizontal: 2, marginRight: 18,
+                  flex: 1, alignItems: "center",
+                  paddingVertical: 10,
                   borderBottomWidth: 2,
                   borderBottomColor: active ? colors.primary : "transparent",
                   marginBottom: -1,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
+                <Text style={{ fontSize: 12, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>

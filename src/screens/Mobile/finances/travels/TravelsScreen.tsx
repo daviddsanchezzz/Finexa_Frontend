@@ -861,9 +861,14 @@ export default function TripsHomeScreen({ navigation }: any) {
 
                         {/* Info */}
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
-                            {t.name}
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                            {t.coverImageUrl && t.destination && (
+                              <CountryBadge code={t.destination} size={14} />
+                            )}
+                            <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }} numberOfLines={1}>
+                              {t.name}
+                            </Text>
+                          </View>
                           {dateLabel ? (
                             <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600", marginTop: 2 }} numberOfLines={1}>
                               {dateLabel}{days ? ` · ${days} días` : ""}
