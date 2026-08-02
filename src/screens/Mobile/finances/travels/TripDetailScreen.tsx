@@ -12,6 +12,7 @@ import {
   Alert,
   Linking,
   Platform,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -86,18 +87,19 @@ export type TripNote = {
 interface TripFromApi {
   id: number;
   name: string;
-  destination?: string | null; // ejemplo: "IT"
+  destination?: string | null;
   startDate: string;
   endDate: string;
   emoji?: string | null;
   color?: string | null;
-  companions?: string[]; // (ya no se muestra)
+  companions?: string[];
   transactions?: Tx[];
   planItems?: TripPlanItem[];
   tasks?: TripTask[];
   notes?: TripNote[];
   cost: number | null;
   budget?: number | null;
+  coverImageUrl?: string | null;
 }
 
 type TripTab = "summary" | "expenses" | "planning" | "info";
@@ -689,229 +691,174 @@ export default function TripDetailScreen({ route, navigation }: any) {
   // RENDER PRINCIPAL
   // =========================
 
+  const budgetPct   = trip.budget && trip.budget > 0 ? Math.min(totalGastado / trip.budget, 1) : null;
+  const budgetOver  = budgetPct != null && totalGastado > (trip.budget ?? 0);
+  const budgetColor = budgetOver ? "#F87171" : (budgetPct ?? 0) > 0.8 ? "#FBBF24" : "#4ADE80";
+
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      {/* HEADER */}
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 10, paddingVertical: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
-          <Text className="text-lg font-semibold text-gray-900">Detalle de viaje</Text>
-        </View>
+      {/* ── HEADER ── */}
+      <View style={{
+        paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10,
+        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
 
-        <View className="flex-row items-center" style={{ gap: 4 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("TripPlanForm", { tripId, presetDay: "" })}
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
-          </TouchableOpacity>
+        <Text style={{ fontSize: 17, fontWeight: "800", color: "#0F172A", flex: 1, textAlign: "center", marginHorizontal: 8 }} numberOfLines={1}>
+          {trip.name}
+        </Text>
 
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          {/* Status badge */}
+          <View style={{
+            paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+            backgroundColor: statusStyle.bg, marginRight: 4,
+          }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: statusStyle.color }}>
+              {statusStyle.label}
+            </Text>
+          </View>
+          {/* Menu */}
           <TouchableOpacity
             onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
-            style={{ padding: 6 }}
+            style={{ padding: 4 }}
           >
-            <Ionicons name="create-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setExportModalVisible(true)}
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="share-outline" size={24} color={colors.primary} />
+            <Ionicons name="ellipsis-horizontal" size={20} color="#64748B" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* CONTENIDO PRINCIPAL */}
-      <View className="flex-1 px-5">
-        {/* HERO CARD */}
-        <View
-          style={{
-            borderRadius: 24,
-            padding: 14,
-            marginBottom: 10,
-            backgroundColor: colors.primary,
-            shadowColor: "#000",
-            shadowOpacity: 0.12,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 6 },
-            elevation: 4,
-          }}
-        >
-          {/* TOP ROW: flag + country + name | status */}
-          <View className="flex-row justify-between items-start mb-3">
-            <View className="flex-row items-center flex-1 pr-3">
-              <View
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+      >
+        {/* ── FOTO DE PORTADA ── */}
+        <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+          <View style={{
+            height: 190, borderRadius: 22, overflow: "hidden",
+            backgroundColor: "#C7D2FE",
+          }}>
+            {trip.coverImageUrl ? (
+              <Image
+                source={{ uri: trip.coverImageUrl }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF2FF" }}>
+                <Text style={{ fontSize: 64 }}>{countryFlag}</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#6366F1", marginTop: 8 }}>{countryLabel}</Text>
+              </View>
+            )}
+            {/* Overlay gradient bottom */}
+            <View style={{
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              height: 80, justifyContent: "flex-end", padding: 14,
+            }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+                activeOpacity={0.8}
                 style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 999,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "rgba(255,255,255,0.16)",
+                  alignSelf: "flex-end",
+                  flexDirection: "row", alignItems: "center", gap: 4,
+                  backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10,
+                  paddingHorizontal: 10, paddingVertical: 5,
                 }}
               >
-                <Text style={{ fontSize: 26 }}>{countryFlag}</Text>
-              </View>
-
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}
-                  numberOfLines={1}
-                >
-                  {countryLabel}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "white",
-                    marginTop: 2,
-                  }}
-                  numberOfLines={2}
-                >
-                  {trip.name}
-                </Text>
-              </View>
-            </View>
-
-            <View className="items-end">
-              <View
-                style={{
-                  borderRadius: 999,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  backgroundColor: statusStyle.bg,
-                }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: "600", color: statusStyle.color }}>
-                  {statusStyle.label}
-                </Text>
-              </View>
+                <Ionicons name="camera-outline" size={13} color="white" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          {/* FECHAS + TOTAL (total arriba derecha debajo del status) */}
-          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.75)",
-                  marginBottom: 3,
-                }}
-              >
-                Fechas del viaje
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "white" }}>
-                {formatDateRange(trip.startDate, trip.endDate)}{" "}
-                {days > 0 && (
-                  <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", fontWeight: "400" }}>
-                    · {days} día{days === 1 ? "" : "s"}
-                  </Text>
-                )}
-              </Text>
-            </View>
-
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.80)" }}>
-                Total gastado
-              </Text>
-              <Text style={{ fontSize: 16, fontWeight: "800", color: "white", marginTop: 2 }}>
-                {formatEuro(totalGastado)}
-              </Text>
-            </View>
-          </View>
-
-          {/* BUDGET PROGRESS BAR */}
-          {!!trip.budget && trip.budget > 0 && (() => {
-            const spent = totalGastado;
-            const pct = Math.min(spent / trip.budget, 1);
-            const over = spent > trip.budget;
-            const barColor = over ? "#F87171" : pct > 0.8 ? "#FBBF24" : "#4ADE80";
-            return (
-              <View style={{ marginTop: 8 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
-                    {over ? "⚠️ Presupuesto superado" : `Presupuesto · ${Math.round(pct * 100)}%`}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.80)", fontWeight: "600" }}>
-                    {formatEuro(trip.budget)}
-                  </Text>
-                </View>
-                <View style={{ height: 6, borderRadius: 99, backgroundColor: "rgba(255,255,255,0.18)" }}>
-                  <View
-                    style={{
-                      height: 6,
-                      borderRadius: 99,
-                      backgroundColor: barColor,
-                      width: `${Math.round(pct * 100)}%`,
-                    }}
-                  />
-                </View>
-              </View>
-            );
-          })()}
         </View>
 
-        {/* WEATHER WIDGET — solo viajes próximos / en curso con destino */}
-        {/* SELECTOR TABS */}
-        <View className="mb-3">
-          <View className="flex-row rounded-2xl bg-slate-50 p-1">
-            {[
-              { key: "summary" as TripTab, label: "Resumen" },
+        {/* ── STATS ROW ── */}
+        <View style={{ flexDirection: "row", gap: 10, marginHorizontal: 16, marginBottom: 14 }}>
+          <View style={{
+            flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12,
+            borderWidth: 1, borderColor: "#EEF2F7",
+          }}>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>FECHAS</Text>
+            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+              {formatDateRange(trip.startDate, trip.endDate)}
+            </Text>
+            {days > 0 && (
+              <Text style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{days} días</Text>
+            )}
+          </View>
+          <View style={{
+            flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12,
+            borderWidth: 1, borderColor: "#EEF2F7",
+          }}>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>TOTAL GASTADO</Text>
+            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+              {formatEuro(totalGastado)}
+            </Text>
+            {trip.budget && trip.budget > 0 ? (
+              <Text style={{ fontSize: 11, color: budgetOver ? "#EF4444" : "#64748B", marginTop: 2 }}>
+                de {formatEuro(trip.budget)}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Budget bar (si hay presupuesto) */}
+        {budgetPct != null && (
+          <View style={{ marginHorizontal: 16, marginBottom: 14 }}>
+            <View style={{ height: 6, borderRadius: 99, backgroundColor: "#EEF2FF" }}>
+              <View style={{
+                height: 6, borderRadius: 99,
+                backgroundColor: budgetColor,
+                width: `${Math.round(budgetPct * 100)}%`,
+              }} />
+            </View>
+            <Text style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600", marginTop: 4 }}>
+              {budgetOver ? "⚠️ Presupuesto superado" : `${Math.round(budgetPct * 100)}% del presupuesto`}
+            </Text>
+          </View>
+        )}
+
+        {/* ── TABS ── */}
+        <View style={{ marginHorizontal: 16, marginBottom: 14 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {([
+              { key: "summary"  as TripTab, label: "Resumen" },
               { key: "planning" as TripTab, label: "Planificación" },
               { key: "expenses" as TripTab, label: "Gastos" },
-              { key: "info" as TripTab, label: "Logística" },
-            ].map((opt) => {
+              { key: "info"     as TripTab, label: "Logística" },
+            ]).map(opt => {
               const active = tab === opt.key;
               return (
                 <TouchableOpacity
                   key={opt.key}
                   onPress={() => setTab(opt.key)}
+                  activeOpacity={0.8}
                   style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 14,
-                    backgroundColor: active ? "white" : "transparent",
-                    borderWidth: active ? 1 : 0,
-                    borderColor: active ? colors.primary : "transparent",
+                    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12,
+                    backgroundColor: active ? colors.primary : "white",
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary : "#E5E7EB",
                   }}
-                  activeOpacity={0.9}
                 >
-                  <Text
-                    style={{
-                      textAlign: "center",
-                      fontSize: 12,
-                      fontWeight: "600",
-                      color: active ? colors.primary : "#6B7280",
-                    }}
-                    numberOfLines={1}
-                  >
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "white" : "#6B7280" }}>
                     {opt.label}
                   </Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 28 }}
-        >
-        {/* CONTENIDO POR TAB */}
-        <View style={{ flex: 1 }}>
+        {/* ── CONTENIDO POR TAB ── */}
+        <View style={{ paddingHorizontal: 16 }}>
           {tab === "summary" && (
             <View style={{ gap: 12 }}>
               {(status === "upcoming" || status === "ongoing") && !!countryCode && (
                 <WeatherWidget countryCode={countryCode} tripName={trip?.name} />
               )}
-
               <TripExpenseSummarySection
                 px={(n) => n}
                 fs={(n) => n}
@@ -931,18 +878,15 @@ export default function TripDetailScreen({ route, navigation }: any) {
           {tab === "expenses" && (
             <TripExpensesSection
               tripId={trip.id}
-              planItems={planItems}
+              planItems={planItems as any}
               budget={trip.budget ?? null}
               transactions={tripTransactions}
               onRefresh={fetchTrip}
               onPressTransaction={(tx) =>
                 navigation.navigate("Add", {
                   editData: {
-                    id: tx.id,
-                    type: tx.type,
-                    amount: tx.amount,
-                    description: tx.description,
-                    date: tx.date,
+                    id: tx.id, type: tx.type, amount: tx.amount,
+                    description: tx.description, date: tx.date,
                     walletId: tx.walletId ?? tx.wallet?.id,
                     categoryId: tx.categoryId ?? tx.category?.id,
                     subcategoryId: tx.subcategoryId ?? tx.subcategory?.id,
@@ -954,14 +898,54 @@ export default function TripDetailScreen({ route, navigation }: any) {
           )}
 
           {tab === "planning" && (
-            <TripPlanningSection tripId={trip.id} planItems={planItems} onRefresh={fetchTrip} />
+            <TripPlanningSection
+              tripId={trip.id}
+              planItems={planItems as any}
+              onRefresh={fetchTrip}
+            />
           )}
 
           {tab === "info" && (
-            <TripLogisticsSection tripId={trip.id} planItems={planItems} onRefresh={fetchTrip} />
+            <TripLogisticsSection tripId={trip.id} planItems={planItems as any} onRefresh={fetchTrip} />
           )}
         </View>
-        </ScrollView>
+      </ScrollView>
+
+      {/* Botón flotante Añadir actividad */}
+      <View style={{
+        position: "absolute", bottom: 24, right: 20,
+        flexDirection: "row", gap: 10, alignItems: "center",
+      }}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("TripPlanForm", { tripId, presetDay: "" })}
+          activeOpacity={0.9}
+          style={{
+            flexDirection: "row", alignItems: "center", gap: 8,
+            backgroundColor: colors.primary,
+            borderRadius: 16, paddingVertical: 12, paddingHorizontal: 18,
+            shadowColor: colors.primary, shadowOpacity: 0.35,
+            shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+            elevation: 6,
+          }}
+        >
+          <Ionicons name="add" size={18} color="white" />
+          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setExportModalVisible(true)}
+          activeOpacity={0.85}
+          style={{
+            width: 44, height: 44, borderRadius: 14,
+            backgroundColor: "white",
+            borderWidth: 1, borderColor: "#E5E7EB",
+            alignItems: "center", justifyContent: "center",
+            shadowColor: "#000", shadowOpacity: 0.06,
+            shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+          }}
+        >
+          <Ionicons name="share-outline" size={18} color="#64748B" />
+        </TouchableOpacity>
       </View>
 
       {/* MODAL EXPORTAR PDF */}
@@ -971,40 +955,30 @@ export default function TripDetailScreen({ route, navigation }: any) {
         animationType="fade"
         onRequestClose={() => !exporting && setExportModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center px-6" style={{ backgroundColor: "rgba(0,0,0,0.35)" }}>
-          <View className="w-full rounded-2xl bg-white p-5">
-            <Text className="text-base font-semibold text-gray-900 mb-1">Exportar viaje</Text>
-            <Text className="text-xs text-gray-500 mb-4">
-              Se generará un PDF con toda la información del viaje. Puedes decidir si incluir también el detalle de los
-              gastos.
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, backgroundColor: "rgba(0,0,0,0.35)" }}>
+          <View style={{ width: "100%", borderRadius: 20, backgroundColor: "white", padding: 20 }}>
+            <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A", marginBottom: 6 }}>Exportar viaje</Text>
+            <Text style={{ fontSize: 13, color: "#64748B", marginBottom: 16, lineHeight: 18 }}>
+              Se generará un PDF con toda la información del viaje.
             </Text>
-
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-sm text-gray-800">Incluir gastos</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "600" }}>Incluir gastos</Text>
               <Switch value={includeExpenses} onValueChange={setIncludeExpenses} />
             </View>
-
-            <View className="flex-row justify-end">
+            <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
                 onPress={() => !exporting && setExportModalVisible(false)}
-                style={{ paddingHorizontal: 10, paddingVertical: 8, marginRight: 8 }}
                 disabled={exporting}
+                style={{ flex: 1, height: 44, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }}
               >
-                <Text className="text-sm text-gray-500">Cancelar</Text>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Cancelar</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 onPress={handleExportPdf}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  backgroundColor: exporting ? "#9CA3AF" : colors.primary,
-                  opacity: exporting ? 0.8 : 1,
-                }}
                 disabled={exporting}
+                style={{ flex: 1, height: 44, borderRadius: 12, backgroundColor: exporting ? "#9CA3AF" : colors.primary, alignItems: "center", justifyContent: "center" }}
               >
-                <Text className="text-sm font-semibold text-white">{exporting ? "Generando..." : "Exportar PDF"}</Text>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "white" }}>{exporting ? "Generando..." : "Exportar PDF"}</Text>
               </TouchableOpacity>
             </View>
           </View>
