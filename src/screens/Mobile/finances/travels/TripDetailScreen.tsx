@@ -20,6 +20,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Secciones
 import TripPlanningSection from "./components/TripPlanningSection";
@@ -695,7 +696,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
   const budgetPct   = trip.budget && trip.budget > 0 ? Math.min(totalGastado / trip.budget, 1) : null;
   const budgetOver  = budgetPct != null && totalGastado > (trip.budget ?? 0);
-  const budgetColor = budgetOver ? "#F87171" : (budgetPct ?? 0) > 0.8 ? "#FBBF24" : "#4ADE80";
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
@@ -705,8 +706,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* ── HERO ── */}
-        <View style={{ height: 230, position: "relative", overflow: "hidden" }}>
-          {/* Fondo */}
+        <View style={{ height: 300, position: "relative", overflow: "hidden" }}>
+          {/* Fondo: foto o gradiente */}
           {trip.coverImageUrl ? (
             <Image
               source={{ uri: trip.coverImageUrl }}
@@ -714,30 +715,25 @@ export default function TripDetailScreen({ route, navigation }: any) {
               resizeMode="cover"
             />
           ) : (
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#4F46E5" }} />
+            <LinearGradient
+              colors={["#312E81", "#4F46E5", "#7C3AED"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+            />
           )}
 
-          {/* Overlay oscuro en la mitad inferior */}
-          <View style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, height: 150,
-            backgroundColor: "rgba(0,0,0,0.45)",
-          }} />
+          {/* Overlay oscuro en la parte inferior */}
+          <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 220, backgroundColor: "rgba(0,0,0,0.40)" }} />
 
           {/* Header flotante */}
-          <View style={{
-            position: "absolute", top: 0, left: 0, right: 0,
-            flexDirection: "row", alignItems: "center",
-            paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6,
-          }}>
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingTop: 10 }}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.28)", alignItems: "center", justifyContent: "center" }}
             >
               <Ionicons name="chevron-back" size={20} color="white" />
             </TouchableOpacity>
-
             <View style={{ flex: 1 }} />
-
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: statusStyle.color }}>
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>{statusStyle.label}</Text>
@@ -751,93 +747,79 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </View>
           </View>
 
-          {/* Nombre del viaje en la parte inferior del hero */}
-          <View style={{ position: "absolute", bottom: 14, left: 16, right: 16, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              {countryLabel ? (
-                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
-                  {countryFlag} {countryLabel}
+          {/* Contenido inferior del hero */}
+          <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 10 }}>
+            {/* País + nombre + cambiar foto */}
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                {countryLabel ? (
+                  <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.70)", fontWeight: "600", marginBottom: 2 }}>
+                    {countryFlag} {countryLabel}
+                  </Text>
+                ) : null}
+                <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                  {trip.name}
                 </Text>
-              ) : null}
-              <Text style={{ fontSize: 26, fontWeight: "900", color: "white" }} numberOfLines={1}>
-                {trip.name}
-              </Text>
+              </View>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (uploadingCover || !trip) return;
+                  setUploadingCover(true);
+                  try {
+                    const url = await pickAndUploadTripCover();
+                    if (url) {
+                      await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
+                      setTrip(t => t ? { ...t, coverImageUrl: url } : t);
+                    }
+                  } finally { setUploadingCover(false); }
+                }}
+                activeOpacity={0.8}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}
+              >
+                {uploadingCover
+                  ? <ActivityIndicator size="small" color="white" />
+                  : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text></>
+                }
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              onPress={async () => {
-                if (uploadingCover || !trip) return;
-                setUploadingCover(true);
-                try {
-                  const url = await pickAndUploadTripCover();
-                  if (url) {
-                    await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
-                    setTrip(t => t ? { ...t, coverImageUrl: url } : t);
-                  }
-                } finally {
-                  setUploadingCover(false);
-                }
-              }}
-              activeOpacity={0.8}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: 4,
-                backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10,
-                paddingHorizontal: 10, paddingVertical: 6,
-              }}
-            >
-              {uploadingCover
-                ? <ActivityIndicator size="small" color="white" />
-                : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text></>
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
+            {/* Stats dentro del hero */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 14, padding: 10 }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>FECHAS</Text>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+                  {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
+                </Text>
+                {days > 0 && (
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>{days} días</Text>
+                )}
+              </View>
+              <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 14, padding: 10 }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>TOTAL GASTADO</Text>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+                  {formatEuro(totalGastado)}
+                </Text>
+                {trip.budget && trip.budget > 0 ? (
+                  <Text style={{ fontSize: 11, color: budgetOver ? "#FCA5A5" : "rgba(255,255,255,0.65)", marginTop: 2 }}>
+                    de {formatEuro(trip.budget)}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
 
-        {/* ── STATS ROW ── */}
-        <View style={{ flexDirection: "row", gap: 10, marginHorizontal: 16, marginTop: 14, marginBottom: 14 }}>
-          <View style={{
-            flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12,
-            borderWidth: 1, borderColor: "#EEF2F7",
-          }}>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>FECHAS</Text>
-            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
-              {formatDateRange(trip.startDate, trip.endDate)}
-            </Text>
-            {days > 0 && (
-              <Text style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{days} días</Text>
+            {/* Budget bar */}
+            {budgetPct != null && (
+              <View>
+                <View style={{ height: 4, borderRadius: 99, backgroundColor: "rgba(255,255,255,0.20)" }}>
+                  <View style={{ height: 4, borderRadius: 99, backgroundColor: budgetOver ? "#FCA5A5" : "#4ADE80", width: `${Math.round(budgetPct * 100)}%` }} />
+                </View>
+                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: "600", marginTop: 3 }}>
+                  {budgetOver ? "⚠️ Presupuesto superado" : `${Math.round(budgetPct * 100)}% del presupuesto`}
+                </Text>
+              </View>
             )}
           </View>
-          <View style={{
-            flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12,
-            borderWidth: 1, borderColor: "#EEF2F7",
-          }}>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>TOTAL GASTADO</Text>
-            <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
-              {formatEuro(totalGastado)}
-            </Text>
-            {trip.budget && trip.budget > 0 ? (
-              <Text style={{ fontSize: 11, color: budgetOver ? "#EF4444" : "#64748B", marginTop: 2 }}>
-                de {formatEuro(trip.budget)}
-              </Text>
-            ) : null}
-          </View>
         </View>
-
-        {/* Budget bar (si hay presupuesto) */}
-        {budgetPct != null && (
-          <View style={{ marginHorizontal: 16, marginBottom: 14 }}>
-            <View style={{ height: 6, borderRadius: 99, backgroundColor: "#EEF2FF" }}>
-              <View style={{
-                height: 6, borderRadius: 99,
-                backgroundColor: budgetColor,
-                width: `${Math.round(budgetPct * 100)}%`,
-              }} />
-            </View>
-            <Text style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600", marginTop: 4 }}>
-              {budgetOver ? "⚠️ Presupuesto superado" : `${Math.round(budgetPct * 100)}% del presupuesto`}
-            </Text>
-          </View>
-        )}
 
         {/* ── TABS ── */}
         <View style={{ flexDirection: "row", marginHorizontal: 16, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
