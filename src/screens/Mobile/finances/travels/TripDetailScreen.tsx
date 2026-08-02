@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
+import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 
 // Secciones
 import TripPlanningSection from "./components/TripPlanningSection";
@@ -324,6 +325,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [includeExpenses, setIncludeExpenses] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const formatEuro = (n: number) =>
     n.toLocaleString("es-ES", {
@@ -759,7 +761,19 @@ export default function TripDetailScreen({ route, navigation }: any) {
               height: 80, justifyContent: "flex-end", padding: 14,
             }}>
               <TouchableOpacity
-                onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+                onPress={async () => {
+                  if (uploadingCover || !trip) return;
+                  setUploadingCover(true);
+                  try {
+                    const url = await pickAndUploadTripCover();
+                    if (url) {
+                      await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
+                      setTrip(t => t ? { ...t, coverImageUrl: url } : t);
+                    }
+                  } finally {
+                    setUploadingCover(false);
+                  }
+                }}
                 activeOpacity={0.8}
                 style={{
                   alignSelf: "flex-end",
@@ -768,8 +782,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
                   paddingHorizontal: 10, paddingVertical: 5,
                 }}
               >
-                <Ionicons name="camera-outline" size={13} color="white" />
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text>
+                {uploadingCover
+                  ? <ActivityIndicator size="small" color="white" />
+                  : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text></>
+                }
               </TouchableOpacity>
             </View>
           </View>

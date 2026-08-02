@@ -14,6 +14,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
+import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
+import { Image } from "react-native";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { CountrySelect } from "../../../../components/CountrySelect";
 import { appAlert } from "../../../../utils/appAlert";
@@ -324,8 +326,10 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
   const [companion, setCompanion]     = useState<string | null>(null);
-  const [budgetText, setBudgetText]   = useState("");
-  const [saving, setSaving]           = useState(false);
+  const [budgetText, setBudgetText]     = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [saving, setSaving]             = useState(false);
   const [createdTrip, setCreatedTrip] = useState<{ id: number; name: string } | null>(null);
   const [datePickerTarget, setDatePickerTarget] = useState<"start" | "end" | null>(null);
 
@@ -396,6 +400,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         endDate: endDate?.toISOString(),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: "planning",
+        coverImageUrl: coverImageUrl ?? undefined,
       });
       setCreatedTrip({ id: res.data.id, name: res.data.name });
       setStep(4);
@@ -712,18 +717,46 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </View>
           </View>
 
-          {/* Foto de portada placeholder */}
-          <View style={{
-            height: 160, borderRadius: 20, borderWidth: 2, borderStyle: "dashed",
-            borderColor: "#CBD5E1", backgroundColor: "#F8FAFC",
-            alignItems: "center", justifyContent: "center", gap: 8,
-          }}>
-            <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="camera-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Foto de portada del viaje</Text>
-            <Text style={{ fontSize: 12, color: "#94A3B8" }}>Próximamente disponible</Text>
-          </View>
+          {/* Foto de portada */}
+          <TouchableOpacity
+            onPress={async () => {
+              if (uploadingCover) return;
+              setUploadingCover(true);
+              try {
+                const url = await pickAndUploadTripCover();
+                if (url) setCoverImageUrl(url);
+              } finally {
+                setUploadingCover(false);
+              }
+            }}
+            activeOpacity={0.85}
+            style={{
+              height: 160, borderRadius: 20, overflow: "hidden",
+              borderWidth: coverImageUrl ? 0 : 2, borderStyle: "dashed",
+              borderColor: "#CBD5E1", backgroundColor: "#F8FAFC",
+              alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {coverImageUrl ? (
+              <>
+                <Image source={{ uri: coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Ionicons name="camera-outline" size={12} color="white" />
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar</Text>
+                </View>
+              </>
+            ) : uploadingCover ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : (
+              <View style={{ alignItems: "center", gap: 8 }}>
+                <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="camera-outline" size={24} color={colors.primary} />
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
+                <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galería</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Nombre */}
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
