@@ -137,7 +137,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   setTimeout(function(){
     map.invalidateSize();
     map.fitBounds(bounds,{padding:[48,48],maxZoom:13});
-  },120);
+  },250);
 })();
 <\/script>
 </body></html>`;
@@ -296,7 +296,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
   }, [locRequests]);
 
   return (
-    <View style={{ flex: 1, minHeight: 420, borderRadius: 16, overflow: "hidden", marginTop: 8 }}>
+    <View style={{ flex: 1 }}>
       {loading && (
         <View style={{
           position: "absolute",
