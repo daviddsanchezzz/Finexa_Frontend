@@ -394,21 +394,19 @@ export default function TripsHomeScreen({ navigation }: any) {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
       {/* ── Header ── */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center" }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.8 }}>MIS VIAJES</Text>
-          <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Viajes</Text>
-        </View>
+      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Viajes</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate("TripForm")}
           activeOpacity={0.85}
           style={{
-            flexDirection: "row", alignItems: "center", gap: 6,
             backgroundColor: colors.primary, borderRadius: 12,
-            paddingVertical: 9, paddingHorizontal: 14,
+            paddingVertical: 9, paddingHorizontal: 16,
           }}
         >
-          <Ionicons name="add-outline" size={16} color="white" />
           <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>+ Nuevo</Text>
         </TouchableOpacity>
       </View>
@@ -439,13 +437,10 @@ export default function TripsHomeScreen({ navigation }: any) {
             </View>
 
             {/* Número grande */}
-            <Text style={{ fontSize: 48, fontWeight: "900", color: "white", lineHeight: 52 }}>
-              {summaryLoading ? "—" : heroStats.visited}
+            <Text style={{ fontSize: 38, fontWeight: "900", color: "white", lineHeight: 42 }}>
+              {summaryLoading ? "—" : heroStats.visited} <Text style={{ fontSize: 20, fontWeight: "800" }}>países</Text>
             </Text>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: "white", marginTop: -2 }}>
-              países
-            </Text>
-            <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>
+            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
               {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje registrado" : "viajes registrados"}
             </Text>
 
@@ -531,19 +526,13 @@ export default function TripsHomeScreen({ navigation }: any) {
                 style={{
                   flex: 1, paddingVertical: 8, borderRadius: 11,
                   backgroundColor: active ? "white" : "transparent",
-                  alignItems: "center", flexDirection: "row",
-                  justifyContent: "center", gap: 6,
+                  alignItems: "center", justifyContent: "center",
                   shadowColor: active ? "#000" : "transparent",
                   shadowOpacity: active ? 0.06 : 0,
                   shadowRadius: active ? 4 : 0,
                   shadowOffset: { width: 0, height: 1 },
                 }}
               >
-                <Ionicons
-                  name={type === "list" ? "list-outline" : "calendar-outline"}
-                  size={14}
-                  color={active ? colors.primary : "#6B7280"}
-                />
                 <Text style={{ fontSize: 13, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
                   {type === "list" ? "Lista" : "Calendario"}
                 </Text>
@@ -745,7 +734,7 @@ export default function TripsHomeScreen({ navigation }: any) {
         {viewType === "list" && (
           <>
             {/* Board mode tabs */}
-            <View style={{ marginHorizontal: 20, flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 14, padding: 3, marginBottom: 12 }}>
+            <View style={{ marginHorizontal: 20, flexDirection: "row", marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
               {([
                 { id: "status",    label: "Estado"     },
                 { id: "continent", label: "Continente" },
@@ -757,9 +746,16 @@ export default function TripsHomeScreen({ navigation }: any) {
                     key={opt.id}
                     onPress={() => setBoardMode(opt.id)}
                     activeOpacity={0.8}
-                    style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: active ? "white" : "transparent", alignItems: "center" }}
+                    style={{
+                      paddingVertical: 8, paddingHorizontal: 4, marginRight: 20,
+                      borderBottomWidth: 2,
+                      borderBottomColor: active ? colors.primary : "transparent",
+                      marginBottom: -1,
+                    }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>{opt.label}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
+                      {opt.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
