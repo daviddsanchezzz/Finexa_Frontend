@@ -119,12 +119,12 @@ const getTripStatus = (trip: { startDate: string; endDate: string }): TripStatus
 const getStatusStyle = (status: TripStatus) => {
   switch (status) {
     case "upcoming":
-      return { label: "Próximo", color: "#BBF7D0", bg: "rgba(22,163,74,0.25)" };
+      return { label: "Próximo", color: "#16A34A", textColor: "white" };
     case "ongoing":
-      return { label: "En curso", color: "#FED7AA", bg: "rgba(249,115,22,0.25)" };
+      return { label: "En curso", color: "#EA580C", textColor: "white" };
     case "past":
     default:
-      return { label: "Pasado", color: "#E5E7EB", bg: "rgba(107,114,128,0.35)" };
+      return { label: "Pasado", color: "rgba(100,116,139,0.75)", textColor: "#F1F5F9" };
   }
 };
 
@@ -725,7 +725,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 <View style={{ flex: 1 }} />
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: statusStyle.color }}>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>{statusStyle.label}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: statusStyle.textColor }}>{statusStyle.label}</Text>
                   </View>
                   <TouchableOpacity
                     onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
@@ -773,21 +773,22 @@ export default function TripDetailScreen({ route, navigation }: any) {
                   )}
                 </View>
 
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 14, padding: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 0 }}>
+                  <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
                       {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
                     </Text>
                     {days > 0 && (
-                      <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>{days} días</Text>
+                      <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{days} días</Text>
                     )}
                   </View>
-                  <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 14, padding: 10 }}>
+                  <View style={{ width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.30)", marginHorizontal: 14 }} />
+                  <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
                       {formatEuro(totalGastado)}
                     </Text>
                     {trip.budget && trip.budget > 0 ? (
-                      <Text style={{ fontSize: 11, color: budgetOver ? "#FCA5A5" : "rgba(255,255,255,0.65)", marginTop: 2 }}>
+                      <Text style={{ fontSize: 11, color: budgetOver ? "#FCA5A5" : "rgba(255,255,255,0.65)", marginTop: 1 }}>
                         de {formatEuro(trip.budget)}
                       </Text>
                     ) : null}
@@ -809,16 +810,31 @@ export default function TripDetailScreen({ route, navigation }: any) {
           );
 
           return trip.coverImageUrl ? (
-            <ImageBackground
-              source={{ uri: trip.coverImageUrl }}
-              resizeMode="cover"
-              style={{ height: 300 }}
-            >
-              {heroInner}
-            </ImageBackground>
+            Platform.OS === "web" ? (
+              <View
+                style={[
+                  { height: 300, overflow: "hidden" },
+                  {
+                    backgroundImage: `url('${trip.coverImageUrl}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  } as any,
+                ]}
+              >
+                {heroInner}
+              </View>
+            ) : (
+              <ImageBackground
+                source={{ uri: trip.coverImageUrl }}
+                resizeMode="cover"
+                style={{ height: 300 }}
+              >
+                {heroInner}
+              </ImageBackground>
+            )
           ) : (
             <LinearGradient
-              colors={["#312E81", "#4F46E5", "#7C3AED"]}
+              colors={["#001B5E", "#003cc5", "#1A6AF5"]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={{ height: 300 }}
             >
