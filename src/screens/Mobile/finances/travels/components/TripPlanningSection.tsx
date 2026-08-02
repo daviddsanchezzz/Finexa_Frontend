@@ -800,6 +800,10 @@ export default function TripPlanningSectionRedesign({
   const isNoDate = selectedDay === NO_DATE;
   const dayNumber = isNoDate ? null : Math.max(1, dayKeys.findIndex((d) => d === selectedDay) + 1);
 
+  // Map keys — force remount when item identity or order changes (geocoding stays cached)
+  const summaryMapKey = planningItems.map(i => `${i.id}:${(i as any).startAt ?? (i as any).day ?? ""}`).join("|");
+  const dayMapKey = `${selectedDay}:` + dayItems.map(i => `${i.id}:${(i as any).startAt ?? ""}`).join("|");
+
   const hasAny = planningItems.length > 0;
 
   if (!hasAny) {
@@ -911,7 +915,7 @@ export default function TripPlanningSectionRedesign({
           {/* Mapa inline del día */}
           {dayItems.length > 0 && (
             <View style={{ marginBottom: 14, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 160 }}>
-              <TripMapView planItems={dayItems} />
+              <TripMapView key={dayMapKey} planItems={dayItems} />
               <Pressable
                 onPress={() => setShowMap(true)}
                 style={{
@@ -989,7 +993,7 @@ export default function TripPlanningSectionRedesign({
           {/* Full-trip map */}
           {planningItems.length > 0 && (
             <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 200 }}>
-              <TripMapView planItems={planningItems} />
+              <TripMapView key={summaryMapKey} planItems={planningItems} />
               <Pressable
                 onPress={() => setShowMap(true)}
                 style={{

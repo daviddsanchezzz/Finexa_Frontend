@@ -79,10 +79,10 @@ function esc(s: string): string {
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-function buildLeafletHTML(markers: MapMarker[]): string {
+function buildLeafletHTML(markers: MapMarker[], routePoints: { lat: number; lng: number; order: number }[]): string {
   const safe = markers.map(m => ({ ...m, title: esc(m.title), items: m.items.map(esc) }));
   const ms = JSON.stringify(safe);
-  const rt = JSON.stringify(safe.slice().sort((a, b) => a.order - b.order));
+  const rt = JSON.stringify(routePoints.slice().sort((a, b) => a.order - b.order));
 
   return `<!DOCTYPE html><html>
 <head>
@@ -266,7 +266,8 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
         return;
       }
 
-      const result: MapMarker[] = [];
+      const pins: MapMarker[] = [];
+      const routePoints: { lat: number; lng: number; order: number }[] = [];
 
       for (let i = 0; i < entries.length; i++) {
         if (cancelled) return;
@@ -277,7 +278,11 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
         const geo = await geocode(query);
 
         if (geo) {
-          const nearby = result.find(
+          // Route: one point per occurrence (preserves repeated locations like BCN at start and end)
+          metas.forEach(m => routePoints.push({ lat: geo.lat, lng: geo.lng, order: m.order }));
+
+          // Pins: deduplicated by proximity
+          const nearby = pins.find(
             m => Math.abs(m.lat - geo.lat) < 0.002 && Math.abs(m.lng - geo.lng) < 0.002
           );
           if (nearby) {
@@ -286,7 +291,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
             });
           } else {
             const first = metas[0];
-            result.push({
+            pins.push({
               lat: geo.lat, lng: geo.lng,
               title: first.displayName,
               color: first.color,
@@ -300,7 +305,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
       }
 
       if (!cancelled) {
-        setHtml(buildLeafletHTML(result));
+        setHtml(buildLeafletHTML(pins, routePoints));
         setMapVersion(v => v + 1);
         setLoading(false);
       }
