@@ -700,99 +700,101 @@ export default function TripDetailScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
-      {/* ── HEADER ── */}
-      <View style={{
-        paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10,
-        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
-
-        <Text style={{ fontSize: 17, fontWeight: "800", color: "#0F172A", flex: 1, textAlign: "center", marginHorizontal: 8 }} numberOfLines={1}>
-          {trip.name}
-        </Text>
-
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-          {/* Status badge */}
-          <View style={{
-            paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
-            backgroundColor: statusStyle.bg, marginRight: 4,
-          }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: statusStyle.color }}>
-              {statusStyle.label}
-            </Text>
-          </View>
-          {/* Menu */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color="#64748B" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* ── FOTO DE PORTADA ── */}
-        <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+        {/* ── HERO ── */}
+        <View style={{ height: 230, position: "relative", overflow: "hidden" }}>
+          {/* Fondo */}
+          {trip.coverImageUrl ? (
+            <Image
+              source={{ uri: trip.coverImageUrl }}
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#4F46E5" }} />
+          )}
+
+          {/* Overlay oscuro en la mitad inferior */}
           <View style={{
-            height: 190, borderRadius: 22, overflow: "hidden",
-            backgroundColor: "#C7D2FE",
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 150,
+            backgroundColor: "rgba(0,0,0,0.45)",
+          }} />
+
+          {/* Header flotante */}
+          <View style={{
+            position: "absolute", top: 0, left: 0, right: 0,
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6,
           }}>
-            {trip.coverImageUrl ? (
-              <Image
-                source={{ uri: trip.coverImageUrl }}
-                style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF2FF" }}>
-                <Text style={{ fontSize: 64 }}>{countryFlag}</Text>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#6366F1", marginTop: 8 }}>{countryLabel}</Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.28)", alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="chevron-back" size={20} color="white" />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1 }} />
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: statusStyle.color }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>{statusStyle.label}</Text>
               </View>
-            )}
-            {/* Overlay gradient bottom */}
-            <View style={{
-              position: "absolute", bottom: 0, left: 0, right: 0,
-              height: 80, justifyContent: "flex-end", padding: 14,
-            }}>
               <TouchableOpacity
-                onPress={async () => {
-                  if (uploadingCover || !trip) return;
-                  setUploadingCover(true);
-                  try {
-                    const url = await pickAndUploadTripCover();
-                    if (url) {
-                      await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
-                      setTrip(t => t ? { ...t, coverImageUrl: url } : t);
-                    }
-                  } finally {
-                    setUploadingCover(false);
-                  }
-                }}
-                activeOpacity={0.8}
-                style={{
-                  alignSelf: "flex-end",
-                  flexDirection: "row", alignItems: "center", gap: 4,
-                  backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10,
-                  paddingHorizontal: 10, paddingVertical: 5,
-                }}
+                onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.28)", alignItems: "center", justifyContent: "center" }}
               >
-                {uploadingCover
-                  ? <ActivityIndicator size="small" color="white" />
-                  : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text></>
-                }
+                <Ionicons name="ellipsis-horizontal" size={18} color="white" />
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Nombre del viaje en la parte inferior del hero */}
+          <View style={{ position: "absolute", bottom: 14, left: 16, right: 16, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              {countryLabel ? (
+                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
+                  {countryFlag} {countryLabel}
+                </Text>
+              ) : null}
+              <Text style={{ fontSize: 26, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                {trip.name}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={async () => {
+                if (uploadingCover || !trip) return;
+                setUploadingCover(true);
+                try {
+                  const url = await pickAndUploadTripCover();
+                  if (url) {
+                    await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
+                    setTrip(t => t ? { ...t, coverImageUrl: url } : t);
+                  }
+                } finally {
+                  setUploadingCover(false);
+                }
+              }}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 4,
+                backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10,
+                paddingHorizontal: 10, paddingVertical: 6,
+              }}
+            >
+              {uploadingCover
+                ? <ActivityIndicator size="small" color="white" />
+                : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text></>
+              }
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* ── STATS ROW ── */}
-        <View style={{ flexDirection: "row", gap: 10, marginHorizontal: 16, marginBottom: 14 }}>
+        <View style={{ flexDirection: "row", gap: 10, marginHorizontal: 16, marginTop: 14, marginBottom: 14 }}>
           <View style={{
             flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12,
             borderWidth: 1, borderColor: "#EEF2F7",
@@ -838,34 +840,32 @@ export default function TripDetailScreen({ route, navigation }: any) {
         )}
 
         {/* ── TABS ── */}
-        <View style={{ marginHorizontal: 16, marginBottom: 14 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-            {([
-              { key: "summary"  as TripTab, label: "Resumen" },
-              { key: "planning" as TripTab, label: "Planificación" },
-              { key: "expenses" as TripTab, label: "Gastos" },
-              { key: "info"     as TripTab, label: "Logística" },
-            ]).map(opt => {
-              const active = tab === opt.key;
-              return (
-                <TouchableOpacity
-                  key={opt.key}
-                  onPress={() => setTab(opt.key)}
-                  activeOpacity={0.8}
-                  style={{
-                    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12,
-                    backgroundColor: active ? colors.primary : "white",
-                    borderWidth: 1,
-                    borderColor: active ? colors.primary : "#E5E7EB",
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "white" : "#6B7280" }}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+        <View style={{ flexDirection: "row", marginHorizontal: 16, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+          {([
+            { key: "summary"  as TripTab, label: "Resumen" },
+            { key: "planning" as TripTab, label: "Planificación" },
+            { key: "expenses" as TripTab, label: "Gastos" },
+            { key: "info"     as TripTab, label: "Logística" },
+          ]).map(opt => {
+            const active = tab === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                onPress={() => setTab(opt.key)}
+                activeOpacity={0.8}
+                style={{
+                  paddingVertical: 10, paddingHorizontal: 2, marginRight: 18,
+                  borderBottomWidth: 2,
+                  borderBottomColor: active ? colors.primary : "transparent",
+                  marginBottom: -1,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* ── CONTENIDO POR TAB ── */}
