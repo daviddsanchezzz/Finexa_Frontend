@@ -709,11 +709,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
         <View style={{ height: 300, position: "relative", overflow: "hidden" }}>
           {/* Fondo: foto o gradiente */}
           {trip.coverImageUrl ? (
-            <Image
-              source={{ uri: trip.coverImageUrl }}
-              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
+            Platform.OS === "web"
+              // @ts-ignore
+              ? <img src={trip.coverImageUrl} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              : <Image source={{ uri: trip.coverImageUrl }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" }} resizeMode="cover" />
           ) : (
             <LinearGradient
               colors={["#312E81", "#4F46E5", "#7C3AED"]}
@@ -761,32 +760,33 @@ export default function TripDetailScreen({ route, navigation }: any) {
                   {trip.name}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={async () => {
-                  if (uploadingCover || !trip) return;
-                  setUploadingCover(true);
-                  try {
-                    const url = await pickAndUploadTripCover();
-                    if (url) {
-                      await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
-                      setTrip(t => t ? { ...t, coverImageUrl: url } : t);
-                    }
-                  } finally { setUploadingCover(false); }
-                }}
-                activeOpacity={0.8}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}
-              >
-                {uploadingCover
-                  ? <ActivityIndicator size="small" color="white" />
-                  : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text></>
-                }
-              </TouchableOpacity>
+              {!trip.coverImageUrl && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (uploadingCover || !trip) return;
+                    setUploadingCover(true);
+                    try {
+                      const url = await pickAndUploadTripCover();
+                      if (url) {
+                        await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
+                        setTrip(t => t ? { ...t, coverImageUrl: url } : t);
+                      }
+                    } finally { setUploadingCover(false); }
+                  }}
+                  activeOpacity={0.8}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}
+                >
+                  {uploadingCover
+                    ? <ActivityIndicator size="small" color="white" />
+                    : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Añadir foto</Text></>
+                  }
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Stats dentro del hero */}
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 14, padding: 10 }}>
-                <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>FECHAS</Text>
                 <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
                   {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
                 </Text>
@@ -795,7 +795,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 )}
               </View>
               <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 14, padding: 10 }}>
-                <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.65)", marginBottom: 3 }}>TOTAL GASTADO</Text>
                 <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
                   {formatEuro(totalGastado)}
                 </Text>

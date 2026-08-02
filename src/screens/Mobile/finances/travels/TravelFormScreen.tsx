@@ -108,6 +108,8 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   );
   const [budgetText, setBudgetText] = useState(editTrip.budget != null ? String(editTrip.budget) : "");
   const [status, setStatus] = useState<TripStatus | null>((editTrip.status as TripStatus) ?? null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(editTrip.coverImageUrl ?? null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
@@ -148,6 +150,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
         endDate: endDate.toISOString(),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: status ?? undefined,
+        coverImageUrl: coverImageUrl ?? null,
       });
       navigation.goBack();
     } catch { appAlert("Error", "No se pudo guardar el viaje."); }
@@ -195,6 +198,43 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }} showsVerticalScrollIndicator={false}>
+        {/* Foto de portada */}
+        <TouchableOpacity
+          onPress={async () => {
+            if (uploadingCover) return;
+            setUploadingCover(true);
+            try {
+              const url = await pickAndUploadTripCover();
+              if (url) setCoverImageUrl(url);
+            } finally { setUploadingCover(false); }
+          }}
+          activeOpacity={0.85}
+          style={{ height: 140, borderRadius: 18, overflow: "hidden", borderWidth: coverImageUrl ? 0 : 2, borderStyle: "dashed", borderColor: "#CBD5E1", backgroundColor: "#F8FAFC", alignItems: "center", justifyContent: "center" }}
+        >
+          {coverImageUrl ? (
+            <>
+              {Platform.OS === "web"
+                // @ts-ignore
+                ? <img src={coverImageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <Image source={{ uri: coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+              }
+              <View style={{ position: "absolute", bottom: 8, right: 8, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Ionicons name="camera-outline" size={12} color="white" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar</Text>
+              </View>
+            </>
+          ) : uploadingCover ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="camera-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
         {/* Nombre */}
         <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
           <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 8 }}>NOMBRE DEL VIAJE</Text>
