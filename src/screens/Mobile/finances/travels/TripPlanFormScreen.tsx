@@ -10,6 +10,7 @@ import {
   Pressable,
   Modal,
   FlatList,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -373,7 +374,7 @@ export default function TripPlanFormScreen({
   // ==================== FLIGHT STATE ====================
 
   const [flightEntryMode, setFlightEntryMode] = useState<FlightEntryMode>("manual");
-  const [flightNumber, setFlightNumber] = useState("");
+  const [flightNumber, setFlightNumber] = useState(planItem?.flightDetails?.flightNumber || "");
   const [flightDate, setFlightDate] = useState<Date | null>(null);
   const [flightAirline, setFlightAirline] = useState(planItem?.flightDetails?.airlineName || "");
   const [flightFrom, setFlightFrom] = useState(planItem?.flightDetails?.fromIata || "");
@@ -724,6 +725,8 @@ export default function TripPlanFormScreen({
 
   // ==================== RENDER ====================
 
+  const { width: screenWidth } = useWindowDimensions();
+
   const dayLabel = (() => {
     if (!presetDay) return null;
     const d = new Date(`${presetDay}T00:00:00`);
@@ -899,24 +902,32 @@ export default function TripPlanFormScreen({
               })}
             </View>
 
-            {/* Transport sub-tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {TRANSPORT_TABS.map((t) => {
-                  const active = transportTab === t.key;
-                  return (
-                    <Pressable
-                      key={t.key}
-                      onPress={() => setTransportTab(t.key)}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: active ? colors.primary : "#F1F5F9" }}
-                    >
-                      <Text style={{ fontSize: 14 }}>{t.emoji}</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "white" : UI.text }}>{t.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
+            {/* Transport sub-tabs — grid sin scroll */}
+            {(() => {
+              const gap = 8;
+              const cols = TRANSPORT_TABS.length;
+              const itemW = (screenWidth - 40 - gap * (cols - 1)) / cols;
+              return (
+                <View style={{ flexDirection: "row", gap, marginBottom: 20 }}>
+                  {TRANSPORT_TABS.map((t) => {
+                    const active = transportTab === t.key;
+                    return (
+                      <Pressable
+                        key={t.key}
+                        onPress={() => setTransportTab(t.key)}
+                        style={{ width: itemW, height: itemW, borderRadius: 14, borderWidth: 1.5,
+                          borderColor: active ? colors.primary : UI.border,
+                          backgroundColor: active ? colors.primary : "white",
+                          alignItems: "center", justifyContent: "center", gap: 3 }}
+                      >
+                        <Text style={{ fontSize: 20, lineHeight: 24 }}>{t.emoji}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: "800", color: active ? "white" : UI.text, textAlign: "center" }}>{t.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })()}
 
             {/* DESDE → HASTA */}
             <View style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 20, gap: 8 }}>
@@ -1036,21 +1047,31 @@ export default function TripPlanFormScreen({
         {mainTab === "activity" && (
           <View>
             <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted, letterSpacing: 0.8, marginBottom: 10 }}>TIPO</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-              {ACTIVITY_TYPES_EMOJI.map((t) => {
-                const active = actType === t.value;
-                return (
-                  <Pressable
-                    key={t.value}
-                    onPress={() => setActType(t.value)}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: active ? colors.primary : "white", borderWidth: 1, borderColor: active ? colors.primary : UI.border }}
-                  >
-                    <Text style={{ fontSize: 15 }}>{t.emoji}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : UI.text }}>{t.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {(() => {
+              const gap = 8;
+              const cols = 3;
+              const itemW = (screenWidth - 40 - gap * (cols - 1)) / cols;
+              return (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap, marginBottom: 20 }}>
+                  {ACTIVITY_TYPES_EMOJI.map((t) => {
+                    const active = actType === t.value;
+                    return (
+                      <Pressable
+                        key={t.value}
+                        onPress={() => setActType(t.value)}
+                        style={{ width: itemW, height: itemW, borderRadius: 16, borderWidth: 1.5,
+                          borderColor: active ? colors.primary : UI.border,
+                          backgroundColor: active ? colors.primary : "white",
+                          alignItems: "center", justifyContent: "center", gap: 5 }}
+                      >
+                        <Text style={{ fontSize: 24, lineHeight: 28 }}>{t.emoji}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: active ? "white" : UI.text, textAlign: "center" }}>{t.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })()}
 
             <Field label="TÍTULO *" value={actTitle} onChange={setActTitle} placeholder="Ej: Tour al Etna" autoCapitalize="sentences" />
             <Field label="UBICACIÓN" value={actLocation} onChange={setActLocation} placeholder="Ej: Etna, Sicilia" autoCapitalize="words" />
@@ -1101,21 +1122,31 @@ export default function TripPlanFormScreen({
             <Field label="CONCEPTO *" value={expTitle} onChange={setExpTitle} placeholder="Ej: Cena en restaurante" autoCapitalize="sentences" />
 
             <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted, letterSpacing: 0.8, marginBottom: 10 }}>CATEGORÍA</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-              {EXPENSE_CATS_EMOJI.map((cat) => {
-                const active = expCategory === cat.value;
-                return (
-                  <Pressable
-                    key={cat.value}
-                    onPress={() => setExpCategory(cat.value)}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: active ? colors.primary : "white", borderWidth: 1, borderColor: active ? colors.primary : UI.border }}
-                  >
-                    <Text style={{ fontSize: 15 }}>{cat.emoji}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : UI.text }}>{cat.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {(() => {
+              const gap = 8;
+              const cols = 3;
+              const itemW = (screenWidth - 40 - gap * (cols - 1)) / cols;
+              return (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap, marginBottom: 20 }}>
+                  {EXPENSE_CATS_EMOJI.map((cat) => {
+                    const active = expCategory === cat.value;
+                    return (
+                      <Pressable
+                        key={cat.value}
+                        onPress={() => setExpCategory(cat.value)}
+                        style={{ width: itemW, height: itemW, borderRadius: 16, borderWidth: 1.5,
+                          borderColor: active ? colors.primary : UI.border,
+                          backgroundColor: active ? colors.primary : "white",
+                          alignItems: "center", justifyContent: "center", gap: 5 }}
+                      >
+                        <Text style={{ fontSize: 24, lineHeight: 28 }}>{cat.emoji}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: active ? "white" : UI.text, textAlign: "center" }}>{cat.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })()}
 
             <DateTimeField label="FECHA" value={expOccurredAt} onChange={setExpOccurredAt} placeholder="Seleccionar fecha" />
           </View>
