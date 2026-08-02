@@ -410,34 +410,20 @@ function ExpenseRow({
         <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
           {item.title || "Gasto"}
         </Text>
-
-        {!!meta ? (
-          <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
+        {!!meta && (
+          <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: UI.muted2 }} numberOfLines={1}>
             {meta}
           </Text>
-        ) : null}
-        {item.location ? (
-          <TouchableOpacity
-            onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
-            style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3, alignSelf: "flex-start" }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="location-outline" size={11} color={colors.primary} />
-            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }} numberOfLines={1}>{item.location}</Text>
-          </TouchableOpacity>
-        ) : null}
+        )}
       </View>
 
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
         {!!item.currency && item.currency !== "EUR" && !!item.cost && (
           <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }}>
             {Number(item.cost).toFixed(2)} {item.currency}
           </Text>
         )}
-        {onSetPaymentStatus ? (
-          <PaymentChip status={itemStatus} disabled={!canToggle || savingPay} onToggle={togglePayment} />
-        ) : null}
       </View>
     </Pressable>
   );

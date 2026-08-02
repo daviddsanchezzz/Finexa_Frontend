@@ -1077,53 +1077,68 @@ export default function TripPlanningSectionRedesign({
             )}
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-            <View style={{ width: 16, alignItems: "center" }}>
-              <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: UI.text, marginTop: 6 }} />
-              <View style={{ width: 2, backgroundColor: UI.rail, flex: 1, minHeight: 110, marginTop: 6 }} />
-            </View>
+          {dayItems.length === 0 ? (
+            <EmptyDayCard onPress={() => handleCreate(isNoDate ? "" : selectedDay)} />
+          ) : (
+            <View>
+              {dayItems.map((it, idx) => {
+                const isLast = idx === dayItems.length - 1;
+                const bMeta = TYPE_META[it.type];
+                const expCat = it.type === "expense" ? (it.metadata?.expenseCategory ?? null) : null;
+                const dotAccent = expCat && EXPENSE_CAT_META[expCat as string]
+                  ? EXPENSE_CAT_META[expCat as string].accent
+                  : bMeta?.accent ?? UI.text;
 
-            <View style={{ flex: 1, minWidth: 0 }}>
-              {dayItems.length === 0 ? (
-                <EmptyDayCard onPress={() => handleCreate(isNoDate ? "" : selectedDay)} />
-              ) : (
-                <View style={{ maxHeight: LIST_MAX_H, gap: 10 }}>
-                  {dayItems.map((it) => (
-                    <ActivityCard key={it.id} item={it} currentDay={selectedDay} onPress={() => handleEdit(it)} />
-                  ))}
-                </View>
-              )}
-
-              <View style={{ marginTop: 12 }}>
-                {showQuickAdd ? (
-                  <QuickAddForm
-                    quickType={quickType}
-                    setQuickType={setQuickType}
-                    quickTitle={quickTitle}
-                    setQuickTitle={setQuickTitle}
-                    quickCostStr={quickCostStr}
-                    setQuickCostStr={setQuickCostStr}
-                    quickSaving={quickSaving}
-                    onSave={handleQuickSave}
-                    onFullForm={handleOpenFullForm}
-                    onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
-                  />
-                ) : (
-                  <Pressable
-                    onPress={() => handleCreate()}
-                    style={({ pressed }) => ({
-                      flexDirection: "row", alignItems: "center", justifyContent: "center",
-                      paddingVertical: 9, borderRadius: 14,
-                      backgroundColor: "rgba(248,250,252,1)", borderWidth: 1, borderColor: UI.border,
-                      opacity: pressed ? 0.96 : 1,
-                    })}
-                  >
-                    <Ionicons name="add-outline" size={16} color={UI.muted2} />
-                    <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
-                  </Pressable>
-                )}
-              </View>
+                return (
+                  <View key={it.id} style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                    {/* Timeline dot + connecting line */}
+                    <View style={{ width: 22, alignItems: "center", paddingTop: 13 }}>
+                      <View style={{
+                        width: 10, height: 10, borderRadius: 99,
+                        backgroundColor: dotAccent,
+                        borderWidth: 2, borderColor: "#F6F8FC",
+                      }} />
+                      {!isLast && (
+                        <View style={{ width: 2, flex: 1, minHeight: 18, backgroundColor: UI.rail, marginTop: 3 }} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 6, marginBottom: isLast ? 0 : 10 }}>
+                      <ActivityCard item={it} currentDay={selectedDay} onPress={() => handleEdit(it)} />
+                    </View>
+                  </View>
+                );
+              })}
             </View>
+          )}
+
+          <View style={{ marginTop: 12 }}>
+            {showQuickAdd ? (
+              <QuickAddForm
+                quickType={quickType}
+                setQuickType={setQuickType}
+                quickTitle={quickTitle}
+                setQuickTitle={setQuickTitle}
+                quickCostStr={quickCostStr}
+                setQuickCostStr={setQuickCostStr}
+                quickSaving={quickSaving}
+                onSave={handleQuickSave}
+                onFullForm={handleOpenFullForm}
+                onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
+              />
+            ) : (
+              <Pressable
+                onPress={() => handleCreate()}
+                style={({ pressed }) => ({
+                  flexDirection: "row", alignItems: "center", justifyContent: "center",
+                  paddingVertical: 9, borderRadius: 14,
+                  backgroundColor: "rgba(248,250,252,1)", borderWidth: 1, borderColor: UI.border,
+                  opacity: pressed ? 0.96 : 1,
+                })}
+              >
+                <Ionicons name="add-outline" size={16} color={UI.muted2} />
+                <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       )}
