@@ -73,11 +73,12 @@ function buildLeafletHTML(markers: MapMarker[]): string {
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 #map{width:100%;height:100%}
-.leaflet-popup-content-wrapper{border-radius:14px;padding:0;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
-.leaflet-popup-content{margin:0;min-width:140px;max-width:210px}
-.pu{padding:10px 13px}
-.pu-title{font-weight:700;font-size:13px;color:#0f172a;font-family:-apple-system,sans-serif;margin-bottom:4px}
-.pu-item{font-size:11px;color:#475569;font-family:-apple-system,sans-serif;line-height:1.6}
+.leaflet-popup-content-wrapper{border-radius:16px;padding:0;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.18);border:none}
+.leaflet-popup-tip-container{display:none}
+.leaflet-popup-content{margin:0;min-width:150px;max-width:220px}
+.pu{padding:11px 14px}
+.pu-title{font-weight:800;font-size:13px;color:#0f172a;font-family:-apple-system,sans-serif;margin-bottom:5px}
+.pu-item{font-size:11px;color:#64748b;font-family:-apple-system,sans-serif;line-height:1.7;padding-left:2px}
 </style>
 </head>
 <body><div id="map"></div>
@@ -90,26 +91,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   }
   var avgLat=ms.reduce(function(s,m){return s+m.lat},0)/ms.length;
   var avgLng=ms.reduce(function(s,m){return s+m.lng},0)/ms.length;
-  var map=L.map('map',{zoomControl:true,attributionControl:false}).setView([avgLat,avgLng],7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([avgLat,avgLng],7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    maxZoom:19,subdomains:'abcd'
+  }).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
   if(rt.length>1){
     L.polyline(rt.map(function(p){return[p.lat,p.lng]}),{
-      color:'#2563EB',weight:2.5,opacity:0.5,dashArray:'8,6'
+      color:'#2563EB',weight:3,opacity:0.65,dashArray:'10,8',lineCap:'round',lineJoin:'round'
     }).addTo(map);
   }
   ms.forEach(function(m,i){
     var icon=L.divIcon({
       className:'',
-      html:'<div style="width:32px;height:32px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:11px;font-weight:800;font-family:sans-serif">'+(i+1)+'</span></div>',
-      iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-36]
+      html:'<div style="position:relative;width:32px;height:38px"><div style="width:32px;height:32px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:12px;font-weight:900;font-family:-apple-system,sans-serif">'+(i+1)+'</span></div></div>',
+      iconSize:[32,38],iconAnchor:[16,36],popupAnchor:[0,-40]
     });
-    var items=m.items.map(function(t){return'<div class="pu-item">· '+t+'</div>'}).join('');
+    var items=m.items.map(function(t){return'<div class="pu-item">'+t+'</div>'}).join('');
     L.marker([m.lat,m.lng],{icon:icon})
       .bindPopup('<div class="pu"><div class="pu-title">'+m.title+'</div>'+items+'</div>')
       .addTo(map);
   });
   var bounds=L.latLngBounds(ms.map(function(m){return[m.lat,m.lng]}));
-  map.fitBounds(bounds,{padding:[50,50],maxZoom:12});
+  map.fitBounds(bounds,{padding:[48,48],maxZoom:13});
 })();
 <\/script>
 </body></html>`;
