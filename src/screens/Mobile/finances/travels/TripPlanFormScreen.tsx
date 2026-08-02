@@ -1,5 +1,4 @@
-// src/screens/Mobile/finances/travels/TripPlanFormScreen.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -49,26 +48,26 @@ const UI = {
 };
 
 const ACTIVITY_TYPES: ActivityType[] = [
-  { label: "Museo", value: TripPlanItemType.museum, icon: "color-palette-outline" },
-  { label: "Monumento", value: TripPlanItemType.monument, icon: "business-outline" },
-  { label: "Mirador", value: TripPlanItemType.viewpoint, icon: "eye-outline" },
-  { label: "Free Tour", value: TripPlanItemType.free_tour, icon: "walk-outline" },
-  { label: "Concierto", value: TripPlanItemType.concert, icon: "musical-notes-outline" },
-  { label: "Fiesta", value: TripPlanItemType.bar_party, icon: "wine-outline" },
-  { label: "Playa", value: TripPlanItemType.beach, icon: "sunny-outline" },
-  { label: "Restaurante", value: TripPlanItemType.restaurant, icon: "restaurant-outline" },
-  { label: "Compras", value: TripPlanItemType.shopping, icon: "cart-outline" },
-  { label: "Otro", value: TripPlanItemType.other, icon: "sparkles-outline" },
+  { label: "Museo",      value: TripPlanItemType.museum,     icon: "color-palette-outline" },
+  { label: "Monumento",  value: TripPlanItemType.monument,   icon: "business-outline" },
+  { label: "Mirador",    value: TripPlanItemType.viewpoint,  icon: "eye-outline" },
+  { label: "Free Tour",  value: TripPlanItemType.free_tour,  icon: "walk-outline" },
+  { label: "Concierto",  value: TripPlanItemType.concert,    icon: "musical-notes-outline" },
+  { label: "Fiesta",     value: TripPlanItemType.bar_party,  icon: "wine-outline" },
+  { label: "Playa",      value: TripPlanItemType.beach,      icon: "sunny-outline" },
+  { label: "Restaurante",value: TripPlanItemType.restaurant, icon: "restaurant-outline" },
+  { label: "Compras",    value: TripPlanItemType.shopping,   icon: "cart-outline" },
+  { label: "Otro",       value: TripPlanItemType.other,      icon: "sparkles-outline" },
 ];
 
 const EXPENSE_CATEGORIES = [
-  { label: "Transporte", value: BudgetCategoryType.transport_local, icon: "car-outline" },
-  { label: "Alojamiento", value: BudgetCategoryType.accommodation, icon: "bed-outline" },
-  { label: "Comida", value: BudgetCategoryType.food, icon: "restaurant-outline" },
-  { label: "Actividades", value: BudgetCategoryType.activities, icon: "ticket-outline" },
-  { label: "Compras", value: BudgetCategoryType.shopping, icon: "cart-outline" },
-  { label: "Ocio", value: BudgetCategoryType.leisure, icon: "game-controller-outline" },
-  { label: "Otro", value: BudgetCategoryType.other, icon: "ellipsis-horizontal-outline" },
+  { label: "Transporte",  value: BudgetCategoryType.transport_local, icon: "car-outline" },
+  { label: "Alojamiento", value: BudgetCategoryType.accommodation,   icon: "bed-outline" },
+  { label: "Comida",      value: BudgetCategoryType.food,            icon: "restaurant-outline" },
+  { label: "Actividades", value: BudgetCategoryType.activities,      icon: "ticket-outline" },
+  { label: "Compras",     value: BudgetCategoryType.shopping,        icon: "cart-outline" },
+  { label: "Ocio",        value: BudgetCategoryType.leisure,         icon: "game-controller-outline" },
+  { label: "Otro",        value: BudgetCategoryType.other,           icon: "ellipsis-horizontal-outline" },
 ];
 
 // ==================== HELPER FUNCTIONS ====================
@@ -174,7 +173,6 @@ function DateTimeField({
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
-
   return (
     <View style={{ marginBottom: 16 }}>
       <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 6 }}>
@@ -199,14 +197,10 @@ function DateTimeField({
         </Text>
         <Ionicons name="calendar-outline" size={16} color={UI.muted} />
       </Pressable>
-
       <CrossPlatformDateTimePicker
         isVisible={open}
         date={value ?? new Date()}
-        onConfirm={(d: Date) => {
-          setOpen(false);
-          onChange(d);
-        }}
+        onConfirm={(d: Date) => { setOpen(false); onChange(d); }}
         onCancel={() => setOpen(false)}
         mode="datetime"
       />
@@ -324,7 +318,7 @@ function PrimaryButton({
       onPress={onPress}
       style={{
         opacity: disabled || loading ? 0.45 : 1,
-        height: 44,
+        height: 48,
         borderRadius: 14,
         backgroundColor: UI.primary,
         alignItems: "center",
@@ -335,7 +329,7 @@ function PrimaryButton({
       }}
     >
       {loading && <ActivityIndicator color="white" />}
-      <Text style={{ fontSize: 13, fontWeight: "600", color: "white" }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: "700", color: "white" }}>{label}</Text>
     </Pressable>
   );
 }
@@ -379,12 +373,8 @@ export default function TripPlanFormScreen({
   // ==================== FLIGHT STATE ====================
 
   const [flightEntryMode, setFlightEntryMode] = useState<FlightEntryMode>("manual");
-
-  // Autofill inputs
   const [flightNumber, setFlightNumber] = useState("");
   const [flightDate, setFlightDate] = useState<Date | null>(null);
-
-  // Manual inputs
   const [flightAirline, setFlightAirline] = useState(planItem?.flightDetails?.airlineName || "");
   const [flightFrom, setFlightFrom] = useState(planItem?.flightDetails?.fromIata || "");
   const [flightTo, setFlightTo] = useState(planItem?.flightDetails?.toIata || "");
@@ -407,8 +397,6 @@ export default function TripPlanFormScreen({
   const [arr, setArr] = useState<Date | null>(
     planItem?.destinationTransport?.arrAt ? new Date(planItem.destinationTransport.arrAt) : null
   );
-
-  // Shared cost
   const [costStr, setCostStr] = useState(
     planItem?.cost ? String(planItem.cost).replace(".", ",") : ""
   );
@@ -482,7 +470,6 @@ export default function TripPlanFormScreen({
   const [expEurPreview, setExpEurPreview] = useState<number | null>(null);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
 
-  // EUR preview for foreign-currency expenses
   useEffect(() => {
     const amount = parseCost(expAmountStr);
     if (!amount || expCurrency === "EUR") { setExpEurPreview(null); return; }
@@ -497,6 +484,7 @@ export default function TripPlanFormScreen({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [step, setStep] = useState<"pick" | "form">(isEdit || presetType ? "form" : "pick");
 
   // ==================== SAVE HANDLERS ====================
 
@@ -505,7 +493,6 @@ export default function TripPlanFormScreen({
       Alert.alert("Error", "Por favor completa los campos obligatorios");
       return;
     }
-
     setSaving(true);
     setErr(null);
     try {
@@ -528,16 +515,13 @@ export default function TripPlanFormScreen({
           arrAt: flightArr?.toISOString() || null,
         },
       };
-
       if (isEdit) {
         await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
-
       navigation.goBack();
     } catch (error: any) {
-      console.error("Error saving flight:", error);
       setErr(error?.response?.data?.message || "No se pudo guardar el vuelo");
       Alert.alert("Error", "No se pudo guardar el vuelo");
     } finally {
@@ -550,14 +534,12 @@ export default function TripPlanFormScreen({
       Alert.alert("Error", "Por favor completa origen y destino");
       return;
     }
-
     setSaving(true);
     setErr(null);
     try {
       const type = transportKind === "principal"
         ? TripPlanItemType.transport_destination
         : TripPlanItemType.transport_local;
-
       const payload = {
         tripId,
         type,
@@ -577,16 +559,13 @@ export default function TripPlanFormScreen({
           arrAt: arr?.toISOString() || null,
         },
       };
-
       if (isEdit) {
         await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
-
       navigation.goBack();
     } catch (error: any) {
-      console.error("Error saving transport:", error);
       setErr(error?.response?.data?.message || "No se pudo guardar el transporte");
       Alert.alert("Error", "No se pudo guardar el transporte");
     } finally {
@@ -599,7 +578,6 @@ export default function TripPlanFormScreen({
       Alert.alert("Error", "El nombre del alojamiento es obligatorio");
       return;
     }
-
     setSaving(true);
     setErr(null);
     try {
@@ -627,16 +605,13 @@ export default function TripPlanFormScreen({
         date: accCheckInAt?.toISOString() || null,
         endTime: accCheckOutAt?.toISOString() || null,
       };
-
       if (isEdit) {
         await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
-
       navigation.goBack();
     } catch (error: any) {
-      console.error("Error saving accommodation:", error);
       setErr(error?.response?.data?.message || "No se pudo guardar el alojamiento");
       Alert.alert("Error", "No se pudo guardar el alojamiento");
     } finally {
@@ -649,7 +624,6 @@ export default function TripPlanFormScreen({
       Alert.alert("Error", "El título es obligatorio");
       return;
     }
-
     setSaving(true);
     setErr(null);
     try {
@@ -664,16 +638,13 @@ export default function TripPlanFormScreen({
         cost: parseCost(actCostStr),
         currency: actCurrency,
       };
-
       if (isEdit) {
         await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
-
       navigation.goBack();
     } catch (error: any) {
-      console.error("Error saving activity:", error);
       setErr(error?.response?.data?.message || "No se pudo guardar la actividad");
       Alert.alert("Error", "No se pudo guardar la actividad");
     } finally {
@@ -686,13 +657,11 @@ export default function TripPlanFormScreen({
       Alert.alert("Error", "El título es obligatorio");
       return;
     }
-
     const amount = parseCost(expAmountStr);
     if (amount === null || amount <= 0) {
       Alert.alert("Error", "El importe debe ser mayor a 0");
       return;
     }
-
     setSaving(true);
     setErr(null);
     try {
@@ -706,16 +675,13 @@ export default function TripPlanFormScreen({
         notes: expNotes || null,
         metadata: { expenseCategory: expCategory },
       };
-
       if (isEdit) {
         await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
       } else {
         await api.post(`/trips/${tripId}/plan-items`, payload);
       }
-
       navigation.goBack();
     } catch (error: any) {
-      console.error("Error saving expense:", error);
       setErr(error?.response?.data?.message || "No se pudo guardar el gasto");
       Alert.alert("Error", "No se pudo guardar el gasto");
     } finally {
@@ -758,680 +724,440 @@ export default function TripPlanFormScreen({
 
   // ==================== RENDER ====================
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
-      {/* HEADER */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+  const dayLabel = (() => {
+    if (!presetDay) return null;
+    const d = new Date(`${presetDay}T00:00:00`);
+    if (isNaN(d.getTime())) return null;
+    const weekday = d.toLocaleDateString("es-ES", { weekday: "short" });
+    const dd = d.toLocaleDateString("es-ES", { day: "2-digit" });
+    const month = d.toLocaleDateString("es-ES", { month: "short" });
+    return `${weekday[0].toUpperCase()}${weekday.slice(1)} ${dd} ${month}`;
+  })();
+
+  const TYPE_CARDS = [
+    { key: "transport" as MainTab,     emoji: "✈️",  label: "Transporte"  },
+    { key: "accommodation" as MainTab, emoji: "🏨",  label: "Alojamiento" },
+    { key: "activity" as MainTab,      emoji: "🎭",  label: "Actividad"   },
+    { key: "expense" as MainTab,       emoji: "💰",  label: "Gasto"       },
+  ];
+
+  const FORM_LABELS: Record<MainTab, { title: string; saveLabel: string }> = {
+    transport:     { title: "Transporte",  saveLabel: "Guardar transporte"  },
+    accommodation: { title: "Alojamiento", saveLabel: "Guardar alojamiento" },
+    activity:      { title: "Actividad",   saveLabel: "Guardar actividad"   },
+    expense:       { title: "Gasto",       saveLabel: "Guardar gasto"       },
+  };
+
+  const TRANSPORT_TABS = [
+    { key: "flight" as TransportSubTab, label: "Vuelo",  emoji: "✈️" },
+    { key: "train"  as TransportSubTab, label: "Tren",   emoji: "🚂" },
+    { key: "bus"    as TransportSubTab, label: "Bus",    emoji: "🚌" },
+    { key: "car"    as TransportSubTab, label: "Coche",  emoji: "🚗" },
+    { key: "ferry"  as TransportSubTab, label: "Barco",  emoji: "⛴️" },
+  ];
+
+  const ACTIVITY_TYPES_EMOJI = [
+    { label: "Monumento",   value: TripPlanItemType.monument,   emoji: "🏛️" },
+    { label: "Museo",       value: TripPlanItemType.museum,     emoji: "🎨" },
+    { label: "Playa",       value: TripPlanItemType.beach,      emoji: "🏖️" },
+    { label: "Restaurante", value: TripPlanItemType.restaurant, emoji: "🍽️" },
+    { label: "Free Tour",   value: TripPlanItemType.free_tour,  emoji: "🚶" },
+    { label: "Concierto",   value: TripPlanItemType.concert,    emoji: "🎵" },
+    { label: "Compras",     value: TripPlanItemType.shopping,   emoji: "🛍️" },
+    { label: "Mirador",     value: TripPlanItemType.viewpoint,  emoji: "🔭" },
+    { label: "Otro",        value: TripPlanItemType.other,      emoji: "✨" },
+  ];
+
+  const EXPENSE_CATS_EMOJI = [
+    { label: "Transporte",  value: BudgetCategoryType.transport_local, emoji: "🚗" },
+    { label: "Alojamiento", value: BudgetCategoryType.accommodation,   emoji: "🏨" },
+    { label: "Comida",      value: BudgetCategoryType.food,            emoji: "🍽️" },
+    { label: "Actividades", value: BudgetCategoryType.activities,      emoji: "🎟️" },
+    { label: "Compras",     value: BudgetCategoryType.shopping,        emoji: "🛍️" },
+    { label: "Otro",        value: BudgetCategoryType.other,           emoji: "···" },
+  ];
+
+  // ── PICK STEP ──────────────────────────────────────────────────────────────
+  if (step === "pick") {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 24, fontWeight: "900", color: UI.text }}>Nuevo elemento</Text>
+            {dayLabel && (
+              <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary, marginTop: 3 }}>{dayLabel}</Text>
+            )}
+          </View>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: "white",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 12,
-              borderWidth: 1,
-              borderColor: UI.border,
-            }}
+            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
           >
-            <Ionicons name="close" size={20} color={UI.text} />
+            <Ionicons name="close" size={18} color={UI.text} />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: UI.text }}>
-              {isEdit ? "Editar elemento" : "Nuevo elemento"}
-            </Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: UI.muted, marginTop: 2 }}>
-              {mainTab === "transport" && "Añade transporte al viaje"}
-              {mainTab === "accommodation" && "Añade alojamiento al viaje"}
-              {mainTab === "activity" && "Añade una actividad al viaje"}
-              {mainTab === "expense" && "Registra un gasto del viaje"}
-            </Text>
-          </View>
         </View>
 
-        {/* MAIN TABS */}
-        <View style={{ flexDirection: "row", gap: 4 }}>
-          {[
-            { key: "transport" as MainTab, label: "Transporte", icon: "airplane-outline" },
-            { key: "accommodation" as MainTab, label: "Alojamiento", icon: "bed-outline" },
-            { key: "activity" as MainTab, label: "Actividad", icon: "sparkles-outline" },
-            { key: "expense" as MainTab, label: "Gasto", icon: "wallet-outline" },
-          ].map((tab) => {
-            const active = mainTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                onPress={() => setMainTab(tab.key)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderBottomWidth: 3,
-                  borderBottomColor: active ? UI.primary : "transparent",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons
-                  name={tab.icon as keyof typeof Ionicons.glyphMap}
-                  size={18}
-                  color={active ? UI.primary : UI.muted2}
-                  style={{ marginBottom: 4 }}
-                />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: active ? "800" : "600",
-                    color: active ? UI.primary : UI.muted,
-                  }}
+        <View style={{ paddingHorizontal: 20, gap: 12 }}>
+          {[TYPE_CARDS.slice(0, 2), TYPE_CARDS.slice(2, 4)].map((row, ri) => (
+            <View key={ri} style={{ flexDirection: "row", gap: 12 }}>
+              {row.map((card) => (
+                <Pressable
+                  key={card.key}
+                  onPress={() => { setMainTab(card.key); setStep("form"); }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    aspectRatio: 1,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: UI.border,
+                    backgroundColor: pressed ? "#F8FAFF" : "white",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 10,
+                    opacity: pressed ? 0.9 : 1,
+                  })}
                 >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text style={{ fontSize: 32 }}>{card.emoji}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: UI.text }}>{card.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ))}
         </View>
+
+        <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
+          <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted2, letterSpacing: 1, marginBottom: 10 }}>
+            RÁPIDO, SIN FORMULARIO
+          </Text>
+          <Pressable
+            style={({ pressed }) => ({
+              flexDirection: "row", alignItems: "center",
+              backgroundColor: pressed ? "#F8FAFC" : "white",
+              borderRadius: 16, borderWidth: 1, borderColor: UI.border,
+              padding: 14, gap: 12,
+            })}
+          >
+            <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 20 }}>🎫</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: UI.text }}>Foto de un ticket</Text>
+              <Text style={{ fontSize: 12, color: UI.muted, marginTop: 1 }}>Se categoriza y rellena solo</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── FORM STEP ──────────────────────────────────────────────────────────────
+  const formInfo = FORM_LABELS[mainTab];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+      {/* FORM HEADER */}
+      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: UI.border }}>
+        <TouchableOpacity
+          onPress={() => (isEdit ? navigation.goBack() : setStep("pick"))}
+          style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginRight: 4 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={UI.text} />
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontSize: 17, fontWeight: "800", color: UI.text }}>{formInfo.title}</Text>
+        {isEdit && (
+          <TouchableOpacity onPress={handleDelete} style={{ padding: 8 }}>
+            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* CONTENT */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* TRANSPORT TAB */}
+        {/* TRANSPORT */}
         {mainTab === "transport" && (
           <View>
-            {/* Transport Subtabs */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ flexDirection: "row", gap: 8, marginBottom: 16, marginTop: 8 }}
-            >
+            {/* Al destino / Local toggle */}
+            <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3, marginBottom: 20 }}>
               {([
-                { key: "flight" as TransportSubTab,  label: "Vuelo",   icon: "airplane-outline" as keyof typeof Ionicons.glyphMap },
-                { key: "train" as TransportSubTab,   label: "Tren",    icon: "train-outline"    as keyof typeof Ionicons.glyphMap },
-                { key: "bus" as TransportSubTab,     label: "Bus",     icon: "bus-outline"      as keyof typeof Ionicons.glyphMap },
-                { key: "car" as TransportSubTab,     label: "Coche",   icon: "car-sport-outline" as keyof typeof Ionicons.glyphMap },
-                { key: "ferry" as TransportSubTab,   label: "Barco",   emoji: "⛴️" },
-              ] as Array<{ key: TransportSubTab; label: string; icon?: keyof typeof Ionicons.glyphMap; emoji?: string }>).map((subtab) => (
-                <SmallChoice
-                  key={subtab.key}
-                  icon={subtab.icon}
-                  emoji={subtab.emoji}
-                  label={subtab.label}
-                  selected={transportTab === subtab.key}
-                  onPress={() => setTransportTab(subtab.key)}
-                />
-              ))}
+                { key: "principal" as TransportKind, label: "Al destino" },
+                { key: "local"     as TransportKind, label: "Local"      },
+              ]).map((k) => {
+                const active = transportKind === k.key;
+                return (
+                  <Pressable
+                    key={k.key}
+                    onPress={() => setTransportKind(k.key)}
+                    style={{ flex: 1, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: active ? colors.primary : "transparent" }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: active ? "white" : UI.muted }}>{k.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Transport sub-tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {TRANSPORT_TABS.map((t) => {
+                  const active = transportTab === t.key;
+                  return (
+                    <Pressable
+                      key={t.key}
+                      onPress={() => setTransportTab(t.key)}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: active ? colors.primary : "#F1F5F9" }}
+                    >
+                      <Text style={{ fontSize: 14 }}>{t.emoji}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "white" : UI.text }}>{t.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </ScrollView>
 
-            {/* Flight Form */}
-            {transportTab === "flight" && (
-              <View>
-                <Field
-                  label="AEROLÍNEA *"
-                  value={flightAirline}
-                  onChange={setFlightAirline}
-                  placeholder="Ej: Ryanair"
-                  autoCapitalize="words"
+            {/* DESDE → HASTA */}
+            <View style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 20, gap: 8 }}>
+              <View style={{ flex: 1, alignItems: "center" }}>
+                <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted, letterSpacing: 1, marginBottom: 6 }}>DESDE</Text>
+                <TextInput
+                  value={transportTab === "flight" ? flightFrom : from}
+                  onChangeText={transportTab === "flight" ? setFlightFrom : setFrom}
+                  placeholder={transportTab === "flight" ? "BCN" : "Origen"}
+                  placeholderTextColor={UI.muted2}
+                  autoCapitalize={transportTab === "flight" ? "characters" : "words"}
+                  maxLength={transportTab === "flight" ? 3 : undefined}
+                  style={{ fontSize: transportTab === "flight" ? 32 : 18, fontWeight: "900", color: UI.text, textAlign: "center", letterSpacing: transportTab === "flight" ? 2 : 0, borderBottomWidth: 2, borderBottomColor: UI.border, paddingBottom: 6, width: "100%" } as any}
                 />
-
-                <Row2>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="DESDE (IATA) *"
-                      value={flightFrom}
-                      onChange={setFlightFrom}
-                      placeholder="MAD"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="HASTA (IATA) *"
-                      value={flightTo}
-                      onChange={setFlightTo}
-                      placeholder="BCN"
-                    />
-                  </View>
-                </Row2>
-
-                <Row2>
-                  <View style={{ flex: 1 }}>
-                    <DateTimeField
-                      label="SALIDA"
-                      value={flightDep}
-                      onChange={(v) => { setFlightDep(v); if (!flightArr) setFlightArr(v); }}
-                      placeholder="Seleccionar"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <DateTimeField
-                      label="LLEGADA"
-                      value={flightArr}
-                      onChange={setFlightArr}
-                      placeholder="Seleccionar"
-                    />
-                  </View>
-                </Row2>
-
-                <Field
-                  label="NÚMERO DE VUELO"
-                  value={flightNumber}
-                  onChange={setFlightNumber}
-                  placeholder="Ej: FR1234"
-                />
-
-                <Row2>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="COSTE"
-                      value={costStr}
-                      onChange={setCostStr}
-                      placeholder="0,00"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="MONEDA"
-                      value={currency}
-                      onChange={setCurrency}
-                      placeholder="EUR"
-                    />
-                  </View>
-                </Row2>
               </View>
-            )}
-
-            {/* Train/Bus/Car Form */}
-            {transportTab !== "flight" && (
-              <View>
-                <Segmented
-                  value={transportKind}
-                  onChange={setTransportKind}
-                  items={[
-                    { key: "principal", label: "Al Destino" },
-                    { key: "local", label: "Local" },
-                  ]}
-                />
-
-                <Field
-                  label="COMPAÑÍA"
-                  value={company}
-                  onChange={setCompany}
-                  placeholder={`Ej: ${transportTab === "train" ? "Renfe" : transportTab === "bus" ? "Alsa" : transportTab === "ferry" ? "Grimaldi" : "Uber"}`}
-                  autoCapitalize="words"
-                />
-
-                <Row2>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="DESDE *"
-                      value={from}
-                      onChange={setFrom}
-                      placeholder="Madrid"
-                      autoCapitalize="words"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="HASTA *"
-                      value={to}
-                      onChange={setTo}
-                      placeholder="Barcelona"
-                      autoCapitalize="words"
-                    />
-                  </View>
-                </Row2>
-
-                <Row2>
-                  <View style={{ flex: 1 }}>
-                    <DateTimeField
-                      label="SALIDA"
-                      value={dep}
-                      onChange={(v) => { setDep(v); if (!arr) setArr(v); }}
-                      placeholder="Seleccionar"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <DateTimeField
-                      label="LLEGADA"
-                      value={arr}
-                      onChange={setArr}
-                      placeholder="Seleccionar"
-                    />
-                  </View>
-                </Row2>
-
-                <Field
-                  label="REFERENCIA RESERVA"
-                  value={bookingRef}
-                  onChange={setBookingRef}
-                  placeholder="Ej: ABC123"
-                />
-
-                <Row2>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="COSTE"
-                      value={costStr}
-                      onChange={setCostStr}
-                      placeholder="0,00"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Field
-                      label="MONEDA"
-                      value={currency}
-                      onChange={setCurrency}
-                      placeholder="EUR"
-                    />
-                  </View>
-                </Row2>
+              <View style={{ alignItems: "center", paddingBottom: 10 }}>
+                <Text style={{ fontSize: 18 }}>
+                  {transportTab === "flight" ? "✈️" : transportTab === "train" ? "🚂" : transportTab === "bus" ? "🚌" : transportTab === "ferry" ? "⛴️" : "🚗"}
+                </Text>
               </View>
-            )}
+              <View style={{ flex: 1, alignItems: "center" }}>
+                <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted, letterSpacing: 1, marginBottom: 6 }}>HASTA</Text>
+                <TextInput
+                  value={transportTab === "flight" ? flightTo : to}
+                  onChangeText={transportTab === "flight" ? setFlightTo : setTo}
+                  placeholder={transportTab === "flight" ? "PMO" : "Destino"}
+                  placeholderTextColor={UI.muted2}
+                  autoCapitalize={transportTab === "flight" ? "characters" : "words"}
+                  maxLength={transportTab === "flight" ? 3 : undefined}
+                  style={{ fontSize: transportTab === "flight" ? 32 : 18, fontWeight: "900", color: UI.text, textAlign: "center", letterSpacing: transportTab === "flight" ? 2 : 0, borderBottomWidth: 2, borderBottomColor: UI.border, paddingBottom: 6, width: "100%" } as any}
+                />
+              </View>
+            </View>
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <DateTimeField
+                  label="SALIDA"
+                  value={transportTab === "flight" ? flightDep : dep}
+                  onChange={transportTab === "flight" ? setFlightDep : setDep}
+                  placeholder="Fecha y hora"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <DateTimeField
+                  label="LLEGADA"
+                  value={transportTab === "flight" ? flightArr : arr}
+                  onChange={transportTab === "flight" ? setFlightArr : setArr}
+                  placeholder="Fecha y hora"
+                />
+              </View>
+            </Row2>
+
+            <Field
+              label={transportTab === "flight" ? "COMPAÑÍA / VUELO" : "COMPAÑÍA"}
+              value={transportTab === "flight" ? flightAirline : company}
+              onChange={transportTab === "flight" ? setFlightAirline : setCompany}
+              placeholder={
+                transportTab === "flight" ? "Ej: Vueling · VY6600" :
+                transportTab === "train"  ? "Ej: Renfe" :
+                transportTab === "ferry"  ? "Ej: Grimaldi" : "Ej: FlixBus"
+              }
+              autoCapitalize="words"
+            />
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <Field label="PRECIO" value={costStr} onChange={setCostStr} placeholder="0,00" />
+              </View>
+              <View style={{ flex: 1 }}>
+                {transportTab === "flight" ? (
+                  <Field label="Nº VUELO" value={flightNumber} onChange={setFlightNumber} placeholder="VY6600" />
+                ) : (
+                  <Field label="RESERVA" value={bookingRef} onChange={setBookingRef} placeholder="Ej: ABC123" />
+                )}
+              </View>
+            </Row2>
           </View>
         )}
 
-        {/* ACCOMMODATION TAB */}
+        {/* ACCOMMODATION */}
         {mainTab === "accommodation" && (
-          <View style={{ marginTop: 8 }}>
-            <Field
-              label="NOMBRE *"
-              value={accName}
-              onChange={setAccName}
-              placeholder="Ej: Hotel Ritz"
-              autoCapitalize="words"
-            />
+          <View>
+            <Pressable
+              style={{ borderWidth: 1.5, borderColor: UI.border, borderStyle: "dashed", borderRadius: 16, height: 100, alignItems: "center", justifyContent: "center", backgroundColor: "#FAFAFA", marginBottom: 20, gap: 6 }}
+            >
+              <Ionicons name="image-outline" size={24} color={UI.muted2} />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted2 }}>Añadir foto del alojamiento</Text>
+            </Pressable>
 
-            <Field
-              label="DIRECCIÓN"
-              value={accAddress}
-              onChange={setAccAddress}
-              placeholder="Calle Principal 123"
-              autoCapitalize="words"
-            />
+            <Field label="NOMBRE *" value={accName} onChange={setAccName} placeholder="Ej: Hotel Roma" autoCapitalize="words" />
+            <Field label="DIRECCIÓN" value={accAddress} onChange={setAccAddress} placeholder="Calle Principal 123, Ciudad" autoCapitalize="words" />
 
             <Row2>
               <View style={{ flex: 1 }}>
-                <Field
-                  label="CIUDAD"
-                  value={accCity}
-                  onChange={setAccCity}
-                  placeholder="Madrid"
-                  autoCapitalize="words"
-                />
+                <DateTimeField label="CHECK-IN" value={accCheckInAt} onChange={setAccCheckInAt} placeholder="Fecha" />
               </View>
               <View style={{ flex: 1 }}>
-                <Field
-                  label="PAÍS"
-                  value={accCountry}
-                  onChange={setAccCountry}
-                  placeholder="España"
-                  autoCapitalize="words"
-                />
+                <DateTimeField label="CHECK-OUT" value={accCheckOutAt} onChange={setAccCheckOutAt} placeholder="Fecha" />
               </View>
             </Row2>
 
             <Row2>
               <View style={{ flex: 1 }}>
-                <DateTimeField
-                  label="CHECK-IN"
-                  value={accCheckInAt}
-                  onChange={setAccCheckInAt}
-                  placeholder="Seleccionar"
-                />
+                <Field label="HUÉSPEDES" value={accGuestsStr} onChange={setAccGuestsStr} placeholder="2" />
               </View>
               <View style={{ flex: 1 }}>
-                <DateTimeField
-                  label="CHECK-OUT"
-                  value={accCheckOutAt}
-                  onChange={setAccCheckOutAt}
-                  placeholder="Seleccionar"
-                />
+                <Field label="HABITACIONES" value={accRoomsStr} onChange={setAccRoomsStr} placeholder="1" />
               </View>
             </Row2>
 
-            <Row2>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label="HUÉSPEDES"
-                  value={accGuestsStr}
-                  onChange={setAccGuestsStr}
-                  placeholder="2"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label="HABITACIONES"
-                  value={accRoomsStr}
-                  onChange={setAccRoomsStr}
-                  placeholder="1"
-                />
-              </View>
-            </Row2>
-
-            <Field
-              label="REFERENCIA RESERVA"
-              value={accBookingRef}
-              onChange={setAccBookingRef}
-              placeholder="Ej: BKG123456"
-            />
-
-            <Row2>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label="COSTE TOTAL"
-                  value={accCostStr}
-                  onChange={setAccCostStr}
-                  placeholder="0,00"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label="MONEDA"
-                  value={accCurrency}
-                  onChange={setAccCurrency}
-                  placeholder="EUR"
-                />
-              </View>
-            </Row2>
+            <Field label="COSTE TOTAL" value={accCostStr} onChange={setAccCostStr} placeholder="0,00 €" />
           </View>
         )}
 
-        {/* ACTIVITY TAB */}
+        {/* ACTIVITY */}
         {mainTab === "activity" && (
-          <View style={{ marginTop: 8 }}>
-            {/* Activity Type Selector */}
-            <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 10 }}>
-              TIPO DE ACTIVIDAD
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-              {ACTIVITY_TYPES.map((type) => {
-                const active = actType === type.value;
+          <View>
+            <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted, letterSpacing: 0.8, marginBottom: 10 }}>TIPO</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+              {ACTIVITY_TYPES_EMOJI.map((t) => {
+                const active = actType === t.value;
                 return (
-                  <TouchableOpacity
-                    key={type.value}
-                    onPress={() => setActType(type.value)}
-                    style={{
-                      width: "23%",
-                      aspectRatio: 1,
-                      borderRadius: 14,
-                      backgroundColor: active ? UI.primary : "white",
-                      borderWidth: 1,
-                      borderColor: active ? UI.primary : UI.border,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 8,
-                    }}
+                  <Pressable
+                    key={t.value}
+                    onPress={() => setActType(t.value)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: active ? colors.primary : "white", borderWidth: 1, borderColor: active ? colors.primary : UI.border }}
                   >
-                    <Ionicons
-                      name={type.icon}
-                      size={24}
-                      color={active ? "white" : UI.text}
-                      style={{ marginBottom: 4 }}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 10,
-                        fontWeight: "700",
-                        color: active ? "white" : UI.muted,
-                        textAlign: "center",
-                      }}
-                      numberOfLines={1}
-                    >
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
+                    <Text style={{ fontSize: 15 }}>{t.emoji}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : UI.text }}>{t.label}</Text>
+                  </Pressable>
                 );
               })}
             </View>
 
-            <Field
-              label="TÍTULO *"
-              value={actTitle}
-              onChange={setActTitle}
-              placeholder="Ej: Visita al Museo del Prado"
-              autoCapitalize="sentences"
-            />
-
-            <Field
-              label="UBICACIÓN"
-              value={actLocation}
-              onChange={setActLocation}
-              placeholder="Ej: Paseo del Prado, Madrid"
-              autoCapitalize="words"
-            />
+            <Field label="TÍTULO *" value={actTitle} onChange={setActTitle} placeholder="Ej: Tour al Etna" autoCapitalize="sentences" />
+            <Field label="UBICACIÓN" value={actLocation} onChange={setActLocation} placeholder="Ej: Etna, Sicilia" autoCapitalize="words" />
 
             <Row2>
               <View style={{ flex: 1 }}>
-                <DateTimeField
-                  label="INICIO"
-                  value={actStartAt}
-                  onChange={setActStartAt}
-                  placeholder="Seleccionar"
-                />
+                <DateTimeField label="INICIO" value={actStartAt} onChange={setActStartAt} placeholder="Fecha y hora" />
               </View>
               <View style={{ flex: 1 }}>
-                <DateTimeField
-                  label="FIN"
-                  value={actEndAt}
-                  onChange={setActEndAt}
-                  placeholder="Seleccionar"
-                />
+                <DateTimeField label="FIN" value={actEndAt} onChange={setActEndAt} placeholder="Opcional" />
               </View>
             </Row2>
 
-            <Field
-              label="NOTAS"
-              value={actNotes}
-              onChange={setActNotes}
-              placeholder="Añade detalles, horarios, recordatorios..."
-              multiline
-            />
-
             <Row2>
               <View style={{ flex: 1 }}>
-                <Field
-                  label="COSTE"
-                  value={actCostStr}
-                  onChange={setActCostStr}
-                  placeholder="0,00"
-                />
+                <Field label="COSTE" value={actCostStr} onChange={setActCostStr} placeholder="0,00" />
               </View>
               <View style={{ flex: 1 }}>
-                <Field
-                  label="MONEDA"
-                  value={actCurrency}
-                  onChange={setActCurrency}
-                  placeholder="EUR"
-                />
+                <Field label="MONEDA" value={actCurrency} onChange={setActCurrency} placeholder="EUR" />
               </View>
             </Row2>
           </View>
         )}
 
-        {/* EXPENSE TAB */}
+        {/* EXPENSE */}
         {mainTab === "expense" && (
-          <View style={{ marginTop: 8 }}>
-            <Field
-              label="CONCEPTO *"
-              value={expTitle}
-              onChange={setExpTitle}
-              placeholder="Ej: Cena en restaurante"
-              autoCapitalize="sentences"
-            />
-
-            <Row2>
-              <View style={{ flex: 2 }}>
-                <Field
-                  label="IMPORTE *"
+          <View>
+            <View style={{ alignItems: "center", paddingVertical: 24, marginBottom: 8 }}>
+              <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted, letterSpacing: 1, marginBottom: 10 }}>IMPORTE</Text>
+              <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+                <TextInput
                   value={expAmountStr}
-                  onChange={setExpAmountStr}
+                  onChangeText={setExpAmountStr}
                   placeholder="0,00"
+                  placeholderTextColor={UI.muted2}
                   keyboardType="decimal-pad"
+                  style={{ fontSize: 48, fontWeight: "900", color: UI.text, minWidth: 80, textAlign: "center" } as any}
                 />
+                <Text style={{ fontSize: 28, fontWeight: "700", color: UI.muted, marginLeft: 4 }}>€</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6 }}>
-                  MONEDA
+              {expCurrency !== "EUR" && expEurPreview !== null && (
+                <Text style={{ fontSize: 13, color: UI.muted, marginTop: 6 }}>
+                  ≈ {expEurPreview.toFixed(2).replace(".", ",")} EUR
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setCurrencyModalOpen(true)}
-                  style={{
-                    height: 44,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: UI.border,
-                    backgroundColor: "white",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingHorizontal: 12,
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: "700", color: UI.text }}>{expCurrency}</Text>
-                  <Ionicons name="chevron-down" size={14} color={UI.muted} />
-                </TouchableOpacity>
-              </View>
-            </Row2>
+              )}
+            </View>
 
-            {/* EUR preview when foreign currency */}
-            {expCurrency !== "EUR" && expEurPreview !== null && (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: -6, marginBottom: 12 }}>
-                <Ionicons name="swap-horizontal-outline" size={13} color={UI.muted} />
-                <Text style={{ fontSize: 12, color: UI.muted, fontWeight: "600" }}>
-                  ≈ {expEurPreview.toFixed(2).replace(".", ",")} €
-                </Text>
-              </View>
-            )}
+            <Field label="CONCEPTO *" value={expTitle} onChange={setExpTitle} placeholder="Ej: Cena en restaurante" autoCapitalize="sentences" />
 
-            {/* Category */}
-            <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 10 }}>
-              CATEGORÍA
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-              {EXPENSE_CATEGORIES.map((cat) => {
+            <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted, letterSpacing: 0.8, marginBottom: 10 }}>CATEGORÍA</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+              {EXPENSE_CATS_EMOJI.map((cat) => {
                 const active = expCategory === cat.value;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={cat.value}
                     onPress={() => setExpCategory(cat.value)}
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingVertical: 10,
-                      borderRadius: 12,
-                      backgroundColor: active ? UI.primary : "white",
-                      borderWidth: 1,
-                      borderColor: active ? UI.primary : UI.border,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: active ? colors.primary : "white", borderWidth: 1, borderColor: active ? colors.primary : UI.border }}
                   >
-                    <Ionicons
-                      name={cat.icon as any}
-                      size={16}
-                      color={active ? "white" : UI.text}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: active ? "white" : UI.text,
-                      }}
-                    >
-                      {cat.label}
-                    </Text>
-                  </TouchableOpacity>
+                    <Text style={{ fontSize: 15 }}>{cat.emoji}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : UI.text }}>{cat.label}</Text>
+                  </Pressable>
                 );
               })}
             </View>
 
-            <DateTimeField
-              label="FECHA"
-              value={expOccurredAt}
-              onChange={setExpOccurredAt}
-              placeholder="Seleccionar fecha"
-            />
-
-            <Field
-              label="NOTAS"
-              value={expNotes}
-              onChange={setExpNotes}
-              placeholder="Añade detalles adicionales..."
-              multiline
-            />
+            <DateTimeField label="FECHA" value={expOccurredAt} onChange={setExpOccurredAt} placeholder="Seleccionar fecha" />
           </View>
+        )}
+
+        {err && (
+          <Text style={{ fontSize: 12, color: "#EF4444", textAlign: "center", marginTop: 8 }}>{err}</Text>
         )}
       </ScrollView>
 
       {/* SAVE BUTTON */}
-      <View
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: 16,
-          paddingBottom: 24,
-          backgroundColor: "white",
-          borderTopWidth: 1,
-          borderTopColor: UI.border,
-          gap: 10,
-        }}
-      >
+      <View style={{ paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: UI.border }}>
         <PrimaryButton
-          label={isEdit ? "Guardar cambios" : "Crear elemento"}
+          label={isEdit ? "Guardar cambios" : formInfo.saveLabel}
           loading={saving}
           disabled={saving}
           onPress={handleSave}
         />
-        {isEdit && (
-          <TouchableOpacity
-            onPress={handleDelete}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              paddingVertical: 10,
-            }}
-          >
-            <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#EF4444" }}>Eliminar elemento</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* DELETE CONFIRMATION MODAL */}
+      {/* DELETE MODAL */}
       <Modal visible={showDeleteConfirm} transparent animationType="fade" onRequestClose={() => setShowDeleteConfirm(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} activeOpacity={1} onPress={() => setShowDeleteConfirm(false)} />
         <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "white", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24, paddingBottom: 40, gap: 8 }}>
           <Text style={{ fontSize: 17, fontWeight: "800", color: UI.text, textAlign: "center" }}>Eliminar elemento</Text>
-          <Text style={{ fontSize: 14, color: UI.muted, textAlign: "center", marginBottom: 8 }}>¿Seguro que quieres eliminar este elemento del viaje? Esta acción no se puede deshacer.</Text>
+          <Text style={{ fontSize: 14, color: UI.muted, textAlign: "center", marginBottom: 8 }}>
+            ¿Seguro que quieres eliminar este elemento? Esta acción no se puede deshacer.
+          </Text>
           <TouchableOpacity
             onPress={confirmDelete}
             disabled={deleting}
             style={{ backgroundColor: "#EF4444", borderRadius: 14, paddingVertical: 14, alignItems: "center", opacity: deleting ? 0.6 : 1 }}
           >
-            {deleting
-              ? <ActivityIndicator color="white" />
-              : <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Eliminar</Text>
-            }
+            {deleting ? <ActivityIndicator color="white" /> : <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Eliminar</Text>}
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowDeleteConfirm(false)}
-            style={{ paddingVertical: 12, alignItems: "center" }}
-          >
+          <TouchableOpacity onPress={() => setShowDeleteConfirm(false)} style={{ paddingVertical: 12, alignItems: "center" }}>
             <Text style={{ fontSize: 15, fontWeight: "700", color: UI.muted }}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       </Modal>
 
-      {/* CURRENCY PICKER MODAL */}
+      {/* CURRENCY MODAL */}
       <Modal visible={currencyModalOpen} transparent animationType="slide" onRequestClose={() => setCurrencyModalOpen(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)" }} activeOpacity={1} onPress={() => setCurrencyModalOpen(false)} />
         <View style={{ backgroundColor: "white", borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "70%", position: "absolute", bottom: 0, left: 0, right: 0 }}>
