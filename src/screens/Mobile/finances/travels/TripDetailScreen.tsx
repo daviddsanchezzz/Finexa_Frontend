@@ -811,18 +811,20 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
           return trip.coverImageUrl ? (
             Platform.OS === "web" ? (
-              <View
-                style={[
-                  { height: 300, overflow: "hidden" },
-                  {
-                    backgroundImage: `url('${trip.coverImageUrl}')`,
+              React.createElement(
+                "div",
+                {
+                  style: {
+                    height: 300,
+                    overflow: "hidden",
+                    backgroundImage: `url(${trip.coverImageUrl})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
-                  } as any,
-                ]}
-              >
-                {heroInner}
-              </View>
+                    position: "relative",
+                  },
+                },
+                heroInner
+              )
             ) : (
               <ImageBackground
                 source={{ uri: trip.coverImageUrl }}
