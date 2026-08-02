@@ -31,9 +31,27 @@ const TYPE_COLOR: Partial<Record<string, string>> = {
 };
 const DEFAULT_COLOR = "#A855F7";
 
-// ─── Module-level geocoding cache (persists across tab switches & navigation) ─
+// ─── Geocoding cache (memory + localStorage para persistir entre sesiones) ──────
 
 const GEO_CACHE = new Map<string, GeoPoint | null>();
+const CACHE_KEY = "spendly_geo_cache_v1";
+
+function loadPersistedCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return;
+    const entries = JSON.parse(raw) as [string, GeoPoint | null][];
+    for (const [k, v] of entries) GEO_CACHE.set(k, v);
+  } catch {}
+}
+
+function persistCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify([...GEO_CACHE.entries()]));
+  } catch {}
+}
+
+if (typeof localStorage !== "undefined") loadPersistedCache();
 
 async function geocode(query: string): Promise<GeoPoint | null> {
   if (GEO_CACHE.has(query)) return GEO_CACHE.get(query)!;
@@ -44,9 +62,11 @@ async function geocode(query: string): Promise<GeoPoint | null> {
     const data = await res.json();
     const result = data[0] ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
     GEO_CACHE.set(query, result);
+    persistCache();
     return result;
   } catch {
     GEO_CACHE.set(query, null);
+    persistCache();
     return null;
   }
 }
@@ -114,6 +134,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   });
   var bounds=L.latLngBounds(ms.map(function(m){return[m.lat,m.lng]}));
   map.fitBounds(bounds,{padding:[48,48],maxZoom:13});
+  setTimeout(function(){
+    map.invalidateSize();
+    map.fitBounds(bounds,{padding:[48,48],maxZoom:13});
+  },120);
 })();
 <\/script>
 </body></html>`;

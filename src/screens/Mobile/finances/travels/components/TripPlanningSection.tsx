@@ -910,33 +910,20 @@ export default function TripPlanningSectionRedesign({
         >
           {/* Mapa inline del día */}
           {dayItems.length > 0 && (
-            <View style={{
-              marginBottom: 14,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: UI.border,
-              overflow: "hidden",
-              backgroundColor: "white",
-            }}>
-              <View style={{
-                flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                paddingHorizontal: 12, paddingVertical: 8,
-                borderBottomWidth: 1, borderBottomColor: UI.border,
-              }}>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: UI.text }}>
-                  {isNoDate ? "Mapa" : `Mapa del día ${dayNumber}`}
-                </Text>
-                <Pressable
-                  onPress={() => setShowMap(true)}
-                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-                >
-                  <Ionicons name="expand-outline" size={12} color={colors.primary} />
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Pantalla completa</Text>
-                </Pressable>
-              </View>
-              <View style={{ height: 160 }}>
-                <TripMapView planItems={dayItems} />
-              </View>
+            <View style={{ marginBottom: 14, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 160 }}>
+              <TripMapView planItems={dayItems} />
+              <Pressable
+                onPress={() => setShowMap(true)}
+                style={{
+                  position: "absolute", top: 8, right: 8,
+                  width: 30, height: 30, borderRadius: 8,
+                  backgroundColor: "rgba(255,255,255,0.88)",
+                  alignItems: "center", justifyContent: "center",
+                  shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+                }}
+              >
+                <Ionicons name="expand-outline" size={15} color={UI.text} />
+              </Pressable>
             </View>
           )}
 
@@ -1001,17 +988,20 @@ export default function TripPlanningSectionRedesign({
         >
           {/* Full-trip map */}
           {planningItems.length > 0 && (
-            <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", backgroundColor: "white" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: UI.border }}>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: UI.text }}>Mapa del viaje</Text>
-                <Pressable onPress={() => setShowMap(true)} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Ionicons name="expand-outline" size={12} color={colors.primary} />
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Pantalla completa</Text>
-                </Pressable>
-              </View>
-              <View style={{ height: 200 }}>
-                <TripMapView planItems={planningItems} />
-              </View>
+            <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 200 }}>
+              <TripMapView planItems={planningItems} />
+              <Pressable
+                onPress={() => setShowMap(true)}
+                style={{
+                  position: "absolute", top: 8, right: 8,
+                  width: 30, height: 30, borderRadius: 8,
+                  backgroundColor: "rgba(255,255,255,0.88)",
+                  alignItems: "center", justifyContent: "center",
+                  shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+                }}
+              >
+                <Ionicons name="expand-outline" size={15} color={UI.text} />
+              </Pressable>
             </View>
           )}
 
