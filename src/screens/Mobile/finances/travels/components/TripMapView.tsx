@@ -200,6 +200,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState("");
   const [html, setHtml] = useState("");
+  const [mapVersion, setMapVersion] = useState(0);
 
   const locRequests = useMemo(() => {
     const seen = new Map<string, { color: string; displayName: string; itemTitle: string; order: number }[]>();
@@ -300,6 +301,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
 
       if (!cancelled) {
         setHtml(buildLeafletHTML(result));
+        setMapVersion(v => v + 1);
         setLoading(false);
       }
     })();
@@ -331,7 +333,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
           </Text>
         </View>
       )}
-      {html ? <MapFrame html={html} /> : null}
+      {html ? <MapFrame key={mapVersion} html={html} /> : null}
     </View>
   );
 }
