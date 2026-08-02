@@ -115,7 +115,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
     maxZoom:19,subdomains:'abcd'
   }).addTo(map);
-  L.control.zoom({position:'bottomright'}).addTo(map);
   if(rt.length>1){
     L.polyline(rt.map(function(p){return[p.lat,p.lng]}),{
       color:'#2563EB',weight:3,opacity:0.65,dashArray:'10,8',lineCap:'round',lineJoin:'round'
@@ -215,12 +214,25 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
       const color = TYPE_COLOR[item.type] ?? DEFAULT_COLOR;
       if (item.type === "accommodation") {
         const d = item.accommodationDetails;
-        // Build query: prefer full address, fall back to name → location → title
-        const q = (d ? [d.address, d.city, d.country].filter(Boolean).join(", ") || d.name || null : null)
-          ?? item.location
-          ?? null;
+        // Prefer city+country (cleaner query), fallback to full address or location
+        const q = (d
+          ? (d.city && d.country ? `${d.city}, ${d.country}` : null)
+            || [d.address, d.country].filter(Boolean).join(", ") || null
+            || d.name || null
+          : null) ?? item.location ?? null;
         const displayName = d?.city || d?.name || item.location || item.title;
         if (q) push(q, "#16A34A", displayName, item.title, idx);
+      } else if (item.type === "flight") {
+        // Origin: structured field or item.location
+        const origin = item.location ?? null;
+        if (origin) push(`${origin} airport`, color, origin, item.title, idx);
+        // Destination: parse FROM → TO from title when flightDetails is missing
+        const fd = item.flightDetails;
+        const destIata = fd?.toIata ?? (() => {
+          const m = item.title.match(/([A-Z]{3})\s*→\s*([A-Z]{3})/);
+          return m ? m[2] : null;
+        })();
+        if (destIata && destIata !== origin) push(`${destIata} airport`, color, destIata, item.title, idx + 0.5);
       } else if (item.location) {
         push(item.location, color, item.location, item.title, idx);
       }
