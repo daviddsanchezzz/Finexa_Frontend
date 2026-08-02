@@ -16,6 +16,7 @@ interface MapMarker extends GeoPoint {
   color: string;
   items: string[];
   order: number;
+  inBounds: boolean; // false for airports — keep out of fitBounds so map stays on destination
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
