@@ -187,7 +187,7 @@ function TasksPanel({
   onDeleteTask?: (taskId: number) => Promise<void> | void;
   onUpdateTask?: (taskId: number, patch: { title?: string; priority?: TaskPriority | null; dueDate?: string | null }) => Promise<void> | void;
 }) {
-  const [filter, setFilter] = useState<"all" | "to_do" | "done">("to_do");
+  const [showAll, setShowAll] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftPriority, setDraftPriority] = useState<TaskPriority | null>(null);
 
@@ -197,7 +197,6 @@ function TasksPanel({
 
   const filtered = useMemo(() => {
     const base = tasks.slice().sort((a, b) => {
-      // pending first, then by priority, then by dueDate
       if (a.status !== b.status) return a.status === "to_do" ? -1 : 1;
       const pa = a.priority ? PRIORITY_ORDER[a.priority] ?? 9 : 9;
       const pb = b.priority ? PRIORITY_ORDER[b.priority] ?? 9 : 9;
@@ -206,9 +205,8 @@ function TasksPanel({
       const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
       return da - db;
     });
-    if (filter === "all") return base;
-    return base.filter((t) => t.status === filter);
-  }, [tasks, filter]);
+    return showAll ? base : base.filter((t) => t.status === "to_do");
+  }, [tasks, showAll]);
 
   async function create() {
     const t = draft.trim();
@@ -241,12 +239,12 @@ function TasksPanel({
     <View style={{ gap: px(14) }}>
       {/* Header */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-          <Ionicons name="list-outline" size={px(18)} color={UI.text} />
-          <Text style={{ fontSize: fs(18), fontWeight: "800", color: UI.text }}>Tareas</Text>
-        </View>
-
-        <Segmented value={filter} onChange={setFilter} px={px} fs={fs} />
+        <Text style={{ fontSize: fs(16), fontWeight: "800", color: UI.text }}>Tareas</Text>
+        <Pressable onPress={() => setShowAll(v => !v)}>
+          <Text style={{ fontSize: fs(13), fontWeight: "700", color: colors.primary }}>
+            {showAll ? "Ver pendientes" : "Ver todas"}
+          </Text>
+        </Pressable>
       </View>
 
       {/* Caja */}
@@ -262,7 +260,7 @@ function TasksPanel({
         {filtered.length === 0 ? (
           <View style={{ padding: px(18) }}>
             <Text style={{ fontSize: fs(13), fontWeight: "700", color: UI.muted }}>
-              Aún no tienes tareas.
+              {showAll ? "Aún no tienes tareas." : "No hay tareas pendientes."}
             </Text>
           </View>
         ) : (

@@ -852,7 +852,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <Ionicons name="chevron-back" size={22} color="white" />
             </TouchableOpacity>
             <Text style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: "800", color: "white" }} numberOfLines={1}>
-              {trip.name}
+              {countryFlag ? `${countryFlag} ` : ""}{trip.name}
             </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
