@@ -880,25 +880,6 @@ export default function TripPlanningSectionRedesign({
               </Pressable>
             );
           })}
-          {/* Botón mapa — abre modal pantalla completa */}
-          <Pressable
-            onPress={() => setShowMap(true)}
-            style={{
-              marginLeft: 8,
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              borderRadius: 10,
-              backgroundColor: "rgba(37,99,235,0.08)",
-              borderWidth: 1,
-              borderColor: "rgba(37,99,235,0.22)",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <Ionicons name="map-outline" size={12} color={colors.primary} />
-            <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Mapa</Text>
-          </Pressable>
         </View>
 
         {/* Day pills — only in day mode */}
@@ -949,12 +930,54 @@ export default function TripPlanningSectionRedesign({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 18 }}
         >
-          <View style={{ marginTop: 4, marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-            <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
-              {isNoDate ? "Día: Sin fecha" : `Día ${dayNumber}:`}
-            </Text>
-            {!isNoDate && (
-              <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2 }}>{fmtDayTitle(selectedDay)}</Text>
+          {/* Mapa inline del día */}
+          {dayItems.length > 0 && (
+            <View style={{
+              marginBottom: 14,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: UI.border,
+              overflow: "hidden",
+              backgroundColor: "white",
+            }}>
+              <View style={{
+                flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                paddingHorizontal: 12, paddingVertical: 8,
+                borderBottomWidth: 1, borderBottomColor: UI.border,
+              }}>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: UI.text }}>
+                  {isNoDate ? "Mapa" : `Mapa del día ${dayNumber}`}
+                </Text>
+                <Pressable
+                  onPress={() => setShowMap(true)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
+                  <Ionicons name="expand-outline" size={12} color={colors.primary} />
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Pantalla completa</Text>
+                </Pressable>
+              </View>
+              <View style={{ height: 160 }}>
+                <TripMapView planItems={dayItems} />
+              </View>
+            </View>
+          )}
+
+          {/* Día header */}
+          <View style={{ marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            {dayItems.length > 0 ? (
+              <>
+                <Text style={{ fontSize: 13, fontWeight: "900", color: UI.muted, letterSpacing: 0.3 }}>
+                  {dayItems.length} {dayItems.length === 1 ? "ACTIVIDAD" : "ACTIVIDADES"}
+                  {(() => {
+                    const total = dayItems.reduce((s, it) => s + (it.cost ? Number(it.cost) : 0), 0);
+                    return total > 0 ? ` · ${total.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €` : "";
+                  })()}
+                </Text>
+              </>
+            ) : (
+              <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
+                {isNoDate ? "Sin fecha" : fmtDayTitle(selectedDay)}
+              </Text>
             )}
           </View>
 
@@ -992,35 +1015,6 @@ export default function TripPlanningSectionRedesign({
             </View>
           )}
 
-          <View style={{ marginTop: 12 }}>
-            {showQuickAdd ? (
-              <QuickAddForm
-                quickType={quickType}
-                setQuickType={setQuickType}
-                quickTitle={quickTitle}
-                setQuickTitle={setQuickTitle}
-                quickCostStr={quickCostStr}
-                setQuickCostStr={setQuickCostStr}
-                quickSaving={quickSaving}
-                onSave={handleQuickSave}
-                onFullForm={handleOpenFullForm}
-                onCancel={() => { setShowQuickAdd(false); setQuickTitle(""); }}
-              />
-            ) : (
-              <Pressable
-                onPress={() => handleCreate()}
-                style={({ pressed }) => ({
-                  flexDirection: "row", alignItems: "center", justifyContent: "center",
-                  paddingVertical: 9, borderRadius: 14,
-                  backgroundColor: "rgba(248,250,252,1)", borderWidth: 1, borderColor: UI.border,
-                  opacity: pressed ? 0.96 : 1,
-                })}
-              >
-                <Ionicons name="add-outline" size={16} color={UI.muted2} />
-                <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
-              </Pressable>
-            )}
-          </View>
         </ScrollView>
       )}
 
@@ -1075,19 +1069,6 @@ export default function TripPlanningSectionRedesign({
             );
           })}
 
-          {/* Add button at bottom */}
-          <Pressable
-            onPress={() => { setViewMode("day"); handleCreate(); }}
-            style={({ pressed }) => ({
-              flexDirection: "row", alignItems: "center", justifyContent: "center",
-              paddingVertical: 9, borderRadius: 14, marginTop: 4,
-              backgroundColor: "rgba(248,250,252,1)", borderWidth: 1, borderColor: UI.border,
-              opacity: pressed ? 0.96 : 1,
-            })}
-          >
-            <Ionicons name="add-outline" size={16} color={UI.muted2} />
-            <Text style={{ marginLeft: 7, fontSize: 12, fontWeight: "900", color: UI.muted2 }}>Añadir al planning</Text>
-          </Pressable>
         </ScrollView>
       )}
 

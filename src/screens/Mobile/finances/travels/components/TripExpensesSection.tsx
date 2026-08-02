@@ -494,58 +494,38 @@ const entries = useMemo(() => {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22, paddingTop: 10 }}>
-        {/* BUDGET GLOBAL BAR */}
-        {!!budget && budget > 0 && (() => {
-          const pct = Math.min(totalSpent / budget, 1);
-          const over = totalSpent > budget;
-          const barColor = over ? "#EF4444" : pct > 0.8 ? "#F59E0B" : "#22C55E";
-          return (
-            <View
-              style={{
-                marginBottom: 14,
-                backgroundColor: "white",
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: UI.border,
-                padding: 14,
-              }}
-            >
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                <Text style={{ fontSize: 12, fontWeight: "700", color: UI.text }}>
-                  {over ? "⚠️ Presupuesto superado" : "Presupuesto del viaje"}
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: over ? "#EF4444" : UI.text }}>
-                  {formatEuro(totalSpent)} / {formatEuro(budget)}
-                </Text>
-              </View>
-              <View style={{ height: 8, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.2)" }}>
-                <View style={{ height: 8, borderRadius: 99, backgroundColor: barColor, width: `${Math.round(pct * 100)}%` }} />
-              </View>
-              <Text style={{ marginTop: 6, fontSize: 11, color: UI.muted2, fontWeight: "600" }}>
-                {over
-                  ? `${formatEuro(totalSpent - budget)} por encima del presupuesto`
-                  : `Queda ${formatEuro(budget - totalSpent)} · ${Math.round(pct * 100)}% usado`}
-              </Text>
-            </View>
-          );
-        })()}
-
-        {/* CATEGORÍAS — siempre visible, clicable para filtrar */}
+        {/* TOTAL GASTADO — hero full-width */}
         {visibleKpis.length > 0 && (
-          <View style={{ marginBottom: 14 }}>
-            {/* Total + clear filter */}
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <View>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted }}>Total gastado</Text>
-                <Text style={{ fontSize: 20, fontWeight: "900", color: UI.text }}>{formatEuro(totalSpent)}</Text>
-              </View>
-              {cat && (
-                <Pressable onPress={() => setCat(null)}
-                  style={({ pressed }) => ({ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.14)", opacity: pressed ? 0.8 : 1 })}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted }}>Ver todos</Text>
-                </Pressable>
-              )}
-            </View>
+          <View style={{
+            backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border,
+            paddingHorizontal: 16, paddingVertical: 14, marginBottom: 18,
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted, marginBottom: 2 }}>Total gastado</Text>
+            <Text style={{ fontSize: 30, fontWeight: "900", color: UI.text, letterSpacing: -0.5 }}>{formatEuro(totalSpent)}</Text>
+            {!!budget && budget > 0 && (() => {
+              const pct = Math.min(totalSpent / budget, 1);
+              const over = totalSpent > budget;
+              const barColor = over ? "#EF4444" : pct > 0.8 ? "#F59E0B" : "#22C55E";
+              return (
+                <View style={{ marginTop: 10 }}>
+                  <View style={{ height: 5, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)" }}>
+                    <View style={{ height: 5, borderRadius: 99, backgroundColor: barColor, width: `${Math.round(pct * 100)}%` }} />
+                  </View>
+                  <Text style={{ marginTop: 5, fontSize: 11, color: over ? "#EF4444" : UI.muted2, fontWeight: "700" }}>
+                    {over
+                      ? `${formatEuro(totalSpent - budget)} por encima · presupuesto ${formatEuro(budget)}`
+                      : `Queda ${formatEuro(budget - totalSpent)} de ${formatEuro(budget)}`}
+                  </Text>
+                </View>
+              );
+            })()}
+          </View>
+        )}
+
+        {/* CATEGORÍAS — clicables para filtrar */}
+        {visibleKpis.length > 0 && (
+          <View style={{ marginBottom: 18 }}>
+            <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text, marginBottom: 8 }}>Gastos por categoría</Text>
 
             <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden" }}>
               {[...visibleKpis]
@@ -588,11 +568,17 @@ const entries = useMemo(() => {
         {/* ITEMS filtrados */}
         {filtered.length > 0 && (
           <View style={{ marginBottom: 12 }}>
-            {cat && (
-              <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 }}>
-                {BUDGET_DEFS.find(d => d.key === cat)?.label.toUpperCase()}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>
+                {cat ? (BUDGET_DEFS.find(d => d.key === cat)?.label ?? "Gastos") : "Todos los gastos"}
               </Text>
-            )}
+              {cat && (
+                <Pressable onPress={() => setCat(null)}
+                  style={({ pressed }) => ({ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.14)", opacity: pressed ? 0.8 : 1 })}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted }}>Ver todos</Text>
+                </Pressable>
+              )}
+            </View>
             <View style={{ backgroundColor: UI.card, borderRadius: 18, borderWidth: 1, borderColor: UI.border, paddingVertical: 6 }}>
               {filtered.map((it, idx) => (
                 <View key={it.id ?? idx}>

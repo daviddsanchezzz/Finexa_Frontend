@@ -952,7 +952,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
         </View>
       </ScrollView>
 
-      {/* Botón flotante Añadir actividad */}
+      {/* Botón flotante */}
       <View style={{
         position: "absolute", bottom: 24, right: 20,
         flexDirection: "row", gap: 10, alignItems: "center",
@@ -961,16 +961,16 @@ export default function TripDetailScreen({ route, navigation }: any) {
           onPress={() => navigation.navigate("TripPlanForm", { tripId, presetDay: "" })}
           activeOpacity={0.9}
           style={{
-            flexDirection: "row", alignItems: "center", gap: 8,
+            width: 52, height: 52,
             backgroundColor: colors.primary,
-            borderRadius: 16, paddingVertical: 12, paddingHorizontal: 18,
+            borderRadius: 26,
+            alignItems: "center", justifyContent: "center",
             shadowColor: colors.primary, shadowOpacity: 0.35,
             shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
             elevation: 6,
           }}
         >
-          <Ionicons name="add" size={18} color="white" />
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
+          <Ionicons name="add" size={26} color="white" />
         </TouchableOpacity>
 
         <TouchableOpacity
