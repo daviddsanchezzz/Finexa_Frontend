@@ -612,7 +612,7 @@ function ActivityCard({
 
       {/* Right col: hora */}
       {!!time && (
-        <View style={{ alignItems: "flex-end", paddingLeft: 6, minWidth: 48 }}>
+        <View style={{ alignItems: "flex-end", paddingLeft: 6, minWidth: 48, alignSelf: "center" }}>
           <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }}>
             {time}
           </Text>
