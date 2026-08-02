@@ -86,6 +86,8 @@ interface TripPlanningSectionProps {
   planItems: TripPlanItem[];
   onRefresh?: () => void;
   onDeleteItem?: (id: number) => void;
+  viewMode?: "day" | "summary";
+  onChangeViewMode?: (mode: "day" | "summary") => void;
 }
 
 const UI = {
@@ -546,8 +548,6 @@ function ActivityCard({
           height: 34,
           borderRadius: 12,
           backgroundColor: meta.badgeBg,
-          borderWidth: 1,
-          borderColor: meta.badgeBorder,
           alignItems: "center",
           justifyContent: "center",
           marginTop: 1,
@@ -597,25 +597,25 @@ function ActivityCard({
             {item.notes}
           </Text>
         )}
+
+        {item.type !== "flight" && !!item.location && (
+          <TouchableOpacity
+            onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
+            activeOpacity={0.7}
+            style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4, alignSelf: "flex-start" }}
+          >
+            <Text style={{ fontSize: 10 }}>📍</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }}>Ver ubicación</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Right col: hora + pin */}
-      {(!!time || !!item.location) && (
-        <View style={{ alignItems: "flex-end", justifyContent: "space-between", paddingLeft: 6, minWidth: 52, alignSelf: "stretch" }}>
-          {!!time && (
-            <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted }}>
-              {time}
-            </Text>
-          )}
-          {item.type !== "flight" && !!item.location && (
-            <TouchableOpacity
-              onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.location!)}`); }}
-              activeOpacity={0.7}
-              style={{ marginTop: "auto" as any }}
-            >
-              <Ionicons name="location-outline" size={14} color={colors.primary} />
-            </TouchableOpacity>
-          )}
+      {/* Right col: hora */}
+      {!!time && (
+        <View style={{ alignItems: "flex-end", paddingLeft: 6, minWidth: 48 }}>
+          <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }}>
+            {time}
+          </Text>
         </View>
       )}
     </Pressable>
@@ -627,6 +627,8 @@ export default function TripPlanningSectionRedesign({
   trip,
   planItems,
   onRefresh,
+  viewMode: viewModeProp,
+  onChangeViewMode,
 }: TripPlanningSectionProps) {
   const navigation = useNavigation<any>();
   const { height } = useWindowDimensions();
@@ -743,7 +745,9 @@ export default function TripPlanningSectionRedesign({
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCostStr, setQuickCostStr] = useState("");
   const [quickSaving, setQuickSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<"day" | "summary">("day");
+  const [internalViewMode, setInternalViewMode] = useState<"day" | "summary">("day");
+  const viewMode = viewModeProp ?? internalViewMode;
+  const setViewMode = (m: "day" | "summary") => { setInternalViewMode(m); onChangeViewMode?.(m); };
   const [showMap, setShowMap] = useState(false);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -854,41 +858,8 @@ export default function TripPlanningSectionRedesign({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* ── Top bar: toggle + (day mode) day pills ── */}
+      {/* ── Top bar: day pills (day mode only) ── */}
       <View style={{ paddingHorizontal: 0, paddingTop: 6, paddingBottom: 4 }}>
-        {/* View mode toggle */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: viewMode === "day" ? 8 : 4 }}>
-          <View style={{ flexDirection: "row", backgroundColor: "rgba(15,23,42,0.06)", borderRadius: 10, padding: 3, gap: 2 }}>
-            {(["day", "summary"] as const).map((mode) => {
-              const active = viewMode === mode;
-              return (
-                <Pressable
-                  key={mode}
-                  onPress={() => setViewMode(mode)}
-                  style={{
-                    flexDirection: "row", alignItems: "center", gap: 5,
-                    paddingHorizontal: 10, paddingVertical: 5,
-                    borderRadius: 8,
-                    backgroundColor: active ? "white" : "transparent",
-                    shadowColor: active ? "#000" : "transparent",
-                    shadowOpacity: 0.07, shadowRadius: 3,
-                    shadowOffset: { width: 0, height: 1 },
-                  }}
-                >
-                  <Ionicons
-                    name={mode === "day" ? "calendar-outline" : "list-outline"}
-                    size={12}
-                    color={active ? UI.text : UI.muted2}
-                  />
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: active ? UI.text : UI.muted2 }}>
-                    {mode === "day" ? "Por día" : "Resumen"}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
         {/* Day pills — only in day mode */}
         {viewMode === "day" && (
           <ScrollView
@@ -970,28 +941,27 @@ export default function TripPlanningSectionRedesign({
           )}
 
           {/* Día header */}
-          <View style={{ marginBottom: 10, flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-            {dayItems.length > 0 ? (
-              <>
-                <Text style={{ fontSize: 13, fontWeight: "900", color: UI.muted, letterSpacing: 0.3 }}>
-                  {dayItems.length} {dayItems.length === 1 ? "ACTIVIDAD" : "ACTIVIDADES"}
-                  {(() => {
-                    const total = dayItems.reduce((s, it) => s + (it.cost ? Number(it.cost) : 0), 0);
-                    return total > 0 ? ` · ${total.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €` : "";
-                  })()}
-                </Text>
-              </>
-            ) : (
-              <Text style={{ fontSize: 16, fontWeight: "900", color: UI.text }}>
-                {isNoDate ? "Sin fecha" : fmtDayTitle(selectedDay)}
-              </Text>
-            )}
+          <View style={{ marginBottom: 10 }}>
+            <Text style={{ fontSize: 13, fontWeight: "900", color: UI.muted, letterSpacing: 0.3 }}>
+              {isNoDate ? "SIN FECHA" : `DÍA ${dayNumber} · ${fmtDayTitle(selectedDay).toUpperCase()}`}
+            </Text>
           </View>
 
           {dayItems.length === 0 ? (
             <EmptyDayCard onPress={() => handleCreate(isNoDate ? "" : selectedDay)} />
           ) : (
-            <View>
+            <View style={{ position: "relative" }}>
+              {/* Continuous timeline line */}
+              {dayItems.length > 1 && (
+                <View style={{
+                  position: "absolute",
+                  left: 10,
+                  top: 18,
+                  bottom: 18,
+                  width: 2,
+                  backgroundColor: UI.rail,
+                }} />
+              )}
               {dayItems.map((it, idx) => {
                 const isLast = idx === dayItems.length - 1;
                 const bMeta = TYPE_META[it.type];
@@ -1002,16 +972,14 @@ export default function TripPlanningSectionRedesign({
 
                 return (
                   <View key={it.id} style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                    {/* Timeline dot + connecting line */}
+                    {/* Timeline dot */}
                     <View style={{ width: 22, alignItems: "center", paddingTop: 13 }}>
                       <View style={{
                         width: 10, height: 10, borderRadius: 99,
                         backgroundColor: dotAccent,
                         borderWidth: 2, borderColor: "#F6F8FC",
+                        zIndex: 1,
                       }} />
-                      {!isLast && (
-                        <View style={{ width: 2, flex: 1, minHeight: 18, backgroundColor: UI.rail, marginTop: 3 }} />
-                      )}
                     </View>
                     <View style={{ flex: 1, marginLeft: 6, marginBottom: isLast ? 0 : 10 }}>
                       <ActivityCard item={it} currentDay={selectedDay} onPress={() => handleEdit(it)} />
@@ -1031,6 +999,22 @@ export default function TripPlanningSectionRedesign({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 32 }}
         >
+          {/* Full-trip map */}
+          {planningItems.length > 0 && (
+            <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", backgroundColor: "white" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: UI.border }}>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: UI.text }}>Mapa del viaje</Text>
+                <Pressable onPress={() => setShowMap(true)} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Ionicons name="expand-outline" size={12} color={colors.primary} />
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Pantalla completa</Text>
+                </Pressable>
+              </View>
+              <View style={{ height: 200 }}>
+                <TripMapView planItems={planningItems} />
+              </View>
+            </View>
+          )}
+
           {dayKeys.map((d, idx) => {
             const noDate = d === NO_DATE;
             const items = byDate[d] ?? [];

@@ -321,6 +321,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const [trip, setTrip] = useState<TripFromApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TripTab>("summary");
+  const [planViewMode, setPlanViewMode] = useState<"day" | "summary">("day");
 
   // Exportar PDF
   const [exportModalVisible, setExportModalVisible] = useState(false);
@@ -854,12 +855,37 @@ export default function TripDetailScreen({ route, navigation }: any) {
             <Text style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: "800", color: "white" }} numberOfLines={1}>
               {countryFlag ? `${countryFlag} ` : ""}{trip.name}
             </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
-              style={{ width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }}
-            >
-              <Ionicons name="ellipsis-horizontal" size={18} color="white" />
-            </TouchableOpacity>
+            {tab === "planning" ? (
+              <View style={{ flexDirection: "row", gap: 2 }}>
+                {(["day", "summary"] as const).map((mode) => {
+                  const active = planViewMode === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => setPlanViewMode(mode)}
+                      style={{
+                        width: 34, height: 34, borderRadius: 17,
+                        alignItems: "center", justifyContent: "center",
+                        backgroundColor: active ? "rgba(255,255,255,0.22)" : "transparent",
+                      }}
+                    >
+                      <Ionicons
+                        name={mode === "day" ? "calendar-outline" : "list-outline"}
+                        size={18}
+                        color={active ? "white" : "rgba(255,255,255,0.5)"}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+                style={{ width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color="white" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -943,6 +969,8 @@ export default function TripDetailScreen({ route, navigation }: any) {
               tripId={trip.id}
               planItems={planItems as any}
               onRefresh={fetchTrip}
+              viewMode={planViewMode}
+              onChangeViewMode={setPlanViewMode}
             />
           )}
 
