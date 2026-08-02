@@ -132,11 +132,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
       .addTo(map);
   });
   var bounds=L.latLngBounds(ms.map(function(m){return[m.lat,m.lng]}));
-  map.fitBounds(bounds,{padding:[48,48],maxZoom:13});
-  setTimeout(function(){
-    map.invalidateSize();
-    map.fitBounds(bounds,{padding:[48,48],maxZoom:13});
-  },250);
+  function fit(){map.invalidateSize();map.fitBounds(bounds,{padding:[48,48],maxZoom:13});}
+  fit();
+  [80,200,500,1000].forEach(function(d){setTimeout(fit,d);});
 })();
 <\/script>
 </body></html>`;
