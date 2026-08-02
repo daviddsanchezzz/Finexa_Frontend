@@ -373,18 +373,33 @@ export default function TripPlanFormScreen({
 
   // ==================== FLIGHT STATE ====================
 
+  // Parse "VY6600 · BCN → PMO" or "BCN → PMO" as fallback when flightDetails fields are missing
+  const parsedFlightTitle = (() => {
+    const t: string = planItem?.title || "";
+    const withNum = t.match(/^([A-Z0-9]{2,8})\s*[·•]\s*([A-Z]{3})\s*[→>-]+\s*([A-Z]{3})/);
+    if (withNum) return { num: withNum[1], from: withNum[2], to: withNum[3] };
+    const simple = t.match(/([A-Z]{3})\s*[→>-]+\s*([A-Z]{3})/);
+    if (simple) return { num: "", from: simple[1], to: simple[2] };
+    return { num: "", from: "", to: "" };
+  })();
+
+  const fd = planItem?.flightDetails;
   const [flightEntryMode, setFlightEntryMode] = useState<FlightEntryMode>("manual");
-  const [flightNumber, setFlightNumber] = useState(planItem?.flightDetails?.flightNumber || "");
+  const [flightNumber, setFlightNumber] = useState(
+    (fd as any)?.flightNumberRaw || (fd as any)?.flightNumber || parsedFlightTitle.num
+  );
   const [flightDate, setFlightDate] = useState<Date | null>(null);
-  const [flightAirline, setFlightAirline] = useState(planItem?.flightDetails?.airlineName || "");
-  const [flightFrom, setFlightFrom] = useState(planItem?.flightDetails?.fromIata || "");
-  const [flightTo, setFlightTo] = useState(planItem?.flightDetails?.toIata || "");
-  const [flightDep, setFlightDep] = useState<Date | null>(
-    planItem?.flightDetails?.depAt ? new Date(planItem.flightDetails.depAt) : null
-  );
-  const [flightArr, setFlightArr] = useState<Date | null>(
-    planItem?.flightDetails?.arrAt ? new Date(planItem.flightDetails.arrAt) : null
-  );
+  const [flightAirline, setFlightAirline] = useState(fd?.airlineName || "");
+  const [flightFrom, setFlightFrom] = useState(fd?.fromIata || planItem?.location || parsedFlightTitle.from);
+  const [flightTo, setFlightTo] = useState(fd?.toIata || parsedFlightTitle.to);
+  const [flightDep, setFlightDep] = useState<Date | null>(() => {
+    const raw = (fd as any)?.depAt || planItem?.startAt || (planItem as any)?.startTime || null;
+    return raw ? new Date(raw) : null;
+  });
+  const [flightArr, setFlightArr] = useState<Date | null>(() => {
+    const raw = (fd as any)?.arrAt || planItem?.endAt || (planItem as any)?.endTime || null;
+    return raw ? new Date(raw) : null;
+  });
 
   // ==================== TRANSPORT STATE (train/bus/car) ====================
 
