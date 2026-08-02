@@ -34,7 +34,7 @@ const DEFAULT_COLOR = "#A855F7";
 // ─── Geocoding cache (memory + localStorage para persistir entre sesiones) ──────
 
 const GEO_CACHE = new Map<string, GeoPoint | null>();
-const CACHE_KEY = "spendly_geo_cache_v1";
+const CACHE_KEY = "spendly_geo_cache_v2";
 
 function loadPersistedCache() {
   try {
@@ -216,8 +216,8 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
         const d = item.accommodationDetails;
         // Prefer city+country (cleaner query), fallback to full address or location
         const q = (d
-          ? (d.city && d.country ? `${d.city}, ${d.country}` : null)
-            || [d.address, d.country].filter(Boolean).join(", ") || null
+          ? d.address || null
+            || (d.city && d.country ? `${d.city}, ${d.country}` : null)
             || d.name || null
           : null) ?? item.location ?? null;
         const displayName = d?.city || d?.name || item.location || item.title;
