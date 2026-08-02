@@ -569,37 +569,46 @@ export default function TripsHomeScreen({ navigation }: any) {
               ))}
             </View>
             <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 6, paddingHorizontal: 4, marginBottom: 16 }}>
-              {Array.from({ length: calCells.length / 7 }, (_, weekIdx) => {
-                const week = calCells.slice(weekIdx * 7, weekIdx * 7 + 7);
-                const laneEnds: number[] = [];
-                const weekBars: Array<{
-                  trip: TripUI; color: string;
-                  startCol: number; endCol: number;
-                  lane: number;
-                }> = [];
-                for (const trip of calTrips) {
-                  const tripStart = new Date(trip.startDate!);
-                  const tripEnd = trip.endDate && isValidISODate(trip.endDate) ? new Date(trip.endDate) : new Date(trip.startDate!);
-                  let startCol = -1, endCol = -1;
-                  for (let col = 0; col < 7; col++) {
-                    const day = week[col];
-                    if (day == null) continue;
-                    const cellDate = new Date(calYear, calMonth, day);
-                    const cellEnd  = new Date(calYear, calMonth, day, 23, 59, 59);
-                    if (tripStart <= cellEnd && tripEnd >= cellDate) {
-                      if (startCol === -1) startCol = col;
-                      endCol = col;
+              {(() => {
+                type Bar = { trip: TripUI; color: string; startCol: number; endCol: number; lane: number };
+                const numWeeks = calCells.length / 7;
+
+                // Pre-calcular barras de todas las semanas
+                const allWeekBars: Bar[][] = Array.from({ length: numWeeks }, (_, weekIdx) => {
+                  const week = calCells.slice(weekIdx * 7, weekIdx * 7 + 7);
+                  const laneEnds: number[] = [];
+                  const bars: Bar[] = [];
+                  for (const trip of calTrips) {
+                    const tripStart = new Date(trip.startDate!);
+                    const tripEnd = trip.endDate && isValidISODate(trip.endDate) ? new Date(trip.endDate) : new Date(trip.startDate!);
+                    let startCol = -1, endCol = -1;
+                    for (let col = 0; col < 7; col++) {
+                      const day = week[col];
+                      if (day == null) continue;
+                      const cellDate = new Date(calYear, calMonth, day);
+                      const cellEnd  = new Date(calYear, calMonth, day, 23, 59, 59);
+                      if (tripStart <= cellEnd && tripEnd >= cellDate) {
+                        if (startCol === -1) startCol = col;
+                        endCol = col;
+                      }
                     }
+                    if (startCol === -1) continue;
+                    let lane = 0;
+                    while (lane < laneEnds.length && laneEnds[lane] >= startCol) lane++;
+                    laneEnds[lane] = endCol;
+                    if (lane < 3) bars.push({ trip, color: calTripColors.get(trip.id) ?? "#2563EB", startCol, endCol, lane });
                   }
-                  if (startCol === -1) continue;
-                  let lane = 0;
-                  while (lane < laneEnds.length && laneEnds[lane] >= startCol) lane++;
-                  laneEnds[lane] = endCol;
-                  if (lane < 3) weekBars.push({ trip, color: calTripColors.get(trip.id) ?? "#2563EB", startCol, endCol, lane });
-                }
-                const maxLane = weekBars.length > 0 ? Math.max(...weekBars.map(b => b.lane)) : -1;
+                  return bars;
+                });
+
+                // Altura uniforme para todas las semanas
+                const globalMaxLane = allWeekBars.flat().reduce((m, b) => Math.max(m, b.lane), -1);
                 const todayObj = new Date();
-                return (
+
+                return Array.from({ length: numWeeks }, (_, weekIdx) => {
+                  const week = calCells.slice(weekIdx * 7, weekIdx * 7 + 7);
+                  const weekBars = allWeekBars[weekIdx];
+                  return (
                   <View key={weekIdx} style={{ marginBottom: 2 }}>
                     <View style={{ flexDirection: "row" }}>
                       {week.map((day, dayIdx) => {
@@ -633,7 +642,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                         );
                       })}
                     </View>
-                    {Array.from({ length: maxLane + 1 }, (_, lane) => {
+                    {Array.from({ length: globalMaxLane + 1 }, (_, lane) => {
                       const laneBars = weekBars.filter(b => b.lane === lane);
                       return (
                         <View key={lane} style={{ flexDirection: "row", height: 16, marginBottom: 1 }}>
@@ -669,8 +678,9 @@ export default function TripsHomeScreen({ navigation }: any) {
                       );
                     })}
                   </View>
-                );
-              })}
+                  );
+                });
+              })()}
             </View>
             {tripsInCalMonth.length > 0 && (
               <View style={{ flexDirection: "row", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
