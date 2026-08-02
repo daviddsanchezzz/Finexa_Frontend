@@ -99,181 +99,61 @@ const UI = {
 };
 
 type TypeMeta = {
-  icon: keyof typeof Ionicons.glyphMap;
+  emoji: string;
   accent: string;
   badgeBg: string;
   badgeBorder: string;
 };
 
 const TYPE_META: Partial<Record<TripPlanItemType, TypeMeta>> = {
-  flight: {
-    icon: "airplane-outline",
-    accent: "#2563EB",
-    badgeBg: "rgba(37,99,235,0.10)",
-    badgeBorder: "rgba(37,99,235,0.25)",
-  },
-  accommodation: {
-    icon: "bed-outline",
-    accent: "#16A34A",
-    badgeBg: "rgba(22,163,74,0.10)",
-    badgeBorder: "rgba(22,163,74,0.25)",
-  },
-  transport_destination: {
-    icon: "bus-outline",
-    accent: "#0EA5E9",
-    badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.25)",
-  },
-  transport_local: {
-    icon: "bus-outline",
-    accent: "#0EA5E9",
-    badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.25)",
-  },
-  transport: {
-    icon: "bus-outline",
-    accent: "#0EA5E9",
-    badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.25)",
-  },
-  taxi: {
-    icon: "car-sport-outline",
-    accent: "#0EA5E9",
-    badgeBg: "rgba(14,165,233,0.10)",
-    badgeBorder: "rgba(14,165,233,0.25)",
-  },
-  museum: {
-    icon: "library-outline",
-    accent: "#A855F7",
-    badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.25)",
-  },
-  monument: {
-    icon: "business-outline",
-    accent: "#A855F7",
-    badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.25)",
-  },
-  viewpoint: {
-    icon: "eye-outline",
-    accent: "#A855F7",
-    badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.25)",
-  },
-  free_tour: {
-    icon: "walk-outline",
-    accent: "#A855F7",
-    badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.25)",
-  },
-  guided_tour: {
-    icon: "map-outline",
-    accent: "#A855F7",
-    badgeBg: "rgba(168,85,247,0.10)",
-    badgeBorder: "rgba(168,85,247,0.25)",
-  },
-  concert: {
-    icon: "musical-notes-outline",
-    accent: "#F97316",
-    badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.25)",
-  },
-  sport: {
-    icon: "football-outline",
-    accent: "#F97316",
-    badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.25)",
-  },
-  bar_party: {
-    icon: "wine-outline",
-    accent: "#F97316",
-    badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.25)",
-  },
-  nightlife: {
-    icon: "moon-outline",
-    accent: "#F97316",
-    badgeBg: "rgba(249,115,22,0.10)",
-    badgeBorder: "rgba(249,115,22,0.25)",
-  },
-  beach: {
-    icon: "sunny-outline",
-    accent: "#EAB308",
-    badgeBg: "rgba(234,179,8,0.10)",
-    badgeBorder: "rgba(234,179,8,0.25)",
-  },
-  hike: {
-    icon: "trail-sign-outline",
-    accent: "#22C55E",
-    badgeBg: "rgba(34,197,94,0.10)",
-    badgeBorder: "rgba(34,197,94,0.25)",
-  },
-  restaurant: {
-    icon: "restaurant-outline",
-    accent: "#EF4444",
-    badgeBg: "rgba(239,68,68,0.10)",
-    badgeBorder: "rgba(239,68,68,0.25)",
-  },
-  cafe: {
-    icon: "cafe-outline",
-    accent: "#EF4444",
-    badgeBg: "rgba(239,68,68,0.10)",
-    badgeBorder: "rgba(239,68,68,0.25)",
-  },
-  market: {
-    icon: "storefront-outline",
-    accent: "#EF4444",
-    badgeBg: "rgba(239,68,68,0.10)",
-    badgeBorder: "rgba(239,68,68,0.25)",
-  },
-  shopping: {
-    icon: "cart-outline",
-    accent: "#64748B",
-    badgeBg: "rgba(100,116,139,0.10)",
-    badgeBorder: "rgba(100,116,139,0.25)",
-  },
-  day_trip: {
-    icon: "bus-outline",
-    accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.06)",
-    badgeBorder: "rgba(148,163,184,0.28)",
-  },
-  activity: {
-    icon: "flash-outline",
-    accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.06)",
-    badgeBorder: "rgba(148,163,184,0.28)",
-  },
-  expense: {
-    icon: "receipt-outline",
-    accent: UI.text,
-    badgeBg: "rgba(15,23,42,0.06)",
-    badgeBorder: "rgba(148,163,184,0.28)",
-  },
+  flight:                { emoji: "✈️",  accent: "#2563EB", badgeBg: "rgba(37,99,235,0.10)",  badgeBorder: "rgba(37,99,235,0.25)" },
+  accommodation:         { emoji: "🏨",  accent: "#16A34A", badgeBg: "rgba(22,163,74,0.10)",  badgeBorder: "rgba(22,163,74,0.25)" },
+  transport_destination: { emoji: "🚌",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.10)", badgeBorder: "rgba(14,165,233,0.25)" },
+  transport_local:       { emoji: "🚌",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.10)", badgeBorder: "rgba(14,165,233,0.25)" },
+  transport:             { emoji: "🚌",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.10)", badgeBorder: "rgba(14,165,233,0.25)" },
+  taxi:                  { emoji: "🚕",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.10)", badgeBorder: "rgba(14,165,233,0.25)" },
+  museum:                { emoji: "🏛️", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.10)", badgeBorder: "rgba(168,85,247,0.25)" },
+  monument:              { emoji: "🗿",  accent: "#A855F7", badgeBg: "rgba(168,85,247,0.10)", badgeBorder: "rgba(168,85,247,0.25)" },
+  viewpoint:             { emoji: "🌅",  accent: "#A855F7", badgeBg: "rgba(168,85,247,0.10)", badgeBorder: "rgba(168,85,247,0.25)" },
+  free_tour:             { emoji: "🚶",  accent: "#A855F7", badgeBg: "rgba(168,85,247,0.10)", badgeBorder: "rgba(168,85,247,0.25)" },
+  guided_tour:           { emoji: "🗺️", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.10)", badgeBorder: "rgba(168,85,247,0.25)" },
+  concert:               { emoji: "🎵",  accent: "#F97316", badgeBg: "rgba(249,115,22,0.10)", badgeBorder: "rgba(249,115,22,0.25)" },
+  sport:                 { emoji: "⚽",  accent: "#F97316", badgeBg: "rgba(249,115,22,0.10)", badgeBorder: "rgba(249,115,22,0.25)" },
+  bar_party:             { emoji: "🍷",  accent: "#F97316", badgeBg: "rgba(249,115,22,0.10)", badgeBorder: "rgba(249,115,22,0.25)" },
+  nightlife:             { emoji: "🌙",  accent: "#F97316", badgeBg: "rgba(249,115,22,0.10)", badgeBorder: "rgba(249,115,22,0.25)" },
+  beach:                 { emoji: "🏖️", accent: "#EAB308", badgeBg: "rgba(234,179,8,0.10)",  badgeBorder: "rgba(234,179,8,0.25)" },
+  hike:                  { emoji: "🥾",  accent: "#22C55E", badgeBg: "rgba(34,197,94,0.10)",  badgeBorder: "rgba(34,197,94,0.25)" },
+  restaurant:            { emoji: "🍽️", accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)",  badgeBorder: "rgba(239,68,68,0.25)" },
+  cafe:                  { emoji: "☕",  accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)",  badgeBorder: "rgba(239,68,68,0.25)" },
+  market:                { emoji: "🛒",  accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)",  badgeBorder: "rgba(239,68,68,0.25)" },
+  shopping:              { emoji: "🛍️", accent: "#64748B", badgeBg: "rgba(100,116,139,0.10)",badgeBorder: "rgba(100,116,139,0.25)" },
+  day_trip:              { emoji: "🗺️", accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
+  activity:              { emoji: "⚡",  accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
+  expense:               { emoji: "🧾",  accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
 };
 
 const EXPENSE_CAT_META: Record<string, TypeMeta> = {
-  transport_main: { icon: "airplane-outline", accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)", badgeBorder: "rgba(37,99,235,0.20)" },
-  transport_local: { icon: "car-outline", accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)", badgeBorder: "rgba(14,165,233,0.20)" },
-  accommodation: { icon: "bed-outline", accent: "#16A34A", badgeBg: "rgba(22,163,74,0.12)", badgeBorder: "rgba(22,163,74,0.20)" },
-  food: { icon: "restaurant-outline", accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)", badgeBorder: "rgba(239,68,68,0.20)" },
-  activities: { icon: "map-outline", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)", badgeBorder: "rgba(168,85,247,0.20)" },
-  shopping: { icon: "cart-outline", accent: "#64748B", badgeBg: "rgba(100,116,139,0.12)", badgeBorder: "rgba(100,116,139,0.20)" },
-  leisure: { icon: "wine-outline", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)", badgeBorder: "rgba(249,115,22,0.20)" },
-  other: { icon: "options-outline", accent: UI.text, badgeBg: "rgba(15,23,42,0.06)", badgeBorder: "rgba(148,163,184,0.28)" },
+  transport_main:  { emoji: "✈️",  accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)",  badgeBorder: "rgba(37,99,235,0.20)" },
+  transport_local: { emoji: "🚗",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)", badgeBorder: "rgba(14,165,233,0.20)" },
+  accommodation:   { emoji: "🏨",  accent: "#16A34A", badgeBg: "rgba(22,163,74,0.12)",  badgeBorder: "rgba(22,163,74,0.20)" },
+  food:            { emoji: "🍽️", accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)",  badgeBorder: "rgba(239,68,68,0.20)" },
+  activities:      { emoji: "🗺️", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)", badgeBorder: "rgba(168,85,247,0.20)" },
+  shopping:        { emoji: "🛍️", accent: "#64748B", badgeBg: "rgba(100,116,139,0.12)",badgeBorder: "rgba(100,116,139,0.20)" },
+  leisure:         { emoji: "🍷",  accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)", badgeBorder: "rgba(249,115,22,0.20)" },
+  other:           { emoji: "📌",  accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
 };
 
-const QUICK_TYPES: Array<{ value: TripPlanItemType; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: "activity", label: "Actividad", icon: "flash-outline" },
-  { value: "restaurant", label: "Restaurante", icon: "restaurant-outline" },
-  { value: "museum", label: "Museo", icon: "library-outline" },
-  { value: "monument", label: "Monumento", icon: "business-outline" },
-  { value: "beach", label: "Playa", icon: "sunny-outline" },
-  { value: "free_tour", label: "Tour", icon: "walk-outline" },
-  { value: "concert", label: "Concierto", icon: "musical-notes-outline" },
-  { value: "bar_party", label: "Ocio", icon: "wine-outline" },
-  { value: "shopping", label: "Compras", icon: "cart-outline" },
-  { value: "expense", label: "Gasto", icon: "receipt-outline" },
+const QUICK_TYPES: Array<{ value: TripPlanItemType; label: string; emoji: string }> = [
+  { value: "activity",   label: "Actividad",   emoji: "⚡" },
+  { value: "restaurant", label: "Restaurante", emoji: "🍽️" },
+  { value: "museum",     label: "Museo",       emoji: "🏛️" },
+  { value: "monument",   label: "Monumento",   emoji: "🗿" },
+  { value: "beach",      label: "Playa",       emoji: "🏖️" },
+  { value: "free_tour",  label: "Tour",        emoji: "🚶" },
+  { value: "concert",    label: "Concierto",   emoji: "🎵" },
+  { value: "bar_party",  label: "Ocio",        emoji: "🍷" },
+  { value: "shopping",   label: "Compras",     emoji: "🛍️" },
+  { value: "expense",    label: "Gasto",       emoji: "🧾" },
 ];
 
 function parseCostQuick(input: string): number | null {
@@ -465,7 +345,7 @@ function QuickAddForm({
                 backgroundColor: active ? meta.badgeBg : "transparent",
               }}
             >
-              <Ionicons name={qt.icon} size={14} color={active ? meta.accent : UI.muted2} />
+              <Text style={{ fontSize: 14, lineHeight: 17 }}>{qt.emoji}</Text>
               <Text style={{ fontSize: 11, fontWeight: "800", color: active ? meta.accent : UI.muted2 }}>{qt.label}</Text>
             </Pressable>
           );
@@ -600,23 +480,24 @@ function ActivityCard({
   onPress: () => void;
 }) {
   const baseMeta = TYPE_META[item.type] ?? TYPE_META.other ?? {
-    icon: "options-outline" as keyof typeof Ionicons.glyphMap,
+    emoji: "📌",
     accent: UI.text,
     badgeBg: "rgba(15,23,42,0.06)",
     badgeBorder: UI.border,
   };
   const expCat = item.type === "expense" ? (item.metadata?.expenseCategory ?? null) : null;
-  const transportMode = (item.type === "transport_local" || item.type === "transport_destination")
+  const transportMode = (item.type === "transport_local" || item.type === "transport_destination" || item.type === "transport")
     ? (item.destinationTransport?.mode ?? null) : null;
-  const transportIcon: keyof typeof Ionicons.glyphMap | null =
-    transportMode === "car" ? "car-outline"
-    : transportMode === "train" ? "train-outline"
-    : transportMode === "bus" ? "bus-outline"
+  const transportEmoji: string | null =
+    transportMode === "car" ? "🚗"
+    : transportMode === "train" ? "🚂"
+    : transportMode === "bus" ? "🚌"
+    : transportMode === "ferry" ? "⛴️"
     : null;
   const meta = (expCat && EXPENSE_CAT_META[expCat])
     ? { ...baseMeta, ...EXPENSE_CAT_META[expCat] }
-    : transportIcon
-    ? { ...baseMeta, icon: transportIcon }
+    : transportEmoji
+    ? { ...baseMeta, emoji: transportEmoji }
     : baseMeta;
 
   const start = item.startAt ?? item.startTime ?? null;
@@ -672,7 +553,7 @@ function ActivityCard({
           marginTop: 1,
         }}
       >
-        <Ionicons name={meta.icon} size={16} color={meta.accent} />
+        <Text style={{ fontSize: 17, lineHeight: 20 }}>{meta.emoji}</Text>
       </View>
 
       {/* Main */}

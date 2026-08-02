@@ -23,7 +23,7 @@ import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
 // ==================== TYPES ====================
 
 type MainTab = "transport" | "accommodation" | "activity" | "expense";
-type TransportSubTab = "flight" | "train" | "bus" | "car";
+type TransportSubTab = "flight" | "train" | "bus" | "car" | "ferry";
 type TransportKind = "principal" | "local";
 type FlightEntryMode = "autofill" | "manual";
 
@@ -269,11 +269,13 @@ function Segmented({
 
 function SmallChoice({
   icon,
+  emoji,
   label,
   selected,
   onPress,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
+  emoji?: string;
   label: string;
   selected?: boolean;
   onPress: () => void;
@@ -296,7 +298,10 @@ function SmallChoice({
         gap: 10,
       }}
     >
-      <Ionicons name={icon} size={16} color={selected ? "white" : UI.text} />
+      {emoji
+        ? <Text style={{ fontSize: 16, lineHeight: 19 }}>{emoji}</Text>
+        : icon ? <Ionicons name={icon} size={16} color={selected ? "white" : UI.text} /> : null
+      }
       <Text style={{ fontSize: 13, fontWeight: "800", color: selected ? "white" : UI.text }}>{label}</Text>
     </Pressable>
   );
@@ -361,6 +366,7 @@ export default function TripPlanFormScreen({
     const mode = planItem?.destinationTransport?.mode;
     if (mode === "car") return "car";
     if (mode === "bus") return "bus";
+    if (mode === "ferry") return "ferry";
     return "train";
   };
 
@@ -562,7 +568,7 @@ export default function TripPlanFormScreen({
         endAt: arr?.toISOString() || null,
         day: dep ? dep.toISOString().slice(0, 10) : null,
         destinationTransportDetails: {
-          mode: transportTab === "car" ? "car" : transportTab === "bus" ? "bus" : "train",
+          mode: transportTab === "car" ? "car" : transportTab === "bus" ? "bus" : transportTab === "ferry" ? "ferry" : "train",
           company: company || null,
           bookingRef: bookingRef || null,
           fromName: from,
@@ -843,15 +849,17 @@ export default function TripPlanFormScreen({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ flexDirection: "row", gap: 8, marginBottom: 16, marginTop: 8 }}
             >
-              {[
-                { key: "flight" as TransportSubTab, label: "Vuelo", icon: "airplane-outline" as keyof typeof Ionicons.glyphMap },
-                { key: "train" as TransportSubTab, label: "Tren", icon: "train-outline" as keyof typeof Ionicons.glyphMap },
-                { key: "bus" as TransportSubTab, label: "Bus", icon: "bus-outline" as keyof typeof Ionicons.glyphMap },
-                { key: "car" as TransportSubTab, label: "Coche", icon: "car-sport-outline" as keyof typeof Ionicons.glyphMap },
-              ].map((subtab) => (
+              {([
+                { key: "flight" as TransportSubTab,  label: "Vuelo",   icon: "airplane-outline" as keyof typeof Ionicons.glyphMap },
+                { key: "train" as TransportSubTab,   label: "Tren",    icon: "train-outline"    as keyof typeof Ionicons.glyphMap },
+                { key: "bus" as TransportSubTab,     label: "Bus",     icon: "bus-outline"      as keyof typeof Ionicons.glyphMap },
+                { key: "car" as TransportSubTab,     label: "Coche",   icon: "car-sport-outline" as keyof typeof Ionicons.glyphMap },
+                { key: "ferry" as TransportSubTab,   label: "Barco",   emoji: "⛴️" },
+              ] as Array<{ key: TransportSubTab; label: string; icon?: keyof typeof Ionicons.glyphMap; emoji?: string }>).map((subtab) => (
                 <SmallChoice
                   key={subtab.key}
                   icon={subtab.icon}
+                  emoji={subtab.emoji}
                   label={subtab.label}
                   selected={transportTab === subtab.key}
                   onPress={() => setTransportTab(subtab.key)}
@@ -952,7 +960,7 @@ export default function TripPlanFormScreen({
                   label="COMPAÑÍA"
                   value={company}
                   onChange={setCompany}
-                  placeholder={`Ej: ${transportTab === "train" ? "Renfe" : transportTab === "bus" ? "Alsa" : "Uber"}`}
+                  placeholder={`Ej: ${transportTab === "train" ? "Renfe" : transportTab === "bus" ? "Alsa" : transportTab === "ferry" ? "Grimaldi" : "Uber"}`}
                   autoCapitalize="words"
                 />
 

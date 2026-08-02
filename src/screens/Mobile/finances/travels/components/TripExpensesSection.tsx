@@ -138,20 +138,20 @@ function formatTimeShort(iso?: string | null) {
 type BudgetDef = {
   key: BudgetCategoryType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  emoji: string;
   accent: string;
   badgeBg: string;
 };
 
 const BUDGET_DEFS: BudgetDef[] = [
-  { key: BudgetCategoryType.accommodation, label: "Alojamiento", icon: "bed-outline", accent: "#22C55E", badgeBg: "rgba(34,197,94,0.12)" },
-  { key: BudgetCategoryType.transport_main, label: "Transporte principal", icon: "airplane-outline", accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)" },
-  { key: BudgetCategoryType.transport_local, label: "Transporte local", icon: "bus-outline", accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
-  { key: BudgetCategoryType.food, label: "Comida", icon: "restaurant-outline", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)" },
-  { key: BudgetCategoryType.activities, label: "Actividades / visitas", icon: "map-outline", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)" },
-  { key: BudgetCategoryType.leisure, label: "Ocio", icon: "wine-outline", accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)" },
-  { key: BudgetCategoryType.shopping, label: "Compras", icon: "bag-outline", accent: "#F59E0B", badgeBg: "rgba(245,158,11,0.12)" },
-  { key: BudgetCategoryType.other, label: "Otros / fees", icon: "pricetag-outline", accent: "#0B1220", badgeBg: "rgba(15,23,42,0.10)" },
+  { key: BudgetCategoryType.accommodation,   label: "Alojamiento",          emoji: "🏨",  accent: "#22C55E", badgeBg: "rgba(34,197,94,0.12)" },
+  { key: BudgetCategoryType.transport_main,  label: "Transporte principal", emoji: "✈️",  accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)" },
+  { key: BudgetCategoryType.transport_local, label: "Transporte local",     emoji: "🚌",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
+  { key: BudgetCategoryType.food,            label: "Comida",               emoji: "🍽️", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)" },
+  { key: BudgetCategoryType.activities,      label: "Actividades / visitas",emoji: "🗺️", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)" },
+  { key: BudgetCategoryType.leisure,         label: "Ocio",                 emoji: "🍷",  accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)" },
+  { key: BudgetCategoryType.shopping,        label: "Compras",              emoji: "🛍️", accent: "#F59E0B", badgeBg: "rgba(245,158,11,0.12)" },
+  { key: BudgetCategoryType.other,           label: "Otros / fees",         emoji: "📌",  accent: "#0B1220", badgeBg: "rgba(15,23,42,0.10)" },
 ];
 
 /** ====== Mapping como desktop ====== */
@@ -191,30 +191,19 @@ function categoryForItem(item: TripPlanItem): BudgetCategoryType {
   return BudgetCategoryType.other;
 }
 
-type DestMode = "train" | "bus" | "car" | "other";
-function iconForDestinationMode(mode?: DestMode | null): keyof typeof Ionicons.glyphMap {
-  if (!mode) return "bus-outline";
-  if (mode === "train") return "train-outline";
-  if (mode === "car") return "car-outline";
-  return "bus-outline";
-}
-
-function iconForPlanItem(item: TripPlanItem, fallback: keyof typeof Ionicons.glyphMap): keyof typeof Ionicons.glyphMap {
-  if (item.type === "flight") return "airplane-outline";
-  if (item.type === "transport_destination") return iconForDestinationMode(item.destinationTransport?.mode as DestMode | undefined);
-  if (item.type === "transport_local" || item.type === "transport") return "bus-outline";
-  if (item.type === "taxi") return "car-outline";
+function emojiForPlanItem(item: TripPlanItem, fallback: string): string {
+  if (item.type === "flight") return "✈️";
+  if (item.type === "taxi") return "🚕";
+  if (item.type === "transport_destination" || item.type === "transport_local" || item.type === "transport") {
+    const mode = item.destinationTransport?.mode;
+    if (mode === "train") return "🚂";
+    if (mode === "car") return "🚗";
+    if (mode === "ferry") return "⛴️";
+    return "🚌";
+  }
   return fallback;
 }
 
-function ProgressBar({ pct, accent }: { pct: number; accent: string }) {
-  const clamped = Math.max(0, Math.min(100, pct));
-  return (
-    <View style={{ height: 5, borderRadius: 999, backgroundColor: "rgba(15,23,42,0.08)", overflow: "hidden" }}>
-      <View style={{ height: "100%", width: `${clamped}%`, backgroundColor: accent }} />
-    </View>
-  );
-}
 
 function PaymentChip({
   status,
@@ -256,78 +245,6 @@ function PaymentChip({
   );
 }
 
-/** ====== KPI card (horizontal, compacta, con barra) ====== */
-function CategoryKpiCard({
-  def,
-  spent,
-  totalSpent,
-  active,
-  onPress,
-}: {
-  def: BudgetDef;
-  spent: number;
-  totalSpent: number;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const pct = totalSpent > 0 ? (spent / totalSpent) * 100 : 0;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: 178, // 👈 un poco más ancho para que quepa “Transporte principal”
-        paddingVertical: 10,
-        paddingHorizontal: 10,
-        borderRadius: 16,
-        backgroundColor: UI.card,
-        borderWidth: active ? 1.4 : 1,
-        borderColor: active ? colors.primary : UI.border,
-        shadowColor: "#0B1220",
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-        opacity: pressed ? 0.95 : 1,
-      })}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
-        <View
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 12,
-            backgroundColor: def.badgeBg,
-            alignItems: "center",
-            justifyContent: "center",
-            borderWidth: 1,
-            borderColor: "rgba(148,163,184,0.22)",
-          }}
-        >
-          <Ionicons name={def.icon} size={15} color={def.accent} />
-        </View>
-
-        <View style={{ flex: 1, minWidth: 0 }}>
-          {/* 👇 SIN truncar: 2 líneas máximo */}
-          <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }} numberOfLines={2}>
-            {def.label}
-          </Text>
-
-          <Text style={{ marginTop: 2, fontSize: 10, fontWeight: "800", color: UI.muted2 }} numberOfLines={1}>
-            {totalSpent > 0 ? `${pct.toFixed(0)}%` : "—"}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={{ marginTop: 9, fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
-        {formatEuro(spent)}
-      </Text>
-
-      <View style={{ marginTop: 7 }}>
-        <ProgressBar pct={pct} accent={def.accent} />
-      </View>
-    </Pressable>
-  );
-}
 
 function ExpenseRow({
   item,
@@ -341,7 +258,7 @@ function ExpenseRow({
   const cat = categoryForItem(item);
   const def = BUDGET_DEFS.find((d) => d.key === cat) ?? BUDGET_DEFS[BUDGET_DEFS.length - 1];
 
-  const rowIcon = iconForPlanItem(item, def.icon);
+  const rowEmoji = emojiForPlanItem(item, def.emoji);
   const cost = safeNumber(item.cost);
 
   const dateBase = item.startAt || item.day || item.date || item.startTime || null;
@@ -403,7 +320,7 @@ function ExpenseRow({
           borderColor: "rgba(148,163,184,0.20)",
         }}
       >
-        <Ionicons name={rowIcon} size={16} color={def.accent} />
+        <Text style={{ fontSize: 18, lineHeight: 20 }}>{rowEmoji}</Text>
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -441,7 +358,6 @@ export default function TripExpensesSection({
 }: Props) {
   const navigation = useNavigation<any>();
   const [cat, setCat] = useState<BudgetCategoryType | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "summary">("list");
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
   const [linkSaving, setLinkSaving] = useState(false);
 
@@ -614,143 +530,96 @@ const entries = useMemo(() => {
           );
         })()}
 
-        {/* Toggle Lista / Resumen */}
+        {/* CATEGORÍAS — siempre visible, clicable para filtrar */}
         {visibleKpis.length > 0 && (
-          <View style={{ flexDirection: "row", marginHorizontal: 0, marginBottom: 10, backgroundColor: "rgba(148,163,184,0.12)", borderRadius: 10, padding: 3 }}>
-            {(["list", "summary"] as const).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                onPress={() => setViewMode(mode)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  alignItems: "center",
-                  backgroundColor: viewMode === mode ? "white" : "transparent",
-                  shadowColor: viewMode === mode ? "#000" : "transparent",
-                  shadowOpacity: 0.06,
-                  shadowRadius: 4,
-                  shadowOffset: { width: 0, height: 1 },
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: "800", color: viewMode === mode ? UI.text : UI.muted }}>
-                  {mode === "list" ? "Por ítem" : "Por categoría"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* RESUMEN VERTICAL por categoría */}
-        {viewMode === "summary" && visibleKpis.length > 0 && (
-          <View style={{ marginHorizontal: 0, marginBottom: 14 }}>
-            {/* Total */}
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <Text style={{ fontSize: 13, fontWeight: "700", color: UI.muted }}>Total gastado</Text>
-              <Text style={{ fontSize: 20, fontWeight: "900", color: UI.text }}>{formatEuro(totalSpent)}</Text>
-            </View>
-            {/* Categorías */}
-            <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden" }}>
-              {[...visibleKpis].sort((a, b) => (totalsByCategory[b.key] || 0) - (totalsByCategory[a.key] || 0)).map((def, idx) => {
-                const amount = totalsByCategory[def.key] || 0;
-                const pct = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
-                const isLast = idx === visibleKpis.length - 1;
-                return (
-                  <TouchableOpacity
-                    key={def.key}
-                    onPress={() => { setCat((prev) => prev === def.key ? null : def.key); setViewMode("list"); }}
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                      borderBottomWidth: isLast ? 0 : 1,
-                      borderBottomColor: UI.border,
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
-                      <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: def.badgeBg, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
-                        <Ionicons name={def.icon} size={15} color={def.accent} />
-                      </View>
-                      <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: UI.text }}>{def.label}</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(amount)}</Text>
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted, marginLeft: 8, minWidth: 32, textAlign: "right" }}>{Math.round(pct)}%</Text>
-                    </View>
-                    <View style={{ height: 4, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)" }}>
-                      <View style={{ height: 4, borderRadius: 99, backgroundColor: def.accent, width: `${Math.round(pct)}%` }} />
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* KPI horizontal (solo cards con barra) — solo en modo lista */}
-        {viewMode === "list" && visibleKpis.length > 0 ? (
-          <View style={{ marginBottom: 10 }}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 0, gap: 10, paddingVertical: 6 }}
-            >
-              {visibleKpis.map((def) => (
-                <CategoryKpiCard
-                  key={def.key}
-                  def={def}
-                  spent={totalsByCategory[def.key] || 0}
-                  totalSpent={totalSpent}
-                  active={cat === def.key}
-                  onPress={() => setCat((prev) => (prev === def.key ? null : def.key))}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        ) : null}
-
-        {/* Lista plan items — solo en modo lista */}
-        {viewMode === "list" && filtered.length > 0 && (
-          <View
-            style={{
-              marginHorizontal: 0,
-              backgroundColor: UI.card,
-              borderRadius: 18,
-              borderWidth: 1,
-              borderColor: UI.border,
-              paddingVertical: 6,
-            }}
-          >
-            {filtered.map((it, idx) => (
-              <View key={it.id ?? idx}>
-                <ExpenseRow
-                  item={it}
-                  onSetPaymentStatus={onSetPaymentStatus}
-                  onPress={() => {
-                    onPressItem?.(it);
-                    navigation.navigate("TripPlanForm", { tripId, planItem: it });
-                  }}
-                />
-                {idx < filtered.length - 1 ? (
-                  <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 56 }} />
-                ) : null}
+          <View style={{ marginBottom: 14 }}>
+            {/* Total + clear filter */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted }}>Total gastado</Text>
+                <Text style={{ fontSize: 20, fontWeight: "900", color: UI.text }}>{formatEuro(totalSpent)}</Text>
               </View>
-            ))}
+              {cat && (
+                <Pressable onPress={() => setCat(null)}
+                  style={({ pressed }) => ({ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.14)", opacity: pressed ? 0.8 : 1 })}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted }}>Ver todos</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden" }}>
+              {[...visibleKpis]
+                .sort((a, b) => (totalsByCategory[b.key] || 0) - (totalsByCategory[a.key] || 0))
+                .map((def, idx, arr) => {
+                  const amount = totalsByCategory[def.key] || 0;
+                  const pct = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
+                  const isActive = cat === def.key;
+                  const isLast = idx === arr.length - 1;
+                  return (
+                    <Pressable
+                      key={def.key}
+                      onPress={() => setCat((prev) => prev === def.key ? null : def.key)}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        borderBottomWidth: isLast ? 0 : 1,
+                        borderBottomColor: UI.border,
+                        backgroundColor: isActive ? def.badgeBg : pressed ? "rgba(15,23,42,0.02)" : "white",
+                      })}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
+                        <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: isActive ? def.accent + "25" : def.badgeBg, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                          <Text style={{ fontSize: 16, lineHeight: 19 }}>{def.emoji}</Text>
+                        </View>
+                        <Text style={{ flex: 1, fontSize: 13, fontWeight: isActive ? "900" : "800", color: UI.text }}>{def.label}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(amount)}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted, marginLeft: 8, minWidth: 32, textAlign: "right" }}>{Math.round(pct)}%</Text>
+                      </View>
+                      <View style={{ height: 4, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)" }}>
+                        <View style={{ height: 4, borderRadius: 99, backgroundColor: def.accent, width: `${Math.round(pct)}%` }} />
+                      </View>
+                    </Pressable>
+                  );
+                })}
+            </View>
           </View>
         )}
 
-        {/* Transacciones registradas — solo en modo lista */}
-        {viewMode === "list" && visibleTxs.length > 0 && (
-          <View style={{ marginHorizontal: 0, marginTop: filtered.length > 0 ? 12 : 0 }}>
-            <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 4 }}>
+        {/* ITEMS filtrados */}
+        {filtered.length > 0 && (
+          <View style={{ marginBottom: 12 }}>
+            {cat && (
+              <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 }}>
+                {BUDGET_DEFS.find(d => d.key === cat)?.label.toUpperCase()}
+              </Text>
+            )}
+            <View style={{ backgroundColor: UI.card, borderRadius: 18, borderWidth: 1, borderColor: UI.border, paddingVertical: 6 }}>
+              {filtered.map((it, idx) => (
+                <View key={it.id ?? idx}>
+                  <ExpenseRow
+                    item={it}
+                    onSetPaymentStatus={onSetPaymentStatus}
+                    onPress={() => {
+                      onPressItem?.(it);
+                      navigation.navigate("TripPlanForm", { tripId, planItem: it });
+                    }}
+                  />
+                  {idx < filtered.length - 1 ? (
+                    <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 56 }} />
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* TRANSACCIONES registradas */}
+        {visibleTxs.length > 0 && (
+          <View style={{ marginBottom: 12 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 }}>
               REGISTRADAS
             </Text>
-            <View
-              style={{
-                backgroundColor: UI.card,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: UI.border,
-                paddingVertical: 6,
-              }}
-            >
+            <View style={{ backgroundColor: UI.card, borderRadius: 18, borderWidth: 1, borderColor: UI.border, paddingVertical: 6 }}>
               {visibleTxs.map((tx, idx) => (
                 <View key={tx.id}>
                   <Pressable
@@ -765,18 +634,7 @@ const entries = useMemo(() => {
                       gap: 10,
                     })}
                   >
-                    <View
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 13,
-                        backgroundColor: "rgba(15,23,42,0.08)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderWidth: 1,
-                        borderColor: "rgba(148,163,184,0.20)",
-                      }}
-                    >
+                    <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: "rgba(15,23,42,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(148,163,184,0.20)" }}>
                       {tx.category?.emoji ? (
                         <Text style={{ fontSize: 18 }}>{tx.category.emoji}</Text>
                       ) : (

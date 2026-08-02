@@ -56,19 +56,70 @@ type Props = {
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
+const PRIORITY_META: Record<TaskPriority, { label: string; color: string; dot: string }> = {
+  high: { label: "Alta", color: "#EF4444", dot: "#EF4444" },
+  medium: { label: "Media", color: "#F59E0B", dot: "#F59E0B" },
+  low: { label: "Baja", color: "#22C55E", dot: "#22C55E" },
+};
+
+function IconButton({
+  icon,
+  tint,
+  hoverBg,
+  px,
+  onPress,
+}: {
+  icon: any;
+  tint: string;
+  hoverBg: string;
+  px: (n: number) => number;
+  onPress: (e: any) => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      style={({ hovered, pressed }) => [
+        {
+          width: px(34),
+          height: px(34),
+          borderRadius: px(12),
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: Platform.OS === "web" && hovered ? hoverBg : "transparent",
+          opacity: pressed ? 0.9 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={px(16)} color={tint} />
+    </Pressable>
+  );
+}
+
 /** ========= TasksPanel ========= */
 function TasksPanel({
   px,
   fs,
   tasks,
+  onCreateTask,
   onToggleTask,
+  onDeleteTask,
+  onUpdateTask,
 }: {
   px: (n: number) => number;
   fs: (n: number) => number;
   tasks: TripTask[];
+  onCreateTask?: (title: string, priority?: TaskPriority | null, dueDate?: string | null) => Promise<void> | void;
   onToggleTask?: (taskId: number, next: TaskStatus) => Promise<void> | void;
+  onDeleteTask?: (taskId: number) => Promise<void> | void;
+  onUpdateTask?: (taskId: number, patch: { title?: string; priority?: TaskPriority | null }) => Promise<void> | void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [draftPriority, setDraftPriority] = useState<TaskPriority | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingPriority, setEditingPriority] = useState<TaskPriority | null>(null);
 
   const displayed = useMemo(() => {
     const base = tasks.slice().sort((a, b) => {
@@ -80,11 +131,37 @@ function TasksPanel({
     return showAll ? base : base.filter((t) => t.status === "to_do");
   }, [tasks, showAll]);
 
+  async function create() {
+    const t = draft.trim();
+    if (!t) return;
+    setDraft("");
+    const p = draftPriority;
+    setDraftPriority(null);
+    await onCreateTask?.(t, p, null);
+  }
+
+  function startEdit(t: TripTask) {
+    setEditingId(t.id);
+    setEditingTitle(t.title);
+    setEditingPriority(t.priority ?? null);
+  }
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingTitle("");
+    setEditingPriority(null);
+  }
+  async function saveEdit(task: TripTask) {
+    const nextTitle = editingTitle.trim();
+    if (!nextTitle) return;
+    cancelEdit();
+    await onUpdateTask?.(task.id, { title: nextTitle, priority: editingPriority });
+  }
+
   return (
     <View style={{ gap: px(14) }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <Text style={{ fontSize: fs(16), fontWeight: "800", color: UI.text }}>Tareas</Text>
-        <Pressable onPress={() => setShowAll(v => !v)}>
+        <Pressable onPress={() => { setShowAll(v => !v); cancelEdit(); }}>
           <Text style={{ fontSize: fs(13), fontWeight: "700", color: colors.primary }}>
             {showAll ? "Ver pendientes" : "Ver todas"}
           </Text>
@@ -101,48 +178,145 @@ function TasksPanel({
         ) : (
           displayed.map((t, idx) => {
             const done = t.status === "done";
+            const isEditing = showAll && editingId === t.id;
             return (
               <View key={t.id}>
                 <Pressable
-                  onPress={() => onToggleTask?.(t.id, done ? "to_do" : "done")}
+                  onPress={() => {
+                    if (isEditing) return;
+                    onToggleTask?.(t.id, done ? "to_do" : "done");
+                  }}
                   style={({ pressed, hovered }) => [
                     {
                       paddingHorizontal: px(16),
                       paddingVertical: px(14),
                       flexDirection: "row",
-                      alignItems: "flex-start",
+                      alignItems: isEditing ? "flex-start" : "center",
                       gap: px(12),
                       backgroundColor: Platform.OS === "web" && hovered ? "rgba(15,23,42,0.02)" : "white",
                       opacity: pressed ? 0.94 : 1,
                     },
                   ]}
                 >
+                  {/* circle */}
                   <View style={{
                     width: px(22), height: px(22), borderRadius: 999,
                     borderWidth: 2,
                     borderColor: done ? "rgba(22,163,74,0.45)" : "rgba(148,163,184,0.45)",
                     backgroundColor: done ? "rgba(22,163,74,0.08)" : "transparent",
                     alignItems: "center", justifyContent: "center",
-                    marginTop: 1, flexShrink: 0,
+                    marginTop: isEditing ? 3 : 0, flexShrink: 0,
                   }}>
                     {done ? <Ionicons name="checkmark" size={px(14)} color="rgba(22,163,74,0.95)" /> : null}
                   </View>
-                  <Text style={{
-                    flex: 1,
-                    fontSize: fs(14),
-                    fontWeight: "700",
-                    color: done ? UI.muted : UI.text,
-                    textDecorationLine: done ? "line-through" : "none",
-                  }}>
-                    {t.title}
-                  </Text>
+
+                  {/* title / edit input */}
+                  {isEditing ? (
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <TextInput
+                        value={editingTitle}
+                        onChangeText={setEditingTitle}
+                        autoFocus
+                        onSubmitEditing={() => saveEdit(t)}
+                        style={{ fontSize: fs(14), fontWeight: "750" as any, color: UI.text, paddingVertical: px(2), outlineStyle: "none" as any }}
+                        placeholder="Título…"
+                        placeholderTextColor={UI.muted2}
+                      />
+                      <View style={{ flexDirection: "row", gap: px(4), marginTop: px(4) }}>
+                        {(["high", "medium", "low"] as TaskPriority[]).map((p) => {
+                          const meta = PRIORITY_META[p];
+                          const active = editingPriority === p;
+                          return (
+                            <Pressable key={p} onPress={(e) => { e?.stopPropagation?.(); setEditingPriority(active ? null : p); }}
+                              style={{ flexDirection: "row", alignItems: "center", gap: px(3), paddingHorizontal: px(7), paddingVertical: px(3), borderRadius: px(8), backgroundColor: active ? meta.color + "20" : "rgba(148,163,184,0.12)", borderWidth: 1, borderColor: active ? meta.color + "50" : "transparent" }}>
+                              <View style={{ width: px(6), height: px(6), borderRadius: 99, backgroundColor: meta.dot }} />
+                              <Text style={{ fontSize: fs(10), fontWeight: "700", color: active ? meta.color : UI.muted }}>{meta.label}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={{
+                      flex: 1,
+                      fontSize: fs(14),
+                      fontWeight: "700",
+                      color: done ? UI.muted : UI.text,
+                      textDecorationLine: done ? "line-through" : "none",
+                    }}>
+                      {t.title}
+                    </Text>
+                  )}
+
+                  {/* actions — only in "Ver todas" mode */}
+                  {showAll && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: px(4) }}>
+                      {isEditing ? (
+                        <>
+                          <IconButton icon="checkmark" tint="rgba(22,163,74,0.95)" hoverBg="rgba(22,163,74,0.10)" px={px}
+                            onPress={(e) => { e?.stopPropagation?.(); e?.preventDefault?.(); saveEdit(t); }} />
+                          <IconButton icon="close" tint="rgba(100,116,139,0.9)" hoverBg="rgba(15,23,42,0.06)" px={px}
+                            onPress={(e) => { e?.stopPropagation?.(); e?.preventDefault?.(); cancelEdit(); }} />
+                        </>
+                      ) : (
+                        <>
+                          <IconButton icon="create-outline" tint="rgba(15,23,42,0.55)" hoverBg="rgba(15,23,42,0.06)" px={px}
+                            onPress={(e) => { e?.stopPropagation?.(); e?.preventDefault?.(); startEdit(t); }} />
+                          <IconButton icon="trash-outline" tint="rgba(239,68,68,0.8)" hoverBg="rgba(239,68,68,0.10)" px={px}
+                            onPress={(e) => {
+                              e?.stopPropagation?.(); e?.preventDefault?.();
+                              Alert.alert("Eliminar tarea", "¿Seguro que quieres eliminarla?", [
+                                { text: "Cancelar", style: "cancel" },
+                                { text: "Eliminar", style: "destructive", onPress: () => onDeleteTask?.(t.id) },
+                              ]);
+                            }} />
+                        </>
+                      )}
+                    </View>
+                  )}
                 </Pressable>
+
                 {idx < displayed.length - 1 && (
                   <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.85)", marginLeft: px(52) }} />
                 )}
               </View>
             );
           })
+        )}
+
+        {/* Add form — only in "Ver todas" mode */}
+        {showAll && (
+          <View style={{ borderTopWidth: displayed.length > 0 ? 1 : 0, borderTopColor: "rgba(226,232,240,0.85)", padding: px(14) }}>
+            <View style={{ flexDirection: "row", gap: px(5), marginBottom: px(8) }}>
+              {(["high", "medium", "low"] as TaskPriority[]).map((p) => {
+                const meta = PRIORITY_META[p];
+                const active = draftPriority === p;
+                return (
+                  <Pressable key={p} onPress={() => setDraftPriority(active ? null : p)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: px(4), paddingHorizontal: px(9), paddingVertical: px(4), borderRadius: px(9), backgroundColor: active ? meta.color + "18" : "rgba(148,163,184,0.10)", borderWidth: 1, borderColor: active ? meta.color + "45" : "transparent" }}>
+                    <View style={{ width: px(7), height: px(7), borderRadius: 99, backgroundColor: meta.dot }} />
+                    <Text style={{ fontSize: fs(11), fontWeight: "700", color: active ? meta.color : UI.muted }}>{meta.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: px(10), borderRadius: px(14), borderWidth: 1, borderColor: UI.border, backgroundColor: "white", paddingHorizontal: px(12), height: px(48) }}>
+                <Ionicons name="add-circle-outline" size={px(18)} color={UI.muted} />
+                <TextInput
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder="Añadir nueva tarea…"
+                  placeholderTextColor={UI.muted2}
+                  onSubmitEditing={create}
+                  style={{ flex: 1, fontSize: fs(13), fontWeight: "700", color: UI.text, outlineStyle: "none" as any }}
+                />
+              </View>
+              <Pressable onPress={create} style={({ pressed }) => [{ height: px(48), paddingHorizontal: px(18), borderRadius: px(14), backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.92 : 1 }]}>
+                <Text style={{ fontSize: fs(13), fontWeight: "900", color: "white" }}>Añadir</Text>
+              </Pressable>
+            </View>
+          </View>
         )}
       </View>
     </View>
@@ -547,7 +721,10 @@ export default function TripExpenseSummarySection({
         px={px}
         fs={fs}
         tasks={tasks}
+        onCreateTask={onCreateTask}
         onToggleTask={onToggleTask}
+        onDeleteTask={onDeleteTask}
+        onUpdateTask={onUpdateTask}
       />
 
       <NotesPanel
