@@ -856,30 +856,37 @@ export default function TripPlanningSectionRedesign({
     <View style={{ flex: 1 }}>
       {/* ── Top bar: toggle + (day mode) day pills ── */}
       <View style={{ paddingHorizontal: 0, paddingTop: 6, paddingBottom: 4 }}>
-        {/* View mode toggle + map button */}
+        {/* View mode toggle */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: viewMode === "day" ? 8 : 4 }}>
-          {(["day", "summary"] as const).map((mode) => {
-            const active = viewMode === mode;
-            return (
-              <Pressable
-                key={mode}
-                onPress={() => setViewMode(mode)}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 5,
-                  borderRadius: 10,
-                  backgroundColor: active ? "rgba(37,99,235,0.12)" : "transparent",
-                  borderWidth: active ? 1 : 0,
-                  borderColor: "rgba(37,99,235,0.28)",
-                  marginLeft: 4,
-                }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: "800", color: active ? colors.primary : UI.muted2 }}>
-                  {mode === "day" ? "Por día" : "Resumen"}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <View style={{ flexDirection: "row", backgroundColor: "rgba(15,23,42,0.06)", borderRadius: 10, padding: 3, gap: 2 }}>
+            {(["day", "summary"] as const).map((mode) => {
+              const active = viewMode === mode;
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => setViewMode(mode)}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: 5,
+                    paddingHorizontal: 10, paddingVertical: 5,
+                    borderRadius: 8,
+                    backgroundColor: active ? "white" : "transparent",
+                    shadowColor: active ? "#000" : "transparent",
+                    shadowOpacity: 0.07, shadowRadius: 3,
+                    shadowOffset: { width: 0, height: 1 },
+                  }}
+                >
+                  <Ionicons
+                    name={mode === "day" ? "calendar-outline" : "list-outline"}
+                    size={12}
+                    color={active ? UI.text : UI.muted2}
+                  />
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: active ? UI.text : UI.muted2 }}>
+                    {mode === "day" ? "Por día" : "Resumen"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {/* Day pills — only in day mode */}
@@ -914,7 +921,7 @@ export default function TripPlanningSectionRedesign({
                   <Text style={{ marginTop: 1, fontSize: 10, fontWeight: "700", color: active ? "rgba(37,99,235,0.85)" : UI.muted2 }} numberOfLines={1}>
                     {noDate
                       ? `${byDate[NO_DATE]?.length ?? 0} sin fecha`
-                      : `${fmtDayTitle(d)}${(byDate[d]?.length ?? 0) > 0 ? ` · ${byDate[d].length}` : ""}`}
+                      : fmtDayTitle(d)}
                   </Text>
                 </Pressable>
               );

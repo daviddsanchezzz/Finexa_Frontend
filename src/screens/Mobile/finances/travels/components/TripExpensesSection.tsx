@@ -494,24 +494,23 @@ const entries = useMemo(() => {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22, paddingTop: 10 }}>
-        {/* TOTAL GASTADO — hero full-width */}
+        {/* TOTAL GASTADO — inline sin fondo */}
         {visibleKpis.length > 0 && (
-          <View style={{
-            backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border,
-            paddingHorizontal: 16, paddingVertical: 14, marginBottom: 18,
-          }}>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted, marginBottom: 2 }}>Total gastado</Text>
-            <Text style={{ fontSize: 30, fontWeight: "900", color: UI.text, letterSpacing: -0.5 }}>{formatEuro(totalSpent)}</Text>
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: UI.muted }}>Total gastado</Text>
+              <Text style={{ fontSize: 26, fontWeight: "900", color: UI.text, letterSpacing: -0.5 }}>{formatEuro(totalSpent)}</Text>
+            </View>
             {!!budget && budget > 0 && (() => {
               const pct = Math.min(totalSpent / budget, 1);
               const over = totalSpent > budget;
               const barColor = over ? "#EF4444" : pct > 0.8 ? "#F59E0B" : "#22C55E";
               return (
-                <View style={{ marginTop: 10 }}>
+                <View style={{ marginTop: 8 }}>
                   <View style={{ height: 5, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)" }}>
                     <View style={{ height: 5, borderRadius: 99, backgroundColor: barColor, width: `${Math.round(pct * 100)}%` }} />
                   </View>
-                  <Text style={{ marginTop: 5, fontSize: 11, color: over ? "#EF4444" : UI.muted2, fontWeight: "700" }}>
+                  <Text style={{ marginTop: 4, fontSize: 11, color: over ? "#EF4444" : UI.muted2, fontWeight: "700" }}>
                     {over
                       ? `${formatEuro(totalSpent - budget)} por encima · presupuesto ${formatEuro(budget)}`
                       : `Queda ${formatEuro(budget - totalSpent)} de ${formatEuro(budget)}`}

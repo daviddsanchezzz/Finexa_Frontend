@@ -977,15 +977,15 @@ export default function TripDetailScreen({ route, navigation }: any) {
           onPress={() => setExportModalVisible(true)}
           activeOpacity={0.85}
           style={{
-            width: 44, height: 44, borderRadius: 14,
+            width: 52, height: 52, borderRadius: 26,
             backgroundColor: "white",
             borderWidth: 1, borderColor: "#E5E7EB",
             alignItems: "center", justifyContent: "center",
-            shadowColor: "#000", shadowOpacity: 0.06,
+            shadowColor: "#000", shadowOpacity: 0.08,
             shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
           }}
         >
-          <Ionicons name="share-outline" size={18} color="#64748B" />
+          <Ionicons name="share-outline" size={20} color="#64748B" />
         </TouchableOpacity>
       </View>
 
