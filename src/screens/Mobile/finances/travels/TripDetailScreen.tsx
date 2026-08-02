@@ -737,58 +737,58 @@ export default function TripDetailScreen({ route, navigation }: any) {
               </View>
 
               {/* Contenido inferior */}
-              <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-                  <View style={{ flex: 1, marginRight: 10 }}>
+              <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+
+                  {/* Izquierda: país + nombre */}
+                  <View style={{ flex: 1 }}>
                     {countryLabel ? (
                       <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
                         {countryFlag} {countryLabel}
                       </Text>
                     ) : null}
-                    <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
-                      {trip.name}
-                    </Text>
-                  </View>
-                  {!trip.coverImageUrl && (
-                    <TouchableOpacity
-                      onPress={async () => {
-                        if (uploadingCover || !trip) return;
-                        setUploadingCover(true);
-                        try {
-                          const url = await pickAndUploadTripCover();
-                          if (url) {
-                            await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
-                            setTrip(t => t ? { ...t, coverImageUrl: url } : t);
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={{ fontSize: 24, fontWeight: "900", color: "white", flex: 1 }} numberOfLines={1}>
+                        {trip.name}
+                      </Text>
+                      {!trip.coverImageUrl && (
+                        <TouchableOpacity
+                          onPress={async () => {
+                            if (uploadingCover || !trip) return;
+                            setUploadingCover(true);
+                            try {
+                              const url = await pickAndUploadTripCover();
+                              if (url) {
+                                await api.patch(`/trips/${trip.id}`, { coverImageUrl: url });
+                                setTrip(t => t ? { ...t, coverImageUrl: url } : t);
+                              }
+                            } finally { setUploadingCover(false); }
+                          }}
+                          activeOpacity={0.8}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}
+                        >
+                          {uploadingCover
+                            ? <ActivityIndicator size="small" color="white" />
+                            : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Añadir foto</Text></>
                           }
-                        } finally { setUploadingCover(false); }
-                      }}
-                      activeOpacity={0.8}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.35)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}
-                    >
-                      {uploadingCover
-                        ? <ActivityIndicator size="small" color="white" />
-                        : <><Ionicons name="camera-outline" size={13} color="white" /><Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Añadir foto</Text></>
-                      }
-                    </TouchableOpacity>
-                  )}
-                </View>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
 
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 0 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+                  {/* Derecha: fechas + gasto */}
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }} numberOfLines={1}>
                       {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
                     </Text>
                     {days > 0 && (
-                      <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{days} días</Text>
+                      <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{days} días</Text>
                     )}
-                  </View>
-                  <View style={{ width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.30)", marginHorizontal: 14 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "white", marginTop: 5 }} numberOfLines={1}>
                       {formatEuro(totalGastado)}
                     </Text>
                     {trip.budget && trip.budget > 0 ? (
-                      <Text style={{ fontSize: 11, color: budgetOver ? "#FCA5A5" : "rgba(255,255,255,0.65)", marginTop: 1 }}>
+                      <Text style={{ fontSize: 10, color: budgetOver ? "#FCA5A5" : "rgba(255,255,255,0.65)", marginTop: 1 }}>
                         de {formatEuro(trip.budget)}
                       </Text>
                     ) : null}
@@ -846,7 +846,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
         })()}
 
         {/* ── TABS ── */}
-        <View style={{ flexDirection: "row", marginHorizontal: 16, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 18, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
           {([
             { key: "summary"  as TripTab, label: "Resumen" },
             { key: "planning" as TripTab, label: "Planificación" },
