@@ -145,6 +145,7 @@ export default function WonderDetailScreen() {
   };
 
   const handleSave = async () => {
+    if (uploadingPhoto) return;
     setSaveError(null);
     const visitedAt = visited
       ? `${visitedYear}-${String(visitedMonth).padStart(2, "0")}-01`
@@ -170,11 +171,16 @@ export default function WonderDetailScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, gap: 8 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+        <TouchableOpacity onPress={() => { if (!uploadingPhoto) navigation.goBack(); }} style={{ padding: 4 }}>
+          <Ionicons name="chevron-back" size={24} color={uploadingPhoto ? "#CBD5E1" : colors.primary} />
         </TouchableOpacity>
         <Text style={{ fontSize: 20, fontWeight: "900", color: "#0F172A" }}>{wonder.name}</Text>
       </View>
+      {uploadingPhoto && (
+        <Text style={{ fontSize: 11, color: "#94A3B8", paddingHorizontal: 20, marginBottom: 4 }}>
+          Subiendo foto, no salgas todavía…
+        </Text>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 16 }}>
         <TouchableOpacity
@@ -320,15 +326,15 @@ export default function WonderDetailScreen() {
 
         <TouchableOpacity
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || uploadingPhoto}
           activeOpacity={0.85}
           style={{
             backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 14,
-            alignItems: "center", opacity: isSaving ? 0.6 : 1,
+            alignItems: "center", opacity: isSaving || uploadingPhoto ? 0.6 : 1,
           }}
         >
           <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>
-            {isSaving ? "Guardando..." : "Guardar"}
+            {uploadingPhoto ? "Subiendo foto..." : isSaving ? "Guardando..." : "Guardar"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
