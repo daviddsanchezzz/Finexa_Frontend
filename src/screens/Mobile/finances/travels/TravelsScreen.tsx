@@ -418,63 +418,46 @@ export default function TripsHomeScreen({ navigation }: any) {
             colors={["#001B5E", "#003cc5", "#1A6AF5"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={{
-              borderRadius: 24, padding: 20,
+              borderRadius: 24, paddingHorizontal: 18, paddingVertical: 14,
               shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 16,
               shadowOffset: { width: 0, height: 6 }, elevation: 4,
             }}
           >
             {/* Badge % mundo */}
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 8 }}>
-              {heroStats.visitedPct > 0 && (
-                <View style={{
-                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.18)",
-                  flexDirection: "row", alignItems: "center", gap: 4,
-                }}>
-                  <Ionicons name="earth-outline" size={11} color="rgba(255,255,255,0.85)" />
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "white" }}>
-                    {Math.round(heroStats.visitedPct)}% del mundo
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Número grande */}
-            <Text style={{ fontSize: 38, fontWeight: "900", color: "white", lineHeight: 42 }}>
-              {summaryLoading ? "—" : heroStats.visited} <Text style={{ fontSize: 20, fontWeight: "800" }}>países</Text>
-            </Text>
-            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
-              {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje registrado" : "viajes registrados"}
-            </Text>
-
-            {/* Sub stats */}
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+            {heroStats.visitedPct > 0 && (
               <View style={{
-                flex: 1, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 14,
-                paddingVertical: 10, paddingHorizontal: 12,
+                alignSelf: "flex-start",
+                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+                backgroundColor: "rgba(255,255,255,0.18)",
+                flexDirection: "row", alignItems: "center", gap: 4,
+                marginBottom: 6,
               }}>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: "700", marginBottom: 3 }}>
-                  PRÓXIMO
-                </Text>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }} numberOfLines={1}>
-                  {summaryLoading ? "—"
-                    : summary?.daysToNextTrip != null
-                      ? `${summary.daysToNextTrip} días`
-                      : "Sin planear"}
+                <Ionicons name="earth-outline" size={10} color="rgba(255,255,255,0.85)" />
+                <Text style={{ fontSize: 10, fontWeight: "800", color: "white" }}>
+                  {Math.round(heroStats.visitedPct)}%
                 </Text>
               </View>
-              <View style={{
-                flex: 1, backgroundColor: "rgba(255,255,255,0.13)", borderRadius: 14,
-                paddingVertical: 10, paddingHorizontal: 12,
-              }}>
-                <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: "700", marginBottom: 3 }}>
-                  GASTADO
-                </Text>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }} numberOfLines={1}>
-                  {formatEuro(heroStats.totalSpent)}
-                </Text>
-              </View>
+            )}
+
+            {/* Número grande + viajes */}
+            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+              <Text style={{ fontSize: 30, fontWeight: "900", color: "white", lineHeight: 34 }}>
+                {summaryLoading ? "—" : heroStats.visited} <Text style={{ fontSize: 16, fontWeight: "800" }}>países</Text>
+              </Text>
+              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }} numberOfLines={1}>
+                {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje" : "viajes"}
+              </Text>
             </View>
+
+            {/* Próximo · Gastado en una sola línea */}
+            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6 }} numberOfLines={1}>
+              {summaryLoading
+                ? "—"
+                : summary?.daysToNextTrip != null
+                  ? `Próximo en ${summary.daysToNextTrip} días`
+                  : "Sin próximo viaje"}
+              {"  ·  "}Gastado {formatEuro(heroStats.totalSpent)}
+            </Text>
           </LinearGradient>
         </View>
 
