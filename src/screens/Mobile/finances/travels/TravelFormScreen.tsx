@@ -363,6 +363,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   const [searchQ, setSearchQ]         = useState("");
   const [startDate, setStartDate]     = useState<Date | null>(null);
   const [endDate, setEndDate]         = useState<Date | null>(null);
+  const [datePreset, setDatePreset]   = useState<"week" | "custom">("custom");
   const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
   const [companion, setCompanion]     = useState<string | null>(null);
@@ -389,6 +390,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
 
   const handleCalDay = (day: number) => {
     const date = new Date(calYear, calMonth, day);
+    setDatePreset("custom");
     if (!startDate || (startDate && endDate)) {
       setStartDate(date);
       setEndDate(null);
@@ -414,17 +416,11 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     return date > startDate && date < endDate;
   };
 
-  const applyPreset = (preset: "weekend" | "week") => {
+  const applyPreset = (preset: "week") => {
     const today = new Date();
-    if (preset === "weekend") {
-      const dow = today.getDay() || 7;
-      const sat = new Date(today); sat.setDate(today.getDate() + (6 - dow));
-      const sun = new Date(sat);   sun.setDate(sat.getDate() + 1);
-      setStartDate(sat); setEndDate(sun);
-    } else {
-      const end = new Date(today); end.setDate(today.getDate() + 6);
-      setStartDate(today); setEndDate(end);
-    }
+    const end = new Date(today); end.setDate(today.getDate() + 6);
+    setStartDate(today); setEndDate(end);
+    setDatePreset("week");
     setCalDate(today);
   };
 
@@ -585,15 +581,17 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Presets */}
           <View style={{ flexDirection: "row", gap: 8 }}>
             {[
-              { id: "weekend", label: "Fin de semana" },
               { id: "week",    label: "Una semana" },
               { id: "custom",  label: "A medida" },
             ].map(p => {
-              const active = p.id === "custom" ? (!!startDate && !["weekend", "week"].some(_ => false)) : false;
+              const active = datePreset === p.id;
               return (
                 <TouchableOpacity
                   key={p.id}
-                  onPress={() => p.id !== "custom" && applyPreset(p.id as any)}
+                  onPress={() => {
+                    if (p.id === "week") applyPreset("week");
+                    else setDatePreset("custom");
+                  }}
                   activeOpacity={0.8}
                   style={{
                     flex: 1, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center",
@@ -617,7 +615,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                 {startDate ? formatShortDate(startDate) : "—"} → {endDate ? formatShortDate(endDate) : "elige fin"}
                 {days ? `  ·  ${days} días` : ""}
               </Text>
-              <TouchableOpacity onPress={() => { setStartDate(null); setEndDate(null); }}>
+              <TouchableOpacity onPress={() => { setStartDate(null); setEndDate(null); setDatePreset("custom"); }}>
                 <Ionicons name="close-circle" size={18} color="#94A3B8" />
               </TouchableOpacity>
             </View>
@@ -661,6 +659,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                   const isStart = day != null && isDayStart(day);
                   const isEnd   = day != null && isDayEnd(day);
                   const isSel   = day != null && isDaySelected(day);
+                  const showLeftRange = !!day && (inRange || isEnd);
+                  const showRightRange = !!day && (inRange || isStart);
                   return (
                     <TouchableOpacity
                       key={di}
@@ -668,13 +668,39 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                       disabled={!day}
                       style={{
                         flex: 1, height: 40, alignItems: "center", justifyContent: "center",
-                        backgroundColor: inRange ? "#EEF2FF" : "transparent",
-                        borderTopLeftRadius: isStart ? 20 : 0,
-                        borderBottomLeftRadius: isStart ? 20 : 0,
-                        borderTopRightRadius: isEnd ? 20 : 0,
-                        borderBottomRightRadius: isEnd ? 20 : 0,
+                        position: "relative",
                       }}
                     >
+                      {day != null ? (
+                        <>
+                          {showLeftRange ? (
+                            <View
+                              pointerEvents="none"
+                              style={{
+                                position: "absolute",
+                                left: 0,
+                                right: "50%",
+                                top: 4,
+                                bottom: 4,
+                                backgroundColor: "#EEF2FF",
+                              }}
+                            />
+                          ) : null}
+                          {showRightRange ? (
+                            <View
+                              pointerEvents="none"
+                              style={{
+                                position: "absolute",
+                                left: "50%",
+                                right: 0,
+                                top: 4,
+                                bottom: 4,
+                                backgroundColor: "#EEF2FF",
+                              }}
+                            />
+                          ) : null}
+                        </>
+                      ) : null}
                       {day != null ? (
                         <View style={{
                           width: 34, height: 34, borderRadius: 17,

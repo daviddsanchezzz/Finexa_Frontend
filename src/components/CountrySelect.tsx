@@ -52,12 +52,12 @@ function Chip({ label, icon, px }: { label: string; icon: keyof typeof Ionicons.
   return (
     <View
       style={{
-        paddingHorizontal: px(10),
-        paddingVertical: px(6),
+        paddingHorizontal: px(12),
+        paddingVertical: px(7),
         borderRadius: 999,
-        backgroundColor: "rgba(15,23,42,0.06)",
+        backgroundColor: "#FFFFFF",
         borderWidth: 1,
-        borderColor: "rgba(15,23,42,0.10)",
+        borderColor: "rgba(148,163,184,0.18)",
         flexDirection: "row",
         alignItems: "center",
         gap: px(6),
@@ -147,11 +147,16 @@ export function CountrySelect({
         }}
         style={({ pressed, hovered }: any) => [
           {
-            paddingHorizontal: px(16),
+            marginHorizontal: px(10),
+            marginTop: px(8),
+            paddingHorizontal: px(14),
             paddingVertical: px(12),
             borderBottomWidth: 1,
-            borderBottomColor: "#F1F5F9",
+            borderBottomColor: "transparent",
             backgroundColor: active ? "rgba(37,99,235,0.08)" : "#FFFFFF",
+            borderRadius: px(18),
+            borderWidth: 1,
+            borderColor: active ? "rgba(37,99,235,0.16)" : "rgba(148,163,184,0.12)",
             opacity: pressed ? 0.95 : 1,
           },
           Platform.OS === "web" && hovered ? { backgroundColor: active ? "rgba(37,99,235,0.10)" : "#F8FAFC" } : null,
@@ -166,9 +171,9 @@ export function CountrySelect({
                 borderRadius: px(12),
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: active ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.06)",
+                backgroundColor: active ? "rgba(37,99,235,0.14)" : "#F8FAFC",
                 borderWidth: 1,
-                borderColor: active ? "rgba(37,99,235,0.18)" : "rgba(0,0,0,0.06)",
+                borderColor: active ? "rgba(37,99,235,0.18)" : "rgba(148,163,184,0.12)",
               }}
             >
               <FlagBadge code={item.cca2} size={px(18)} />
@@ -197,9 +202,9 @@ export function CountrySelect({
               paddingHorizontal: px(10),
               paddingVertical: px(6),
               borderRadius: 999,
-              backgroundColor: active ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.06)",
+              backgroundColor: active ? "rgba(37,99,235,0.12)" : "#F8FAFC",
               borderWidth: 1,
-              borderColor: active ? "rgba(37,99,235,0.18)" : "rgba(0,0,0,0.06)",
+              borderColor: active ? "rgba(37,99,235,0.18)" : "rgba(148,163,184,0.12)",
             }}
           >
             <Text style={{ fontSize: px(11), fontWeight: "900", color: active ? "#2563EB" : "#334155" }}>
@@ -305,7 +310,10 @@ export function CountrySelect({
               style={{
                 width: modalWidth,
                 maxWidth: "100%",
-                borderRadius: px(20),
+                borderTopLeftRadius: px(24),
+                borderTopRightRadius: px(24),
+                borderBottomLeftRadius: px(22),
+                borderBottomRightRadius: px(22),
                 backgroundColor: "#FFFFFF",
                 borderWidth: 1,
                 borderColor: "rgba(229,231,235,0.95)",
@@ -322,13 +330,20 @@ export function CountrySelect({
                   : null),
               }}
             >
+              {Platform.OS !== "web" && (
+                <View style={{ alignItems: "center", paddingTop: px(10), paddingBottom: px(2), backgroundColor: "#FFFFFF" }}>
+                  <View style={{ width: px(38), height: px(4), borderRadius: 999, backgroundColor: "#CBD5E1" }} />
+                </View>
+              )}
+
               {/* Header */}
               <View
                 style={{
                   paddingHorizontal: px(16),
-                  paddingVertical: px(14),
+                  paddingTop: px(14),
+                  paddingBottom: px(14),
                   borderBottomWidth: 1,
-                  borderBottomColor: "#E5E7EB",
+                  borderBottomColor: "#EEF2F7",
                   backgroundColor: "#FFFFFF",
                   flexDirection: "row",
                   justifyContent: "space-between",
@@ -344,7 +359,7 @@ export function CountrySelect({
                       borderRadius: px(12),
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: "rgba(37,99,235,0.12)",
+                      backgroundColor: "rgba(37,99,235,0.10)",
                       borderWidth: 1,
                       borderColor: "rgba(37,99,235,0.18)",
                     }}
@@ -370,10 +385,10 @@ export function CountrySelect({
                     height: px(38),
                     borderRadius: px(12),
                     borderWidth: 1,
-                    borderColor: "#E5E7EB",
+                    borderColor: "#E2E8F0",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "#F8FAFC",
+                    backgroundColor: "#FFFFFF",
                   }}
                 >
                   <Ionicons name="close" size={px(18)} color="#334155" />
@@ -381,13 +396,13 @@ export function CountrySelect({
               </View>
 
               {/* Search (now works on mobile too) */}
-              <View style={{ padding: px(14), backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+              <View style={{ padding: px(14), backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#EEF2F7" }}>
                 <View
                   style={{
-                    minHeight: px(44),
-                    borderRadius: px(16),
+                    minHeight: px(48),
+                    borderRadius: px(18),
                     borderWidth: 1,
-                    borderColor: "rgba(148,163,184,0.22)",
+                    borderColor: "rgba(148,163,184,0.18)",
                     backgroundColor: "#FFFFFF",
                     flexDirection: "row",
                     alignItems: "center",
@@ -402,9 +417,9 @@ export function CountrySelect({
                       borderRadius: px(12),
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: "rgba(15,23,42,0.06)",
+                      backgroundColor: "#F8FAFC",
                       borderWidth: 1,
-                      borderColor: "rgba(0,0,0,0.06)",
+                      borderColor: "rgba(148,163,184,0.12)",
                     }}
                   >
                     <Ionicons name="search-outline" size={px(16)} color="#64748B" />
@@ -421,7 +436,7 @@ export function CountrySelect({
                       style={{
                         width: "100%",
                         fontWeight: "900",
-                        fontSize: px(13),
+                        fontSize: px(14),
                         color: "#0F172A",
                         paddingVertical: 0,
                       }}
@@ -435,7 +450,7 @@ export function CountrySelect({
                   )}
                 </View>
 
-                <View style={{ marginTop: px(10), flexDirection: "row", gap: px(8), flexWrap: "wrap" }}>
+                <View style={{ marginTop: px(12), flexDirection: "row", gap: px(8), flexWrap: "wrap" }}>
                   <Chip label={`${filtered.length} resultados`} icon="list-outline" px={px} />
                   {!!selectedCode && <Chip label={`Seleccionado: ${selectedCode}`} icon="checkmark-circle-outline" px={px} />}
                 </View>
@@ -469,10 +484,11 @@ export function CountrySelect({
 
               {/* List (FlatList perf for mobile, scroll view ok on web too) */}
               {Platform.OS === "web" ? (
-                <ScrollView style={{ maxHeight: modalMaxHeight ?? 520 }} showsVerticalScrollIndicator>
+                <ScrollView style={{ maxHeight: modalMaxHeight ?? 520, backgroundColor: "#FBFDFF" }} showsVerticalScrollIndicator>
                   {filtered.map((c) => (
                     <View key={c.cca2}>{renderRow({ item: c } as any)}</View>
                   ))}
+                  <View style={{ height: px(10) }} />
                 </ScrollView>
               ) : (
                 <FlatList
@@ -481,7 +497,8 @@ export function CountrySelect({
                   keyExtractor={(item) => item.cca2}
                   renderItem={renderRow}
                   keyboardShouldPersistTaps="handled"
-                  style={{ maxHeight: 520 }}
+                  style={{ maxHeight: 520, backgroundColor: "#FBFDFF" }}
+                  contentContainerStyle={{ paddingBottom: px(10) }}
                   initialNumToRender={24}
                   windowSize={10}
                   getItemLayout={(_, index) => ({
@@ -497,7 +514,7 @@ export function CountrySelect({
                 style={{
                   padding: px(14),
                   borderTopWidth: 1,
-                  borderTopColor: "#E5E7EB",
+                  borderTopColor: "#EEF2F7",
                   backgroundColor: "#FFFFFF",
                   flexDirection: "row",
                   justifyContent: "space-between",
@@ -514,11 +531,11 @@ export function CountrySelect({
                   }}
                   style={{
                     height: px(42),
-                    paddingHorizontal: px(14),
+                    paddingHorizontal: px(16),
                     borderRadius: px(14),
                     borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    backgroundColor: "#F8FAFC",
+                    borderColor: "#E2E8F0",
+                    backgroundColor: "#FFFFFF",
                     alignItems: "center",
                     justifyContent: "center",
                     flexDirection: "row",
@@ -531,9 +548,21 @@ export function CountrySelect({
 
                 <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
                   {!!selectedCode && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: px(8) }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: px(8),
+                        paddingHorizontal: px(12),
+                        paddingVertical: px(8),
+                        borderRadius: 999,
+                        backgroundColor: "rgba(37,99,235,0.08)",
+                        borderWidth: 1,
+                        borderColor: "rgba(37,99,235,0.14)",
+                      }}
+                    >
                       <FlagBadge code={selectedCode} size={px(16)} />
-                      <Text style={{ fontSize: px(12), fontWeight: "900", color: "#0F172A" }}>{selectedCode}</Text>
+                      <Text style={{ fontSize: px(12), fontWeight: "900", color: "#2563EB" }}>{selectedCode}</Text>
                     </View>
                   )}
                 </View>
