@@ -107,14 +107,15 @@ export default function CountryChecklistScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={{ flexDirection: "row", paddingHorizontal: 20, paddingBottom: 10 }}
+        style={{ flexGrow: 0, flexShrink: 0 }}
+        contentContainerStyle={{ flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 20, paddingBottom: 10 }}
       >
         {TAB_ORDER.map((tab, index) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
             style={{
+              flexShrink: 0, flexBasis: "auto",
               paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
               backgroundColor: activeTab === tab ? colors.primary : "white",
               borderWidth: 1, borderColor: activeTab === tab ? colors.primary : "#E5E7EB",
@@ -122,7 +123,7 @@ export default function CountryChecklistScreen() {
             }}
           >
             <Text
-              style={{ fontSize: 12, fontWeight: "700", color: activeTab === tab ? "white" : "#374151" }}
+              style={{ flexShrink: 0, fontSize: 12, fontWeight: "700", color: activeTab === tab ? "white" : "#374151", whiteSpace: "nowrap" } as any}
               numberOfLines={1}
             >
               {TAB_LABELS[tab]}
