@@ -80,7 +80,11 @@ function esc(s: string): string {
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-function buildLeafletHTML(markers: MapMarker[], routePoints: { lat: number; lng: number; order: number }[]): string {
+function buildLeafletHTML(
+  markers: MapMarker[],
+  routePoints: { lat: number; lng: number; order: number }[],
+  markerMode: "numbered" | "dots"
+): string {
   const safe = markers.map(m => ({ ...m, title: esc(m.title), items: m.items.map(esc) }));
   const ms = JSON.stringify(safe);
   const rt = JSON.stringify(routePoints.slice().sort((a, b) => a.order - b.order));
@@ -121,11 +125,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
       color:'#2563EB',weight:3,opacity:0.65,dashArray:'10,8',lineCap:'round',lineJoin:'round'
     }).addTo(map);
   }
+  var markerMode=${JSON.stringify(markerMode)};
   ms.forEach(function(m,i){
     var icon=L.divIcon({
       className:'',
-      html:'<div style="position:relative;width:32px;height:38px"><div style="width:32px;height:32px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:12px;font-weight:900;font-family:-apple-system,sans-serif">'+(i+1)+'</span></div></div>',
-      iconSize:[32,38],iconAnchor:[16,36],popupAnchor:[0,-40]
+      html: markerMode === 'dots'
+        ? '<div style="width:12px;height:12px;background:'+m.color+';border-radius:999px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.22)"></div>'
+        : '<div style="position:relative;width:26px;height:31px"><div style="width:26px;height:26px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:10px;font-weight:900;font-family:-apple-system,sans-serif">'+(i+1)+'</span></div></div>',
+      iconSize: markerMode === 'dots' ? [12,12] : [26,31],
+      iconAnchor: markerMode === 'dots' ? [6,6] : [13,29],
+      popupAnchor:[0,-24]
     });
     var items=m.items.map(function(t){return'<div class="pu-item">'+t+'</div>'}).join('');
     L.marker([m.lat,m.lng],{icon:icon})
@@ -195,7 +204,13 @@ function MapFrame({ html }: { html: string }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }) {
+export default function TripMapView({
+  planItems,
+  markerMode = "numbered",
+}: {
+  planItems: TripPlanItem[];
+  markerMode?: "numbered" | "dots";
+}) {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState("");
   const [html, setHtml] = useState("");
@@ -257,7 +272,7 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
     (async () => {
       const entries = [...locRequests.entries()];
       if (entries.length === 0) {
-        setHtml(buildLeafletHTML([]));
+        setHtml(buildLeafletHTML([], [], markerMode));
         setLoading(false);
         return;
       }
@@ -301,14 +316,14 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
       }
 
       if (!cancelled) {
-        setHtml(buildLeafletHTML(pins, routePoints));
+        setHtml(buildLeafletHTML(pins, routePoints, markerMode));
         setMapVersion(v => v + 1);
         setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [locRequests]);
+  }, [locRequests, markerMode]);
 
   return (
     <View style={{ flex: 1 }}>

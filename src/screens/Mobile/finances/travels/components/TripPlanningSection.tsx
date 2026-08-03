@@ -1073,7 +1073,7 @@ export default function TripPlanningSectionRedesign({
           {/* Mapa inline del día */}
           {dayItems.length > 0 && (
             <View style={{ marginBottom: 14, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 160 }}>
-              <TripMapView key={dayMapKey} planItems={dayItems} />
+              <TripMapView key={dayMapKey} planItems={dayItems} markerMode="numbered" />
               <Pressable
                 onPress={() => setShowMap(true)}
                 style={{
@@ -1151,7 +1151,7 @@ export default function TripPlanningSectionRedesign({
           {/* Full-trip map */}
           {planningItems.length > 0 && (
             <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 200 }}>
-              <TripMapView key={summaryMapKey} planItems={planningItemsSorted} />
+              <TripMapView key={summaryMapKey} planItems={planningItemsSorted} markerMode="dots" />
               <Pressable
                 onPress={() => setShowMap(true)}
                 style={{
