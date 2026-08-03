@@ -48,8 +48,13 @@ export function useWonders() {
   const updateMutation = useMutation({
     mutationFn: async ({ key, input }: { key: string; input: UpdateWonderVisitInput }) =>
       (await api.patch(`/world/wonders/${key}`, input)).data as Wonder,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+    onSuccess: (updatedWonder) => {
+      // Write the mutation's own response straight into the cache instead of
+      // only invalidating — avoids a window where a screen reads stale data
+      // (missing the just-saved photo) while waiting on a refetch round-trip.
+      queryClient.setQueryData<Wonder[]>(queryKey, (old) =>
+        old ? old.map((w) => (w.key === updatedWonder.key ? updatedWonder : w)) : old
+      );
       queryClient.invalidateQueries({ queryKey: ["worldOverview"] });
     },
   });

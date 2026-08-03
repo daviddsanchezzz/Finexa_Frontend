@@ -13,14 +13,25 @@ function objectPositionFor(align: PhotoAlign | null) {
 }
 
 function WonderThumbnail({ uri, align }: { uri: string; align: PhotoAlign | null }) {
+  const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
   if (failed) return null;
+  // Retry once with a cache-busting param before giving up — covers a
+  // just-uploaded photo whose first fetch fails while it's still
+  // propagating on the storage provider's edge.
+  const src = retryCount === 0 ? uri : `${uri}${uri.includes("?") ? "&" : "?"}retry=${retryCount}`;
   return (
     <Image
-      source={{ uri }}
+      source={{ uri: src }}
       style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: "#F3F4F6", objectPosition: objectPositionFor(align) } as any}
       resizeMode="cover"
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (retryCount < 1) {
+          setTimeout(() => setRetryCount((c) => c + 1), 800);
+        } else {
+          setFailed(true);
+        }
+      }}
     />
   );
 }

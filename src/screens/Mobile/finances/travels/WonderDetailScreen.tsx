@@ -76,6 +76,7 @@ export default function WonderDetailScreen() {
   const [visitedYear, setVisitedYear] = useState(currentMonthYear().year);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoAlign, setPhotoAlign] = useState<PhotoAlign>("center");
+  const [imageRetryCount, setImageRetryCount] = useState(0);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [tripId, setTripId] = useState<number | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -91,6 +92,7 @@ export default function WonderDetailScreen() {
     setPhotoUrl(wonder.photoUrl);
     setPhotoAlign(wonder.photoAlign ?? "center");
     setImageLoadFailed(false);
+    setImageRetryCount(0);
     setTripId(wonder.tripId);
   }, [wonder]);
 
@@ -118,6 +120,7 @@ export default function WonderDetailScreen() {
       if (url) {
         setPhotoUrl(url);
         setImageLoadFailed(false);
+        setImageRetryCount(0);
       }
     } finally {
       setUploadingPhoto(false);
@@ -188,10 +191,24 @@ export default function WonderDetailScreen() {
             <ActivityIndicator color={colors.primary} />
           ) : photoUrl && !imageLoadFailed && photoTileWidth > 0 ? (
             <Image
-              source={{ uri: photoUrl }}
+              source={{
+                uri:
+                  imageRetryCount === 0
+                    ? photoUrl
+                    : `${photoUrl}${photoUrl.includes("?") ? "&" : "?"}retry=${imageRetryCount}`,
+              }}
               style={{ width: photoTileWidth, height: 180, objectPosition: objectPositionFor(photoAlign) } as any}
               resizeMode="cover"
-              onError={() => setImageLoadFailed(true)}
+              onError={() => {
+                // A freshly-uploaded photo can briefly fail to load while it
+                // propagates on the storage provider's edge — retry once
+                // with a cache-busting param before showing the error state.
+                if (imageRetryCount < 1) {
+                  setTimeout(() => setImageRetryCount((c) => c + 1), 800);
+                } else {
+                  setImageLoadFailed(true);
+                }
+              }}
             />
           ) : photoUrl && imageLoadFailed ? (
             <>
