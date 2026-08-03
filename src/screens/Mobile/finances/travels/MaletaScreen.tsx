@@ -16,7 +16,7 @@ const CATEGORY_META: Record<
 > = {
   ropa: { label: "Ropa", icon: "shirt-outline" },
   documentos: { label: "Documentos", icon: "document-text-outline" },
-  electronica: { label: "Electr\u00F3nica", icon: "phone-portrait-outline" },
+  electronica: { label: "Electrónica", icon: "phone-portrait-outline" },
   otros: { label: "Otros", icon: "briefcase-outline" },
 };
 
@@ -33,13 +33,14 @@ export default function MaletaScreen() {
   const route = useRoute<any>();
   const { tripId, destination, tripName } = route.params || {};
 
-  const { items, isLoading, toggleItem, createItem, deleteItem, isSaving } = useTripChecklist(tripId);
+  const { items, isLoading, toggleItem, createItem, deleteItem, isSaving, errorMessage } = useTripChecklist(tripId);
   const { documentsByType: userDocsByType } = useUserDocuments();
   const { documentsByType: tripDocsByType } = useTripDocuments(tripId);
   const weatherQuery = useTripWeather(destination, tripName);
 
   const [activeTab, setActiveTab] = useState<ChecklistCategory | "all">("all");
   const [newItemLabel, setNewItemLabel] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const syntheticDocs: SyntheticItem[] = [
     { key: "doc-passport", label: "Pasaporte", checked: userDocsByType.has("passport") },
@@ -94,11 +95,11 @@ export default function MaletaScreen() {
           alignItems: "center",
         }}
       >
-        <TabChip label={`Todo \u00B7 ${totalCount}`} active={activeTab === "all"} onPress={() => setActiveTab("all")} />
+        <TabChip label={`Todo · ${totalCount}`} active={activeTab === "all"} onPress={() => setActiveTab("all")} />
         {CATEGORIES.map((category) => (
           <TabChip
             key={category}
-            label={`${CATEGORY_META[category].label} \u00B7 ${categoryCount(category)}`}
+            label={`${CATEGORY_META[category].label} · ${categoryCount(category)}`}
             active={activeTab === category}
             onPress={() => setActiveTab(category)}
           />
@@ -124,12 +125,34 @@ export default function MaletaScreen() {
           ))
         )}
 
+        {!!(actionError || errorMessage) && (
+          <View
+            style={{
+              marginTop: 4,
+              marginBottom: 16,
+              borderRadius: 12,
+              backgroundColor: "#FEF2F2",
+              borderWidth: 1,
+              borderColor: "#FECACA",
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#B91C1C" }}>
+              {actionError || errorMessage}
+            </Text>
+          </View>
+        )}
+
         {activeTab !== "all" && (
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8, marginBottom: 20 }}>
             <TextInput
               value={newItemLabel}
-              onChangeText={setNewItemLabel}
-              placeholder="A\u00F1adir un art\u00EDculo..."
+              onChangeText={(value) => {
+                setNewItemLabel(value);
+                if (actionError) setActionError("");
+              }}
+              placeholder="Añadir un artículo..."
               style={{
                 flex: 1,
                 borderWidth: 1,
@@ -144,8 +167,13 @@ export default function MaletaScreen() {
             <TouchableOpacity
               disabled={!newItemLabel.trim() || isSaving}
               onPress={async () => {
-                await createItem(activeTab as ChecklistCategory, newItemLabel.trim());
-                setNewItemLabel("");
+                try {
+                  setActionError("");
+                  await createItem(activeTab as ChecklistCategory, newItemLabel.trim());
+                  setNewItemLabel("");
+                } catch (error: any) {
+                  setActionError(error?.response?.data?.message || error?.message || "No se pudo añadir el artículo.");
+                }
               }}
               style={{
                 backgroundColor: colors.primary,
@@ -165,7 +193,7 @@ export default function MaletaScreen() {
           <View style={{ flexDirection: "row", gap: 8, backgroundColor: "#EFF6FF", borderRadius: 14, padding: 12 }}>
             <Ionicons name="bulb-outline" size={16} color="#2563EB" style={{ marginTop: 1 }} />
             <Text style={{ flex: 1, fontSize: 12, color: "#1E3A8A", lineHeight: 17 }}>
-              <Text style={{ fontWeight: "700" }}>Sugerido seg\u00FAn destino y clima: </Text>
+              <Text style={{ fontWeight: "700" }}>Sugerido según destino y clima: </Text>
               {suggestions.join(", ")}
             </Text>
           </View>
@@ -226,7 +254,7 @@ function CategorySection({
             letterSpacing: 0.8,
           }}
         >
-          {meta.label} {"\u00B7"} {checkedCount}/{total}
+          {meta.label} · {checkedCount}/{total}
         </Text>
       </View>
 

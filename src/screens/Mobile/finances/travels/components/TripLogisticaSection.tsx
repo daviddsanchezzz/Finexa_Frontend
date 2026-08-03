@@ -148,7 +148,7 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
         <QuickAccessTile icon="document-text-outline" label="Documentos" onPress={openDocuments} />
         <QuickAccessTile icon="briefcase-outline" label="Reservas" onPress={openReservas} />
         <QuickAccessTile icon="call-outline" label="Contactos" onPress={openContactos} />
-        <QuickAccessTile icon="checkmark-done-outline" label="Maleta" onPress={openMaleta} />
+        <QuickAccessTile icon="briefcase-outline" label="Maleta" onPress={openMaleta} />
       </View>
     </ScrollView>
   );

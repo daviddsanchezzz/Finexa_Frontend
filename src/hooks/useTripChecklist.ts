@@ -1,6 +1,7 @@
 // src/hooks/useTripChecklist.ts
 import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import api from "../api/api";
 
 export type ChecklistCategory = "ropa" | "documentos" | "electronica" | "otros";
@@ -14,6 +15,16 @@ export interface TripChecklistItem {
   order: number;
   createdAt: string;
   updatedAt: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (Array.isArray(message)) return message[0] ?? fallback;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
 }
 
 const BASE_TEMPLATE: { category: ChecklistCategory; label: string }[] = [
@@ -84,5 +95,11 @@ export function useTripChecklist(tripId: number) {
     createItem: (category: ChecklistCategory, label: string) => createMutation.mutateAsync({ category, label }),
     deleteItem: (itemId: number) => deleteMutation.mutateAsync(itemId),
     isSaving: createMutation.isPending,
+    errorMessage:
+      getErrorMessage(query.error, "") ||
+      getErrorMessage(seedMutation.error, "") ||
+      getErrorMessage(createMutation.error, "") ||
+      getErrorMessage(toggleMutation.error, "") ||
+      getErrorMessage(deleteMutation.error, ""),
   };
 }
