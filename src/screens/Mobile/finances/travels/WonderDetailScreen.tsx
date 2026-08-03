@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch, PanResponder } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -7,7 +7,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
-import { useWonders, PhotoAlign } from "../../../../hooks/useWonders";
+import { useWonders } from "../../../../hooks/useWonders";
 import { pickAndUploadWonderPhoto } from "../../../../utils/uploadTripCover";
 
 interface TripOption {
@@ -23,12 +23,6 @@ const MONTH_LABELS = [
 
 const NO_TRIP = -1;
 
-const ALIGN_OPTIONS: { key: PhotoAlign; label: string; icon: "chevron-up" | "remove" | "chevron-down" }[] = [
-  { key: "top", label: "Arriba", icon: "chevron-up" },
-  { key: "center", label: "Centro", icon: "remove" },
-  { key: "bottom", label: "Abajo", icon: "chevron-down" },
-];
-
 // Computes a manual "cover" crop using real pixel math (position/top/width/height)
 // instead of the CSS `object-position` style, which React Native Web does not
 // reliably forward through the Image style prop.
@@ -36,7 +30,7 @@ function computeCoverLayout(
   containerWidth: number,
   containerHeight: number,
   natural: { w: number; h: number } | null,
-  align: PhotoAlign
+  offset: number
 ) {
   if (!natural || containerWidth <= 0 || natural.w <= 0 || natural.h <= 0) {
     return { width: containerWidth, height: containerHeight, top: 0, left: 0 };
@@ -55,10 +49,66 @@ function computeCoverLayout(
   const width = containerWidth;
   const height = containerWidth / imageRatio;
   const overflow = height - containerHeight;
-  let top = -overflow / 2;
-  if (align === "top") top = 0;
-  else if (align === "bottom") top = -overflow;
-  return { width, height, top, left: 0 };
+  return { width, height, top: -overflow * offset, left: 0 };
+}
+
+const SLIDER_HANDLE = 22;
+
+// A horizontal drag slider that controls a vertical crop offset. Dragging is
+// horizontal on purpose — a vertical drag here would fight the screen's own
+// vertical scroll gesture.
+function PhotoOffsetSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<View>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const trackPageX = useRef(0);
+
+  const measureTrack = () => {
+    trackRef.current?.measure((_x, _y, width, _height, pageX) => {
+      trackPageX.current = pageX;
+      setTrackWidth(width);
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        measureTrack();
+        const x = evt.nativeEvent.pageX - trackPageX.current;
+        if (trackWidth > 0) onChange(Math.max(0, Math.min(1, x / trackWidth)));
+      },
+      onPanResponderMove: (_evt, gestureState) => {
+        if (trackWidth <= 0) return;
+        const x = gestureState.moveX - trackPageX.current;
+        onChange(Math.max(0, Math.min(1, x / trackWidth)));
+      },
+    })
+  ).current;
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Ionicons name="chevron-up" size={16} color="#94A3B8" />
+      <View
+        ref={trackRef}
+        onLayout={measureTrack}
+        {...panResponder.panHandlers}
+        style={{ flex: 1, height: SLIDER_HANDLE + 8, justifyContent: "center" }}
+      >
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: "#E5E7EB" }} />
+        <View
+          style={{
+            position: "absolute",
+            left: Math.max(0, Math.min(trackWidth, value * trackWidth)) - SLIDER_HANDLE / 2,
+            width: SLIDER_HANDLE, height: SLIDER_HANDLE, borderRadius: SLIDER_HANDLE / 2,
+            backgroundColor: colors.primary, borderWidth: 2, borderColor: "white",
+            shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2,
+          }}
+        />
+      </View>
+      <Ionicons name="chevron-down" size={16} color="#94A3B8" />
+    </View>
+  );
 }
 
 const pickerWrapStyle = {
@@ -101,7 +151,7 @@ export default function WonderDetailScreen() {
   const [visitedMonth, setVisitedMonth] = useState(currentMonthYear().month);
   const [visitedYear, setVisitedYear] = useState(currentMonthYear().year);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoAlign, setPhotoAlign] = useState<PhotoAlign>("center");
+  const [photoOffset, setPhotoOffset] = useState(0.5);
   const [imageRetryCount, setImageRetryCount] = useState(0);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [tripId, setTripId] = useState<number | null>(null);
@@ -110,24 +160,12 @@ export default function WonderDetailScreen() {
   const [photoTileWidth, setPhotoTileWidth] = useState(0);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
 
+  // Reset the known natural size whenever the photo changes — it gets
+  // re-populated from the displayed Image's own onLoad event below, which
+  // avoids a second, separately-fetched Image.getSize() request (that one
+  // can fail under CORS even when the visible <Image> loads fine).
   useEffect(() => {
-    if (!photoUrl) {
-      setNaturalSize(null);
-      return;
-    }
-    let cancelled = false;
-    Image.getSize(
-      photoUrl,
-      (w, h) => {
-        if (!cancelled) setNaturalSize({ w, h });
-      },
-      () => {
-        if (!cancelled) setNaturalSize(null);
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
+    setNaturalSize(null);
   }, [photoUrl]);
 
   useEffect(() => {
@@ -137,7 +175,7 @@ export default function WonderDetailScreen() {
     setVisitedMonth(month);
     setVisitedYear(year);
     setPhotoUrl(wonder.photoUrl);
-    setPhotoAlign(wonder.photoAlign ?? "center");
+    setPhotoOffset(wonder.photoOffset ?? 0.5);
     setImageLoadFailed(false);
     setImageRetryCount(0);
     setTripId(wonder.tripId);
@@ -202,7 +240,7 @@ export default function WonderDetailScreen() {
         visited,
         visitedAt,
         photoUrl: visited ? photoUrl ?? undefined : undefined,
-        photoAlign: visited && photoUrl ? photoAlign : undefined,
+        photoOffset: visited && photoUrl ? photoOffset : undefined,
         tripId: visited ? tripId ?? undefined : undefined,
       });
       navigation.goBack();
@@ -252,7 +290,7 @@ export default function WonderDetailScreen() {
                     : `${photoUrl}${photoUrl.includes("?") ? "&" : "?"}retry=${imageRetryCount}`,
               }}
               style={(() => {
-                const layout = computeCoverLayout(photoTileWidth, 180, naturalSize, photoAlign);
+                const layout = computeCoverLayout(photoTileWidth, 180, naturalSize, photoOffset);
                 return {
                   position: "absolute",
                   top: layout.top,
@@ -262,6 +300,10 @@ export default function WonderDetailScreen() {
                 };
               })()}
               resizeMode="cover"
+              onLoad={(e: any) => {
+                const src = e?.nativeEvent?.source;
+                if (src?.width && src?.height) setNaturalSize({ w: src.width, h: src.height });
+              }}
               onError={() => {
                 // A freshly-uploaded photo can briefly fail to load while it
                 // propagates on the storage provider's edge — retry once
@@ -291,24 +333,16 @@ export default function WonderDetailScreen() {
         </TouchableOpacity>
 
         {photoUrl && !imageLoadFailed && !uploadingPhoto && (
-          <View style={{ flexDirection: "row", gap: 8, marginTop: -8 }}>
-            {ALIGN_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.key}
-                onPress={() => setPhotoAlign(opt.key)}
-                style={{
-                  flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
-                  paddingVertical: 8, borderRadius: 10,
-                  backgroundColor: photoAlign === opt.key ? "#EEF2FF" : "white",
-                  borderWidth: 1, borderColor: photoAlign === opt.key ? colors.primary : "#E5E7EB",
-                }}
-              >
-                <Ionicons name={opt.icon} size={14} color={photoAlign === opt.key ? colors.primary : "#6B7280"} />
-                <Text style={{ fontSize: 12, fontWeight: "700", color: photoAlign === opt.key ? colors.primary : "#6B7280" }}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View
+            style={{
+              backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
+              paddingHorizontal: 14, paddingVertical: 10, marginTop: -8,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 6 }}>
+              QUÉ PARTE DE LA FOTO SE VE
+            </Text>
+            <PhotoOffsetSlider value={photoOffset} onChange={setPhotoOffset} />
           </View>
         )}
 

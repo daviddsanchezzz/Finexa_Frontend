@@ -3,7 +3,6 @@ import axios from "axios";
 import api from "../api/api";
 
 export type WonderEra = "modern" | "ancient" | "natural";
-export type PhotoAlign = "top" | "center" | "bottom";
 
 export interface Wonder {
   key: string;
@@ -13,7 +12,8 @@ export interface Wonder {
   visited: boolean;
   visitedAt: string | null;
   photoUrl: string | null;
-  photoAlign: PhotoAlign | null;
+  /** Vertical crop focal point, 0 (top) .. 1 (bottom); null = 0.5 (center). */
+  photoOffset: number | null;
   tripId: number | null;
 }
 
@@ -21,7 +21,7 @@ export interface UpdateWonderVisitInput {
   visited: boolean;
   visitedAt?: string;
   photoUrl?: string;
-  photoAlign?: PhotoAlign;
+  photoOffset?: number;
   tripId?: number;
 }
 

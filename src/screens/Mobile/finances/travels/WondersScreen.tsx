@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
-import { useWonders, WonderEra, PhotoAlign } from "../../../../hooks/useWonders";
+import { useWonders, WonderEra } from "../../../../hooks/useWonders";
 
 const THUMB_SIZE = 44;
 
@@ -15,7 +15,7 @@ function computeCoverLayout(
   containerWidth: number,
   containerHeight: number,
   natural: { w: number; h: number } | null,
-  align: PhotoAlign | null
+  offset: number | null
 ) {
   if (!natural || natural.w <= 0 || natural.h <= 0) {
     return { width: containerWidth, height: containerHeight, top: 0, left: 0 };
@@ -32,25 +32,20 @@ function computeCoverLayout(
   const width = containerWidth;
   const height = containerWidth / imageRatio;
   const overflow = height - containerHeight;
-  let top = -overflow / 2;
-  if (align === "top") top = 0;
-  else if (align === "bottom") top = -overflow;
+  const top = -overflow * (offset ?? 0.5);
   return { width, height, top, left: 0 };
 }
 
-function WonderThumbnail({ uri, align }: { uri: string; align: PhotoAlign | null }) {
+function WonderThumbnail({ uri, offset }: { uri: string; offset: number | null }) {
   const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
 
+  // Reset when the uri changes; re-populated from the displayed Image's own
+  // onLoad event, not a separate Image.getSize() call (which can fail under
+  // CORS even when the visible <Image> loads fine).
   useEffect(() => {
-    let cancelled = false;
-    Image.getSize(
-      uri,
-      (w, h) => { if (!cancelled) setNaturalSize({ w, h }); },
-      () => { if (!cancelled) setNaturalSize(null); }
-    );
-    return () => { cancelled = true; };
+    setNaturalSize(null);
   }, [uri]);
 
   if (failed) return null;
@@ -58,7 +53,7 @@ function WonderThumbnail({ uri, align }: { uri: string; align: PhotoAlign | null
   // just-uploaded photo whose first fetch fails while it's still
   // propagating on the storage provider's edge.
   const src = retryCount === 0 ? uri : `${uri}${uri.includes("?") ? "&" : "?"}retry=${retryCount}`;
-  const layout = computeCoverLayout(THUMB_SIZE, THUMB_SIZE, naturalSize, align);
+  const layout = computeCoverLayout(THUMB_SIZE, THUMB_SIZE, naturalSize, offset);
 
   return (
     <View style={{ width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: 10, backgroundColor: "#F3F4F6", overflow: "hidden", position: "relative" }}>
@@ -66,6 +61,10 @@ function WonderThumbnail({ uri, align }: { uri: string; align: PhotoAlign | null
         source={{ uri: src }}
         style={{ position: "absolute", top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
         resizeMode="cover"
+        onLoad={(e: any) => {
+          const s = e?.nativeEvent?.source;
+          if (s?.width && s?.height) setNaturalSize({ w: s.width, h: s.height });
+        }}
         onError={() => {
           if (retryCount < 1) {
             setTimeout(() => setRetryCount((c) => c + 1), 800);
@@ -151,7 +150,7 @@ export default function WondersScreen() {
                 padding: 16, gap: 12,
               }}
             >
-              {wonder.photoUrl && <WonderThumbnail uri={wonder.photoUrl} align={wonder.photoAlign} />}
+              {wonder.photoUrl && <WonderThumbnail uri={wonder.photoUrl} offset={wonder.photoOffset} />}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(wonder.country)}</Text>
