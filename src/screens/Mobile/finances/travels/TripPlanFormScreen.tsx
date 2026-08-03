@@ -21,10 +21,11 @@ import { TripPlanItemType, BudgetCategoryType, RoomType, BathroomType } from "..
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
 import { pickAndUploadAccommodationCover } from "../../../../utils/uploadTripCover";
+import { VisitStop, VisitStopType, VISIT_STOP_TYPES } from "./components/TripPlanningSection";
 
 // ==================== TYPES ====================
 
-type MainTab = "transport" | "accommodation" | "activity" | "expense";
+type MainTab = "transport" | "accommodation" | "activity" | "expense" | "visit";
 type TransportSubTab = "flight" | "train" | "bus" | "car" | "ferry";
 type TransportKind = "principal" | "local";
 type FlightEntryMode = "autofill" | "manual";
@@ -355,9 +356,11 @@ export default function TripPlanFormScreen({
     if (presetType === "flight" || presetType === "transport" || presetType === "taxi") return "transport";
     if (presetType === "accommodation") return "accommodation";
     if (presetType === "expense") return "expense";
+    if (presetType === "visit") return "visit";
     if (planItem?.type === "flight" || planItem?.type === "transport_destination" || planItem?.type === "transport_local") return "transport";
     if (planItem?.type === "accommodation") return "accommodation";
     if (planItem?.type === "expense") return "expense";
+    if (planItem?.type === "visit") return "visit";
     return "activity";
   };
 
@@ -480,6 +483,23 @@ export default function TripPlanFormScreen({
       : ""
   );
   const [actCurrency, setActCurrency] = useState("EUR");
+
+  // ==================== VISIT STATE ====================
+
+  const [visitTitle, setVisitTitle] = useState(planItem?.title || "");
+  const [visitStartAt, setVisitStartAt] = useState<Date | null>(
+    planItem?.startAt ? new Date(planItem.startAt) : presetDay ? new Date(`${presetDay}T09:00`) : null
+  );
+  const [visitEndAt, setVisitEndAt] = useState<Date | null>(
+    planItem?.endAt ? new Date(planItem.endAt) : null
+  );
+  const [visitStops, setVisitStops] = useState<VisitStop[]>(
+    planItem?.metadata?.stops ?? []
+  );
+  const [visitReordering, setVisitReordering] = useState(false);
+  const [visitNewStopLabel, setVisitNewStopLabel] = useState("");
+  const [visitNewStopType, setVisitNewStopType] = useState<VisitStopType>("otro");
+  const [visitAddingStop, setVisitAddingStop] = useState(false);
 
   // ==================== EXPENSE STATE ====================
 
@@ -721,6 +741,41 @@ export default function TripPlanFormScreen({
     }
   };
 
+  const handleSaveVisit = async () => {
+    if (!visitTitle.trim()) {
+      Alert.alert("Error", "El título de la visita es obligatorio");
+      return;
+    }
+    if (visitStops.length === 0) {
+      Alert.alert("Error", "Añade al menos una parada");
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      const payload = {
+        tripId,
+        type: TripPlanItemType.visit,
+        title: visitTitle,
+        startAt: visitStartAt?.toISOString() || null,
+        endAt: visitEndAt?.toISOString() || null,
+        day: visitStartAt ? visitStartAt.toISOString().slice(0, 10) : presetDay || null,
+        metadata: { stops: visitStops },
+      };
+      if (isEdit) {
+        await api.patch(`/trips/${tripId}/plan-items/${planItem.id}`, payload);
+      } else {
+        await api.post(`/trips/${tripId}/plan-items`, payload);
+      }
+      navigation.goBack();
+    } catch (error: any) {
+      setErr(error?.response?.data?.message || "No se pudo guardar la visita");
+      Alert.alert("Error", "No se pudo guardar la visita");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = () => {
     if (!planItem?.id) return;
     setShowDeleteConfirm(true);
@@ -751,6 +806,8 @@ export default function TripPlanFormScreen({
       handleSaveActivity();
     } else if (mainTab === "expense") {
       handleSaveExpense();
+    } else if (mainTab === "visit") {
+      handleSaveVisit();
     }
   };
 
@@ -780,6 +837,7 @@ export default function TripPlanFormScreen({
     accommodation: { title: "Alojamiento", saveLabel: "Guardar alojamiento" },
     activity:      { title: "Actividad",   saveLabel: "Guardar actividad"   },
     expense:       { title: "Gasto",       saveLabel: "Guardar gasto"       },
+    visit:         { title: "Visitar",     saveLabel: "Guardar visita"      },
   };
 
   const TRANSPORT_TABS = [
@@ -856,6 +914,27 @@ export default function TripPlanFormScreen({
               ))}
             </View>
           ))}
+        </View>
+
+        <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
+          <Pressable
+            onPress={() => { setMainTab("visit"); setStep("form"); }}
+            style={({ pressed }) => ({
+              flexDirection: "row", alignItems: "center",
+              backgroundColor: pressed ? "#F8FAFC" : "white",
+              borderRadius: 16, borderWidth: 1, borderColor: UI.border,
+              padding: 14, gap: 12,
+            })}
+          >
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 22 }}>🚶</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: UI.text }}>Visitar</Text>
+              <Text style={{ fontSize: 12, color: UI.muted, marginTop: 1 }}>Varias paradas a pie, tipo "Visitar Palermo"</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
+          </Pressable>
         </View>
 
         <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
@@ -1240,6 +1319,156 @@ export default function TripPlanFormScreen({
             })()}
 
             <DateTimeField label="FECHA" value={expOccurredAt} onChange={setExpOccurredAt} placeholder="Seleccionar fecha" />
+          </View>
+        )}
+
+        {/* VISIT */}
+        {mainTab === "visit" && (
+          <View>
+            <Field label="TÍTULO" value={visitTitle} onChange={setVisitTitle} placeholder='Ej: Visitar Palermo' autoCapitalize="sentences" />
+
+            <Row2>
+              <View style={{ flex: 1 }}>
+                <DateTimeField label="HORA DE INICIO" value={visitStartAt} onChange={setVisitStartAt} placeholder="Fecha y hora" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <DateTimeField label="HORA DE FIN (OPCIONAL)" value={visitEndAt} onChange={setVisitEndAt} placeholder="Añadir" />
+              </View>
+            </Row2>
+
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: "900", color: UI.muted, letterSpacing: 0.8 }}>
+                PARADAS · {visitStops.length}
+              </Text>
+              {visitStops.length > 1 && (
+                <TouchableOpacity onPress={() => setVisitReordering((v) => !v)}>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>
+                    {visitReordering ? "Listo" : "Reordenar"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={{ gap: 8, marginBottom: 12 }}>
+              {visitStops.map((stop, i) => {
+                const typeMeta = VISIT_STOP_TYPES.find((t) => t.value === stop.stopType);
+                return (
+                  <View
+                    key={stop.id}
+                    style={{
+                      flexDirection: "row", alignItems: "center", gap: 10,
+                      backgroundColor: "white", borderRadius: 12, borderWidth: 1, borderColor: UI.border,
+                      paddingHorizontal: 12, paddingVertical: 10,
+                    }}
+                  >
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary }} />
+                    <Text style={{ fontSize: 16 }}>{typeMeta?.emoji ?? "📍"}</Text>
+                    <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: UI.text }} numberOfLines={1}>{stop.label}</Text>
+                    {visitReordering ? (
+                      <View style={{ flexDirection: "row" }}>
+                        <TouchableOpacity
+                          disabled={i === 0}
+                          onPress={() => setVisitStops((prev) => {
+                            const next = [...prev];
+                            [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                            return next;
+                          })}
+                          style={{ paddingHorizontal: 6, opacity: i === 0 ? 0.3 : 1 }}
+                        >
+                          <Ionicons name="chevron-up" size={18} color={UI.muted} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          disabled={i === visitStops.length - 1}
+                          onPress={() => setVisitStops((prev) => {
+                            const next = [...prev];
+                            [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                            return next;
+                          })}
+                          style={{ paddingHorizontal: 6, opacity: i === visitStops.length - 1 ? 0.3 : 1 }}
+                        >
+                          <Ionicons name="chevron-down" size={18} color={UI.muted} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => setVisitStops((prev) => prev.filter((s) => s.id !== stop.id))}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {visitAddingStop ? (
+              <View style={{ backgroundColor: "#F8FAFC", borderRadius: 14, borderWidth: 1, borderColor: UI.border, padding: 12, marginBottom: 20 }}>
+                <TextInput
+                  value={visitNewStopLabel}
+                  onChangeText={setVisitNewStopLabel}
+                  placeholder="Ej: Quattro Canti"
+                  placeholderTextColor={UI.muted2}
+                  autoFocus
+                  style={{ fontSize: 14, fontWeight: "700", color: UI.text, marginBottom: 10, paddingVertical: 4 }}
+                />
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {VISIT_STOP_TYPES.map((t) => {
+                    const active = visitNewStopType === t.value;
+                    return (
+                      <Pressable
+                        key={t.value}
+                        onPress={() => setVisitNewStopType(t.value)}
+                        style={{
+                          flexDirection: "row", alignItems: "center", gap: 4,
+                          paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+                          borderWidth: 1, borderColor: active ? colors.primary : UI.border,
+                          backgroundColor: active ? colors.primary : "white",
+                        }}
+                      >
+                        <Text style={{ fontSize: 13 }}>{t.emoji}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: active ? "white" : UI.text }}>{t.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => { setVisitAddingStop(false); setVisitNewStopLabel(""); setVisitNewStopType("otro"); }}
+                    style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10 }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: UI.muted }}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    disabled={!visitNewStopLabel.trim()}
+                    onPress={() => {
+                      setVisitStops((prev) => [...prev, {
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                        label: visitNewStopLabel.trim(),
+                        stopType: visitNewStopType,
+                      }]);
+                      setVisitNewStopLabel("");
+                      setVisitNewStopType("otro");
+                      setVisitAddingStop(false);
+                    }}
+                    style={{ flex: 1, backgroundColor: colors.primary, paddingVertical: 10, alignItems: "center", borderRadius: 10, opacity: !visitNewStopLabel.trim() ? 0.5 : 1 }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setVisitAddingStop(true)}
+                style={({ pressed }) => ({
+                  borderWidth: 1.5, borderColor: UI.border, borderStyle: "dashed", borderRadius: 12,
+                  paddingVertical: 12, alignItems: "center", marginBottom: 20,
+                  backgroundColor: pressed ? "#F8FAFC" : "transparent",
+                })}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>+ Añadir parada</Text>
+              </Pressable>
+            )}
           </View>
         )}
 

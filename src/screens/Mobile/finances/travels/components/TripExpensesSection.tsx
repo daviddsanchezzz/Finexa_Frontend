@@ -308,20 +308,7 @@ function ExpenseRow({
         gap: 10,
       })}
     >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 13,
-          backgroundColor: "white",
-          alignItems: "center",
-          justifyContent: "center",
-          borderWidth: 1,
-          borderColor: "rgba(148,163,184,0.20)",
-        }}
-      >
-        <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: rowAccent }} />
-      </View>
+      <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: rowAccent }} />
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
@@ -619,9 +606,7 @@ const entries = useMemo(() => {
                       gap: 10,
                     })}
                   >
-                    <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: "white", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(148,163,184,0.20)" }}>
-                      <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: tx.category?.color || "#94A3B8" }} />
-                    </View>
+                    <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: tx.category?.color || "#94A3B8" }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
                         {tx.description || tx.subcategory?.name || "Gasto"}

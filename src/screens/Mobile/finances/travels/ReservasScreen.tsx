@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, Platform } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, Platform, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -56,6 +56,12 @@ function fmtDayTime(iso?: string | null) {
 
 function joinText(parts: Array<string | null | undefined>) {
   return parts.map((part) => part?.trim()).filter(Boolean).join(" · ");
+}
+
+function buildGoogleMapsUrl(query?: string | null) {
+  const clean = query?.trim();
+  if (!clean) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean)}`;
 }
 
 export default function ReservasScreen() {
@@ -262,6 +268,7 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
   const checkOut = fmtDayTime(ad.checkOutAt);
   const title = ad.name || item.title;
   const location = joinText([ad.address, ad.city, ad.country]);
+  const mapsUrl = buildGoogleMapsUrl(location);
   const metaLine = joinText([
     ad.guests ? `${ad.guests} huésped${ad.guests > 1 ? "es" : ""}` : null,
     ad.rooms ? `${ad.rooms} habit.` : null,
@@ -293,10 +300,20 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 5 }}>{title}</Text>
             {!!location && (
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-                <Ionicons name="location-outline" size={13} color="#64748B" style={{ marginTop: 1 }} />
-                <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: "#64748B", lineHeight: 16 }}>{location}</Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={(event: any) => {
+                  event?.stopPropagation?.();
+                  if (mapsUrl) void Linking.openURL(mapsUrl);
+                }}
+                disabled={!mapsUrl}
+                style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}
+              >
+                <Ionicons name="location-outline" size={13} color={mapsUrl ? colors.primary : "#64748B"} style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: mapsUrl ? colors.primary : "#64748B", lineHeight: 16 }}>
+                  {location}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 

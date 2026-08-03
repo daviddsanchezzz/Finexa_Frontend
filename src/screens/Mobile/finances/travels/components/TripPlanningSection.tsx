@@ -36,6 +36,28 @@ type TripPlanItemType =
   | "activity"
   | "visit";
 
+export type VisitStopType = "comida" | "monumento" | "mirador" | "museo" | "teatro" | "compras" | "otro";
+
+export interface VisitStop {
+  id: string;
+  label: string;
+  stopType: VisitStopType;
+}
+
+export const VISIT_STOP_TYPES: { value: VisitStopType; label: string; emoji: string }[] = [
+  { value: "comida", label: "Comida", emoji: "🍽️" },
+  { value: "monumento", label: "Monumento", emoji: "🏛️" },
+  { value: "mirador", label: "Mirador", emoji: "👁️" },
+  { value: "museo", label: "Museo", emoji: "🖼️" },
+  { value: "teatro", label: "Teatro", emoji: "🎭" },
+  { value: "compras", label: "Compras", emoji: "🛍️" },
+  { value: "otro", label: "Otro", emoji: "📍" },
+];
+
+export function visitStopEmoji(stopType: VisitStopType): string {
+  return VISIT_STOP_TYPES.find((t) => t.value === stopType)?.emoji ?? "📍";
+}
+
 export interface TripPlanItem {
   id: number;
   type: TripPlanItemType;
@@ -81,7 +103,7 @@ export interface TripPlanItem {
   } | null;
 }
 
-type TripLike = { startDate?: string | null; endDate?: string | null };
+type TripLike = { startDate?: string | null; endDate?: string | null; name?: string | null; destination?: string | null };
 
 interface TripPlanningSectionProps {
   tripId: number;
@@ -135,6 +157,7 @@ const TYPE_META: Partial<Record<TripPlanItemType, TypeMeta>> = {
   day_trip:              { emoji: "🗺️", accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
   activity:              { emoji: "⚡",  accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
   expense:               { emoji: "🧾",  accent: UI.text,   badgeBg: "rgba(15,23,42,0.06)",   badgeBorder: "rgba(148,163,184,0.28)" },
+  visit:                 { emoji: "🚶",  accent: "#6366F1", badgeBg: "rgba(99,102,241,0.10)", badgeBorder: "rgba(99,102,241,0.25)" },
 };
 
 const EXPENSE_CAT_META: Record<string, TypeMeta> = {
@@ -199,6 +222,27 @@ const daysBetween = (start?: string | null, end?: string | null) => {
   }
   return out;
 };
+
+function buildVisitMapsUrl(stops: VisitStop[], cityContext?: string | null): string | null {
+  const queries = stops
+    .map((s) => (cityContext ? `${s.label}, ${cityContext}` : s.label))
+    .filter((q) => q.trim().length > 0);
+  if (queries.length === 0) return null;
+  if (queries.length === 1) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queries[0])}`;
+  }
+  const origin = queries[0];
+  const destination = queries[queries.length - 1];
+  const waypoints = queries.slice(1, -1);
+  const params = new URLSearchParams({
+    api: "1",
+    origin,
+    destination,
+    travelmode: "walking",
+  });
+  if (waypoints.length > 0) params.set("waypoints", waypoints.join("|"));
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
 
 /** Timestamp (ms) usado para ordenar items cronológicamente, dentro de un día o a lo largo de todo el viaje. */
 function itemTimestamp(it: TripPlanItem, fallbackDayKey?: string): number {
@@ -491,17 +535,107 @@ function EmptyDayCard({ onPress }: { onPress: () => void }) {
   );
 }
 
+function VisitActivityCard({
+  item,
+  currentDay,
+  isLastDay,
+  cityContext,
+  onEdit,
+}: {
+  item: TripPlanItem;
+  currentDay: string;
+  isLastDay?: boolean;
+  cityContext?: string | null;
+  onEdit: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = TYPE_META.visit!;
+  const stops = item.metadata?.stops ?? [];
+  const time = fmtTimeRangeForDay(item, currentDay, isLastDay);
+  const mapsUrl = buildVisitMapsUrl(stops, cityContext);
+
+  return (
+    <View
+      style={{
+        backgroundColor: UI.surface,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: UI.border,
+        overflow: "hidden",
+      }}
+    >
+      <Pressable
+        onPress={() => setExpanded((e) => !e)}
+        style={({ pressed }) => ({
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingVertical: 10,
+          paddingHorizontal: 10,
+          opacity: pressed ? 0.97 : 1,
+        })}
+      >
+        <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: meta.badgeBg, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontSize: 17, lineHeight: 20 }}>{meta.emoji}</Text>
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontSize: 12, fontWeight: "900", color: UI.text }} numberOfLines={1}>{item.title}</Text>
+          <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, marginTop: 2 }} numberOfLines={1}>
+            {!!time ? `${time} · ` : ""}{stops.length} {stops.length === 1 ? "parada" : "paradas"}
+          </Text>
+        </View>
+
+        <TouchableOpacity onPress={onEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ padding: 2 }}>
+          <Ionicons name="pencil-outline" size={15} color={UI.muted2} />
+        </TouchableOpacity>
+
+        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={UI.muted2} />
+      </Pressable>
+
+      {expanded && (
+        <View style={{ paddingHorizontal: 10, paddingBottom: 10, gap: 6 }}>
+          {stops.map((s, i) => (
+            <View key={s.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 8 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.accent }} />
+              <Text style={{ fontSize: 15 }}>{visitStopEmoji(s.stopType)}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: UI.text, flex: 1 }} numberOfLines={1}>{s.label}</Text>
+            </View>
+          ))}
+
+          {!!mapsUrl && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(mapsUrl)}
+              activeOpacity={0.7}
+              style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4, paddingLeft: 8 }}
+            >
+              <Text style={{ fontSize: 10 }}>📍</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }}>Ver ruta en Google Maps</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ActivityCard({
   item,
   currentDay,
   isLastDay,
+  cityContext,
   onPress,
 }: {
   item: TripPlanItem;
   currentDay: string;
   isLastDay?: boolean;
+  cityContext?: string | null;
   onPress: () => void;
 }) {
+  if (item.type === "visit") {
+    return <VisitActivityCard item={item} currentDay={currentDay} isLastDay={isLastDay} cityContext={cityContext} onEdit={onPress} />;
+  }
+
   const baseMeta = TYPE_META[item.type] ?? TYPE_META.other ?? {
     emoji: "📌",
     accent: UI.text,
@@ -989,7 +1123,7 @@ export default function TripPlanningSectionRedesign({
                       }} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 6, marginBottom: isLast ? 0 : 10 }}>
-                      <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} onPress={() => handleEdit(it)} />
+                      <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
                     </View>
                   </View>
                 );
@@ -1062,7 +1196,7 @@ export default function TripPlanningSectionRedesign({
                 ) : (
                   <View style={{ gap: 8 }}>
                     {items.map((it) => (
-                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} isLastDay={d === dayKeys[dayKeys.length - 1]} onPress={() => handleEdit(it)} />
+                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} isLastDay={d === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
                     ))}
                   </View>
                 )}
