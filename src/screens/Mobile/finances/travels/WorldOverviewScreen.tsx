@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import WorldMapSvg from "./components/WorldMapSvg";
 
 type WorldContinent = "europe" | "asia" | "north_america" | "south_america" | "africa" | "oceania";
 
@@ -16,6 +17,11 @@ interface WorldOverviewDto {
   continents: { continent: WorldContinent; visited: number; total: number; pct: number }[];
   wondersVisited: number;
   wondersTotal: number;
+}
+
+interface ContinentCountries {
+  continent: WorldContinent;
+  countries: { code: string; nameEs: string; visited: boolean }[];
 }
 
 const CONTINENT_LABELS: Record<WorldContinent, string> = {
@@ -36,14 +42,31 @@ export default function WorldOverviewScreen() {
     staleTime: 1000 * 30,
   });
 
+  const countriesQuery = useQuery({
+    queryKey: ["worldCountries"],
+    queryFn: async () => (await api.get("/world/countries")).data as ContinentCountries[],
+    staleTime: 1000 * 30,
+  });
+
   useFocusEffect(
     useCallback(() => {
       overviewQuery.refetch();
+      countriesQuery.refetch();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
 
   const overview = overviewQuery.data;
+
+  const visitedCodes = useMemo(() => {
+    const codes = new Set<string>();
+    for (const group of countriesQuery.data ?? []) {
+      for (const c of group.countries) {
+        if (c.visited) codes.add(c.code);
+      }
+    }
+    return codes;
+  }, [countriesQuery.data]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
@@ -61,13 +84,10 @@ export default function WorldOverviewScreen() {
           <View
             style={{
               backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
-              padding: 20, alignItems: "center", marginBottom: 16,
+              padding: 12, alignItems: "center", marginBottom: 16, overflow: "hidden",
             }}
           >
-            <Ionicons name="earth" size={64} color="#CBD5E1" />
-            <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 8, textAlign: "center" }}>
-              Mapa detallado próximamente
-            </Text>
+            <WorldMapSvg visitedCodes={visitedCodes} height={150} visitedColor={colors.primary} />
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: 10, marginBottom: 4 }}>

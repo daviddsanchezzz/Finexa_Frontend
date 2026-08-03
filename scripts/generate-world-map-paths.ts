@@ -10,12 +10,23 @@ import * as fs from "fs";
 import * as path from "path";
 import { geoPath, geoNaturalEarth1 } from "d3-geo";
 import { feature } from "topojson-client";
+// @ts-ignore - no type declarations published for this package
+import { presimplify, simplify } from "topojson-simplify";
 import worldCountries from "world-countries";
 // @ts-ignore - no type declarations shipped for the JSON data files themselves
-import topology from "world-atlas/countries-50m.json";
+import rawTopology from "world-atlas/countries-50m.json";
 
-const VIEWBOX_WIDTH = 960;
-const VIEWBOX_HEIGHT = 500;
+// Simplify the topology itself (fewer points per coastline) rather than just
+// rounding coordinates — this is what actually shrinks the generated file,
+// since point count dominates string length far more than decimal digits do.
+const topology = simplify(presimplify(rawTopology as any), 0.0007);
+
+// Smaller viewBox units mean fewer digits per coordinate in the generated
+// path strings (SVG scales the viewBox to fit the rendered size regardless,
+// so this doesn't affect visual quality) — this alone roughly halves the
+// generated file size versus a 960x500 viewBox at the same rounding.
+const VIEWBOX_WIDTH = 480;
+const VIEWBOX_HEIGHT = 250;
 
 const numericToIso2 = new Map<string, string>();
 for (const c of worldCountries as any[]) {
@@ -29,7 +40,7 @@ const projection = geoNaturalEarth1().fitSize([VIEWBOX_WIDTH, VIEWBOX_HEIGHT], f
 // px wide in the app, and untruncated coordinates were bloating the
 // generated file to ~1.4MB. One decimal digit is visually indistinguishable
 // at this display size and cuts the file drastically.
-const pathGenerator = geoPath(projection).digits(1);
+const pathGenerator = geoPath(projection).digits(0);
 
 const paths: Record<string, string> = {};
 let matched = 0;
