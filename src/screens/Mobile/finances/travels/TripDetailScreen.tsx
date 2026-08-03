@@ -21,6 +21,7 @@ import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 
 // Secciones
 import TripPlanningSection from "./components/TripPlanningSection";
@@ -808,24 +809,42 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </>
           );
 
-          // ── Sin foto: nombre y bandera centrados, "Añadir foto" abajo-izquierda ──
+          // ── Sin foto: bandera + nombre abajo-izquierda, fechas/gasto en una línea,
+          //    "Añadir foto" abajo-derecha, con un patrón de líneas decorativo de fondo ──
           const heroInnerNoPhoto = (
             <>
+              <Svg
+                pointerEvents="none"
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                viewBox="0 0 400 220"
+                preserveAspectRatio="none"
+              >
+                <Path d="M-20,55 C80,15 160,95 260,55 S420,15 460,55" stroke="rgba(255,255,255,0.14)" strokeWidth={1.5} fill="none" />
+                <Path d="M-20,115 C100,75 180,155 280,115 S440,75 480,115" stroke="rgba(255,255,255,0.10)" strokeWidth={1.5} fill="none" />
+                <Path d="M-20,168 C100,138 200,198 300,168 S440,138 480,168" stroke="rgba(255,255,255,0.08)" strokeWidth={1.5} fill="none" />
+              </Svg>
+
               {topBar}
-              <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 }}>
-                {countryLabel ? (
-                  <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 4 }}>
-                    {countryFlag} {countryLabel}
-                  </Text>
-                ) : null}
-                <Text style={{ fontSize: 24, fontWeight: "900", color: "white", textAlign: "center" }} numberOfLines={1}>
-                  {trip.name}
-                </Text>
-              </View>
+
               <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    {countryLabel ? (
+                      <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
+                        {countryFlag} {countryLabel}
+                      </Text>
+                    ) : null}
+                    <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                      {trip.name}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 4 }} numberOfLines={1}>
+                      {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
+                      {days > 0 ? ` · ${days} días` : ""}
+                      {" · "}{formatEuro(totalGastado)}
+                      {trip.budget && trip.budget > 0 ? ` de ${formatEuro(trip.budget)}` : ""}
+                    </Text>
+                  </View>
                   {addCoverButton}
-                  {datesBlock}
                 </View>
                 {budgetBar}
               </View>

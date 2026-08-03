@@ -190,12 +190,6 @@ function tripDurationDays(t: TripUI) {
   return days > 0 ? days : null;
 }
 
-const STATUS_META: Record<TripStatus, { label: string; color: string; bg: string }> = {
-  planning: { label: "Organizando", color: colors.primary, bg: "#EEF2FF" },
-  seen:     { label: "Visitado",    color: "#16A34A",     bg: "#DCFCE7" },
-  wishlist: { label: "Por visitar", color: "#F59E0B",     bg: "#FEF3C7" },
-};
-
 /* ─── Screen ─── */
 export default function TripsHomeScreen({ navigation }: any) {
   const [boardMode, setBoardMode]           = useState<BoardMode>("status");
@@ -393,7 +387,7 @@ export default function TripsHomeScreen({ navigation }: any) {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
       {/* ── Header ── */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
@@ -402,7 +396,7 @@ export default function TripsHomeScreen({ navigation }: any) {
           onPress={() => navigation.navigate("TripForm")}
           activeOpacity={0.85}
           style={{
-            backgroundColor: colors.primary, borderRadius: 12,
+            backgroundColor: colors.primary, borderRadius: 16,
             paddingVertical: 9, paddingHorizontal: 16,
           }}
         >
@@ -418,7 +412,7 @@ export default function TripsHomeScreen({ navigation }: any) {
             colors={["#001B5E", "#003cc5", "#1A6AF5"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={{
-              borderRadius: 24, paddingHorizontal: 18, paddingVertical: 14,
+              borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14,
               shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 16,
               shadowOffset: { width: 0, height: 6 }, elevation: 4,
             }}
@@ -426,7 +420,7 @@ export default function TripsHomeScreen({ navigation }: any) {
             {/* Badge % mundo */}
             {heroStats.visitedPct > 0 && (
               <View style={{
-                alignSelf: "flex-start",
+                alignSelf: "flex-end",
                 paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
                 backgroundColor: "rgba(255,255,255,0.18)",
                 flexDirection: "row", alignItems: "center", gap: 4,
@@ -826,7 +820,6 @@ export default function TripsHomeScreen({ navigation }: any) {
                     const dateLabel = formatDateRange(t.startDate, t.endDate);
                     const days      = tripDurationDays(t);
                     const showCost  = t.status === "seen" && (t.cost || 0) > 0;
-                    const meta      = STATUS_META[t.status];
 
                     return (
                       <TouchableOpacity
@@ -868,14 +861,10 @@ export default function TripsHomeScreen({ navigation }: any) {
 
                         {/* Derecha */}
                         <View style={{ alignItems: "flex-end", gap: 4 }}>
-                          {showCost ? (
+                          {showCost && (
                             <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>
                               {formatEuro(t.cost)}
                             </Text>
-                          ) : (
-                            <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: meta.bg }}>
-                              <Text style={{ fontSize: 10, fontWeight: "800", color: meta.color }}>{meta.label}</Text>
-                            </View>
                           )}
                           <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
                         </View>
