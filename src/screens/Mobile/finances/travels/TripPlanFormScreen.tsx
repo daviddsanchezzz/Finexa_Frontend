@@ -10,6 +10,7 @@ import {
   Pressable,
   Modal,
   FlatList,
+  Image,
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,7 @@ import { colors } from "../../../../theme/theme";
 import { TripPlanItemType, BudgetCategoryType, RoomType, BathroomType } from "../../../../types/enums/travel";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
+import { pickAndUploadAccommodationCover } from "../../../../utils/uploadTripCover";
 
 // ==================== TYPES ====================
 
@@ -441,6 +443,10 @@ export default function TripPlanFormScreen({
   const [accBookingRef, setAccBookingRef] = useState(planItem?.accommodationDetails?.bookingRef || "");
   const [accPhone, setAccPhone] = useState(planItem?.accommodationDetails?.phone || "");
   const [accWebsite, setAccWebsite] = useState(planItem?.accommodationDetails?.website || "");
+  const [accCoverImageUrl, setAccCoverImageUrl] = useState<string | null>(
+    planItem?.accommodationDetails?.coverImageUrl || null
+  );
+  const [uploadingAccCover, setUploadingAccCover] = useState(false);
   const [accCostStr, setAccCostStr] = useState(
     planItem?.cost && planItem.type === "accommodation" ? String(planItem.cost).replace(".", ",") : ""
   );
@@ -617,6 +623,7 @@ export default function TripPlanFormScreen({
           bookingRef: accBookingRef || null,
           phone: accPhone || null,
           website: accWebsite || null,
+          coverImageUrl: accCoverImageUrl || null,
         },
         date: accCheckInAt?.toISOString() || null,
         endTime: accCheckOutAt?.toISOString() || null,
@@ -1029,10 +1036,38 @@ export default function TripPlanFormScreen({
         {mainTab === "accommodation" && (
           <View>
             <Pressable
-              style={{ borderWidth: 1.5, borderColor: UI.border, borderStyle: "dashed", borderRadius: 16, height: 100, alignItems: "center", justifyContent: "center", backgroundColor: "#FAFAFA", marginBottom: 20, gap: 6 }}
+              onPress={async () => {
+                if (uploadingAccCover) return;
+                setUploadingAccCover(true);
+                try {
+                  const url = await pickAndUploadAccommodationCover();
+                  if (url) setAccCoverImageUrl(url);
+                } finally {
+                  setUploadingAccCover(false);
+                }
+              }}
+              style={{
+                borderWidth: 1.5, borderColor: UI.border, borderStyle: accCoverImageUrl ? "solid" : "dashed",
+                borderRadius: 16, height: 100, alignItems: "center", justifyContent: "center",
+                backgroundColor: "#FAFAFA", marginBottom: 20, gap: 6, overflow: "hidden",
+              }}
             >
-              <Ionicons name="image-outline" size={24} color={UI.muted2} />
-              <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted2 }}>Añadir foto del alojamiento</Text>
+              {uploadingAccCover ? (
+                <ActivityIndicator size="small" color={UI.muted2} />
+              ) : accCoverImageUrl ? (
+                <>
+                  <Image source={{ uri: accCoverImageUrl }} style={{ width: "100%", height: "100%", position: "absolute" }} resizeMode="cover" />
+                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.45)", paddingVertical: 6, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 4 }}>
+                    <Ionicons name="camera-outline" size={12} color="white" />
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar foto</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={24} color={UI.muted2} />
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted2 }}>Añadir foto del alojamiento</Text>
+                </>
+              )}
             </Pressable>
 
             <Field label="NOMBRE *" value={accName} onChange={setAccName} placeholder="Ej: Hotel Roma" autoCapitalize="words" />

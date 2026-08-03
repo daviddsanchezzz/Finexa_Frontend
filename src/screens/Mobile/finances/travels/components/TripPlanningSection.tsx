@@ -76,6 +76,7 @@ export interface TripPlanItem {
     country?: string | null;
     checkInAt?: string | null;
     checkOutAt?: string | null;
+    coverImageUrl?: string | null;
   } | null;
 }
 

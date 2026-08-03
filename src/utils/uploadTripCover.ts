@@ -1,9 +1,8 @@
 import { supabase } from "../lib/supabase";
 
 const BUCKET = "documents";
-const FOLDER = "trip-covers";
 
-export async function pickAndUploadTripCover(): Promise<string | null> {
+function pickAndUploadImage(folder: string): Promise<string | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -14,7 +13,7 @@ export async function pickAndUploadTripCover(): Promise<string | null> {
       if (!file) { resolve(null); return; }
 
       const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${FOLDER}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
       const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
         cacheControl: "3600",
@@ -30,4 +29,12 @@ export async function pickAndUploadTripCover(): Promise<string | null> {
 
     input.click();
   });
+}
+
+export function pickAndUploadTripCover(): Promise<string | null> {
+  return pickAndUploadImage("trip-covers");
+}
+
+export function pickAndUploadAccommodationCover(): Promise<string | null> {
+  return pickAndUploadImage("accommodation-covers");
 }
