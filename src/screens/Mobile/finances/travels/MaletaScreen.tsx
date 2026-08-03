@@ -28,12 +28,27 @@ interface SyntheticItem {
   checked: boolean;
 }
 
+interface ChecklistRowItem {
+  id: number;
+  label: string;
+  checked: boolean;
+}
+
 export default function MaletaScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { tripId, destination, tripName } = route.params || {};
 
-  const { items, isLoading, toggleItem, createItem, deleteItem, isSaving, errorMessage } = useTripChecklist(tripId);
+  const {
+    items,
+    isLoading,
+    toggleItem,
+    createItem,
+    updateItem,
+    deleteItem,
+    isSaving,
+    errorMessage,
+  } = useTripChecklist(tripId);
   const { documentsByType: userDocsByType } = useUserDocuments();
   const { documentsByType: tripDocsByType } = useTripDocuments(tripId);
   const weatherQuery = useTripWeather(destination, tripName);
@@ -91,7 +106,7 @@ export default function MaletaScreen() {
           paddingHorizontal: 16,
           gap: 8,
           paddingTop: 2,
-          paddingBottom: 12,
+          paddingBottom: 10,
           alignItems: "center",
         }}
       >
@@ -107,7 +122,7 @@ export default function MaletaScreen() {
       </ScrollView>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
         {isLoading ? (
@@ -119,8 +134,11 @@ export default function MaletaScreen() {
               category={category}
               items={items.filter((item) => item.category === category)}
               synthetic={category === "documentos" ? syntheticDocs : []}
+              isSaving={isSaving}
               onToggle={(id, checked) => toggleItem(id, checked)}
+              onUpdate={(id, label) => updateItem(id, label)}
               onDelete={(id) => deleteItem(id)}
+              onError={(message) => setActionError(message)}
             />
           ))
         )}
@@ -162,6 +180,7 @@ export default function MaletaScreen() {
                 paddingVertical: 10,
                 fontSize: 13,
                 color: "#0F172A",
+                backgroundColor: "white",
               }}
             />
             <TouchableOpacity
@@ -226,14 +245,20 @@ function CategorySection({
   category,
   items,
   synthetic,
+  isSaving,
   onToggle,
+  onUpdate,
   onDelete,
+  onError,
 }: {
   category: ChecklistCategory;
-  items: { id: number; label: string; checked: boolean }[];
+  items: ChecklistRowItem[];
   synthetic: SyntheticItem[];
+  isSaving: boolean;
   onToggle: (id: number, checked: boolean) => void;
-  onDelete: (id: number) => void;
+  onUpdate: (id: number, label: string) => Promise<unknown>;
+  onDelete: (id: number) => Promise<unknown>;
+  onError: (message: string) => void;
 }) {
   const meta = CATEGORY_META[category];
   const checkedCount = items.filter((item) => item.checked).length + synthetic.filter((item) => item.checked).length;
@@ -243,7 +268,7 @@ function CategorySection({
 
   return (
     <View style={{ marginBottom: 18 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
         <Ionicons name={meta.icon} size={12} color="#9CA3AF" />
         <Text
           style={{
@@ -299,38 +324,153 @@ function CategorySection({
         ))}
 
         {items.map((item, index) => (
-          <TouchableOpacity
+          <EditableChecklistRow
             key={item.id}
-            onPress={() => onToggle(item.id, !item.checked)}
-            onLongPress={() => onDelete(item.id)}
-            activeOpacity={0.7}
+            item={item}
+            isLast={index === items.length - 1}
+            isSaving={isSaving}
+            onToggle={onToggle}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            onError={onError}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function EditableChecklistRow({
+  item,
+  isLast,
+  isSaving,
+  onToggle,
+  onUpdate,
+  onDelete,
+  onError,
+}: {
+  item: ChecklistRowItem;
+  isLast: boolean;
+  isSaving: boolean;
+  onToggle: (id: number, checked: boolean) => void;
+  onUpdate: (id: number, label: string) => Promise<unknown>;
+  onDelete: (id: number) => Promise<unknown>;
+  onError: (message: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftLabel, setDraftLabel] = useState(item.label);
+
+  const saveEdit = async () => {
+    const nextLabel = draftLabel.trim();
+    if (!nextLabel) {
+      onError("El artículo no puede estar vacío.");
+      return;
+    }
+
+    if (nextLabel === item.label) {
+      setIsEditing(false);
+      return;
+    }
+
+    try {
+      await onUpdate(item.id, nextLabel);
+      setIsEditing(false);
+    } catch (error: any) {
+      onError(error?.response?.data?.message || error?.message || "No se pudo editar el artículo.");
+    }
+  };
+
+  const removeItem = async () => {
+    try {
+      await onDelete(item.id);
+    } catch (error: any) {
+      onError(error?.response?.data?.message || error?.message || "No se pudo eliminar el artículo.");
+    }
+  };
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomColor: "#F3F4F6",
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <TouchableOpacity onPress={() => onToggle(item.id, !item.checked)} activeOpacity={0.7}>
+          <Ionicons
+            name={item.checked ? "checkmark-circle" : "ellipse-outline"}
+            size={20}
+            color={item.checked ? "#16A34A" : "#D1D5DB"}
+          />
+        </TouchableOpacity>
+
+        {isEditing ? (
+          <TextInput
+            value={draftLabel}
+            onChangeText={setDraftLabel}
+            autoFocus
+            placeholder="Editar artículo"
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              borderBottomWidth: index === items.length - 1 ? 0 : 1,
-              borderBottomColor: "#F3F4F6",
+              flex: 1,
+              marginLeft: 10,
+              marginRight: 10,
+              borderWidth: 1,
+              borderColor: "#DBE3F0",
+              borderRadius: 10,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              fontSize: 13,
+              color: "#1F2937",
+              backgroundColor: "#F8FAFC",
+            }}
+          />
+        ) : (
+          <Text
+            style={{
+              flex: 1,
+              marginLeft: 10,
+              marginRight: 10,
+              fontSize: 13,
+              fontWeight: "600",
+              color: item.checked ? "#9CA3AF" : "#1F2937",
+              textDecorationLine: item.checked ? "line-through" : "none",
             }}
           >
-            <Ionicons
-              name={item.checked ? "checkmark-circle" : "ellipse-outline"}
-              size={20}
-              color={item.checked ? "#16A34A" : "#D1D5DB"}
-            />
-            <Text
-              style={{
-                marginLeft: 10,
-                fontSize: 13,
-                fontWeight: "600",
-                color: item.checked ? "#9CA3AF" : "#1F2937",
-                textDecorationLine: item.checked ? "line-through" : "none",
+            {item.label}
+          </Text>
+        )}
+      </View>
+
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 14, marginTop: 8 }}>
+        {isEditing ? (
+          <>
+            <TouchableOpacity
+              disabled={isSaving}
+              onPress={() => {
+                setDraftLabel(item.label);
+                setIsEditing(false);
               }}
             >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity disabled={isSaving} onPress={saveEdit}>
+              <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary }}>Guardar</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity disabled={isSaving} onPress={() => setIsEditing(true)} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Ionicons name="pencil-outline" size={14} color="#64748B" />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity disabled={isSaving} onPress={removeItem} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Ionicons name="trash-outline" size={14} color="#DC2626" />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#DC2626" }}>Eliminar</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );

@@ -81,6 +81,12 @@ export function useTripChecklist(tripId: number) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ itemId, label }: { itemId: number; label: string }) =>
+      (await api.patch(`/trips/${tripId}/checklist/${itemId}`, { label })).data as TripChecklistItem,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (itemId: number) => {
       await api.delete(`/trips/${tripId}/checklist/${itemId}`);
@@ -93,12 +99,14 @@ export function useTripChecklist(tripId: number) {
     isLoading: query.isLoading || seedMutation.isPending,
     toggleItem: (itemId: number, checked: boolean) => toggleMutation.mutateAsync({ itemId, checked }),
     createItem: (category: ChecklistCategory, label: string) => createMutation.mutateAsync({ category, label }),
+    updateItem: (itemId: number, label: string) => updateMutation.mutateAsync({ itemId, label }),
     deleteItem: (itemId: number) => deleteMutation.mutateAsync(itemId),
-    isSaving: createMutation.isPending,
+    isSaving: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
     errorMessage:
       getErrorMessage(query.error, "") ||
       getErrorMessage(seedMutation.error, "") ||
       getErrorMessage(createMutation.error, "") ||
+      getErrorMessage(updateMutation.error, "") ||
       getErrorMessage(toggleMutation.error, "") ||
       getErrorMessage(deleteMutation.error, ""),
   };
