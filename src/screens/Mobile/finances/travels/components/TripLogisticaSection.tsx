@@ -1,11 +1,13 @@
 // src/screens/Trips/components/TripLogisticaSection.tsx
 import React, { useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
 import { useUserDocuments } from "../../../../../hooks/useUserDocuments";
 import { useTripDocuments } from "../../../../../hooks/useTripDocuments";
+import { useTripContacts } from "../../../../../hooks/useTripContacts";
+import { getEmergencyNumber } from "../../../../../utils/emergencyNumbers";
 
 interface FlightDetails {
   flightNumberIata?: string | null;
@@ -17,12 +19,17 @@ interface FlightDetails {
   seat?: string | null;
 }
 
+interface AccommodationDetails {
+  phone?: string | null;
+}
+
 interface TripPlanItem {
   id: number;
   type: string;
   title: string;
   startAt?: string | null;
   flightDetails?: FlightDetails | null;
+  accommodationDetails?: AccommodationDetails | null;
 }
 
 interface TripLite {
@@ -52,21 +59,30 @@ function isToday(iso: string) {
   return d.toDateString() === now.toDateString();
 }
 
-function ComingSoon() {
-  Alert.alert("Próximamente", "Esta sección todavía no está disponible.");
-}
-
 export default function TripLogisticsSection({ tripId, trip, planItems }: Props) {
   const navigation = useNavigation<any>();
 
   const { documentsByType: userDocsByType, isLoading: userDocsLoading } = useUserDocuments();
   const { documentsByType: tripDocsByType, isLoading: tripDocsLoading } = useTripDocuments(tripId);
+  const { contacts, isLoading: contactsLoading } = useTripContacts(tripId);
 
   const hasPassport = userDocsByType.has("passport");
   const hasDni = userDocsByType.has("dni");
   const hasInsurance = tripDocsByType.has("travel_insurance");
   const docsLoading = userDocsLoading || tripDocsLoading;
   const docsCount = (hasPassport ? 1 : 0) + (hasDni ? 1 : 0) + (hasInsurance ? 1 : 0);
+
+  const reservationsCount = useMemo(
+    () => planItems.filter((i) => i.type === "flight" || i.type === "accommodation").length,
+    [planItems]
+  );
+
+  const accommodationsWithPhone = useMemo(
+    () => planItems.filter((i) => i.type === "accommodation" && i.accommodationDetails?.phone).length,
+    [planItems]
+  );
+  const emergencyNumber = getEmergencyNumber(trip?.destination);
+  const contactsCount = (emergencyNumber ? 1 : 0) + accommodationsWithPhone + contacts.length;
 
   const nextFlight = useMemo(() => {
     const now = Date.now();
@@ -83,6 +99,14 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
       tripName: trip?.name ?? null,
       endDate: trip?.endDate ?? null,
     });
+
+  const openReservas = () => navigation.navigate("Reservas", { tripId, planItems });
+
+  const openContactos = () =>
+    navigation.navigate("Contactos", { tripId, destination: trip?.destination ?? null, planItems });
+
+  const openMaleta = () =>
+    navigation.navigate("Maleta", { tripId, destination: trip?.destination ?? null, tripName: trip?.name ?? null });
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}>
@@ -106,8 +130,8 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
       {/* Stats */}
       <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
         <StatCard label="Documentos" value={docsLoading ? "—" : `${docsCount}/3`} onPress={openDocuments} />
-        <StatCard label="Reservas" value="—" disabled onPress={ComingSoon} />
-        <StatCard label="Contactos" value="—" disabled onPress={ComingSoon} />
+        <StatCard label="Reservas" value={String(reservationsCount)} onPress={openReservas} />
+        <StatCard label="Contactos" value={contactsLoading ? "—" : String(contactsCount)} onPress={openContactos} />
       </View>
 
       {/* Próximo en tu viaje */}
@@ -122,9 +146,9 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
       <SectionTitle>Accesos rápidos</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         <QuickAccessTile icon="document-text-outline" label="Documentos" onPress={openDocuments} />
-        <QuickAccessTile icon="briefcase-outline" label="Reservas" disabled onPress={ComingSoon} />
-        <QuickAccessTile icon="call-outline" label="Contactos" disabled onPress={ComingSoon} />
-        <QuickAccessTile icon="checkmark-done-outline" label="Checklist" disabled onPress={ComingSoon} />
+        <QuickAccessTile icon="briefcase-outline" label="Reservas" onPress={openReservas} />
+        <QuickAccessTile icon="call-outline" label="Contactos" onPress={openContactos} />
+        <QuickAccessTile icon="checkmark-done-outline" label="Maleta" onPress={openMaleta} />
       </View>
     </ScrollView>
   );

@@ -49,6 +49,9 @@ export type RootStackParamList = {
   FinancesSettings: undefined;
   MyDocuments: undefined;
   TripDocuments: undefined;
+  Reservas: undefined;
+  Contactos: undefined;
+  Maleta: undefined;
   Appearance: undefined;
   Account: undefined;
   HelpCenter: undefined;
@@ -348,6 +351,27 @@ export default function MobileNavigator() {
             name="TripDocuments"
             getComponent={() =>
               require("../screens/Mobile/finances/travels/TripDocumentsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Reservas"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/ReservasScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Contactos"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/ContactosScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Maleta"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/MaletaScreen").default
             }
           />
 

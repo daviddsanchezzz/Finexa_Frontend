@@ -404,6 +404,7 @@ export default function TripPlanFormScreen({
   });
   const [flightGate, setFlightGate] = useState((fd as any)?.gate || "");
   const [flightSeat, setFlightSeat] = useState((fd as any)?.seat || "");
+  const [flightBookingRef, setFlightBookingRef] = useState((fd as any)?.bookingRef || "");
 
   // ==================== TRANSPORT STATE (train/bus/car) ====================
 
@@ -539,6 +540,7 @@ export default function TripPlanFormScreen({
           arrAt: flightArr?.toISOString() || null,
           gate: flightGate || null,
           seat: flightSeat || null,
+          bookingRef: flightBookingRef || null,
         },
       };
       if (isEdit) {
@@ -1035,14 +1037,17 @@ export default function TripPlanFormScreen({
             </Row2>
 
             {transportTab === "flight" && (
-              <Row2>
-                <View style={{ flex: 1 }}>
-                  <Field label="PUERTA (OPCIONAL)" value={flightGate} onChange={setFlightGate} placeholder="B14" autoCapitalize="characters" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Field label="ASIENTO (OPCIONAL)" value={flightSeat} onChange={setFlightSeat} placeholder="14C" autoCapitalize="characters" />
-                </View>
-              </Row2>
+              <>
+                <Row2>
+                  <View style={{ flex: 1 }}>
+                    <Field label="PUERTA (OPCIONAL)" value={flightGate} onChange={setFlightGate} placeholder="B14" autoCapitalize="characters" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Field label="ASIENTO (OPCIONAL)" value={flightSeat} onChange={setFlightSeat} placeholder="14C" autoCapitalize="characters" />
+                  </View>
+                </Row2>
+                <Field label="CÓD. RESERVA (OPCIONAL)" value={flightBookingRef} onChange={setFlightBookingRef} placeholder="Ej: XR7QLM" autoCapitalize="characters" />
+              </>
             )}
           </View>
         )}
