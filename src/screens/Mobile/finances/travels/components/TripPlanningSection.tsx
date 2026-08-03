@@ -285,7 +285,7 @@ function getItemDayPosition(item: TripPlanItem, currentDay: string): DayPosition
 /**
  * Format time range for a specific day, showing continuation indicators for multi-day activities
  */
-function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string): string {
+function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string, isLastTripDay?: boolean): string {
   const position = getItemDayPosition(item, currentDay);
   const start = item.startAt || item.startTime || item.day || item.date;
   const end = item.endAt || item.endTime;
@@ -296,6 +296,9 @@ function fmtTimeRangeForDay(item: TripPlanItem, currentDay: string): string {
       return fmtTimeRangeSameDay(start, end);
 
     case "start":
+      // Último día del viaje: no hay tarjeta del día siguiente donde ver la llegada,
+      // así que mostramos ambas horas aquí: "22:15 → 00:15"
+      if (isLastTripDay) return `${fmtTime(start)} → ${fmtTime(end)}`;
       // Start day: "09:00 →"
       return `${fmtTime(start)} →`;
 
@@ -475,10 +478,12 @@ function EmptyDayCard({ onPress }: { onPress: () => void }) {
 function ActivityCard({
   item,
   currentDay,
+  isLastDay,
   onPress,
 }: {
   item: TripPlanItem;
   currentDay: string;
+  isLastDay?: boolean;
   onPress: () => void;
 }) {
   const baseMeta = TYPE_META[item.type] ?? TYPE_META.other ?? {
@@ -504,7 +509,7 @@ function ActivityCard({
 
   const start = item.startAt ?? item.startTime ?? null;
   const end = item.endAt ?? item.endTime ?? null;
-  const time = fmtTimeRangeForDay(item, currentDay);
+  const time = fmtTimeRangeForDay(item, currentDay, isLastDay);
   const position = getItemDayPosition(item, currentDay);
   const isMultiDay = position !== "single";
 
@@ -565,10 +570,9 @@ function ActivityCard({
         {/* Flight details inline */}
         {item.type === "flight" && item.flightDetails && (() => {
           const fd = item.flightDetails;
-          const route = fd.fromIata && fd.toIata ? `${fd.fromIata} → ${fd.toIata}` : null;
           const airline = fd.airlineName || null;
           const flightNum = fd.flightNumber || null;
-          const subline = [airline, route].filter(Boolean).join(" · ");
+          const subline = [airline, flightNum].filter(Boolean).join(" · ");
           return (
             <View>
               {!!subline && (
@@ -584,7 +588,7 @@ function ActivityCard({
                 >
                   <View style={{ backgroundColor: "rgba(37,99,235,0.10)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>
                     <Ionicons name="radio-outline" size={10} color="#2563EB" />
-                    <Text style={{ fontSize: 10, fontWeight: "800", color: "#2563EB" }}>{flightNum} · Ver estado</Text>
+                    <Text style={{ fontSize: 10, fontWeight: "800", color: "#2563EB" }}>Ver estado</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -973,7 +977,7 @@ export default function TripPlanningSectionRedesign({
                       }} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 6, marginBottom: isLast ? 0 : 10 }}>
-                      <ActivityCard item={it} currentDay={selectedDay} onPress={() => handleEdit(it)} />
+                      <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} onPress={() => handleEdit(it)} />
                     </View>
                   </View>
                 );
@@ -1046,7 +1050,7 @@ export default function TripPlanningSectionRedesign({
                 ) : (
                   <View style={{ gap: 8 }}>
                     {items.map((it) => (
-                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} onPress={() => handleEdit(it)} />
+                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} isLastDay={d === dayKeys[dayKeys.length - 1]} onPress={() => handleEdit(it)} />
                     ))}
                   </View>
                 )}

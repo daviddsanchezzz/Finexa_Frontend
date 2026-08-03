@@ -223,16 +223,13 @@ export default function TripMapView({ planItems }: { planItems: TripPlanItem[] }
         const displayName = d?.city || d?.name || item.location || item.title;
         if (q) push(q, "#16A34A", displayName, item.title, idx);
       } else if (item.type === "flight") {
-        // Origin: structured field or item.location
-        const origin = item.location ?? null;
-        if (origin) push(`${origin} airport`, color, origin, item.title, idx);
-        // Destination: parse FROM → TO from title when flightDetails is missing
+        // Origen y destino: campos estructurados, con fallback a "FROM → TO" parseado del título
         const fd = item.flightDetails;
-        const destIata = fd?.toIata ?? (() => {
-          const m = item.title.match(/([A-Z]{3})\s*→\s*([A-Z]{3})/);
-          return m ? m[2] : null;
-        })();
-        if (destIata && destIata !== origin) push(`${destIata} airport`, color, destIata, item.title, idx + 0.5);
+        const titleMatch = item.title.match(/([A-Z]{3})\s*→\s*([A-Z]{3})/);
+        const originIata = fd?.fromIata ?? (titleMatch ? titleMatch[1] : null);
+        const destIata = fd?.toIata ?? (titleMatch ? titleMatch[2] : null);
+        if (originIata) push(`${originIata} airport`, color, originIata, item.title, idx);
+        if (destIata && destIata !== originIata) push(`${destIata} airport`, color, destIata, item.title, idx + 0.5);
       } else if (item.location) {
         push(item.location, color, item.location, item.title, idx);
       }
