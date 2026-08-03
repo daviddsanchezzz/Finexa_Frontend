@@ -363,7 +363,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   const [searchQ, setSearchQ]         = useState("");
   const [startDate, setStartDate]     = useState<Date | null>(null);
   const [endDate, setEndDate]         = useState<Date | null>(null);
-  const [datePreset, setDatePreset]   = useState<"week" | "custom">("custom");
   const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
   const [companion, setCompanion]     = useState<string | null>(null);
@@ -390,7 +389,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
 
   const handleCalDay = (day: number) => {
     const date = new Date(calYear, calMonth, day);
-    setDatePreset("custom");
     if (!startDate || (startDate && endDate)) {
       setStartDate(date);
       setEndDate(null);
@@ -414,14 +412,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     if (!startDate || !endDate) return false;
     const date = new Date(calYear, calMonth, day);
     return date > startDate && date < endDate;
-  };
-
-  const applyPreset = (preset: "week") => {
-    const today = new Date();
-    const end = new Date(today); end.setDate(today.getDate() + 6);
-    setStartDate(today); setEndDate(end);
-    setDatePreset("week");
-    setCalDate(today);
   };
 
   const handleCreate = async () => {
@@ -578,35 +568,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </View>
           </View>
 
-          {/* Presets */}
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {[
-              { id: "week",    label: "Una semana" },
-              { id: "custom",  label: "A medida" },
-            ].map(p => {
-              const active = datePreset === p.id;
-              return (
-                <TouchableOpacity
-                  key={p.id}
-                  onPress={() => {
-                    if (p.id === "week") applyPreset("week");
-                    else setDatePreset("custom");
-                  }}
-                  activeOpacity={0.8}
-                  style={{
-                    flex: 1, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center",
-                    backgroundColor: active ? colors.primary : "#F1F5F9",
-                    borderWidth: 1, borderColor: active ? colors.primary : "#E5E7EB",
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : "#374151" }}>
-                    {p.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
           {/* Dates selected preview */}
           {(startDate || endDate) && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#EEF2FF", borderRadius: 14, padding: 12 }}>
@@ -615,7 +576,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                 {startDate ? formatShortDate(startDate) : "—"} → {endDate ? formatShortDate(endDate) : "elige fin"}
                 {days ? `  ·  ${days} días` : ""}
               </Text>
-              <TouchableOpacity onPress={() => { setStartDate(null); setEndDate(null); setDatePreset("custom"); }}>
+              <TouchableOpacity onPress={() => { setStartDate(null); setEndDate(null); }}>
                 <Ionicons name="close-circle" size={18} color="#94A3B8" />
               </TouchableOpacity>
             </View>
