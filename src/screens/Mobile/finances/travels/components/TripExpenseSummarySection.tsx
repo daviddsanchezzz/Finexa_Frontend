@@ -157,6 +157,21 @@ function TasksPanel({
     await onUpdateTask?.(task.id, { title: nextTitle, priority: editingPriority });
   }
 
+  function confirmDeleteTask(taskId: number) {
+    if (!onDeleteTask) return;
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const confirmed = window.confirm("¿Seguro que quieres eliminar esta tarea?");
+      if (confirmed) void onDeleteTask(taskId);
+      return;
+    }
+
+    Alert.alert("Eliminar tarea", "¿Seguro que quieres eliminarla?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: () => void onDeleteTask(taskId) },
+    ]);
+  }
+
   return (
     <View style={{ gap: px(14) }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>

@@ -101,12 +101,12 @@ export default function MaletaScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
+        style={{ flexGrow: 0, minHeight: 52 }}
         contentContainerStyle={{
           paddingHorizontal: 16,
           gap: 8,
-          paddingTop: 2,
-          paddingBottom: 10,
+          paddingTop: 4,
+          paddingBottom: 14,
           alignItems: "center",
         }}
       >
@@ -122,7 +122,7 @@ export default function MaletaScreen() {
       </ScrollView>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
         {isLoading ? (
@@ -138,7 +138,7 @@ export default function MaletaScreen() {
               onToggle={(id, checked) => toggleItem(id, checked)}
               onUpdate={(id, label) => updateItem(id, label)}
               onDelete={(id) => deleteItem(id)}
-              onError={(message) => setActionError(message)}
+              onError={setActionError}
             />
           ))
         )}
@@ -195,9 +195,9 @@ export default function MaletaScreen() {
                 }
               }}
               style={{
-                backgroundColor: colors.primary,
+                width: 52,
                 borderRadius: 12,
-                paddingHorizontal: 16,
+                backgroundColor: colors.primary,
                 alignItems: "center",
                 justifyContent: "center",
                 opacity: !newItemLabel.trim() || isSaving ? 0.5 : 1,
@@ -227,11 +227,12 @@ function TabChip({ label, active, onPress }: { label: string; active: boolean; o
     <TouchableOpacity
       onPress={onPress}
       style={{
+        height: 38,
         paddingHorizontal: 14,
-        paddingVertical: 7,
-        minHeight: 36,
         borderRadius: 999,
-        backgroundColor: active ? colors.primary : "#F3F4F6",
+        backgroundColor: active ? colors.primary : "#F8FAFC",
+        borderWidth: 1,
+        borderColor: active ? colors.primary : "#EEF2F7",
         alignSelf: "flex-start",
         justifyContent: "center",
       }}
@@ -261,7 +262,7 @@ function CategorySection({
   onError: (message: string) => void;
 }) {
   const meta = CATEGORY_META[category];
-  const checkedCount = items.filter((item) => item.checked).length + synthetic.filter((item) => item.checked).length;
+  const checked = items.filter((item) => item.checked).length + synthetic.filter((item) => item.checked).length;
   const total = items.length + synthetic.length;
 
   if (total === 0) return null;
@@ -270,28 +271,12 @@ function CategorySection({
     <View style={{ marginBottom: 18 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
         <Ionicons name={meta.icon} size={12} color="#9CA3AF" />
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: "700",
-            color: "#9CA3AF",
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-          }}
-        >
-          {meta.label} · {checkedCount}/{total}
+        <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8 }}>
+          {meta.label} · {checked}/{total}
         </Text>
       </View>
 
-      <View
-        style={{
-          backgroundColor: "white",
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: "#F3F4F6",
-          overflow: "hidden",
-        }}
-      >
+      <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
         {synthetic.map((item, index) => (
           <View
             key={item.key}
@@ -299,7 +284,7 @@ function CategorySection({
               flexDirection: "row",
               alignItems: "center",
               paddingHorizontal: 14,
-              paddingVertical: 12,
+              paddingVertical: 14,
               borderBottomWidth: index < synthetic.length - 1 || items.length > 0 ? 1 : 0,
               borderBottomColor: "#F3F4F6",
             }}
@@ -441,37 +426,67 @@ function EditableChecklistRow({
             {item.label}
           </Text>
         )}
-      </View>
 
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 14, marginTop: 8 }}>
         {isEditing ? (
-          <>
-            <TouchableOpacity
-              disabled={isSaving}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <ActionIconButton tone="primary" icon="checkmark" onPress={saveEdit} disabled={isSaving} />
+            <ActionIconButton
+              tone="neutral"
+              icon="close"
               onPress={() => {
                 setDraftLabel(item.label);
                 setIsEditing(false);
               }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity disabled={isSaving} onPress={saveEdit}>
-              <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary }}>Guardar</Text>
-            </TouchableOpacity>
-          </>
+              disabled={isSaving}
+            />
+          </View>
         ) : (
-          <>
-            <TouchableOpacity disabled={isSaving} onPress={() => setIsEditing(true)} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Ionicons name="pencil-outline" size={14} color="#64748B" />
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>Editar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity disabled={isSaving} onPress={removeItem} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Ionicons name="trash-outline" size={14} color="#DC2626" />
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#DC2626" }}>Eliminar</Text>
-            </TouchableOpacity>
-          </>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <ActionIconButton tone="neutral" icon="create-outline" onPress={() => setIsEditing(true)} disabled={isSaving} />
+            <ActionIconButton tone="danger" icon="trash-outline" onPress={removeItem} disabled={isSaving} />
+          </View>
         )}
       </View>
     </View>
+  );
+}
+
+function ActionIconButton({
+  icon,
+  onPress,
+  disabled,
+  tone,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  disabled?: boolean;
+  tone: "neutral" | "danger" | "primary";
+}) {
+  const bg =
+    tone === "danger" ? "rgba(239,68,68,0.10)" :
+    tone === "primary" ? "rgba(37,99,235,0.10)" :
+    "#F8FAFC";
+
+  const color =
+    tone === "danger" ? "#DC2626" :
+    tone === "primary" ? colors.primary :
+    "#64748B";
+
+  return (
+    <TouchableOpacity
+      disabled={disabled}
+      onPress={onPress}
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: bg,
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      <Ionicons name={icon} size={15} color={color} />
+    </TouchableOpacity>
   );
 }
