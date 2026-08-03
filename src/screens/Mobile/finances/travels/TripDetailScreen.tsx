@@ -17,6 +17,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
@@ -192,73 +193,66 @@ interface WeatherDay {
   min: number;
 }
 
-function WeatherWidget({ countryCode, tripName }: { countryCode: string; tripName?: string }) {
-  const [days, setDays] = useState<WeatherDay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [city, setCity] = useState("");
+async function fetchTripWeather(countryCode: string, tripName?: string): Promise<{ city: string; days: WeatherDay[] }> {
+  let lat: number | undefined;
+  let lon: number | undefined;
+  let resolvedCity = "";
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        let lat: number | undefined;
-        let lon: number | undefined;
-        let resolvedCity = "";
-
-        // 1. Try geocoding the trip name directly (e.g. "Sicilia", "París")
-        if (tripName) {
-          const geoRes = await fetch(
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(tripName)}&count=1&language=es&format=json`
-          );
-          const geoData = await geoRes.json();
-          if (geoData?.results?.length > 0) {
-            const r = geoData.results[0];
-            lat = r.latitude;
-            lon = r.longitude;
-            resolvedCity = r.name || tripName;
-          }
-        }
-
-        // 2. Fallback: country capital from restcountries
-        if (!lat || !lon) {
-          const rc = await fetch(
-            `https://restcountries.com/v3.1/alpha/${countryCode}?fields=capital,capitalInfo`
-          );
-          const rcData = await rc.json();
-          resolvedCity = rcData?.capital?.[0] || "";
-          lat = rcData?.capitalInfo?.latlng?.[0];
-          lon = rcData?.capitalInfo?.latlng?.[1];
-        }
-
-        if (!lat || !lon || cancelled) return;
-        if (!cancelled) setCity(resolvedCity);
-
-        // 3. Weather from open-meteo (free, no key)
-        const wRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-          `&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`
-        );
-        const wData = await wRes.json();
-        if (cancelled) return;
-        const { time, weathercode, temperature_2m_max, temperature_2m_min } = wData.daily || {};
-        if (!time) return;
-        const result: WeatherDay[] = (time as string[]).map((d: string, i: number) => ({
-          date: d,
-          code: weathercode[i],
-          max: Math.round(temperature_2m_max[i]),
-          min: Math.round(temperature_2m_min[i]),
-        }));
-        if (!cancelled) setDays(result);
-      } catch {
-        // silently skip if API unavailable
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // 1. Try geocoding the trip name directly (e.g. "Sicilia", "París")
+  if (tripName) {
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(tripName)}&count=1&language=es&format=json`
+    );
+    const geoData = await geoRes.json();
+    if (geoData?.results?.length > 0) {
+      const r = geoData.results[0];
+      lat = r.latitude;
+      lon = r.longitude;
+      resolvedCity = r.name || tripName;
     }
-    load();
-    return () => { cancelled = true; };
-  }, [countryCode, tripName]);
+  }
+
+  // 2. Fallback: country capital from restcountries
+  if (!lat || !lon) {
+    const rc = await fetch(
+      `https://restcountries.com/v3.1/alpha/${countryCode}?fields=capital,capitalInfo`
+    );
+    const rcData = await rc.json();
+    resolvedCity = rcData?.capital?.[0] || "";
+    lat = rcData?.capitalInfo?.latlng?.[0];
+    lon = rcData?.capitalInfo?.latlng?.[1];
+  }
+
+  if (!lat || !lon) return { city: "", days: [] };
+
+  // 3. Weather from open-meteo (free, no key)
+  const wRes = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`
+  );
+  const wData = await wRes.json();
+  const { time, weathercode, temperature_2m_max, temperature_2m_min } = wData.daily || {};
+  if (!time) return { city: resolvedCity, days: [] };
+  const days: WeatherDay[] = (time as string[]).map((d: string, i: number) => ({
+    date: d,
+    code: weathercode[i],
+    max: Math.round(temperature_2m_max[i]),
+    min: Math.round(temperature_2m_min[i]),
+  }));
+  return { city: resolvedCity, days };
+}
+
+function WeatherWidget({ countryCode, tripName }: { countryCode: string; tripName?: string }) {
+  const weatherQuery = useQuery({
+    queryKey: ["tripWeather", countryCode, tripName ?? null],
+    queryFn: () => fetchTripWeather(countryCode, tripName),
+    staleTime: 1000 * 60 * 60 * 6, // 6h: el clima no necesita refrescarse más a menudo
+    gcTime: 1000 * 60 * 60 * 24,
+  });
+
+  const loading = weatherQuery.isLoading;
+  const city = weatherQuery.data?.city ?? "";
+  const days = weatherQuery.data?.days ?? [];
 
   if (loading) {
     return (

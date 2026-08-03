@@ -588,21 +588,20 @@ function ActivityCard({
           const flightNum = fd.flightNumberIata || fd.flightNumberRaw || null;
           const subline = [airline, flightNum].filter(Boolean).join(" · ");
           return (
-            <View>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 5 }}>
               {!!subline && (
-                <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: UI.muted2 }} numberOfLines={1}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, flexShrink: 1 }} numberOfLines={1}>
                   {subline}
                 </Text>
               )}
               {!!flightNum && (
                 <TouchableOpacity
-                  onPress={() => Linking.openURL(`https://www.flightradar24.com/${flightNum.replace(/\s/g, "")}`)}
-                  style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4, alignSelf: "flex-start" }}
-                  activeOpacity={0.75}
+                  onPress={() => Linking.openURL(`https://www.flightradar24.com/data/flights/${flightNum.replace(/\s/g, "").toLowerCase()}`)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  activeOpacity={0.7}
                 >
-                  <View style={{ backgroundColor: "rgba(37,99,235,0.10)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <View style={{ backgroundColor: "rgba(37,99,235,0.10)", borderRadius: 6, padding: 3.5 }}>
                     <Ionicons name="radio-outline" size={10} color="#2563EB" />
-                    <Text style={{ fontSize: 10, fontWeight: "800", color: "#2563EB" }}>Ver estado</Text>
                   </View>
                 </TouchableOpacity>
               )}
