@@ -52,7 +52,8 @@ export interface TripPlanItem {
   logistics?: boolean | null;
   metadata?: { expenseCategory?: string | null } | null;
   flightDetails?: {
-    flightNumber?: string | null;
+    flightNumberIata?: string | null;
+    flightNumberRaw?: string | null;
     airlineName?: string | null;
     fromIata?: string | null;
     toIata?: string | null;
@@ -196,6 +197,19 @@ const daysBetween = (start?: string | null, end?: string | null) => {
   }
   return out;
 };
+
+/** Timestamp (ms) usado para ordenar items cronológicamente, dentro de un día o a lo largo de todo el viaje. */
+function itemTimestamp(it: TripPlanItem, fallbackDayKey?: string): number {
+  const raw = it.startAt ?? it.startTime ?? it.flightDetails?.depAt ?? it.destinationTransport?.depAt ?? it.day ?? it.date ?? null;
+  if (!raw) return Infinity;
+  // Si es hora sola ("13:00" o "13:00:00"), combinamos con el día del item
+  const isTimeOnly = /^\d{1,2}:\d{2}(:\d{2})?$/.test(raw);
+  const fullRaw = isTimeOnly
+    ? `${it.day ?? it.date ?? fallbackDayKey ?? ""}T${raw}`
+    : raw;
+  const d = new Date(fullRaw);
+  return Number.isNaN(d.getTime()) ? Infinity : d.getTime();
+}
 
 const fmtDayTitle = (dateISO: string) => {
   const d = new Date(`${dateISO}T00:00:00`);
@@ -571,7 +585,7 @@ function ActivityCard({
         {item.type === "flight" && item.flightDetails && (() => {
           const fd = item.flightDetails;
           const airline = fd.airlineName || null;
-          const flightNum = fd.flightNumber || null;
+          const flightNum = fd.flightNumberIata || fd.flightNumberRaw || null;
           const subline = [airline, flightNum].filter(Boolean).join(" · ");
           return (
             <View>
@@ -686,6 +700,14 @@ export default function TripPlanningSectionRedesign({
     [planItems, accommodationEvents]
   );
 
+  // Igual que planningItems pero ordenado cronológicamente: los check-in/check-out de
+  // alojamiento se añaden al final del array sin ordenar, lo que descolocaba el mapa
+  // en vista semana (la vista día sí quedaba bien porque byDate ordena cada bucket).
+  const planningItemsSorted = useMemo(
+    () => [...planningItems].sort((a, b) => itemTimestamp(a) - itemTimestamp(b)),
+    [planningItems]
+  );
+
   const days = useMemo(() => {
     const byTrip = trip?.startDate && trip?.endDate ? daysBetween(trip.startDate, trip.endDate) : [];
     if (byTrip.length) return byTrip;
@@ -706,19 +728,8 @@ export default function TripPlanningSectionRedesign({
     }
     for (const k of Object.keys(map)) {
       map[k].sort((a, b) => {
-        const tsOf = (it: TripPlanItem) => {
-          const raw = it.startAt ?? it.startTime ?? it.flightDetails?.depAt ?? it.destinationTransport?.depAt ?? it.day ?? it.date ?? null;
-          if (!raw) return Infinity;
-          // Si es hora sola ("13:00" o "13:00:00"), combinamos con el día del item
-          const isTimeOnly = /^\d{1,2}:\d{2}(:\d{2})?$/.test(raw);
-          const fullRaw = isTimeOnly
-            ? `${it.day ?? it.date ?? k}T${raw}`
-            : raw;
-          const d = new Date(fullRaw);
-          return Number.isNaN(d.getTime()) ? Infinity : d.getTime();
-        };
-        const ta = tsOf(a);
-        const tb = tsOf(b);
+        const ta = itemTimestamp(a, k);
+        const tb = itemTimestamp(b, k);
         if (ta !== tb) return ta - tb;
         return (a.title || "").localeCompare(b.title || "");
       });
@@ -997,7 +1008,7 @@ export default function TripPlanningSectionRedesign({
           {/* Full-trip map */}
           {planningItems.length > 0 && (
             <View style={{ marginBottom: 20, borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden", height: 200 }}>
-              <TripMapView key={summaryMapKey} planItems={planningItems} />
+              <TripMapView key={summaryMapKey} planItems={planningItemsSorted} />
               <Pressable
                 onPress={() => setShowMap(true)}
                 style={{
@@ -1077,7 +1088,7 @@ export default function TripPlanningSectionRedesign({
               <Ionicons name="close" size={22} color="#64748B" />
             </Pressable>
           </View>
-          <TripMapView planItems={viewMode === "day" ? dayItems : planningItems} />
+          <TripMapView planItems={viewMode === "day" ? dayItems : planningItemsSorted} />
         </SafeAreaView>
       </Modal>
     </View>
