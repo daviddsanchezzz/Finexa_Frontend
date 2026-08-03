@@ -344,7 +344,7 @@ export default function DebtFormScreen({ navigation, route }: any) {
                 keyboardType="numeric"
                 placeholder="0,00"
                 placeholderTextColor="#d1d5db"
-                className="text-[42px] font-semibold text-black text-center"
+                className="text-[42px] font-semibold text-black text-center text-amount-md"
                 style={{ minWidth: 120 }}
               />
               <Text className="text-[28px] text-gray-400 font-semibold ml-1 mb-1">

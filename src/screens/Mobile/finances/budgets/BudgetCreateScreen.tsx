@@ -308,7 +308,7 @@ export default function BudgetCreateScreen({ navigation }: any) {
                   keyboardType="numeric"
                   placeholder="0,00"
                   placeholderTextColor="#d1d5db"
-                  className="text-[42px] font-semibold text-black text-center"
+                  className="text-[42px] font-semibold text-black text-center text-amount-md"
                   style={{ minWidth: 120 }}
                   onFocus={() => scrollTo(0)}
                 />

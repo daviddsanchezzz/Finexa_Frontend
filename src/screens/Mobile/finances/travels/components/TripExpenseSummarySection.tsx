@@ -280,10 +280,7 @@ function TasksPanel({
                           <IconButton icon="trash-outline" tint="rgba(239,68,68,0.8)" hoverBg="rgba(239,68,68,0.10)" px={px}
                             onPress={(e) => {
                               e?.stopPropagation?.(); e?.preventDefault?.();
-                              Alert.alert("Eliminar tarea", "¿Seguro que quieres eliminarla?", [
-                                { text: "Cancelar", style: "cancel" },
-                                { text: "Eliminar", style: "destructive", onPress: () => onDeleteTask?.(t.id) },
-                              ]);
+                              confirmDeleteTask(t.id);
                             }} />
                         </>
                       )}

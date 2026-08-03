@@ -826,10 +826,11 @@ export default function TripPlanFormScreen({
   })();
 
   const TYPE_CARDS = [
-    { key: "transport" as MainTab,     emoji: "✈️",  label: "Transporte"  },
-    { key: "accommodation" as MainTab, emoji: "🏨",  label: "Alojamiento" },
-    { key: "activity" as MainTab,      emoji: "🎭",  label: "Actividad"   },
-    { key: "expense" as MainTab,       emoji: "💰",  label: "Gasto"       },
+    { key: "transport" as MainTab,     emoji: "✈️",  label: "Transporte",  subtitle: "Vuelo, tren, bus, coche..." },
+    { key: "accommodation" as MainTab, emoji: "🏨",  label: "Alojamiento", subtitle: "Hotel, apartamento, hostal..." },
+    { key: "activity" as MainTab,      emoji: "🎭",  label: "Actividad",   subtitle: "Museo, playa, tour, restaurante..." },
+    { key: "expense" as MainTab,       emoji: "💰",  label: "Gasto",       subtitle: "Un gasto suelto sin actividad" },
+    { key: "visit" as MainTab,         emoji: "🚶",  label: "Visitar",     subtitle: 'Varias paradas a pie, tipo "Visitar Palermo"' },
   ];
 
   const FORM_LABELS: Record<MainTab, { title: string; saveLabel: string }> = {
@@ -888,76 +889,28 @@ export default function TripPlanFormScreen({
           </TouchableOpacity>
         </View>
 
-        <View style={{ paddingHorizontal: 20, gap: 12 }}>
-          {[TYPE_CARDS.slice(0, 2), TYPE_CARDS.slice(2, 4)].map((row, ri) => (
-            <View key={ri} style={{ flexDirection: "row", gap: 12 }}>
-              {row.map((card) => (
-                <Pressable
-                  key={card.key}
-                  onPress={() => { setMainTab(card.key); setStep("form"); }}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    aspectRatio: 1,
-                    borderRadius: 20,
-                    borderWidth: 2,
-                    borderColor: UI.border,
-                    backgroundColor: pressed ? "#F8FAFF" : "white",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 10,
-                    opacity: pressed ? 0.9 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 32 }}>{card.emoji}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: "800", color: UI.text }}>{card.label}</Text>
-                </Pressable>
-              ))}
-            </View>
+        <View style={{ paddingHorizontal: 20, gap: 10 }}>
+          {TYPE_CARDS.map((card) => (
+            <Pressable
+              key={card.key}
+              onPress={() => { setMainTab(card.key); setStep("form"); }}
+              style={({ pressed }) => ({
+                flexDirection: "row", alignItems: "center",
+                backgroundColor: pressed ? "#F8FAFC" : "white",
+                borderRadius: 16, borderWidth: 1, borderColor: UI.border,
+                padding: 14, gap: 12,
+              })}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 22 }}>{card.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: UI.text }}>{card.label}</Text>
+                <Text style={{ fontSize: 12, color: UI.muted, marginTop: 1 }}>{card.subtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
+            </Pressable>
           ))}
-        </View>
-
-        <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
-          <Pressable
-            onPress={() => { setMainTab("visit"); setStep("form"); }}
-            style={({ pressed }) => ({
-              flexDirection: "row", alignItems: "center",
-              backgroundColor: pressed ? "#F8FAFC" : "white",
-              borderRadius: 16, borderWidth: 1, borderColor: UI.border,
-              padding: 14, gap: 12,
-            })}
-          >
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: 22 }}>🚶</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: UI.text }}>Visitar</Text>
-              <Text style={{ fontSize: 12, color: UI.muted, marginTop: 1 }}>Varias paradas a pie, tipo "Visitar Palermo"</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
-          </Pressable>
-        </View>
-
-        <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
-          <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted2, letterSpacing: 1, marginBottom: 10 }}>
-            RÁPIDO, SIN FORMULARIO
-          </Text>
-          <Pressable
-            style={({ pressed }) => ({
-              flexDirection: "row", alignItems: "center",
-              backgroundColor: pressed ? "#F8FAFC" : "white",
-              borderRadius: 16, borderWidth: 1, borderColor: UI.border,
-              padding: 14, gap: 12,
-            })}
-          >
-            <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: 20 }}>🎫</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: UI.text }}>Foto de un ticket</Text>
-              <Text style={{ fontSize: 12, color: UI.muted, marginTop: 1 }}>Se categoriza y rellena solo</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
-          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -1278,6 +1231,7 @@ export default function TripPlanFormScreen({
                   placeholder="0,00"
                   placeholderTextColor={UI.muted2}
                   keyboardType="decimal-pad"
+                  className="text-amount-lg"
                   style={{ fontSize: 48, fontWeight: "900", color: UI.text, minWidth: 80, textAlign: "center" } as any}
                 />
                 <Text style={{ fontSize: 28, fontWeight: "700", color: UI.muted, marginLeft: 4 }}>€</Text>
