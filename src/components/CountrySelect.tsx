@@ -367,15 +367,12 @@ export function CountrySelect({
                     <Ionicons name="flag-outline" size={px(18)} color="#2563EB" />
                   </View>
 
-                  <View style={{ flex: 1 }}>
-                    <Text style={[textStyles.body, { fontSize: px(14), fontWeight: "900", color: "#0F172A" }]}>
-                      Seleccionar país
-                    </Text>
-                    <Text style={[textStyles.caption, { marginTop: px(2), fontWeight: "800", color: "#64748B" }]}>
-                      Busca por nombre o código (ES, PL…)
-                    </Text>
-                  </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[textStyles.body, { fontSize: px(14), fontWeight: "900", color: "#0F172A" }]}>
+                    Seleccionar país
+                  </Text>
                 </View>
+              </View>
 
                 <TouchableOpacity
                   activeOpacity={0.9}
@@ -450,10 +447,11 @@ export function CountrySelect({
                   )}
                 </View>
 
-                <View style={{ marginTop: px(12), flexDirection: "row", gap: px(8), flexWrap: "wrap" }}>
-                  <Chip label={`${filtered.length} resultados`} icon="list-outline" px={px} />
-                  {!!selectedCode && <Chip label={`Seleccionado: ${selectedCode}`} icon="checkmark-circle-outline" px={px} />}
-                </View>
+                {!!selectedCode && (
+                  <View style={{ marginTop: px(12), flexDirection: "row", gap: px(8), flexWrap: "wrap" }}>
+                    <Chip label={`Seleccionado: ${selectedCode}`} icon="checkmark-circle-outline" px={px} />
+                  </View>
+                )}
 
                 {!!selectedIndex && selectedIndex > 8 && Platform.OS !== "web" && (
                   <TouchableOpacity
@@ -484,7 +482,7 @@ export function CountrySelect({
 
               {/* List (FlatList perf for mobile, scroll view ok on web too) */}
               {Platform.OS === "web" ? (
-                <ScrollView style={{ maxHeight: modalMaxHeight ?? 520, backgroundColor: "#FBFDFF" }} showsVerticalScrollIndicator>
+                <ScrollView style={{ maxHeight: modalMaxHeight ?? 420, backgroundColor: "#FBFDFF" }} showsVerticalScrollIndicator>
                   {filtered.map((c) => (
                     <View key={c.cca2}>{renderRow({ item: c } as any)}</View>
                   ))}
@@ -497,7 +495,7 @@ export function CountrySelect({
                   keyExtractor={(item) => item.cca2}
                   renderItem={renderRow}
                   keyboardShouldPersistTaps="handled"
-                  style={{ maxHeight: 520, backgroundColor: "#FBFDFF" }}
+                  style={{ maxHeight: 420, backgroundColor: "#FBFDFF" }}
                   contentContainerStyle={{ paddingBottom: px(10) }}
                   initialNumToRender={24}
                   windowSize={10}
@@ -509,64 +507,36 @@ export function CountrySelect({
                 />
               )}
 
-              {/* Footer */}
-              <View
-                style={{
-                  padding: px(14),
-                  borderTopWidth: 1,
-                  borderTopColor: "#EEF2F7",
-                  backgroundColor: "#FFFFFF",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: px(10),
-                }}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => {
-                    // clear selection by selecting nothing? (keep behavior as caller wants)
-                    // If you want explicit "clear", handle it outside; here we just close.
-                    close();
-                  }}
+              {!!selectedCode && (
+                <View
                   style={{
-                    height: px(42),
-                    paddingHorizontal: px(16),
-                    borderRadius: px(14),
-                    borderWidth: 1,
-                    borderColor: "#E2E8F0",
+                    paddingHorizontal: px(14),
+                    paddingTop: px(10),
+                    paddingBottom: px(14),
+                    borderTopWidth: 1,
+                    borderTopColor: "#EEF2F7",
                     backgroundColor: "#FFFFFF",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "row",
-                    gap: px(8),
+                    alignItems: "flex-end",
                   }}
                 >
-                  <Ionicons name="close-outline" size={px(18)} color="#334155" />
-                  <Text style={[textStyles.button, { fontSize: px(12), fontWeight: "900", color: "#334155" }]}>Cerrar</Text>
-                </TouchableOpacity>
-
-                <View style={{ flexDirection: "row", alignItems: "center", gap: px(10) }}>
-                  {!!selectedCode && (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: px(8),
-                        paddingHorizontal: px(12),
-                        paddingVertical: px(8),
-                        borderRadius: 999,
-                        backgroundColor: "rgba(37,99,235,0.08)",
-                        borderWidth: 1,
-                        borderColor: "rgba(37,99,235,0.14)",
-                      }}
-                    >
-                      <FlagBadge code={selectedCode} size={px(16)} />
-                      <Text style={{ fontSize: px(12), fontWeight: "900", color: "#2563EB" }}>{selectedCode}</Text>
-                    </View>
-                  )}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: px(8),
+                      paddingHorizontal: px(12),
+                      paddingVertical: px(8),
+                      borderRadius: 999,
+                      backgroundColor: "rgba(37,99,235,0.08)",
+                      borderWidth: 1,
+                      borderColor: "rgba(37,99,235,0.14)",
+                    }}
+                  >
+                    <FlagBadge code={selectedCode} size={px(16)} />
+                    <Text style={{ fontSize: px(12), fontWeight: "900", color: "#2563EB" }}>{selectedCode}</Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
