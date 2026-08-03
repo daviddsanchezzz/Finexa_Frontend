@@ -9,7 +9,12 @@ export interface FinanceModule {
   routeName: string;
   accentColor: string;
   softBg: string;
+  /** false = arranca oculto del hub (ej. porque ya vive en el 4º tab por defecto). Default: true. */
+  defaultEnabled?: boolean;
 }
+
+/** Módulo que ocupa el 4º tab cuando el usuario no ha elegido ninguno. */
+export const DEFAULT_PINNED_MODULE_KEY = "investments";
 
 export type ModuleConfig = {
   key: string;
@@ -100,10 +105,21 @@ export const MODULES: FinanceModule[] = [
     accentColor: "#7C3AED",
     softBg: "#EDE9FE",
   },
+  {
+    key: "investments",
+    title: "Inversiones",
+    subtitle: "Cartera, rendimiento y composición de tus inversiones.",
+    emoji: "📈",
+    iconName: "trending-up-outline",
+    routeName: "Investments",
+    accentColor: "#059669",
+    softBg: "#ECFDF5",
+    defaultEnabled: false,
+  },
 ];
 
 export const buildDefaultConfig = (): ModuleConfig[] =>
-  MODULES.map((m, i) => ({ key: m.key, enabled: true, order: i }));
+  MODULES.map((m, i) => ({ key: m.key, enabled: m.defaultEnabled ?? true, order: i }));
 
 export const mergeConfig = (saved: ModuleConfig[] | null): ModuleConfig[] => {
   const defaults = buildDefaultConfig();

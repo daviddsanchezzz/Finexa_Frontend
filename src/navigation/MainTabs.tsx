@@ -52,11 +52,8 @@ export default function MainTabs({ navigation }: any) {
       />
 
       <Tab.Screen
-        name="Investments"
-        options={{ tabBarLabel: "Inversión" }}
-        getComponent={() =>
-          require("../screens/Mobile/finances/invests/InvestmentsScreen").default
-        }
+        name="PinnedModule"
+        getComponent={() => require("./PinnedModuleTabScreen").default}
       />
 
       <Tab.Screen

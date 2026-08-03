@@ -2,8 +2,15 @@ import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
+import { usePinnedFinanceModule } from "../hooks/usePinnedFinanceModule";
+import { MODULES, DEFAULT_PINNED_MODULE_KEY } from "../screens/Mobile/finances/financeModulesConfig";
 
 export default function BottomNav({ state, descriptors, navigation }: any) {
+  const { pinnedKey } = usePinnedFinanceModule();
+  const pinnedModule =
+    MODULES.find((m) => m.key === pinnedKey) ??
+    MODULES.find((m) => m.key === DEFAULT_PINNED_MODULE_KEY);
+
   return (
     <View
       className="flex-row justify-between items-center bg-white px-6 py-3.5"
@@ -27,7 +34,7 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
         if (route.name === "Stats") iconName = "podium-outline";
         if (route.name === "Add") iconName = "add-outline";
         if (route.name === "Finances") iconName = "folder-outline";
-        if (route.name === "Investments") iconName = "trending-up-outline";
+        if (route.name === "PinnedModule" && pinnedModule) iconName = pinnedModule.iconName;
 
         const isAddButton = route.name === "Add";
 
@@ -35,7 +42,7 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
         const extraStyle =
           route.name === "Home"
             ? { marginLeft: 0 }
-            : route.name === "Investments"
+            : route.name === "PinnedModule"
             ? { marginRight: 0 }
             : { marginHorizontal: 20 };
 
