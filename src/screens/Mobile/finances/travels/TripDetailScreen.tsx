@@ -1010,7 +1010,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
           )}
 
           {tab === "info" && (
-            <TripLogisticsSection tripId={trip.id} planItems={planItems as any} onRefresh={fetchTrip} />
+            <TripLogisticsSection tripId={trip.id} trip={trip as any} planItems={planItems as any} onRefresh={fetchTrip} />
           )}
         </View>
       </ScrollView>

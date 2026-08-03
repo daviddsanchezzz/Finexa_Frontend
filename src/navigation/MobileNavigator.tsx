@@ -48,6 +48,7 @@ export type RootStackParamList = {
   NetWorth: undefined;
   FinancesSettings: undefined;
   MyDocuments: undefined;
+  TripDocuments: undefined;
   Appearance: undefined;
   Account: undefined;
   HelpCenter: undefined;
@@ -340,6 +341,13 @@ export default function MobileNavigator() {
             name="MyDocuments"
             getComponent={() =>
               require("../screens/Mobile/profile/MyDocumentsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="TripDocuments"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TripDocumentsScreen").default
             }
           />
 

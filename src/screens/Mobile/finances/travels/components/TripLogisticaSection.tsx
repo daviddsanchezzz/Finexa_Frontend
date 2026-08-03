@@ -1,513 +1,238 @@
-// src/screens/Trips/components/TripLogisticsSection.tsx
-import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Linking } from "react-native";
+// src/screens/Trips/components/TripLogisticaSection.tsx
+import React, { useMemo } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
+import { colors } from "../../../../../theme/theme";
+import { useUserDocuments } from "../../../../../hooks/useUserDocuments";
+import { useTripDocuments } from "../../../../../hooks/useTripDocuments";
 
-type TripPlanItemType =
-  | "flight"
-  | "accommodation"
-  | "transport"
-  | "transport_destination"
-  | "transport_local"
-  | "taxi"
-  | "museum"
-  | "monument"
-  | "viewpoint"
-  | "free_tour"
-  | "concert"
-  | "bar_party"
-  | "beach"
-  | "restaurant"
-  | "shopping"
-  | "other"
-  | "activity";
+interface FlightDetails {
+  flightNumberIata?: string | null;
+  flightNumberRaw?: string | null;
+  airlineName?: string | null;
+  fromIata?: string | null;
+  toIata?: string | null;
+  gate?: string | null;
+  seat?: string | null;
+}
 
 interface TripPlanItem {
   id: number;
-  type: TripPlanItemType;
+  type: string;
   title: string;
-  location?: string | null;
-  notes?: string | null;
   startAt?: string | null;
-  date?: string | null;
-  startTime?: string | null;
-  endTime?: string | null;
-  cost?: number | null;
-  flightDetails?: any;
-  accommodationDetails?: any;
-  destinationTransport?: any;
+  flightDetails?: FlightDetails | null;
+}
+
+interface TripLite {
+  id: number;
+  name?: string | null;
+  destination?: string | null;
+  endDate?: string | null;
 }
 
 interface Props {
   tripId: number;
+  trip: TripLite;
   planItems: TripPlanItem[];
   onRefresh: () => void;
 }
 
-type LogisticsFilter = "transport" | "accommodation";
-
-const TRANSPORT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  flight: "airplane-outline",
-  transport: "bus-outline",
-  taxi: "car-sport-outline",
-};
-
-function transportIcon(item: TripPlanItem): keyof typeof Ionicons.glyphMap {
-  if (item.type === "flight") return "airplane-outline";
-  if (item.type === "taxi") return "car-sport-outline";
-  const mode = item.destinationTransport?.mode;
-  if (mode === "car") return "car-outline";
-  if (mode === "bus") return "bus-outline";
-  if (mode === "train") return "train-outline";
-  return TRANSPORT_ICONS[item.type] || "bus-outline";
-}
-
-const ICONS: Record<LogisticsFilter, keyof typeof Ionicons.glyphMap> = {
-  transport: "airplane-outline",
-  accommodation: "bed-outline",
-};
-
-const TYPE_LABEL: Record<LogisticsFilter, string> = {
-  transport: "Transporte",
-  accommodation: "Alojamiento",
-};
-
-const formatDate = (iso?: string | null) => {
-  if (!iso) return "Sin fecha";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "Sin fecha";
-  return d.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "short",
-  });
-};
-
-const formatTime = (iso?: string | null) => {
+function fmtTime(iso?: string | null) {
   if (!iso) return null;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
 
-const sortByDate = (items: TripPlanItem[]) => {
-  return [...items].sort((a, b) => {
-    const da = a.startAt || a.date || a.startTime;
-    const db = b.startAt || b.date || b.startTime;
-    if (!da) return 1;
-    if (!db) return -1;
-    const timeA = new Date(da).getTime();
-    const timeB = new Date(db).getTime();
-    if (timeA !== timeB) return timeA - timeB;
-    return a.title.localeCompare(b.title);
-  });
-};
+function isToday(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  return d.toDateString() === now.toDateString();
+}
 
-export default function TripLogisticsSection({ tripId, planItems }: Props) {
+function ComingSoon() {
+  Alert.alert("Próximamente", "Esta sección todavía no está disponible.");
+}
+
+export default function TripLogisticsSection({ tripId, trip, planItems }: Props) {
   const navigation = useNavigation<any>();
 
-  // Incluir flight, transport, taxi y accommodation
-  const logisticsItems = useMemo(
-    () => planItems.filter((i) =>
-      i.type === "flight" ||
-      i.type === "transport" ||
-      i.type === "transport_destination" ||
-      i.type === "transport_local" ||
-      i.type === "taxi" ||
-      i.type === "accommodation"
-    ),
-    [planItems]
-  );
+  const { documentsByType: userDocsByType, isLoading: userDocsLoading } = useUserDocuments();
+  const { documentsByType: tripDocsByType, isLoading: tripDocsLoading } = useTripDocuments(tripId);
 
-  const [filter, setFilter] = useState<LogisticsFilter>("transport");
+  const hasPassport = userDocsByType.has("passport");
+  const hasDni = userDocsByType.has("dni");
+  const hasInsurance = tripDocsByType.has("travel_insurance");
+  const docsLoading = userDocsLoading || tripDocsLoading;
+  const docsCount = (hasPassport ? 1 : 0) + (hasDni ? 1 : 0) + (hasInsurance ? 1 : 0);
 
-  const transportItems = useMemo(
-    () => logisticsItems.filter((i) => i.type === "flight" || i.type === "transport" || i.type === "taxi"),
-    [logisticsItems]
-  );
+  const nextFlight = useMemo(() => {
+    const now = Date.now();
+    const upcoming = planItems
+      .filter((i) => i.type === "flight" && i.startAt && new Date(i.startAt).getTime() >= now)
+      .sort((a, b) => new Date(a.startAt!).getTime() - new Date(b.startAt!).getTime());
+    return upcoming[0] ?? null;
+  }, [planItems]);
 
-  const accommodations = useMemo(
-    () => logisticsItems.filter((i) => i.type === "accommodation"),
-    [logisticsItems]
-  );
-
-  const filteredItems = useMemo(() => {
-    if (filter === "transport") return sortByDate(transportItems);
-    if (filter === "accommodation") return sortByDate(accommodations);
-    return sortByDate(logisticsItems);
-  }, [filter, transportItems, accommodations, logisticsItems]);
-
-  const handleOpenItem = (item: TripPlanItem) => {
-    navigation.navigate("TripPlanForm", { tripId, planItem: item });
-  };
-
-  const summaryTotal = logisticsItems.length;
-  const hasLogistics = summaryTotal > 0;
-
-  const renderTransportCard = (item: TripPlanItem) => {
-    const icon = transportIcon(item);
-    const date = formatDate(item.startAt || item.date || item.startTime);
-    const time = formatTime(item.startAt || item.startTime);
-
-    const flightNumber = item.flightDetails?.flightNumberRaw;
-    const fromIata = item.flightDetails?.fromIata;
-    const toIata = item.flightDetails?.toIata;
-    const company = item.destinationTransport?.company;
-    const fromName = item.destinationTransport?.fromName;
-    const toName = item.destinationTransport?.toName;
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        activeOpacity={0.7}
-        onPress={() => handleOpenItem(item)}
-        style={{
-          backgroundColor: "white",
-          borderRadius: 16,
-          padding: 14,
-          marginBottom: 10,
-          borderWidth: 1,
-          borderColor: "#E5E7EB",
-          shadowColor: "#000",
-          shadowOpacity: 0.03,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-          {/* Icon */}
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: "rgba(14,165,233,0.10)",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 12,
-            }}
-          >
-            <Ionicons name={icon} size={22} color="#0EA5E9" />
-          </View>
-
-          {/* Content */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: "800", color: "#0B1220" }} numberOfLines={1}>
-              {item.title}
-            </Text>
-
-            {/* Flight route */}
-            {item.type === "flight" && (fromIata || toIata) && (
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-                <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>
-                  {fromIata || "?"} → {toIata || "?"}
-                </Text>
-                {flightNumber && (
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8", marginLeft: 8 }}>
-                    {flightNumber}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {/* Transport route */}
-            {(item.type === "transport" || item.type === "taxi") && (fromName || toName) && (
-              <View style={{ marginTop: 4 }}>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B" }} numberOfLines={1}>
-                  {fromName || "Origen"} → {toName || "Destino"}
-                </Text>
-                {company && (
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8", marginTop: 2 }}>
-                    {company}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {/* Date and time */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 10 }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
-                <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginLeft: 4 }}>
-                  {date}
-                </Text>
-              </View>
-              {time && (
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons name="time-outline" size={12} color="#94A3B8" />
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginLeft: 4 }}>
-                    {time}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Cost */}
-            {item.cost != null && (
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#10B981", marginTop: 6 }}>
-                {typeof item.cost === 'number' ? item.cost.toFixed(2) : item.cost} €
-              </Text>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderAccommodationCard = (item: TripPlanItem) => {
-    const checkIn = item.accommodationDetails?.checkInAt || item.date;
-    const checkOut = item.accommodationDetails?.checkOutAt || item.endTime;
-    const name = item.accommodationDetails?.name;
-    const address = item.accommodationDetails?.address;
-    const city = item.accommodationDetails?.city;
-    const guests = item.accommodationDetails?.guests;
-    const rooms = item.accommodationDetails?.rooms;
-    const mapsQuery = [address, city].filter(Boolean).join(", ");
-
-    // Don't repeat subtitle if same as title
-    const subtitle = name && name.trim() !== item.title.trim() ? name : null;
-
-    const checkInDate = formatDate(checkIn);
-    const checkInTime = formatTime(checkIn);
-    const checkOutDate = formatDate(checkOut);
-    const checkOutTime = formatTime(checkOut);
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        activeOpacity={0.7}
-        onPress={() => handleOpenItem(item)}
-        style={{
-          backgroundColor: "white",
-          borderRadius: 14,
-          padding: 12,
-          marginBottom: 8,
-          borderWidth: 1,
-          borderColor: "#E5E7EB",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(139,92,246,0.10)", alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name="bed-outline" size={18} color="#8B5CF6" />
-          </View>
-
-          <View style={{ flex: 1, minWidth: 0 }}>
-            {/* Title + cost on same row */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 13, fontWeight: "800", color: "#0B1220", flex: 1 }} numberOfLines={1}>
-                {item.title}
-              </Text>
-              {item.cost != null && (
-                <Text style={{ fontSize: 13, fontWeight: "900", color: "#0B1220", marginLeft: 8 }}>
-                  {Number(item.cost).toFixed(0)} €
-                </Text>
-              )}
-            </View>
-
-            {subtitle && (
-              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginTop: 1 }} numberOfLines={1}>
-                {subtitle}
-              </Text>
-            )}
-
-            {/* Check-in → Check-out inline */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5 }}>
-              <Ionicons name="enter-outline" size={11} color="#10B981" />
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#10B981" }}>
-                {checkInDate}{checkInTime ? ` · ${checkInTime}` : ""}
-              </Text>
-              <Text style={{ fontSize: 11, color: "#94A3B8", marginHorizontal: 2 }}>→</Text>
-              <Ionicons name="exit-outline" size={11} color="#EF4444" />
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#EF4444" }}>
-                {checkOutDate}{checkOutTime ? ` · ${checkOutTime}` : ""}
-              </Text>
-            </View>
-
-            {/* Address */}
-            {!!mapsQuery && (
-              <TouchableOpacity
-                onPress={(e: any) => { e?.stopPropagation?.(); Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsQuery)}`); }}
-                style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="location-outline" size={11} color={colors.primary} style={{ flexShrink: 0 }} />
-                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary, flexShrink: 1 }} numberOfLines={2}>
-                  {mapsQuery}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Guests + rooms */}
-            {(!!guests || !!rooms) && (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 3 }}>
-              {!!guests && (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                  <Ionicons name="people-outline" size={11} color="#94A3B8" />
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{guests}</Text>
-                </View>
-              )}
-              {!!rooms && (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                  <Ionicons name="home-outline" size={11} color="#94A3B8" />
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>{rooms} hab.</Text>
-                </View>
-              )}
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const openDocuments = () =>
+    navigation.navigate("TripDocuments", {
+      tripId,
+      destination: trip?.destination ?? null,
+      tripName: trip?.name ?? null,
+      endDate: trip?.endDate ?? null,
+    });
 
   return (
-    <View className="flex-1">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: 40,
-          paddingHorizontal: 0,
-          paddingTop: 12,
-        }}
-      >
-        {/* RESUMEN COMPACTO */}
-        <View
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}>
+      {!docsLoading && !hasInsurance && (
+        <TouchableOpacity
+          onPress={openDocuments}
+          activeOpacity={0.8}
           style={{
-            backgroundColor: "#F9FAFB",
-            borderRadius: 16,
-            paddingVertical: 12,
-            paddingHorizontal: 14,
-            borderWidth: 1,
-            borderColor: "#E5E7EB",
-            marginBottom: 16,
+            flexDirection: "row", alignItems: "center", gap: 8,
+            backgroundColor: "#FEF2F2", borderRadius: 14, padding: 12, marginBottom: 16,
           }}
         >
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "700",
-              color: "#64748B",
-              marginBottom: 8,
-            }}
-          >
-            Resumen de logística
+          <Ionicons name="warning-outline" size={18} color="#DC2626" />
+          <Text style={{ flex: 1, fontSize: 12, fontWeight: "700", color: "#991B1B" }}>
+            Te falta añadir el seguro de viaje
           </Text>
-          <View className="flex-row">
-            <View className="flex-1">
-              <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-                Transportes
-              </Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "800",
-                  color: "#0B1220",
-                }}
-              >
-                {transportItems.length}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-                Alojamientos
-              </Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "800",
-                  color: "#0B1220",
-                }}
-              >
-                {accommodations.length}
-              </Text>
-            </View>
-            <View className="flex-1 items-end">
-              <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-                Total
-              </Text>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "800",
-                  color: "#0B1220",
-                }}
-              >
-                {summaryTotal}
-              </Text>
-            </View>
-          </View>
-        </View>
+          <Text style={{ fontSize: 12, fontWeight: "800", color: "#DC2626" }}>Añadir</Text>
+        </TouchableOpacity>
+      )}
 
-        {/* FILTRO VISTA */}
-        <View className="flex-row rounded-2xl bg-slate-50 p-1 mb-4">
-          {(
-            [
-              { key: "transport", label: "Transportes" },
-              { key: "accommodation", label: "Alojamientos" },
-            ] as { key: LogisticsFilter; label: string }[]
-          ).map((opt) => {
-            const active = filter === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                onPress={() => setFilter(opt.key)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 14,
-                  backgroundColor: active ? "white" : "transparent",
-                  borderWidth: active ? 1 : 0,
-                  borderColor: active ? colors.primary : "transparent",
-                  marginHorizontal: 1,
-                }}
-                activeOpacity={0.9}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontSize: 12,
-                    fontWeight: "700",
-                    color: active ? colors.primary : "#6B7280",
-                  }}
-                >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      {/* Stats */}
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
+        <StatCard label="Documentos" value={docsLoading ? "—" : `${docsCount}/3`} onPress={openDocuments} />
+        <StatCard label="Reservas" value="—" disabled onPress={ComingSoon} />
+        <StatCard label="Contactos" value="—" disabled onPress={ComingSoon} />
+      </View>
 
-        {/* CONTENIDO PRINCIPAL */}
-        {!hasLogistics ? (
-          <View className="mt-12 items-center px-8">
-            <Ionicons name="airplane-outline" size={48} color="#CBD5E1" />
-            <Text className="text-center text-gray-400 text-sm mb-2 mt-3">
-              No hay transportes ni alojamientos registrados todavía.
-            </Text>
-            <Text className="text-center text-gray-400 text-xs">
-              Añádelos desde el planning del viaje para tenerlo todo controlado.
-            </Text>
-          </View>
-        ) : filteredItems.length === 0 ? (
-          <View className="mt-12 items-center px-8">
-            <Text className="text-center text-gray-400 text-sm">
-              No hay elementos en esta vista.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {filteredItems.map((item) =>
-              item.type === "accommodation"
-                ? renderAccommodationCard(item)
-                : renderTransportCard(item)
-            )}
-          </>
+      {/* Próximo en tu viaje */}
+      {nextFlight && nextFlight.flightDetails && (
+        <>
+          <SectionTitle>Próximo en tu viaje</SectionTitle>
+          <NextFlightCard item={nextFlight} />
+        </>
+      )}
+
+      {/* Accesos rápidos */}
+      <SectionTitle>Accesos rápidos</SectionTitle>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        <QuickAccessTile icon="document-text-outline" label="Documentos" onPress={openDocuments} />
+        <QuickAccessTile icon="briefcase-outline" label="Reservas" disabled onPress={ComingSoon} />
+        <QuickAccessTile icon="call-outline" label="Contactos" disabled onPress={ComingSoon} />
+        <QuickAccessTile icon="checkmark-done-outline" label="Checklist" disabled onPress={ComingSoon} />
+      </View>
+    </ScrollView>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+      {children}
+    </Text>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={{
+        flex: 1, backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F0F4F8",
+        paddingVertical: 14, alignItems: "center", opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A" }}>{value}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function NextFlightCard({ item }: { item: TripPlanItem }) {
+  const fd = item.flightDetails!;
+  const flightNum = fd.flightNumberIata || fd.flightNumberRaw || null;
+  const subline = [fd.airlineName, flightNum].filter(Boolean).join(" · ");
+  const route = fd.fromIata && fd.toIata ? `${fd.fromIata} → ${fd.toIata}` : item.title;
+  const depTime = fmtTime(item.startAt);
+  const today = item.startAt ? isToday(item.startAt) : false;
+
+  return (
+    <View style={{ backgroundColor: "#0B1220", borderRadius: 20, padding: 16, marginBottom: 20 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        {!!subline && (
+          <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.6)" }}>{subline}</Text>
         )}
-      </ScrollView>
+        {today && (
+          <View style={{ backgroundColor: "#16A34A", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 10, fontWeight: "800", color: "white" }}>Hoy</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={{ fontSize: 20, fontWeight: "900", color: "white", marginBottom: 12 }}>{route}</Text>
+
+      <View style={{ flexDirection: "row", gap: 20 }}>
+        {!!depTime && (
+          <View>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>SALIDA</Text>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>{depTime}</Text>
+          </View>
+        )}
+        {!!fd.gate && (
+          <View>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>PUERTA</Text>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>{fd.gate}</Text>
+          </View>
+        )}
+        {!!fd.seat && (
+          <View>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>ASIENTO</Text>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>{fd.seat}</Text>
+          </View>
+        )}
+      </View>
     </View>
+  );
+}
+
+function QuickAccessTile({
+  icon,
+  label,
+  disabled,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={{
+        width: "47.5%", backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F0F4F8",
+        paddingVertical: 18, alignItems: "center", gap: 8, opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      <Ionicons name={icon} size={22} color={colors.primary} />
+      <Text style={{ fontSize: 12, fontWeight: "700", color: "#1F2937" }}>{label}</Text>
+    </TouchableOpacity>
   );
 }
