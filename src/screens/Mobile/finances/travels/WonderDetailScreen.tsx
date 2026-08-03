@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch, PanResponder } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch, PanResponder, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -75,7 +75,7 @@ function PhotoOffsetSlider({ value, onChange }: { value: number; onChange: (v: n
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
         measureTrack();
-        const x = evt.nativeEvent.pageX - trackPageX.current;
+        const x = evt.nativeEvent.locationX;
         if (trackWidth > 0) onChange(Math.max(0, Math.min(1, x / trackWidth)));
       },
       onPanResponderMove: (_evt, gestureState) => {
@@ -87,8 +87,8 @@ function PhotoOffsetSlider({ value, onChange }: { value: number; onChange: (v: n
   ).current;
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Ionicons name="chevron-up" size={16} color="#94A3B8" />
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", minWidth: 42 }}>Arriba</Text>
       <View
         ref={trackRef}
         onLayout={measureTrack}
@@ -106,7 +106,7 @@ function PhotoOffsetSlider({ value, onChange }: { value: number; onChange: (v: n
           }}
         />
       </View>
-      <Ionicons name="chevron-down" size={16} color="#94A3B8" />
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", minWidth: 38, textAlign: "right" }}>Abajo</Text>
     </View>
   );
 }
@@ -159,6 +159,7 @@ export default function WonderDetailScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoTileWidth, setPhotoTileWidth] = useState(0);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [showPhotoControls, setShowPhotoControls] = useState(false);
 
   // Reset the known natural size whenever the photo changes — it gets
   // re-populated from the displayed Image's own onLoad event below, which
@@ -179,6 +180,7 @@ export default function WonderDetailScreen() {
     setImageLoadFailed(false);
     setImageRetryCount(0);
     setTripId(wonder.tripId);
+    setShowPhotoControls(false);
   }, [wonder]);
 
   const tripsQuery = useQuery({
@@ -330,19 +332,105 @@ export default function WonderDetailScreen() {
               </Text>
             </>
           )}
+
+          {photoUrl && !imageLoadFailed && !uploadingPhoto && (
+            <Pressable
+              onPress={() => setShowPhotoControls((v) => !v)}
+              style={({ pressed }) => ({
+                position: "absolute",
+                right: 12,
+                bottom: 12,
+                height: 38,
+                paddingHorizontal: 12,
+                borderRadius: 12,
+                backgroundColor: "rgba(15,23,42,0.55)",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.22)",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                opacity: pressed ? 0.9 : 1,
+              })}
+            >
+              <Ionicons name="scan-outline" size={16} color="white" />
+              <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>
+                {showPhotoControls ? "Listo" : "Reencuadrar"}
+              </Text>
+            </Pressable>
+          )}
         </TouchableOpacity>
 
-        {photoUrl && !imageLoadFailed && !uploadingPhoto && (
+        {photoUrl && !imageLoadFailed && !uploadingPhoto && showPhotoControls && (
           <View
             style={{
               backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
-              paddingHorizontal: 14, paddingVertical: 10, marginTop: -8,
+              paddingHorizontal: 14, paddingVertical: 12, marginTop: -8, gap: 12,
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 6 }}>
-              QUÉ PARTE DE LA FOTO SE VE
-            </Text>
-            <PhotoOffsetSlider value={photoOffset} onChange={setPhotoOffset} />
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>
+                  AJUSTAR ENCUADRE
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B" }}>
+                  Mueve la foto para decidir qué zona se muestra.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPhotoOffset(0.5)}
+                activeOpacity={0.85}
+                style={{
+                  height: 34,
+                  paddingHorizontal: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#F8FAFC",
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "800", color: "#334155" }}>Centrar</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => setPhotoOffset((v) => Math.max(0, Number((v - 0.08).toFixed(2))))}
+                activeOpacity={0.85}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  backgroundColor: "#F8FAFC",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="chevron-up" size={18} color="#475569" />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <PhotoOffsetSlider value={photoOffset} onChange={setPhotoOffset} />
+              </View>
+              <TouchableOpacity
+                onPress={() => setPhotoOffset((v) => Math.min(1, Number((v + 0.08).toFixed(2))))}
+                activeOpacity={0.85}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  backgroundColor: "#F8FAFC",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="chevron-down" size={18} color="#475569" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
