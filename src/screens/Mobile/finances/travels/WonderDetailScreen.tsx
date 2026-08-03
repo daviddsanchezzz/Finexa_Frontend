@@ -7,7 +7,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
-import { useWonders } from "../../../../hooks/useWonders";
+import { useWonders, PhotoAlign } from "../../../../hooks/useWonders";
 import { pickAndUploadWonderPhoto } from "../../../../utils/uploadTripCover";
 
 interface TripOption {
@@ -22,6 +22,18 @@ const MONTH_LABELS = [
 ];
 
 const NO_TRIP = -1;
+
+const ALIGN_OPTIONS: { key: PhotoAlign; label: string; icon: "chevron-up" | "remove" | "chevron-down" }[] = [
+  { key: "top", label: "Arriba", icon: "chevron-up" },
+  { key: "center", label: "Centro", icon: "remove" },
+  { key: "bottom", label: "Abajo", icon: "chevron-down" },
+];
+
+function objectPositionFor(align: PhotoAlign) {
+  if (align === "top") return "center top";
+  if (align === "bottom") return "center bottom";
+  return "center center";
+}
 
 const pickerWrapStyle = {
   backgroundColor: "#F8FAFC",
@@ -63,8 +75,11 @@ export default function WonderDetailScreen() {
   const [visitedMonth, setVisitedMonth] = useState(currentMonthYear().month);
   const [visitedYear, setVisitedYear] = useState(currentMonthYear().year);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoAlign, setPhotoAlign] = useState<PhotoAlign>("center");
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [tripId, setTripId] = useState<number | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!wonder) return;
@@ -73,6 +88,8 @@ export default function WonderDetailScreen() {
     setVisitedMonth(month);
     setVisitedYear(year);
     setPhotoUrl(wonder.photoUrl);
+    setPhotoAlign(wonder.photoAlign ?? "center");
+    setImageLoadFailed(false);
     setTripId(wonder.tripId);
   }, [wonder]);
 
@@ -97,7 +114,10 @@ export default function WonderDetailScreen() {
     setUploadingPhoto(true);
     try {
       const url = await pickAndUploadWonderPhoto();
-      if (url) setPhotoUrl(url);
+      if (url) {
+        setPhotoUrl(url);
+        setImageLoadFailed(false);
+      }
     } finally {
       setUploadingPhoto(false);
     }
@@ -121,16 +141,24 @@ export default function WonderDetailScreen() {
   };
 
   const handleSave = async () => {
+    setSaveError(null);
     const visitedAt = visited
       ? `${visitedYear}-${String(visitedMonth).padStart(2, "0")}-01`
       : undefined;
-    await updateWonder(wonderKey, {
-      visited,
-      visitedAt,
-      photoUrl: visited ? photoUrl ?? undefined : undefined,
-      tripId: visited ? tripId ?? undefined : undefined,
-    });
-    navigation.goBack();
+    try {
+      await updateWonder(wonderKey, {
+        visited,
+        visitedAt,
+        photoUrl: visited ? photoUrl ?? undefined : undefined,
+        photoAlign: visited && photoUrl ? photoAlign : undefined,
+        tripId: visited ? tripId ?? undefined : undefined,
+      });
+      navigation.goBack();
+    } catch (error: any) {
+      setSaveError(
+        error?.response?.data?.message || error?.message || "No se pudo guardar. Inténtalo de nuevo."
+      );
+    }
   };
 
   const years = Array.from({ length: 60 }, (_, i) => currentMonthYear().year - i);
@@ -156,8 +184,20 @@ export default function WonderDetailScreen() {
         >
           {uploadingPhoto ? (
             <ActivityIndicator color={colors.primary} />
-          ) : photoUrl ? (
-            <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          ) : photoUrl && !imageLoadFailed ? (
+            <Image
+              source={{ uri: photoUrl }}
+              style={{ width: "100%", height: "100%", objectPosition: objectPositionFor(photoAlign) } as any}
+              resizeMode="cover"
+              onError={() => setImageLoadFailed(true)}
+            />
+          ) : photoUrl && imageLoadFailed ? (
+            <>
+              <Ionicons name="alert-circle-outline" size={28} color="#F59E0B" />
+              <Text style={{ fontSize: 12, color: "#B45309", fontWeight: "600", marginTop: 6, textAlign: "center", paddingHorizontal: 20 }}>
+                No se pudo cargar la foto. Toca para subir otra.
+              </Text>
+            </>
           ) : (
             <>
               <Ionicons name="image-outline" size={28} color="#9CA3AF" />
@@ -167,6 +207,28 @@ export default function WonderDetailScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        {photoUrl && !imageLoadFailed && !uploadingPhoto && (
+          <View style={{ flexDirection: "row", gap: 8, marginTop: -8 }}>
+            {ALIGN_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.key}
+                onPress={() => setPhotoAlign(opt.key)}
+                style={{
+                  flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
+                  paddingVertical: 8, borderRadius: 10,
+                  backgroundColor: photoAlign === opt.key ? "#EEF2FF" : "white",
+                  borderWidth: 1, borderColor: photoAlign === opt.key ? colors.primary : "#E5E7EB",
+                }}
+              >
+                <Ionicons name={opt.icon} size={14} color={photoAlign === opt.key ? colors.primary : "#6B7280"} />
+                <Text style={{ fontSize: 12, fontWeight: "700", color: photoAlign === opt.key ? colors.primary : "#6B7280" }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <View
           style={{
@@ -229,6 +291,12 @@ export default function WonderDetailScreen() {
               </View>
             </View>
           </>
+        )}
+
+        {saveError && (
+          <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", textAlign: "center" }}>
+            {saveError}
+          </Text>
         )}
 
         <TouchableOpacity

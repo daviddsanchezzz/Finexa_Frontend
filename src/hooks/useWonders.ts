@@ -3,6 +3,7 @@ import axios from "axios";
 import api from "../api/api";
 
 export type WonderEra = "modern" | "ancient" | "natural";
+export type PhotoAlign = "top" | "center" | "bottom";
 
 export interface Wonder {
   key: string;
@@ -12,6 +13,7 @@ export interface Wonder {
   visited: boolean;
   visitedAt: string | null;
   photoUrl: string | null;
+  photoAlign: PhotoAlign | null;
   tripId: number | null;
 }
 
@@ -19,6 +21,7 @@ export interface UpdateWonderVisitInput {
   visited: boolean;
   visitedAt?: string;
   photoUrl?: string;
+  photoAlign?: PhotoAlign;
   tripId?: number;
 }
 

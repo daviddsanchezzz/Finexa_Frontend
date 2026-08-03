@@ -4,7 +4,26 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
-import { useWonders, WonderEra } from "../../../../hooks/useWonders";
+import { useWonders, WonderEra, PhotoAlign } from "../../../../hooks/useWonders";
+
+function objectPositionFor(align: PhotoAlign | null) {
+  if (align === "top") return "center top";
+  if (align === "bottom") return "center bottom";
+  return "center center";
+}
+
+function WonderThumbnail({ uri, align }: { uri: string; align: PhotoAlign | null }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: "#F3F4F6", objectPosition: objectPositionFor(align) } as any}
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 const ERA_ORDER: WonderEra[] = ["modern", "ancient", "natural"];
 const ERA_LABELS: Record<WonderEra, string> = { modern: "Modernas", ancient: "Antiguas", natural: "Naturales" };
@@ -79,13 +98,7 @@ export default function WondersScreen() {
                 padding: 16, gap: 12,
               }}
             >
-              {wonder.photoUrl && (
-                <Image
-                  source={{ uri: wonder.photoUrl }}
-                  style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: "#F3F4F6" }}
-                  resizeMode="cover"
-                />
-              )}
+              {wonder.photoUrl && <WonderThumbnail uri={wonder.photoUrl} align={wonder.photoAlign} />}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(wonder.country)}</Text>
