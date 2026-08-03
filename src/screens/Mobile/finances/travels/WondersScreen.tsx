@@ -6,12 +6,19 @@ import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import { useWonders, WonderEra } from "../../../../hooks/useWonders";
 
-const ERA_LABELS: Record<WonderEra, string> = { modern: "Modernas", ancient: "Antiguas" };
+const ERA_ORDER: WonderEra[] = ["modern", "ancient", "natural"];
+const ERA_LABELS: Record<WonderEra, string> = { modern: "Modernas", ancient: "Antiguas", natural: "Naturales" };
 
 function formatMonthYearEs(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+}
+
+function flagEmojiFromISO2(code: string) {
+  const c = code.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "🌍";
+  return String.fromCodePoint(...[...c].map((ch) => 127397 + ch.charCodeAt(0)));
 }
 
 export default function WondersScreen() {
@@ -30,8 +37,8 @@ export default function WondersScreen() {
         <Text style={{ fontSize: 20, fontWeight: "900", color: "#0F172A" }}>Maravillas del mundo</Text>
       </View>
 
-      <View style={{ flexDirection: "row", paddingHorizontal: 20, gap: 8, marginBottom: 4 }}>
-        {(["modern", "ancient"] as WonderEra[]).map((era) => {
+      <View style={{ flexDirection: "row", paddingHorizontal: 20, gap: 6, marginBottom: 4 }}>
+        {ERA_ORDER.map((era) => {
           const visitedInThisEra = wonders.filter((w) => w.era === era && w.visited).length;
           return (
             <TouchableOpacity
@@ -43,7 +50,10 @@ export default function WondersScreen() {
                 borderWidth: 1, borderColor: activeEra === era ? colors.primary : "#E5E7EB",
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: "700", color: activeEra === era ? "white" : "#374151" }}>
+              <Text
+                style={{ fontSize: 12, fontWeight: "700", color: activeEra === era ? "white" : "#374151" }}
+                numberOfLines={1}
+              >
                 {ERA_LABELS[era]} · {visitedInThisEra}/7
               </Text>
             </TouchableOpacity>
@@ -70,7 +80,10 @@ export default function WondersScreen() {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{wonder.name}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(wonder.country)}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{wonder.name}</Text>
+                </View>
                 <Text
                   style={{
                     fontSize: 12, fontWeight: "700", marginTop: 4,

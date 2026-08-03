@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import api from "../api/api";
 
-export type WonderEra = "modern" | "ancient";
+export type WonderEra = "modern" | "ancient" | "natural";
 
 export interface Wonder {
   key: string;

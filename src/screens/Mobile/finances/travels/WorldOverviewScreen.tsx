@@ -126,7 +126,7 @@ export default function WorldOverviewScreen() {
               <View>
                 <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>Maravillas del mundo</Text>
                 <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
-                  {overview?.wondersVisited ?? 0} de {overview?.wondersTotal ?? 14} visitadas
+                  {overview?.wondersVisited ?? 0} de {overview?.wondersTotal ?? 21} visitadas
                 </Text>
               </View>
             </View>
