@@ -1107,7 +1107,7 @@ export default function TripPlanFormScreen({
 
             <Row2>
               <View style={{ flex: 1 }}>
-                <Field label="PRECIO" value={costStr} onChange={setCostStr} placeholder="0,00" />
+                <Field label="PRECIO" value={costStr} onChange={setCostStr} placeholder="0,00" keyboardType="decimal-pad" />
               </View>
               <View style={{ flex: 1 }}>
                 {transportTab === "flight" ? (
@@ -1209,7 +1209,7 @@ export default function TripPlanFormScreen({
               keyboardType="phone-pad"
             />
 
-            <Field label="COSTE TOTAL" value={accCostStr} onChange={setAccCostStr} placeholder="0,00 €" />
+            <Field label="COSTE TOTAL" value={accCostStr} onChange={setAccCostStr} placeholder="0,00 €" keyboardType="decimal-pad" />
           </View>
         )}
 
@@ -1257,7 +1257,7 @@ export default function TripPlanFormScreen({
 
             <Row2>
               <View style={{ flex: 1 }}>
-                <Field label="COSTE" value={actCostStr} onChange={setActCostStr} placeholder="0,00" />
+                <Field label="COSTE" value={actCostStr} onChange={setActCostStr} placeholder="0,00" keyboardType="decimal-pad" />
               </View>
               <View style={{ flex: 1 }}>
                 <Field label="MONEDA" value={actCurrency} onChange={setActCurrency} placeholder="EUR" />

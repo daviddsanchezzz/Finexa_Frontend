@@ -565,7 +565,7 @@ function VisitActivityCard({
       }}
     >
       <Pressable
-        onPress={() => setExpanded((e) => !e)}
+        onPress={onEdit}
         style={({ pressed }) => ({
           flexDirection: "row",
           alignItems: "center",
@@ -582,15 +582,23 @@ function VisitActivityCard({
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 12, fontWeight: "900", color: UI.text }} numberOfLines={1}>{item.title}</Text>
           <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted2, marginTop: 2 }} numberOfLines={1}>
-            {!!time ? `${time} · ` : ""}{stops.length} {stops.length === 1 ? "parada" : "paradas"}
+            {stops.length} {stops.length === 1 ? "parada" : "paradas"}
           </Text>
         </View>
 
-        <TouchableOpacity onPress={onEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ padding: 2 }}>
-          <Ionicons name="pencil-outline" size={15} color={UI.muted2} />
-        </TouchableOpacity>
+        {!!time && (
+          <View style={{ alignItems: "flex-end", paddingLeft: 6, minWidth: 48 }}>
+            <Text style={{ fontSize: 11, fontWeight: "900", color: UI.text }}>{time}</Text>
+          </View>
+        )}
 
-        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={UI.muted2} />
+        <TouchableOpacity
+          onPress={(e: any) => { e?.stopPropagation?.(); setExpanded((v) => !v); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ padding: 2 }}
+        >
+          <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={UI.muted2} />
+        </TouchableOpacity>
       </Pressable>
 
       {expanded && (
