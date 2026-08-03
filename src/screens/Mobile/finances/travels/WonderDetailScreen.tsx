@@ -23,6 +23,23 @@ const MONTH_LABELS = [
 
 const NO_TRIP = -1;
 
+const pickerWrapStyle = {
+  backgroundColor: "#F8FAFC",
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: "#E5E7EB",
+  overflow: "hidden" as const,
+};
+
+const pickerStyle = {
+  height: 44,
+  fontSize: 14,
+  color: "#0F172A",
+  backgroundColor: "transparent",
+  borderWidth: 0,
+  paddingHorizontal: 10,
+};
+
 function currentMonthYear() {
   const now = new Date();
   return { month: now.getMonth() + 1, year: now.getFullYear() };
@@ -165,19 +182,27 @@ export default function WonderDetailScreen() {
         {visited && (
           <>
             <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", padding: 14 }}>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 8 }}>
                 MES Y AÑO DE LA VISITA
               </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <Picker selectedValue={visitedMonth} onValueChange={(v) => setVisitedMonth(Number(v))}>
+                <View style={{ flex: 1.4, ...pickerWrapStyle }}>
+                  <Picker
+                    selectedValue={visitedMonth}
+                    onValueChange={(v) => setVisitedMonth(Number(v))}
+                    style={pickerStyle}
+                  >
                     {MONTH_LABELS.map((label, index) => (
                       <Picker.Item key={label} label={label} value={index + 1} />
                     ))}
                   </Picker>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Picker selectedValue={visitedYear} onValueChange={(v) => setVisitedYear(Number(v))}>
+                <View style={{ flex: 1, ...pickerWrapStyle }}>
+                  <Picker
+                    selectedValue={visitedYear}
+                    onValueChange={(v) => setVisitedYear(Number(v))}
+                    style={pickerStyle}
+                  >
                     {years.map((year) => (
                       <Picker.Item key={year} label={String(year)} value={year} />
                     ))}
@@ -187,15 +212,21 @@ export default function WonderDetailScreen() {
             </View>
 
             <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", padding: 14 }}>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 8 }}>
                 VINCULAR A UN VIAJE (OPCIONAL)
               </Text>
-              <Picker selectedValue={tripId ?? NO_TRIP} onValueChange={(v) => handleSelectTrip(Number(v))}>
-                <Picker.Item label="Ninguno seleccionado" value={NO_TRIP} />
-                {(tripsQuery.data ?? []).map((t) => (
-                  <Picker.Item key={t.id} label={t.name} value={t.id} />
-                ))}
-              </Picker>
+              <View style={pickerWrapStyle}>
+                <Picker
+                  selectedValue={tripId ?? NO_TRIP}
+                  onValueChange={(v) => handleSelectTrip(Number(v))}
+                  style={pickerStyle}
+                >
+                  <Picker.Item label="Ninguno seleccionado" value={NO_TRIP} />
+                  {(tripsQuery.data ?? []).map((t) => (
+                    <Picker.Item key={t.id} label={t.name} value={t.id} />
+                  ))}
+                </Picker>
+              </View>
             </View>
           </>
         )}

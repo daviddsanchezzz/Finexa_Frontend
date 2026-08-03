@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -76,9 +76,16 @@ export default function WondersScreen() {
               style={{
                 flexDirection: "row", alignItems: "center", justifyContent: "space-between",
                 backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
-                padding: 16,
+                padding: 16, gap: 12,
               }}
             >
+              {wonder.photoUrl && (
+                <Image
+                  source={{ uri: wonder.photoUrl }}
+                  style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: "#F3F4F6" }}
+                  resizeMode="cover"
+                />
+              )}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(wonder.country)}</Text>
