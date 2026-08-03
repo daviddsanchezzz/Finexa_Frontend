@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,12 +10,16 @@ import { useTripDocuments } from "../../../../hooks/useTripDocuments";
 import { useTripWeather } from "../../../../hooks/useTripWeather";
 import { getClimateChecklistSuggestions } from "../../../../utils/tripWeather";
 
-const CATEGORY_META: Record<ChecklistCategory, { label: string; emoji: string }> = {
-  ropa: { label: "Ropa", emoji: "👕" },
-  documentos: { label: "Documentos", emoji: "📄" },
-  electronica: { label: "Electrónica", emoji: "🔌" },
-  otros: { label: "Otros", emoji: "🎒" },
+const CATEGORY_META: Record<
+  ChecklistCategory,
+  { label: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  ropa: { label: "Ropa", icon: "shirt-outline" },
+  documentos: { label: "Documentos", icon: "document-text-outline" },
+  electronica: { label: "Electr\u00F3nica", icon: "phone-portrait-outline" },
+  otros: { label: "Otros", icon: "briefcase-outline" },
 };
+
 const CATEGORIES: ChecklistCategory[] = ["ropa", "documentos", "electronica", "otros"];
 
 interface SyntheticItem {
@@ -43,14 +47,14 @@ export default function MaletaScreen() {
   ];
 
   const totalCount = items.length + syntheticDocs.length;
-  const checkedCount = items.filter((i) => i.checked).length + syntheticDocs.filter((i) => i.checked).length;
+  const checkedCount = items.filter((item) => item.checked).length + syntheticDocs.filter((item) => item.checked).length;
   const progress = totalCount > 0 ? checkedCount / totalCount : 0;
 
-  const categoryCount = (cat: ChecklistCategory) =>
-    items.filter((i) => i.category === cat).length + (cat === "documentos" ? syntheticDocs.length : 0);
+  const categoryCount = (category: ChecklistCategory) =>
+    items.filter((item) => item.category === category).length +
+    (category === "documentos" ? syntheticDocs.length : 0);
 
   const visibleCategories = activeTab === "all" ? CATEGORIES : [activeTab];
-
   const suggestions = getClimateChecklistSuggestions(weatherQuery.data?.days ?? []);
 
   return (
@@ -67,32 +71,53 @@ export default function MaletaScreen() {
           {checkedCount} de {totalCount} preparados
         </Text>
         <View style={{ height: 6, borderRadius: 999, backgroundColor: "#F3F4F6" }}>
-          <View style={{ height: 6, borderRadius: 999, backgroundColor: "#16A34A", width: `${Math.round(progress * 100)}%` }} />
+          <View
+            style={{
+              height: 6,
+              borderRadius: 999,
+              backgroundColor: "#16A34A",
+              width: `${Math.round(progress * 100)}%`,
+            }}
+          />
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 12 }}>
-        <TabChip label={`Todo · ${totalCount}`} active={activeTab === "all"} onPress={() => setActiveTab("all")} />
-        {CATEGORIES.map((cat) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          gap: 8,
+          paddingTop: 2,
+          paddingBottom: 12,
+          alignItems: "center",
+        }}
+      >
+        <TabChip label={`Todo \u00B7 ${totalCount}`} active={activeTab === "all"} onPress={() => setActiveTab("all")} />
+        {CATEGORIES.map((category) => (
           <TabChip
-            key={cat}
-            label={`${CATEGORY_META[cat].label} · ${categoryCount(cat)}`}
-            active={activeTab === cat}
-            onPress={() => setActiveTab(cat)}
+            key={category}
+            label={`${CATEGORY_META[category].label} \u00B7 ${categoryCount(category)}`}
+            active={activeTab === category}
+            onPress={() => setActiveTab(category)}
           />
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
         ) : (
-          visibleCategories.map((cat) => (
+          visibleCategories.map((category) => (
             <CategorySection
-              key={cat}
-              category={cat}
-              items={items.filter((i) => i.category === cat)}
-              synthetic={cat === "documentos" ? syntheticDocs : []}
+              key={category}
+              category={category}
+              items={items.filter((item) => item.category === category)}
+              synthetic={category === "documentos" ? syntheticDocs : []}
               onToggle={(id, checked) => toggleItem(id, checked)}
               onDelete={(id) => deleteItem(id)}
             />
@@ -104,8 +129,17 @@ export default function MaletaScreen() {
             <TextInput
               value={newItemLabel}
               onChangeText={setNewItemLabel}
-              placeholder="Añadir un artículo..."
-              style={{ flex: 1, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, color: "#0F172A" }}
+              placeholder="A\u00F1adir un art\u00EDculo..."
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                fontSize: 13,
+                color: "#0F172A",
+              }}
             />
             <TouchableOpacity
               disabled={!newItemLabel.trim() || isSaving}
@@ -113,7 +147,14 @@ export default function MaletaScreen() {
                 await createItem(activeTab as ChecklistCategory, newItemLabel.trim());
                 setNewItemLabel("");
               }}
-              style={{ backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", opacity: !newItemLabel.trim() || isSaving ? 0.5 : 1 }}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: !newItemLabel.trim() || isSaving ? 0.5 : 1,
+              }}
             >
               <Ionicons name="add" size={20} color="white" />
             </TouchableOpacity>
@@ -122,9 +163,9 @@ export default function MaletaScreen() {
 
         {suggestions.length > 0 && (
           <View style={{ flexDirection: "row", gap: 8, backgroundColor: "#EFF6FF", borderRadius: 14, padding: 12 }}>
-            <Text style={{ fontSize: 14 }}>💡</Text>
+            <Ionicons name="bulb-outline" size={16} color="#2563EB" style={{ marginTop: 1 }} />
             <Text style={{ flex: 1, fontSize: 12, color: "#1E3A8A", lineHeight: 17 }}>
-              <Text style={{ fontWeight: "700" }}>Sugerido según destino y clima: </Text>
+              <Text style={{ fontWeight: "700" }}>Sugerido seg\u00FAn destino y clima: </Text>
               {suggestions.join(", ")}
             </Text>
           </View>
@@ -138,7 +179,15 @@ function TabChip({ label, active, onPress }: { label: string; active: boolean; o
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: active ? colors.primary : "#F3F4F6" }}
+      style={{
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        minHeight: 36,
+        borderRadius: 999,
+        backgroundColor: active ? colors.primary : "#F3F4F6",
+        alignSelf: "flex-start",
+        justifyContent: "center",
+      }}
     >
       <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : "#6B7280" }}>{label}</Text>
     </TouchableOpacity>
@@ -159,57 +208,98 @@ function CategorySection({
   onDelete: (id: number) => void;
 }) {
   const meta = CATEGORY_META[category];
+  const checkedCount = items.filter((item) => item.checked).length + synthetic.filter((item) => item.checked).length;
   const total = items.length + synthetic.length;
+
   if (total === 0) return null;
 
   return (
     <View style={{ marginBottom: 18 }}>
-      <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
-        {meta.emoji} {meta.label} · {items.filter((i) => i.checked).length + synthetic.filter((i) => i.checked).length}/{total}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+        <Ionicons name={meta.icon} size={12} color="#9CA3AF" />
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "700",
+            color: "#9CA3AF",
+            textTransform: "uppercase",
+            letterSpacing: 0.8,
+          }}
+        >
+          {meta.label} {"\u00B7"} {checkedCount}/{total}
+        </Text>
+      </View>
 
-      <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
-        {synthetic.map((s, i) => (
+      <View
+        style={{
+          backgroundColor: "white",
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: "#F3F4F6",
+          overflow: "hidden",
+        }}
+      >
+        {synthetic.map((item, index) => (
           <View
-            key={s.key}
+            key={item.key}
             style={{
-              flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12,
-              borderBottomWidth: (i < synthetic.length - 1 || items.length > 0) ? 1 : 0, borderBottomColor: "#F3F4F6",
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderBottomWidth: index < synthetic.length - 1 || items.length > 0 ? 1 : 0,
+              borderBottomColor: "#F3F4F6",
             }}
           >
-            <Ionicons name={s.checked ? "checkmark-circle" : "ellipse-outline"} size={20} color={s.checked ? "#16A34A" : "#D1D5DB"} />
+            <Ionicons
+              name={item.checked ? "checkmark-circle" : "ellipse-outline"}
+              size={20}
+              color={item.checked ? "#16A34A" : "#D1D5DB"}
+            />
             <Text
               style={{
-                marginLeft: 10, fontSize: 13, fontWeight: "600",
-                color: s.checked ? "#9CA3AF" : "#1F2937",
-                textDecorationLine: s.checked ? "line-through" : "none",
+                marginLeft: 10,
+                fontSize: 13,
+                fontWeight: "600",
+                color: item.checked ? "#9CA3AF" : "#1F2937",
+                textDecorationLine: item.checked ? "line-through" : "none",
               }}
             >
-              {s.label}
+              {item.label}
             </Text>
           </View>
         ))}
 
-        {items.map((it, i) => (
+        {items.map((item, index) => (
           <TouchableOpacity
-            key={it.id}
-            onPress={() => onToggle(it.id, !it.checked)}
-            onLongPress={() => onDelete(it.id)}
+            key={item.id}
+            onPress={() => onToggle(item.id, !item.checked)}
+            onLongPress={() => onDelete(item.id)}
             activeOpacity={0.7}
             style={{
-              flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12,
-              borderBottomWidth: i === items.length - 1 ? 0 : 1, borderBottomColor: "#F3F4F6",
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderBottomWidth: index === items.length - 1 ? 0 : 1,
+              borderBottomColor: "#F3F4F6",
             }}
           >
-            <Ionicons name={it.checked ? "checkmark-circle" : "ellipse-outline"} size={20} color={it.checked ? "#16A34A" : "#D1D5DB"} />
+            <Ionicons
+              name={item.checked ? "checkmark-circle" : "ellipse-outline"}
+              size={20}
+              color={item.checked ? "#16A34A" : "#D1D5DB"}
+            />
             <Text
               style={{
-                marginLeft: 10, fontSize: 13, fontWeight: "600",
-                color: it.checked ? "#9CA3AF" : "#1F2937",
-                textDecorationLine: it.checked ? "line-through" : "none",
+                marginLeft: 10,
+                fontSize: 13,
+                fontWeight: "600",
+                color: item.checked ? "#9CA3AF" : "#1F2937",
+                textDecorationLine: item.checked ? "line-through" : "none",
               }}
             >
-              {it.label}
+              {item.label}
             </Text>
           </TouchableOpacity>
         ))}

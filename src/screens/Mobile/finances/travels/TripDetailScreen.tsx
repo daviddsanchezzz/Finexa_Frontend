@@ -624,10 +624,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
         {/* ── HERO (solo en Resumen) / COMPACT HEADER ── */}
         {tab === "summary" ? (() => {
           const addCoverButton = (
@@ -882,9 +878,9 @@ export default function TripDetailScreen({ route, navigation }: any) {
         </View>
 
         {/* ── CONTENIDO POR TAB ── */}
-        <View style={{ paddingHorizontal: 16 }}>
+        <View style={{ flex: 1, paddingHorizontal: 16 }}>
           {tab === "summary" && (
-            <View style={{ gap: 12 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 100 }}>
               {(status === "upcoming" || status === "ongoing") && !!countryCode && (
                 <WeatherWidget countryCode={countryCode} tripName={trip?.name} />
               )}
@@ -901,7 +897,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 onUpdateNote={updateTripNote}
                 onDeleteNote={deleteTripNote}
               />
-            </View>
+            </ScrollView>
           )}
 
           {tab === "expenses" && (
@@ -940,7 +936,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
             <TripLogisticsSection tripId={trip.id} trip={trip as any} planItems={planItems as any} onRefresh={fetchTrip} />
           )}
         </View>
-      </ScrollView>
 
       {/* Botón flotante */}
       <View style={{
