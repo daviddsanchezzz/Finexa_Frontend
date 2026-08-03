@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 
-type WorldContinent = "europe" | "asia" | "america" | "africa" | "oceania";
+type WorldContinent = "europe" | "asia" | "north_america" | "south_america" | "africa" | "oceania";
 
 interface WorldOverviewDto {
   visitedPct: number;
@@ -21,7 +21,8 @@ interface WorldOverviewDto {
 const CONTINENT_LABELS: Record<WorldContinent, string> = {
   europe: "Europa",
   asia: "Asia",
-  america: "América",
+  north_america: "Norteamérica",
+  south_america: "Sudamérica",
   africa: "África",
   oceania: "Oceanía",
 };

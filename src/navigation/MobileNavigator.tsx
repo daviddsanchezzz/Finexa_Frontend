@@ -53,7 +53,7 @@ export type RootStackParamList = {
   Contactos: undefined;
   Maleta: undefined;
   WorldOverview: undefined;
-  CountryChecklist: { continent?: "europe" | "asia" | "america" | "africa" | "oceania" } | undefined;
+  CountryChecklist: { continent?: "europe" | "asia" | "north_america" | "south_america" | "africa" | "oceania" } | undefined;
   Wonders: undefined;
   WonderDetail: { wonderKey: string };
   Appearance: undefined;
