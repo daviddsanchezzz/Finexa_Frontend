@@ -404,7 +404,6 @@ export default function TripsHomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
 
         {/* ── Hero card ── */}
         <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
@@ -521,6 +520,8 @@ export default function TripsHomeScreen({ navigation }: any) {
           })}
         </View>
 
+      <View style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* ── VISTA CALENDARIO ── */}
         {viewType === "calendar" && (
           <View style={{ paddingHorizontal: 20 }}>
@@ -876,7 +877,8 @@ export default function TripsHomeScreen({ navigation }: any) {
             </View>
           </>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

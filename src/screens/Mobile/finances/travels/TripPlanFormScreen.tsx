@@ -1222,9 +1222,9 @@ export default function TripPlanFormScreen({
         {/* EXPENSE */}
         {mainTab === "expense" && (
           <View>
-            <View style={{ alignItems: "center", paddingVertical: 24, marginBottom: 8 }}>
+            <View style={{ alignItems: "center", paddingVertical: 18, marginBottom: 8 }}>
               <Text style={{ fontSize: 10, fontWeight: "900", color: UI.muted, letterSpacing: 1, marginBottom: 10 }}>IMPORTE</Text>
-              <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", maxWidth: "88%" }}>
                 <TextInput
                   value={expAmountStr}
                   onChangeText={setExpAmountStr}
@@ -1232,9 +1232,9 @@ export default function TripPlanFormScreen({
                   placeholderTextColor={UI.muted2}
                   keyboardType="decimal-pad"
                   className="text-amount-lg"
-                  style={{ fontSize: 48, fontWeight: "900", color: UI.text, minWidth: 80, textAlign: "center" } as any}
+                  style={{ fontSize: 40, lineHeight: 46, fontWeight: "900", color: UI.text, minWidth: 72, maxWidth: 220, textAlign: "center", paddingVertical: 0, flexShrink: 1 } as any}
                 />
-                <Text style={{ fontSize: 28, fontWeight: "700", color: UI.muted, marginLeft: 4 }}>€</Text>
+                <Text style={{ fontSize: 22, lineHeight: 26, fontWeight: "700", color: UI.muted, marginLeft: 6, marginBottom: 5 }}>{"€"}</Text>
               </View>
               {expCurrency !== "EUR" && expEurPreview !== null && (
                 <Text style={{ fontSize: 13, color: UI.muted, marginTop: 6 }}>
