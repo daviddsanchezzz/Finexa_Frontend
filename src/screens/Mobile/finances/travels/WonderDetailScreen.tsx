@@ -80,6 +80,7 @@ export default function WonderDetailScreen() {
   const [tripId, setTripId] = useState<number | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoTileWidth, setPhotoTileWidth] = useState(0);
 
   useEffect(() => {
     if (!wonder) return;
@@ -176,6 +177,7 @@ export default function WonderDetailScreen() {
         <TouchableOpacity
           onPress={handlePickPhoto}
           activeOpacity={0.85}
+          onLayout={(e) => setPhotoTileWidth(Math.round(e.nativeEvent.layout.width))}
           style={{
             height: 180, borderRadius: 16, backgroundColor: "#F3F4F6",
             borderWidth: 1, borderColor: "#E5E7EB", borderStyle: "dashed",
@@ -184,10 +186,10 @@ export default function WonderDetailScreen() {
         >
           {uploadingPhoto ? (
             <ActivityIndicator color={colors.primary} />
-          ) : photoUrl && !imageLoadFailed ? (
+          ) : photoUrl && !imageLoadFailed && photoTileWidth > 0 ? (
             <Image
               source={{ uri: photoUrl }}
-              style={{ width: "100%", height: "100%", objectPosition: objectPositionFor(photoAlign) } as any}
+              style={{ width: photoTileWidth, height: 180, objectPosition: objectPositionFor(photoAlign) } as any}
               resizeMode="cover"
               onError={() => setImageLoadFailed(true)}
             />
