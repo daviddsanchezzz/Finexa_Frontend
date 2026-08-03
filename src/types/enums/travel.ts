@@ -62,6 +62,7 @@ export enum TripPlanItemType {
   // Generic
   activity = "activity",
   expense = "expense",
+  visit = "visit",
   other = "other",
 }
 

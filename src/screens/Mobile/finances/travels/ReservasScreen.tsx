@@ -114,7 +114,7 @@ export default function ReservasScreen() {
         })}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 12 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 10 }} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 48, gap: 8 }}>
             <Ionicons name="briefcase-outline" size={40} color="#CBD5E1" />
@@ -146,16 +146,16 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
   const arr = fmtDayTime(item.endAt);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={{ borderRadius: 22, overflow: "hidden", backgroundColor: "#0B1220" }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={{ borderRadius: 18, overflow: "hidden", backgroundColor: "#0B1220" }}>
       <View
         style={{
           backgroundColor: "#0F172A",
-          paddingHorizontal: 18,
-          paddingTop: 16,
-          paddingBottom: 18,
+          paddingHorizontal: 15,
+          paddingTop: 13,
+          paddingBottom: 14,
         }}
       >
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             {!!subtitle && <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.60)", marginBottom: 3 }}>{subtitle}</Text>}
             <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.42)", letterSpacing: 0.8 }}>VUELO</Text>
@@ -163,24 +163,24 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
           <Ionicons name="airplane" size={18} color="rgba(255,255,255,0.80)" />
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 31, fontWeight: "900", color: "white", letterSpacing: 0.4 }}>{fromCode}</Text>
+            <Text style={{ fontSize: 27, fontWeight: "900", color: "white", letterSpacing: 0.3 }}>{fromCode}</Text>
           </View>
 
-          <View style={{ width: 96, alignItems: "center" }}>
+          <View style={{ width: 84, alignItems: "center" }}>
             <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
               <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
-              <Ionicons name="airplane" size={14} color="#60A5FA" style={{ marginHorizontal: 8, transform: [{ rotate: "90deg" }] }} />
+              <Ionicons name="airplane" size={13} color="#60A5FA" style={{ marginHorizontal: 7, transform: [{ rotate: "90deg" }] }} />
               <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
             </View>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)", marginTop: 6 }}>
+            <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.55)", marginTop: 5 }}>
               {flightNum || "Reserva"}
             </Text>
           </View>
 
           <View style={{ flex: 1, alignItems: "flex-end" }}>
-            <Text style={{ fontSize: 31, fontWeight: "900", color: "white", letterSpacing: 0.4 }}>{toCode}</Text>
+            <Text style={{ fontSize: 27, fontWeight: "900", color: "white", letterSpacing: 0.3 }}>{toCode}</Text>
           </View>
         </View>
 
@@ -192,13 +192,13 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
         {(fd.gate || fd.seat) && (
           <View
             style={{
-              marginTop: 16,
-              paddingTop: 12,
+              marginTop: 12,
+              paddingTop: 10,
               borderTopWidth: 1,
               borderTopColor: "rgba(255,255,255,0.10)",
               flexDirection: "row",
               justifyContent: "center",
-              gap: 22,
+              gap: 18,
             }}
           >
             {!!fd.gate && <FlightBadge label="PUERTA" value={fd.gate} />}
@@ -209,8 +209,8 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
         {!!fd.bookingRef && (
           <View
             style={{
-              marginTop: 14,
-              paddingTop: 12,
+              marginTop: 12,
+              paddingTop: 10,
               borderTopWidth: 1,
               borderTopColor: "rgba(255,255,255,0.10)",
               flexDirection: "row",
@@ -241,17 +241,17 @@ function FlightTimeBlock({
   return (
     <View style={{ alignItems: align === "left" ? "flex-start" : "flex-end" }}>
       <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 3 }}>{label}</Text>
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginBottom: 2 }}>{day || "—"}</Text>
-      <Text style={{ fontSize: 20, fontWeight: "900", color: "white" }}>{time || "—"}</Text>
+      <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginBottom: 1 }}>{day || "—"}</Text>
+      <Text style={{ fontSize: 18, fontWeight: "900", color: "white" }}>{time || "—"}</Text>
     </View>
   );
 }
 
 function FlightBadge({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ alignItems: "center", minWidth: 78 }}>
-      <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>{value}</Text>
+    <View style={{ alignItems: "center", minWidth: 68 }}>
+      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 13, fontWeight: "900", color: "white" }}>{value}</Text>
     </View>
   );
 }
@@ -271,59 +271,59 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
-      style={{ backgroundColor: "white", borderRadius: 22, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
+      style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
     >
       {!!ad.coverImageUrl && (
         Platform.OS === "web" ? (
           <View
             style={{
-              height: 140,
+              height: 112,
               backgroundImage: `url(${ad.coverImageUrl})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             } as any}
           />
         ) : (
-          <Image source={{ uri: ad.coverImageUrl }} style={{ width: "100%", height: 140 }} resizeMode="cover" />
+          <Image source={{ uri: ad.coverImageUrl }} style={{ width: "100%", height: 112 }} resizeMode="cover" />
         )
       )}
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+      <View style={{ paddingHorizontal: 14, paddingTop: 13, paddingBottom: 13 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>{title}</Text>
+            <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 5 }}>{title}</Text>
             {!!location && (
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-                <Ionicons name="location-outline" size={14} color="#64748B" style={{ marginTop: 1 }} />
-                <Text style={{ flex: 1, fontSize: 12, fontWeight: "600", color: "#64748B", lineHeight: 17 }}>{location}</Text>
+                <Ionicons name="location-outline" size={13} color="#64748B" style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: "600", color: "#64748B", lineHeight: 16 }}>{location}</Text>
               </View>
             )}
           </View>
 
           <View
             style={{
-              width: 42,
-              height: 42,
-              borderRadius: 14,
+              width: 36,
+              height: 36,
+              borderRadius: 12,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "#EFF6FF",
             }}
           >
-            <Ionicons name="bed-outline" size={20} color="#2563EB" />
+            <Ionicons name="bed-outline" size={18} color="#2563EB" />
           </View>
         </View>
 
         {!!metaLine && (
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>{metaLine}</Text>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>{metaLine}</Text>
         )}
 
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 16,
-            marginBottom: ad.bookingRef || ad.phone || ad.website ? 14 : 0,
+            gap: 12,
+            marginBottom: ad.bookingRef || ad.phone || ad.website ? 12 : 0,
           }}
         >
           <StayTimeInline tone="checkin" label="Check-in" day={checkIn.day} time={checkIn.time} />
@@ -331,7 +331,7 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
         </View>
 
         {(ad.bookingRef || ad.phone || ad.website) && (
-          <View style={{ borderTopWidth: 1, borderTopColor: "#EEF2F7", paddingTop: 12, gap: 8 }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: "#EEF2F7", paddingTop: 10, gap: 7 }}>
             {!!ad.bookingRef && <ReservationMetaRow icon="key-outline" label="Confirmación" value={ad.bookingRef} />}
             {!!ad.phone && <ReservationMetaRow icon="call-outline" label="Teléfono" value={ad.phone} />}
             {!!ad.website && <ReservationMetaRow icon="globe-outline" label="Web" value={ad.website} />}
@@ -362,23 +362,23 @@ function StayTimeInline({
     <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}>
       <View
         style={{
-          width: 34,
-          height: 34,
+          width: 28,
+          height: 28,
           borderRadius: 999,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: iconBg,
         }}
       >
-        <Ionicons name={iconName} size={16} color={accent} />
+        <Ionicons name={iconName} size={14} color={accent} />
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 10, fontWeight: "800", color: accent, marginBottom: 1, textTransform: "uppercase" }}>
+        <Text style={{ fontSize: 9, fontWeight: "800", color: accent, marginBottom: 0, textTransform: "uppercase" }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 1 }}>{day || "—"}</Text>
-        <Text style={{ fontSize: 16, fontWeight: "900", color: valueColor }}>{time || "—"}</Text>
+        <Text style={{ fontSize: 10, fontWeight: "700", color: "#64748B", marginBottom: 0 }}>{day || "—"}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "900", color: valueColor }}>{time || "—"}</Text>
       </View>
     </View>
   );
@@ -394,10 +394,10 @@ function ReservationMetaRow({
   value: string;
 }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Ionicons name={icon} size={14} color="#94A3B8" />
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", minWidth: 82 }}>{label}</Text>
-      <Text style={{ flex: 1, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>{value}</Text>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+      <Ionicons name={icon} size={13} color="#94A3B8" />
+      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", minWidth: 74 }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#0F172A" }}>{value}</Text>
     </View>
   );
 }

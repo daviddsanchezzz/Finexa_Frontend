@@ -258,7 +258,7 @@ function ExpenseRow({
   const cat = categoryForItem(item);
   const def = BUDGET_DEFS.find((d) => d.key === cat) ?? BUDGET_DEFS[BUDGET_DEFS.length - 1];
 
-  const rowEmoji = emojiForPlanItem(item, def.emoji);
+  const rowAccent = def.accent;
   const cost = safeNumber(item.cost);
 
   const dateBase = item.startAt || item.day || item.date || item.startTime || null;
@@ -313,14 +313,14 @@ function ExpenseRow({
           width: 36,
           height: 36,
           borderRadius: 13,
-          backgroundColor: def.badgeBg,
+          backgroundColor: "white",
           alignItems: "center",
           justifyContent: "center",
           borderWidth: 1,
           borderColor: "rgba(148,163,184,0.20)",
         }}
       >
-        <Text style={{ fontSize: 18, lineHeight: 20 }}>{rowEmoji}</Text>
+        <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: rowAccent }} />
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -619,12 +619,8 @@ const entries = useMemo(() => {
                       gap: 10,
                     })}
                   >
-                    <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: "rgba(15,23,42,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(148,163,184,0.20)" }}>
-                      {tx.category?.emoji ? (
-                        <Text style={{ fontSize: 18 }}>{tx.category.emoji}</Text>
-                      ) : (
-                        <Ionicons name="receipt-outline" size={16} color={UI.muted} />
-                      )}
+                    <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: "white", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(148,163,184,0.20)" }}>
+                      <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: tx.category?.color || "#94A3B8" }} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>

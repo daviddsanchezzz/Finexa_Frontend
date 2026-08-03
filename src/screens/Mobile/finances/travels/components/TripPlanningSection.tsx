@@ -33,7 +33,8 @@ type TripPlanItemType =
   | "day_trip"
   | "expense"
   | "other"
-  | "activity";
+  | "activity"
+  | "visit";
 
 export interface TripPlanItem {
   id: number;
@@ -50,7 +51,7 @@ export interface TripPlanItem {
   transactionId?: number | null;
   cost?: number | null;
   logistics?: boolean | null;
-  metadata?: { expenseCategory?: string | null } | null;
+  metadata?: { expenseCategory?: string | null; stops?: VisitStop[] } | null;
   flightDetails?: {
     flightNumberIata?: string | null;
     flightNumberRaw?: string | null;
