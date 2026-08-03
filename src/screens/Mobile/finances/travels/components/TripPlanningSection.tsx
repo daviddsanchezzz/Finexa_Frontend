@@ -1068,7 +1068,7 @@ export default function TripPlanningSectionRedesign({
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 18 }}
+          contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 132 }}
         >
           {/* Mapa inline del día */}
           {dayItems.length > 0 && (
@@ -1146,7 +1146,7 @@ export default function TripPlanningSectionRedesign({
       {viewMode === "summary" && (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 32 }}
+          contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 132 }}
         >
           {/* Full-trip map */}
           {planningItems.length > 0 && (
