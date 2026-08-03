@@ -47,6 +47,7 @@ export type RootStackParamList = {
   BiometricSetup: undefined;
   NetWorth: undefined;
   FinancesSettings: undefined;
+  MyDocuments: undefined;
   Appearance: undefined;
   Account: undefined;
   HelpCenter: undefined;
@@ -332,6 +333,13 @@ export default function MobileNavigator() {
             name="FinancesSettings"
             getComponent={() =>
               require("../screens/Mobile/profile/FinancesSettingsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="MyDocuments"
+            getComponent={() =>
+              require("../screens/Mobile/profile/MyDocumentsScreen").default
             }
           />
 

@@ -10,7 +10,10 @@ export default function ProfileScreen({ navigation }: any) {
   const sections = [
     {
       title: "Perfil",
-      items: [{ label: "Cuenta", icon: "person-outline", navigate: "Account" }],
+      items: [
+        { label: "Cuenta", icon: "person-outline", navigate: "Account" },
+        { label: "Mis documentos", icon: "id-card-outline", navigate: "MyDocuments" },
+      ],
     },
     {
       title: "Preferencias",
