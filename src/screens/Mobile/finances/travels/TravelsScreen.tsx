@@ -418,18 +418,22 @@ export default function TripsHomeScreen({ navigation }: any) {
           >
             {/* Badge % mundo */}
             {heroStats.visitedPct > 0 && (
-              <View style={{
-                alignSelf: "flex-end",
-                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
-                backgroundColor: "rgba(255,255,255,0.18)",
-                flexDirection: "row", alignItems: "center", gap: 4,
-                marginBottom: 6,
-              }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("WorldOverview")}
+                activeOpacity={0.7}
+                style={{
+                  alignSelf: "flex-end",
+                  paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+                  backgroundColor: "rgba(255,255,255,0.18)",
+                  flexDirection: "row", alignItems: "center", gap: 4,
+                  marginBottom: 6,
+                }}
+              >
                 <Ionicons name="earth-outline" size={10} color="rgba(255,255,255,0.85)" />
                 <Text style={{ fontSize: 10, fontWeight: "800", color: "white" }}>
                   {Math.round(heroStats.visitedPct)}%
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Número grande + viajes */}

@@ -52,6 +52,10 @@ export type RootStackParamList = {
   Reservas: undefined;
   Contactos: undefined;
   Maleta: undefined;
+  WorldOverview: undefined;
+  CountryChecklist: { continent?: "europe" | "asia" | "america" | "africa" | "oceania" } | undefined;
+  Wonders: undefined;
+  WonderDetail: { wonderKey: string };
   Appearance: undefined;
   Account: undefined;
   HelpCenter: undefined;
@@ -372,6 +376,34 @@ export default function MobileNavigator() {
             name="Maleta"
             getComponent={() =>
               require("../screens/Mobile/finances/travels/MaletaScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="WorldOverview"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/WorldOverviewScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="CountryChecklist"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/CountryChecklistScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Wonders"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/WondersScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="WonderDetail"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/WonderDetailScreen").default
             }
           />
 
