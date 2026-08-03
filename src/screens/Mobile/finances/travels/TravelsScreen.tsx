@@ -11,7 +11,9 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
@@ -207,40 +209,37 @@ export default function TripsHomeScreen({ navigation }: any) {
   const [calDate, setCalDate]           = useState(() => new Date());
   const [selectedCalDay, setSelectedCalDay] = useState<number | null>(null);
 
-  const [loading, setLoading]           = useState(true);
-  const [trips, setTrips]               = useState<TripUI[]>([]);
-  const [summary, setSummary]           = useState<TripsSummaryDto | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [continentStats, setContinentStats] = useState<ContinentsStatsDto | null>(null);
-  const [continentStatsLoading, setContinentStatsLoading] = useState(false);
+  // Cacheado con react-query: al volver a la pantalla se muestran los datos ya
+  // conocidos al instante (sin flash de "—") mientras se refresca en segundo plano;
+  // solo se recarga de verdad si se creó/editó/eliminó algo desde la última visita.
+  const tripsQuery = useQuery({
+    queryKey: ["trips"],
+    queryFn: async () => (await api.get("/trips")).data as TripUI[],
+    staleTime: 1000 * 30,
+  });
+  const summaryQuery = useQuery({
+    queryKey: ["tripsSummary"],
+    queryFn: async () => (await api.get("/trips/summary")).data as TripsSummaryDto,
+    staleTime: 1000 * 30,
+  });
+  const continentStatsQuery = useQuery({
+    queryKey: ["tripsContinentsStats"],
+    queryFn: async () => (await api.get("/trips/continents-stats")).data as ContinentsStatsDto,
+    staleTime: 1000 * 30,
+  });
 
-  const fetchTrips = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/trips");
-      setTrips(res.data || []);
-    } catch { setTrips([]); } finally { setLoading(false); }
-  }, []);
-
-  const fetchSummary = useCallback(async () => {
-    try {
-      setSummaryLoading(true);
-      const res = await api.get("/trips/summary");
-      setSummary(res.data as TripsSummaryDto);
-    } catch { setSummary(null); } finally { setSummaryLoading(false); }
-  }, []);
-
-  const fetchContinentsStats = useCallback(async () => {
-    try {
-      setContinentStatsLoading(true);
-      const res = await api.get("/trips/continents-stats");
-      setContinentStats(res.data as ContinentsStatsDto);
-    } catch { setContinentStats(null); } finally { setContinentStatsLoading(false); }
-  }, []);
+  const trips = tripsQuery.data ?? [];
+  const loading = tripsQuery.isLoading;
+  const summary = summaryQuery.data ?? null;
+  const summaryLoading = summaryQuery.isLoading;
+  const continentStats = continentStatsQuery.data ?? null;
 
   useFocusEffect(useCallback(() => {
-    fetchTrips(); fetchSummary(); fetchContinentsStats();
-  }, [fetchTrips, fetchSummary, fetchContinentsStats]));
+    tripsQuery.refetch();
+    summaryQuery.refetch();
+    continentStatsQuery.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
   const continentStatsMap = useMemo(() => {
     const m = new Map<string, ContinentStat>();
@@ -415,11 +414,15 @@ export default function TripsHomeScreen({ navigation }: any) {
 
         {/* ── Hero card ── */}
         <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-          <View style={{
-            backgroundColor: colors.primary, borderRadius: 24, padding: 20,
-            shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 16,
-            shadowOffset: { width: 0, height: 6 }, elevation: 4,
-          }}>
+          <LinearGradient
+            colors={["#001B5E", "#003cc5", "#1A6AF5"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{
+              borderRadius: 24, padding: 20,
+              shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 16,
+              shadowOffset: { width: 0, height: 6 }, elevation: 4,
+            }}
+          >
             {/* Badge % mundo */}
             <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 8 }}>
               {heroStats.visitedPct > 0 && (
@@ -472,7 +475,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                 </Text>
               </View>
             </View>
-          </View>
+          </LinearGradient>
         </View>
 
         {/* ── Buscador ── */}
