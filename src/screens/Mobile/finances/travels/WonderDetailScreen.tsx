@@ -29,10 +29,36 @@ const ALIGN_OPTIONS: { key: PhotoAlign; label: string; icon: "chevron-up" | "rem
   { key: "bottom", label: "Abajo", icon: "chevron-down" },
 ];
 
-function objectPositionFor(align: PhotoAlign) {
-  if (align === "top") return "center top";
-  if (align === "bottom") return "center bottom";
-  return "center center";
+// Computes a manual "cover" crop using real pixel math (position/top/width/height)
+// instead of the CSS `object-position` style, which React Native Web does not
+// reliably forward through the Image style prop.
+function computeCoverLayout(
+  containerWidth: number,
+  containerHeight: number,
+  natural: { w: number; h: number } | null,
+  align: PhotoAlign
+) {
+  if (!natural || containerWidth <= 0 || natural.w <= 0 || natural.h <= 0) {
+    return { width: containerWidth, height: containerHeight, top: 0, left: 0 };
+  }
+  const containerRatio = containerWidth / containerHeight;
+  const imageRatio = natural.w / natural.h;
+
+  if (imageRatio >= containerRatio) {
+    // Image is relatively wider than the box: height matches, width overflows (horizontal crop, centered).
+    const height = containerHeight;
+    const width = containerHeight * imageRatio;
+    return { width, height, top: 0, left: -(width - containerWidth) / 2 };
+  }
+
+  // Image is relatively taller than the box: width matches, height overflows (vertical crop).
+  const width = containerWidth;
+  const height = containerWidth / imageRatio;
+  const overflow = height - containerHeight;
+  let top = -overflow / 2;
+  if (align === "top") top = 0;
+  else if (align === "bottom") top = -overflow;
+  return { width, height, top, left: 0 };
 }
 
 const pickerWrapStyle = {
@@ -82,6 +108,27 @@ export default function WonderDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoTileWidth, setPhotoTileWidth] = useState(0);
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (!photoUrl) {
+      setNaturalSize(null);
+      return;
+    }
+    let cancelled = false;
+    Image.getSize(
+      photoUrl,
+      (w, h) => {
+        if (!cancelled) setNaturalSize({ w, h });
+      },
+      () => {
+        if (!cancelled) setNaturalSize(null);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [photoUrl]);
 
   useEffect(() => {
     if (!wonder) return;
@@ -182,7 +229,7 @@ export default function WonderDetailScreen() {
         </Text>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 16 }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, gap: 16 }}>
         <TouchableOpacity
           onPress={handlePickPhoto}
           activeOpacity={0.85}
@@ -191,6 +238,7 @@ export default function WonderDetailScreen() {
             height: 180, borderRadius: 16, backgroundColor: "#F3F4F6",
             borderWidth: 1, borderColor: "#E5E7EB", borderStyle: "dashed",
             alignItems: "center", justifyContent: "center", overflow: "hidden",
+            position: "relative",
           }}
         >
           {uploadingPhoto ? (
@@ -203,7 +251,16 @@ export default function WonderDetailScreen() {
                     ? photoUrl
                     : `${photoUrl}${photoUrl.includes("?") ? "&" : "?"}retry=${imageRetryCount}`,
               }}
-              style={{ width: photoTileWidth, height: 180, objectPosition: objectPositionFor(photoAlign) } as any}
+              style={(() => {
+                const layout = computeCoverLayout(photoTileWidth, 180, naturalSize, photoAlign);
+                return {
+                  position: "absolute",
+                  top: layout.top,
+                  left: layout.left,
+                  width: layout.width,
+                  height: layout.height,
+                };
+              })()}
               resizeMode="cover"
               onError={() => {
                 // A freshly-uploaded photo can briefly fail to load while it
@@ -317,7 +374,14 @@ export default function WonderDetailScreen() {
             </View>
           </>
         )}
+      </ScrollView>
 
+      <View
+        style={{
+          paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
+          backgroundColor: "#F6F8FC", borderTopWidth: 1, borderTopColor: "#F3F4F6", gap: 8,
+        }}
+      >
         {saveError && (
           <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", textAlign: "center" }}>
             {saveError}
@@ -337,7 +401,7 @@ export default function WonderDetailScreen() {
             {uploadingPhoto ? "Subiendo foto..." : isSaving ? "Guardando..." : "Guardar"}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

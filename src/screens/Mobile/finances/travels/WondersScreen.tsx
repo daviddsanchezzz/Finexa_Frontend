@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,33 +6,75 @@ import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import { useWonders, WonderEra, PhotoAlign } from "../../../../hooks/useWonders";
 
-function objectPositionFor(align: PhotoAlign | null) {
-  if (align === "top") return "center top";
-  if (align === "bottom") return "center bottom";
-  return "center center";
+const THUMB_SIZE = 44;
+
+// Computes a manual "cover" crop using real pixel math (position/top/width/height)
+// instead of the CSS `object-position` style, which React Native Web does not
+// reliably forward through the Image style prop.
+function computeCoverLayout(
+  containerWidth: number,
+  containerHeight: number,
+  natural: { w: number; h: number } | null,
+  align: PhotoAlign | null
+) {
+  if (!natural || natural.w <= 0 || natural.h <= 0) {
+    return { width: containerWidth, height: containerHeight, top: 0, left: 0 };
+  }
+  const containerRatio = containerWidth / containerHeight;
+  const imageRatio = natural.w / natural.h;
+
+  if (imageRatio >= containerRatio) {
+    const height = containerHeight;
+    const width = containerHeight * imageRatio;
+    return { width, height, top: 0, left: -(width - containerWidth) / 2 };
+  }
+
+  const width = containerWidth;
+  const height = containerWidth / imageRatio;
+  const overflow = height - containerHeight;
+  let top = -overflow / 2;
+  if (align === "top") top = 0;
+  else if (align === "bottom") top = -overflow;
+  return { width, height, top, left: 0 };
 }
 
 function WonderThumbnail({ uri, align }: { uri: string; align: PhotoAlign | null }) {
   const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Image.getSize(
+      uri,
+      (w, h) => { if (!cancelled) setNaturalSize({ w, h }); },
+      () => { if (!cancelled) setNaturalSize(null); }
+    );
+    return () => { cancelled = true; };
+  }, [uri]);
+
   if (failed) return null;
   // Retry once with a cache-busting param before giving up — covers a
   // just-uploaded photo whose first fetch fails while it's still
   // propagating on the storage provider's edge.
   const src = retryCount === 0 ? uri : `${uri}${uri.includes("?") ? "&" : "?"}retry=${retryCount}`;
+  const layout = computeCoverLayout(THUMB_SIZE, THUMB_SIZE, naturalSize, align);
+
   return (
-    <Image
-      source={{ uri: src }}
-      style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: "#F3F4F6", objectPosition: objectPositionFor(align) } as any}
-      resizeMode="cover"
-      onError={() => {
-        if (retryCount < 1) {
-          setTimeout(() => setRetryCount((c) => c + 1), 800);
-        } else {
-          setFailed(true);
-        }
-      }}
-    />
+    <View style={{ width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: 10, backgroundColor: "#F3F4F6", overflow: "hidden", position: "relative" }}>
+      <Image
+        source={{ uri: src }}
+        style={{ position: "absolute", top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
+        resizeMode="cover"
+        onError={() => {
+          if (retryCount < 1) {
+            setTimeout(() => setRetryCount((c) => c + 1), 800);
+          } else {
+            setFailed(true);
+          }
+        }}
+      />
+    </View>
   );
 }
 
