@@ -125,6 +125,7 @@ function Field({
   placeholder,
   autoCapitalize,
   multiline,
+  keyboardType,
 }: {
   label: string;
   value: string;
@@ -132,6 +133,7 @@ function Field({
   placeholder?: string;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   multiline?: boolean;
+  keyboardType?: "default" | "email-address" | "numeric" | "phone-pad" | "url" | "decimal-pad";
 }) {
   return (
     <View style={{ marginBottom: 16 }}>
@@ -144,6 +146,7 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor={UI.muted2}
         autoCapitalize={autoCapitalize ?? "none"}
+        keyboardType={keyboardType ?? "default"}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         style={{
@@ -1110,6 +1113,22 @@ export default function TripPlanFormScreen({
                 <Field label="HABITACIONES" value={accRoomsStr} onChange={setAccRoomsStr} placeholder="1" />
               </View>
             </Row2>
+
+            <Field
+              label="LINK RESERVA"
+              value={accWebsite}
+              onChange={setAccWebsite}
+              placeholder="https://..."
+              keyboardType="url"
+            />
+
+            <Field
+              label="TELÉFONO ALOJAMIENTO"
+              value={accPhone}
+              onChange={setAccPhone}
+              placeholder="+34 600 000 000"
+              keyboardType="phone-pad"
+            />
 
             <Field label="COSTE TOTAL" value={accCostStr} onChange={setAccCostStr} placeholder="0,00 €" />
           </View>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -20,9 +20,17 @@ interface FlightDetails {
 
 interface AccommodationDetails {
   name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  country?: string | null;
   bookingRef?: string | null;
   checkInAt?: string | null;
   checkOutAt?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  coverImageUrl?: string | null;
+  guests?: number | null;
+  rooms?: number | null;
 }
 
 interface TripPlanItem {
@@ -40,8 +48,25 @@ function fmtDateTime(iso?: string | null) {
   if (!iso) return null;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " · " +
-    d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  return (
+    d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) +
+    " · " +
+    d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+  );
+}
+
+function fmtDayTime(iso?: string | null) {
+  if (!iso) return { day: null as string | null, time: null as string | null };
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return { day: null, time: null };
+  return {
+    day: d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }),
+    time: d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
+function joinText(parts: Array<string | null | undefined>) {
+  return parts.map((part) => part?.trim()).filter(Boolean).join(" · ");
 }
 
 export default function ReservasScreen() {
@@ -52,13 +77,13 @@ export default function ReservasScreen() {
   const [filter, setFilter] = useState<ReservaFilter>("all");
 
   const reservations = useMemo(
-    () => (planItems as TripPlanItem[]).filter((i) => i.type === "flight" || i.type === "accommodation"),
+    () => (planItems as TripPlanItem[]).filter((item) => item.type === "flight" || item.type === "accommodation"),
     [planItems]
   );
 
   const filtered = useMemo(() => {
-    if (filter === "flight") return reservations.filter((i) => i.type === "flight");
-    if (filter === "accommodation") return reservations.filter((i) => i.type === "accommodation");
+    if (filter === "flight") return reservations.filter((item) => item.type === "flight");
+    if (filter === "accommodation") return reservations.filter((item) => item.type === "accommodation");
     return reservations;
   }, [reservations, filter]);
 
@@ -85,8 +110,13 @@ export default function ReservasScreen() {
               key={opt.key}
               onPress={() => setFilter(opt.key)}
               style={{
-                paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-                backgroundColor: active ? colors.primary : "#F3F4F6",
+                height: 38,
+                paddingHorizontal: 14,
+                borderRadius: 999,
+                backgroundColor: active ? colors.primary : "#F8FAFC",
+                borderWidth: 1,
+                borderColor: active ? colors.primary : "#EEF2F7",
+                justifyContent: "center",
               }}
             >
               <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : "#6B7280" }}>{opt.label}</Text>
@@ -105,9 +135,11 @@ export default function ReservasScreen() {
           </View>
         ) : (
           filtered.map((item) =>
-            item.type === "flight"
-              ? <FlightReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
-              : <AccommodationReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
+            item.type === "flight" ? (
+              <FlightReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
+            ) : (
+              <AccommodationReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
+            )
           )
         )}
       </ScrollView>
@@ -118,72 +150,256 @@ export default function ReservasScreen() {
 function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress: () => void }) {
   const fd = item.flightDetails || {};
   const flightNum = fd.flightNumberIata || fd.flightNumberRaw || null;
-  const subline = [fd.airlineName, flightNum].filter(Boolean).join(" · ");
-  const route = fd.fromIata && fd.toIata ? `${fd.fromIata} → ${fd.toIata}` : item.title;
-  const dep = fmtDateTime(item.startAt);
-  const arr = fmtDateTime(item.endAt);
+  const subtitle = joinText([fd.airlineName, flightNum]);
+  const fromCode = fd.fromIata?.trim() || "—";
+  const toCode = fd.toIata?.trim() || "—";
+  const dep = fmtDayTime(item.startAt);
+  const arr = fmtDayTime(item.endAt);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ backgroundColor: "#0B1220", borderRadius: 18, padding: 16 }}>
-      {!!subline && <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{subline}</Text>}
-      <Text style={{ fontSize: 18, fontWeight: "900", color: "white", marginBottom: 12 }}>{route}</Text>
-
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 18, marginBottom: fd.bookingRef ? 10 : 0 }}>
-        {!!dep && <FlightField label="SALIDA" value={dep} />}
-        {!!arr && <FlightField label="LLEGADA" value={arr} />}
-        {!!fd.gate && <FlightField label="PUERTA" value={fd.gate} />}
-        {!!fd.seat && <FlightField label="ASIENTO" value={fd.seat} />}
-      </View>
-
-      {!!fd.bookingRef && (
-        <View style={{ borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.12)", paddingTop: 10, flexDirection: "row", justifyContent: "space-between" }}>
-          <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "700" }}>Cód. reserva</Text>
-          <Text style={{ fontSize: 12, color: "white", fontWeight: "800" }}>{fd.bookingRef}</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={{ borderRadius: 22, overflow: "hidden", backgroundColor: "#0B1220" }}>
+      <View
+        style={{
+          backgroundColor: "#0F172A",
+          paddingHorizontal: 18,
+          paddingTop: 16,
+          paddingBottom: 18,
+        }}
+      >
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            {!!subtitle && <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.60)", marginBottom: 3 }}>{subtitle}</Text>}
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.42)", letterSpacing: 0.8 }}>VUELO</Text>
+          </View>
+          <Ionicons name="airplane" size={18} color="rgba(255,255,255,0.80)" />
         </View>
-      )}
+
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 31, fontWeight: "900", color: "white", letterSpacing: 0.4 }}>{fromCode}</Text>
+          </View>
+
+          <View style={{ width: 96, alignItems: "center" }}>
+            <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
+              <Ionicons name="airplane" size={14} color="#60A5FA" style={{ marginHorizontal: 8, transform: [{ rotate: "90deg" }] }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
+            </View>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)", marginTop: 6 }}>
+              {flightNum || "Reserva"}
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 31, fontWeight: "900", color: "white", letterSpacing: 0.4 }}>{toCode}</Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <FlightTimeBlock align="left" label="SALIDA" day={dep.day} time={dep.time} />
+          <FlightTimeBlock align="right" label="LLEGADA" day={arr.day} time={arr.time} />
+        </View>
+
+        {(fd.gate || fd.seat) && (
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: "rgba(255,255,255,0.10)",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 22,
+            }}
+          >
+            {!!fd.gate && <FlightBadge label="PUERTA" value={fd.gate} />}
+            {!!fd.seat && <FlightBadge label="ASIENTO" value={fd.seat} />}
+          </View>
+        )}
+
+        {!!fd.bookingRef && (
+          <View
+            style={{
+              marginTop: 14,
+              paddingTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: "rgba(255,255,255,0.10)",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.48)" }}>Código reserva</Text>
+            <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>{fd.bookingRef}</Text>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
 
-function FlightField({ label, value }: { label: string; value: string }) {
+function FlightTimeBlock({
+  label,
+  day,
+  time,
+  align,
+}: {
+  label: string;
+  day: string | null;
+  time: string | null;
+  align: "left" | "right";
+}) {
   return (
-    <View>
-      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>{value}</Text>
+    <View style={{ alignItems: align === "left" ? "flex-start" : "flex-end" }}>
+      <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginBottom: 2 }}>{day || "—"}</Text>
+      <Text style={{ fontSize: 20, fontWeight: "900", color: "white" }}>{time || "—"}</Text>
+    </View>
+  );
+}
+
+function FlightBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ alignItems: "center", minWidth: 78 }}>
+      <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>{value}</Text>
     </View>
   );
 }
 
 function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; onPress: () => void }) {
   const ad = item.accommodationDetails || {};
-  const checkIn = fmtDateTime(ad.checkInAt);
-  const checkOut = fmtDateTime(ad.checkOutAt);
+  const checkIn = fmtDayTime(ad.checkInAt);
+  const checkOut = fmtDayTime(ad.checkOutAt);
+  const title = ad.name || item.title;
+  const location = joinText([ad.address, ad.city, ad.country]);
+  const metaLine = joinText([
+    ad.guests ? `${ad.guests} huésped${ad.guests > 1 ? "es" : ""}` : null,
+    ad.rooms ? `${ad.rooms} habit.${ad.rooms > 1 ? "" : ""}` : null,
+  ]);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F0F4F8", padding: 16 }}>
-      <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginBottom: 10 }}>{ad.name || item.title}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={{ backgroundColor: "white", borderRadius: 22, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
+    >
+      {!!ad.coverImageUrl && (
+        Platform.OS === "web" ? (
+          <View
+            style={{
+              height: 140,
+              backgroundImage: `url(${ad.coverImageUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            } as any}
+          />
+        ) : (
+          <Image source={{ uri: ad.coverImageUrl }} style={{ width: "100%", height: 140 }} resizeMode="cover" />
+        )
+      )}
 
-      <View style={{ flexDirection: "row", gap: 24, marginBottom: ad.bookingRef ? 10 : 0 }}>
-        {!!checkIn && (
-          <View>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "#9CA3AF", marginBottom: 2 }}>CHECK-IN</Text>
-            <Text style={{ fontSize: 13, fontWeight: "700", color: "#0F172A" }}>{checkIn}</Text>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>{title}</Text>
+            {!!location && (
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+                <Ionicons name="location-outline" size={14} color="#64748B" style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 12, fontWeight: "600", color: "#64748B", lineHeight: 17 }}>{location}</Text>
+              </View>
+            )}
           </View>
+
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#EFF6FF",
+            }}
+          >
+            <Ionicons name="bed-outline" size={20} color="#2563EB" />
+          </View>
+        </View>
+
+        {!!metaLine && (
+          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>{metaLine}</Text>
         )}
-        {!!checkOut && (
-          <View>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "#9CA3AF", marginBottom: 2 }}>CHECK-OUT</Text>
-            <Text style={{ fontSize: 13, fontWeight: "700", color: "#0F172A" }}>{checkOut}</Text>
+
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 10,
+            marginBottom: ad.bookingRef || ad.phone || ad.website ? 14 : 0,
+          }}
+        >
+          <StayTimeCard tone="checkin" label="CHECK-IN" day={checkIn.day} time={checkIn.time} />
+          <StayTimeCard tone="checkout" label="CHECK-OUT" day={checkOut.day} time={checkOut.time} />
+        </View>
+
+        {(ad.bookingRef || ad.phone || ad.website) && (
+          <View style={{ borderTopWidth: 1, borderTopColor: "#EEF2F7", paddingTop: 12, gap: 8 }}>
+            {!!ad.bookingRef && <ReservationMetaRow icon="key-outline" label="Confirmación" value={ad.bookingRef} />}
+            {!!ad.phone && <ReservationMetaRow icon="call-outline" label="Teléfono" value={ad.phone} />}
+            {!!ad.website && <ReservationMetaRow icon="globe-outline" label="Web" value={ad.website} />}
           </View>
         )}
       </View>
-
-      {!!ad.bookingRef && (
-        <View style={{ borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 10, flexDirection: "row", justifyContent: "space-between" }}>
-          <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "700" }}>Cód. confirmación</Text>
-          <Text style={{ fontSize: 12, color: "#0F172A", fontWeight: "800" }}>{ad.bookingRef}</Text>
-        </View>
-      )}
     </TouchableOpacity>
+  );
+}
+
+function StayTimeCard({
+  label,
+  day,
+  time,
+  tone,
+}: {
+  label: string;
+  day: string | null;
+  time: string | null;
+  tone: "checkin" | "checkout";
+}) {
+  const bg = tone === "checkin" ? "#F8FAFC" : "#F5F3FF";
+  const border = tone === "checkin" ? "#E2E8F0" : "#E9D5FF";
+  const accent = tone === "checkin" ? "#2563EB" : "#7C3AED";
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: border,
+        backgroundColor: bg,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+      }}
+    >
+      <Text style={{ fontSize: 10, fontWeight: "800", color: accent, marginBottom: 5 }}>{label}</Text>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 2 }}>{day || "—"}</Text>
+      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A" }}>{time || "—"}</Text>
+    </View>
+  );
+}
+
+function ReservationMetaRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Ionicons name={icon} size={14} color="#94A3B8" />
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", minWidth: 82 }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>{value}</Text>
+    </View>
   );
 }
