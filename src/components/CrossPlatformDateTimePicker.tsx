@@ -1,5 +1,5 @@
 // src/components/CrossPlatformDateTimePicker.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
@@ -18,7 +18,9 @@ export default function CrossPlatformDateTimePicker({
   onConfirm,
   onCancel,
 }: Props) {
-  const safeDate = date ?? new Date();
+  const safeDateRef = useRef(date ?? new Date());
+  if (date) safeDateRef.current = date;
+  const safeDate = safeDateRef.current;
   const [webValue, setWebValue] = useState<string | null>(null);
 
   const toLocalDate = (d: Date) =>
@@ -33,11 +35,15 @@ export default function CrossPlatformDateTimePicker({
       .toISOString()
       .slice(0, 16);
 
+  // Only reset internal webValue when picker OPENS (not on every render)
+  const wasVisible = useRef(false);
   useEffect(() => {
-    if (Platform.OS === "web" && isVisible) {
+    if (Platform.OS !== "web") return;
+    if (isVisible && !wasVisible.current) {
       setWebValue(null);
     }
-  }, [isVisible, date, mode]);
+    wasVisible.current = isVisible;
+  }, [isVisible]);
 
   const formatPreview = (d: Date) => {
     if (mode === "time") {
@@ -100,7 +106,8 @@ export default function CrossPlatformDateTimePicker({
       return newDate;
     };
 
-    const handleConfirmClick = () => {
+    const handleConfirmClick = (e?: any) => {
+      if (e?.stopPropagation) e.stopPropagation();
       if (!value) return;
       const newDate = parseValueToDate(value);
       onConfirm(newDate);

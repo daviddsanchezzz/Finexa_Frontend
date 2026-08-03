@@ -980,6 +980,7 @@ export default function TripPlanFormScreen({
             <Row2>
               <View style={{ flex: 1 }}>
                 <DateTimeField
+                  key={`dep-${transportTab}`}
                   label="SALIDA"
                   value={transportTab === "flight" ? flightDep : dep}
                   onChange={transportTab === "flight" ? setFlightDep : setDep}
@@ -988,6 +989,7 @@ export default function TripPlanFormScreen({
               </View>
               <View style={{ flex: 1 }}>
                 <DateTimeField
+                  key={`arr-${transportTab}`}
                   label="LLEGADA"
                   value={transportTab === "flight" ? flightArr : arr}
                   onChange={transportTab === "flight" ? setFlightArr : setArr}
