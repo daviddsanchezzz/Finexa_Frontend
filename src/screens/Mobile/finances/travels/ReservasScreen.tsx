@@ -44,17 +44,6 @@ interface TripPlanItem {
   accommodationDetails?: AccommodationDetails | null;
 }
 
-function fmtDateTime(iso?: string | null) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  return (
-    d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) +
-    " · " +
-    d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
-  );
-}
-
 function fmtDayTime(iso?: string | null) {
   if (!iso) return { day: null as string | null, time: null as string | null };
   const d = new Date(iso);
@@ -275,7 +264,7 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
   const location = joinText([ad.address, ad.city, ad.country]);
   const metaLine = joinText([
     ad.guests ? `${ad.guests} huésped${ad.guests > 1 ? "es" : ""}` : null,
-    ad.rooms ? `${ad.rooms} habit.${ad.rooms > 1 ? "" : ""}` : null,
+    ad.rooms ? `${ad.rooms} habit.` : null,
   ]);
 
   return (
@@ -332,12 +321,13 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
         <View
           style={{
             flexDirection: "row",
-            gap: 10,
+            alignItems: "center",
+            gap: 16,
             marginBottom: ad.bookingRef || ad.phone || ad.website ? 14 : 0,
           }}
         >
-          <StayTimeCard tone="checkin" label="CHECK-IN" day={checkIn.day} time={checkIn.time} />
-          <StayTimeCard tone="checkout" label="CHECK-OUT" day={checkOut.day} time={checkOut.time} />
+          <StayTimeInline tone="checkin" label="Check-in" day={checkIn.day} time={checkIn.time} />
+          <StayTimeInline tone="checkout" label="Check-out" day={checkOut.day} time={checkOut.time} />
         </View>
 
         {(ad.bookingRef || ad.phone || ad.website) && (
@@ -352,7 +342,7 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
   );
 }
 
-function StayTimeCard({
+function StayTimeInline({
   label,
   day,
   time,
@@ -363,25 +353,33 @@ function StayTimeCard({
   time: string | null;
   tone: "checkin" | "checkout";
 }) {
-  const bg = tone === "checkin" ? "#F8FAFC" : "#F5F3FF";
-  const border = tone === "checkin" ? "#E2E8F0" : "#E9D5FF";
-  const accent = tone === "checkin" ? "#2563EB" : "#7C3AED";
+  const accent = tone === "checkin" ? "#16A34A" : "#DC2626";
+  const valueColor = tone === "checkin" ? "#166534" : "#991B1B";
+  const iconName = tone === "checkin" ? "log-in-outline" : "log-out-outline";
+  const iconBg = tone === "checkin" ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.10)";
 
   return (
-    <View
-      style={{
-        flex: 1,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: border,
-        backgroundColor: bg,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-      }}
-    >
-      <Text style={{ fontSize: 10, fontWeight: "800", color: accent, marginBottom: 5 }}>{label}</Text>
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 2 }}>{day || "—"}</Text>
-      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A" }}>{time || "—"}</Text>
+    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <View
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 999,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: iconBg,
+        }}
+      >
+        <Ionicons name={iconName} size={16} color={accent} />
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 10, fontWeight: "800", color: accent, marginBottom: 1, textTransform: "uppercase" }}>
+          {label}
+        </Text>
+        <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 1 }}>{day || "—"}</Text>
+        <Text style={{ fontSize: 16, fontWeight: "900", color: valueColor }}>{time || "—"}</Text>
+      </View>
     </View>
   );
 }
