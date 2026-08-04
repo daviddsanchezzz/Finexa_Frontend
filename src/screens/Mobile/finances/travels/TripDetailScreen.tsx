@@ -658,7 +658,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
         "No se ha recibido ningún archivo desde el servidor."
       );
     } catch (error) {
-      console.error("? Error al exportar viaje", error);
+      console.error("❌ Error al exportar viaje", error);
       appAlert(
         "Error al exportar",
         "Ha ocurrido un error al generar el PDF. Inténtalo de nuevo más tarde."

@@ -1,5 +1,5 @@
 // src/screens/Reports/ReportsPdfViewerScreen.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -39,8 +39,10 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
   const [token, setToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   const safePdfName = useMemo(() => {
     const raw = (fileName || title || "documento").replace(/\.pdf$/i, "");
@@ -73,7 +75,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
 
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert("Compartir no disponible", "Tu dispositivo no soporta esta funci?n.");
+        Alert.alert("Compartir no disponible", "Tu dispositivo no soporta esta función.");
         return;
       }
       await Sharing.shareAsync(localUri, { mimeType: "application/pdf", dialogTitle: title || "PDF" });
@@ -82,6 +84,38 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
     } finally {
       setSharing(false);
     }
+  };
+
+  // Web: usa la Web Share API (funciona en Safari/Chrome móvil) cuando está
+  // disponible; si no, cae a una descarga normal.
+  const handleShareWeb = async () => {
+    if (!pdfBlob) return;
+    try {
+      setSharing(true);
+      const file = new File([pdfBlob], safePdfName, { type: "application/pdf" });
+      const nav: any = typeof navigator !== "undefined" ? navigator : null;
+      if (nav?.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], title: title || "PDF" });
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = blobUrl || URL.createObjectURL(pdfBlob);
+      a.download = safePdfName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e: any) {
+      // AbortError = el usuario cerró el share sheet, no es un error real
+      if (e?.name !== "AbortError") {
+        Alert.alert("Error", e?.message || "No se pudo compartir el PDF");
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const openInNewTab = () => {
+    if (blobUrl && typeof window !== "undefined") window.open(blobUrl, "_blank");
   };
 
   useEffect(() => {
@@ -108,30 +142,38 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
       try {
         setLoadingPdf(true);
 
+        let blob: Blob;
         if (base64) {
-          const objectUrl = base64ToBlobUrl(base64);
-          setBlobUrl((prev) => {
-            if (prev) URL.revokeObjectURL(prev);
-            return objectUrl;
-          });
-          return;
+          const byteCharacters = atob(base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+          blob = new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
+        } else {
+          if (!url || !token) return;
+          const res = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${token}` } });
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(`HTTP ${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
+          }
+          blob = await res.blob();
         }
 
-        if (!url || !token) return;
-        const res = await fetch(url, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`HTTP ${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
-        }
-        const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
+        setPdfBlob(blob);
         setBlobUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return objectUrl;
         });
+
+        // Mobile Safari/Chrome no renderizan bien un PDF embebido en
+        // <iframe> (sale con un zoom fijo, recortado, sin controles reales
+        // ni botón de compartir). El propio visor nativo del navegador sí
+        // lo hace bien, así que ahí lo abrimos en pestaña nueva en vez de
+        // intentar incrustarlo.
+        if (isMobileWeb() && !autoOpenedRef.current) {
+          autoOpenedRef.current = true;
+          window.open(objectUrl, "_blank");
+        }
       } catch (e: any) {
         Alert.alert("Error", e?.message || "No se pudo cargar el PDF");
       } finally {
@@ -178,6 +220,19 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
             <Ionicons name="share-outline" size={20} color={colors.primary} />
           )}
         </TouchableOpacity>
+      ) : pdfBlob ? (
+        <TouchableOpacity
+          onPress={handleShareWeb}
+          disabled={sharing}
+          activeOpacity={0.7}
+          className="w-10 h-10 rounded-full bg-white border border-gray-200 items-center justify-center"
+        >
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="share-outline" size={20} color={colors.primary} />
+          )}
+        </TouchableOpacity>
       ) : (
         <View className="w-10 h-10" />
       )}
@@ -189,8 +244,8 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
       <SafeAreaView className="flex-1 bg-background">
         {Header}
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-text font-extrabold text-[16px] text-center">Falta configuraci?n</Text>
-          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">No se recibi? el PDF.</Text>
+          <Text className="text-text font-extrabold text-[16px] text-center">Falta configuración</Text>
+          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">No se recibió el PDF.</Text>
         </View>
       </SafeAreaView>
     );
@@ -202,7 +257,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         {Header}
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
-          <Text className="mt-3 text-gray-500 font-semibold">Cargando?</Text>
+          <Text className="mt-3 text-gray-500 font-semibold">Cargando…</Text>
         </View>
       </SafeAreaView>
     );
@@ -213,8 +268,8 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
       <SafeAreaView className="flex-1 bg-background">
         {Header}
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-text font-extrabold text-[16px] text-center">Sesi?n no v?lida</Text>
-          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">No se encontr? access_token. Inicia sesi?n de nuevo.</Text>
+          <Text className="text-text font-extrabold text-[16px] text-center">Sesión no válida</Text>
+          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">No se encontró access_token. Inicia sesión de nuevo.</Text>
         </View>
       </SafeAreaView>
     );
@@ -230,7 +285,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         {loadingPdf && (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator />
-            <Text className="mt-3 text-gray-500 font-semibold">Cargando PDF?</Text>
+            <Text className="mt-3 text-gray-500 font-semibold">Cargando PDF…</Text>
           </View>
         )}
 
@@ -242,12 +297,23 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         )}
 
         {!loadingPdf && blobUrl && mobileWeb && (
-          <View style={{ flex: 1 }}>
-            <iframe
-              src={blobUrl}
-              style={{ width: "100%", height: "100%", border: "none" }}
-              title={title || "PDF"}
-            />
+          <View className="flex-1 items-center justify-center px-6">
+            <Ionicons name="document-text-outline" size={40} color={colors.primary} />
+            <Text className="text-text font-extrabold text-[16px] text-center mt-4">El PDF se ha abierto en una pestaña nueva</Text>
+            <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">
+              Ahí puedes hacer zoom y compartirlo con el botón de tu navegador.
+            </Text>
+            <TouchableOpacity
+              onPress={openInNewTab}
+              activeOpacity={0.85}
+              className="mt-5 px-5 py-3 rounded-2xl"
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Text className="text-white font-bold text-[14px]">Abrir de nuevo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleShareWeb} disabled={sharing} activeOpacity={0.85} className="mt-3 px-5 py-3 rounded-2xl border border-gray-200">
+              {sharing ? <ActivityIndicator size="small" color={colors.primary} /> : <Text className="font-bold text-[14px]" style={{ color: colors.primary }}>Compartir</Text>}
+            </TouchableOpacity>
           </View>
         )}
 
