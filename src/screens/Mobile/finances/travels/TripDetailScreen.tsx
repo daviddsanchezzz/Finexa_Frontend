@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
+import { appAlert } from "../../../../utils/appAlert";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
@@ -113,6 +114,9 @@ interface TripFromApi {
   budget?: number | null;
   coverImageUrl?: string | null;
   countryStays?: CountryStayFromApi[] | null;
+  userId?: number;
+  user?: { id: number; name: string } | null;
+  members?: { user: { id: number; name: string } }[] | null;
 }
 
 type TripTab = "summary" | "expenses" | "planning" | "info";
@@ -138,6 +142,43 @@ const getStatusStyle = (status: TripStatus) => {
       return { label: "Pasado", color: "rgba(100,116,139,0.75)", textColor: "#F1F5F9" };
   }
 };
+
+const COMPANION_AVATAR_COLORS = ["#8B5CF6", "#F97316", "#10B981", "#3B82F6", "#EC4899", "#EAB308"];
+
+function companionInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function CompanionAvatars({ people }: { people: { id: number; name: string }[] }) {
+  if (people.length < 2) return null;
+  return (
+    <View style={{ flexDirection: "row" }}>
+      {people.slice(0, 4).map((p, idx) => (
+        <View
+          key={p.id}
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            backgroundColor: COMPANION_AVATAR_COLORS[p.id % COMPANION_AVATAR_COLORS.length],
+            borderWidth: 1.5,
+            borderColor: "white",
+            alignItems: "center",
+            justifyContent: "center",
+            marginLeft: idx === 0 ? 0 : -8,
+          }}
+        >
+          <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }}>{companionInitials(p.name)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 const formatDateRange = (start: string, end: string) => {
   const s = new Date(start);
@@ -266,6 +307,36 @@ export default function TripDetailScreen({ route, navigation }: any) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+
+  const handleDeleteTrip = () => {
+    if (!trip) return;
+    appAlert("Eliminar viaje", "¿Seguro? Esta acción no se puede deshacer.", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await api.delete(`/trips/${trip.id}`);
+            navigation.goBack();
+          } catch {
+            appAlert("Error", "No se pudo eliminar el viaje.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleTripMenu = () => {
+    if (!trip) return;
+    appAlert(trip.name, undefined, [
+      { text: "Editar viaje", onPress: () => navigation.navigate("TripForm", { editTrip: trip }) },
+      { text: "Compañeros de viaje", onPress: () => navigation.navigate("TripCompanions", { tripId: trip.id, tripName: trip.name }) },
+      { text: "Compartir viaje", onPress: () => setExportModalVisible(true) },
+      { text: "Eliminar viaje", style: "destructive", onPress: handleDeleteTrip },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
 
   const fetchTrip = async (silent = false) => {
     if (!tripId) return;
@@ -713,11 +784,17 @@ export default function TripDetailScreen({ route, navigation }: any) {
               </TouchableOpacity>
               <View style={{ flex: 1 }} />
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <CompanionAvatars
+                  people={[
+                    ...(trip.user ? [trip.user] : []),
+                    ...((trip.members ?? []).map((m) => m.user)),
+                  ]}
+                />
                 <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: statusStyle.color }}>
                   <Text style={{ fontSize: 11, fontWeight: "700", color: statusStyle.textColor }}>{statusStyle.label}</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+                  onPress={handleTripMenu}
                   style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.28)", alignItems: "center", justifyContent: "center" }}
                 >
                   <Ionicons name="ellipsis-horizontal" size={18} color="white" />
@@ -901,7 +978,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
               </View>
             ) : (
               <TouchableOpacity
-                onPress={() => navigation.navigate("TripForm", { editTrip: trip })}
+                onPress={handleTripMenu}
                 style={{ width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }}
               >
                 <Ionicons name="ellipsis-horizontal" size={18} color="white" />
@@ -1019,21 +1096,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
           }}
         >
           <Ionicons name="add" size={26} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setExportModalVisible(true)}
-          activeOpacity={0.85}
-          style={{
-            width: 52, height: 52, borderRadius: 26,
-            backgroundColor: "white",
-            borderWidth: 1, borderColor: "#E5E7EB",
-            alignItems: "center", justifyContent: "center",
-            shadowColor: "#000", shadowOpacity: 0.08,
-            shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <Ionicons name="share-outline" size={20} color="#64748B" />
         </TouchableOpacity>
       </View>
 

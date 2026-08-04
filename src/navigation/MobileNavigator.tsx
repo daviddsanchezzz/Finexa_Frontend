@@ -58,6 +58,7 @@ export type RootStackParamList = {
   CountryChecklist: { continent?: "europe" | "asia" | "north_america" | "south_america" | "africa" | "oceania" } | undefined;
   Wonders: undefined;
   WonderDetail: { wonderKey: string };
+  TripCompanions: { tripId: number; tripName?: string };
   Appearance: undefined;
   Account: undefined;
   HelpCenter: undefined;
@@ -420,6 +421,13 @@ export default function MobileNavigator() {
             name="WonderDetail"
             getComponent={() =>
               require("../screens/Mobile/finances/travels/WonderDetailScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="TripCompanions"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TripCompanionsScreen").default
             }
           />
 

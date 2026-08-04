@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "rea
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
-import { useNotificationsFeed } from "../hooks/useNotificationsFeed";
+import { useNotificationsFeed, FeedNotification } from "../hooks/useNotificationsFeed";
 import { useFriendRequestFromNotification } from "../hooks/useFriendRequestFromNotification";
+import { useTripInviteFromNotification } from "../hooks/useTripInviteFromNotification";
 import FriendRequestModal from "./FriendRequestModal";
+import TripInviteModal from "./TripInviteModal";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -27,6 +29,10 @@ function iconForType(type: string | null) {
       return { name: "checkmark-circle-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
     case "recurring_transaction":
       return { name: "repeat-outline" as const, bg: "#F3E8FF", color: "#A855F7" };
+    case "trip_invite":
+      return { name: "airplane-outline" as const, bg: "#DBEAFE", color: "#2563EB" };
+    case "trip_invite_accepted":
+      return { name: "checkmark-circle-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
     default:
       return { name: "notifications-outline" as const, bg: "#F3F4F6", color: "#6B7280" };
   }
@@ -39,15 +45,21 @@ interface Props {
 
 export default function NotificationsSheet({ visible, onClose }: Props) {
   const { notifications, isLoading, markRead } = useNotificationsFeed();
-  const { selectedRequest, actionLoading, handlePress, closeDetail, handleAccept, handleReject } =
-    useFriendRequestFromNotification(markRead);
+  const friendReq = useFriendRequestFromNotification(markRead);
+  const tripInv = useTripInviteFromNotification(markRead);
 
   const unread = notifications.filter((n) => !n.read);
+
+  const handlePress = (n: FeedNotification) => {
+    if (n.type === "friend_request") friendReq.handlePress(n);
+    else if (n.type === "trip_invite") tripInv.handlePress(n);
+    else if (!n.read) markRead(n.id);
+  };
 
   return (
     <>
       <Modal
-        isVisible={visible && !selectedRequest}
+        isVisible={visible && !friendReq.selectedRequest && !tripInv.selectedMemberId}
         onBackdropPress={onClose}
         backdropOpacity={0.4}
         style={{ justifyContent: "flex-end", margin: 0 }}
@@ -119,12 +131,21 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
       </Modal>
 
       <FriendRequestModal
-        visible={!!selectedRequest}
-        request={selectedRequest}
-        onClose={closeDetail}
-        onAccept={handleAccept}
-        onReject={handleReject}
-        loading={actionLoading}
+        visible={!!friendReq.selectedRequest}
+        request={friendReq.selectedRequest}
+        onClose={friendReq.closeDetail}
+        onAccept={friendReq.handleAccept}
+        onReject={friendReq.handleReject}
+        loading={friendReq.actionLoading}
+      />
+
+      <TripInviteModal
+        visible={!!tripInv.selectedMemberId}
+        memberId={tripInv.selectedMemberId}
+        onClose={tripInv.closeDetail}
+        onAccept={tripInv.handleAccept}
+        onReject={tripInv.handleReject}
+        loading={tripInv.actionLoading}
       />
     </>
   );
