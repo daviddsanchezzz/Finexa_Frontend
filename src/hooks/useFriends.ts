@@ -12,6 +12,7 @@ export interface FriendRequest {
   id: number;
   createdAt: string;
   user: FriendUser;
+  mutualFriends?: { id: number; name: string }[];
 }
 
 interface FriendRequestsResponse {

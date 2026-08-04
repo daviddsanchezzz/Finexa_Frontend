@@ -16,6 +16,10 @@ interface Props {
   title?: string;
   showDatePicker?: boolean;
   rightElement?: React.ReactNode;
+
+  showNotificationsBell?: boolean;
+  onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
 }
 
 export default function AppHeader({
@@ -26,6 +30,9 @@ export default function AppHeader({
   showDatePicker = true,
   title,
   rightElement,
+  showNotificationsBell = false,
+  onOpenNotifications,
+  unreadNotificationsCount = 0,
 }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -70,6 +77,49 @@ export default function AppHeader({
             }}
           >
             <Ionicons name="person-outline" size={18} color={colors.text} />
+          </TouchableOpacity>
+        )}
+
+        {/* 🔔 Notificaciones */}
+        {showNotificationsBell && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onOpenNotifications}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: "#F3F4F6",
+              borderWidth: 1.2,
+              borderColor: "#E5E7EB",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 10,
+            }}
+          >
+            <Ionicons name="notifications-outline" size={18} color={colors.text} />
+            {unreadNotificationsCount > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#EF4444",
+                  borderRadius: 100,
+                  minWidth: 16,
+                  height: 16,
+                  paddingHorizontal: 3,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1.5,
+                  borderColor: "white",
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 9, fontWeight: "800" }}>
+                  {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         )}
 

@@ -5,16 +5,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../../context/AuthContext";
 import { colors } from "../../../theme/theme";
 import { useFriends } from "../../../hooks/useFriends";
+import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
-  const { friends, incomingRequests } = useFriends();
+  const { friends } = useFriends();
+  const { unreadCount } = useNotificationsFeed();
   const sections = [
     {
       title: "Social",
       items: [
         { label: "Amigos", icon: "people-outline", navigate: "Friends", count: friends.length },
-        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications", badge: incomingRequests.length },
+        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications", badge: unreadCount },
       ],
     },
     {

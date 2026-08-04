@@ -6,6 +6,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
 import WalletSelectorModal from "../../../components/WalletSelectorModal";
+import NotificationsSheet from "../../../components/NotificationsSheet";
+import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
@@ -22,6 +24,8 @@ export default function HomeScreen({ navigation }: any) {
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const { unreadCount: unreadNotificationsCount } = useNotificationsFeed();
 
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
   useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
@@ -163,8 +167,13 @@ export default function HomeScreen({ navigation }: any) {
           title="Inicio"
           showProfile={true}
           showBack={false}
+          showNotificationsBell={true}
+          onOpenNotifications={() => setNotificationsVisible(true)}
+          unreadNotificationsCount={unreadNotificationsCount}
         />
       </View>
+
+      <NotificationsSheet visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
 
       {Platform.OS === "web" && !loading && (
         <View style={{ position: "absolute", top: 52, left: 0, right: 0, alignItems: "center", zIndex: 0 }}>

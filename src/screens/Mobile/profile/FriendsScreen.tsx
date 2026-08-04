@@ -185,8 +185,6 @@ export default function FriendsScreen() {
                     <View
                       key={req.id}
                       style={{
-                        flexDirection: "row",
-                        alignItems: "center",
                         backgroundColor: "white",
                         borderRadius: 16,
                         borderWidth: 1,
@@ -195,25 +193,29 @@ export default function FriendsScreen() {
                         gap: 12,
                       }}
                     >
-                      <Avatar user={req.user} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{req.user.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>quiere ser tu amigo</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                        <Avatar user={req.user} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{req.user.name}</Text>
+                          <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>quiere ser tu amigo</Text>
+                        </View>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => acceptRequest(req.id)}
-                        activeOpacity={0.85}
-                        style={{ backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 }}
-                      >
-                        <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>Aceptar</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => rejectRequest(req.id)}
-                        activeOpacity={0.85}
-                        style={{ backgroundColor: "#F3F4F6", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 }}
-                      >
-                        <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 13 }}>Rechazar</Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => acceptRequest(req.id)}
+                          activeOpacity={0.85}
+                          style={{ flex: 1, backgroundColor: colors.primary, paddingVertical: 9, borderRadius: 10, alignItems: "center" }}
+                        >
+                          <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>Aceptar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => rejectRequest(req.id)}
+                          activeOpacity={0.85}
+                          style={{ flex: 1, backgroundColor: "#F3F4F6", paddingVertical: 9, borderRadius: 10, alignItems: "center" }}
+                        >
+                          <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 13 }}>Rechazar</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
                 </View>
