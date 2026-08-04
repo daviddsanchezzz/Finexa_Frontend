@@ -21,7 +21,6 @@ import { CountrySelect } from "../../../../components/CountrySelect";
 import { appAlert } from "../../../../utils/appAlert";
 
 type TripStatus = "seen" | "planning" | "wishlist";
-type DateField = "start" | "end" | null;
 
 interface CountryStayFromApi {
   country: string;
@@ -95,7 +94,6 @@ function getCalCells(year: number, month: number): (number | null)[] {
 function capitalize(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
-
 const POPULAR_DESTINATIONS = [
   { code: "GR", name: "Grecia" },
   { code: "JP", name: "Japón" },
@@ -129,6 +127,316 @@ function initialStaysFromTrip(editTrip: TripFromApi): StayDraft[] {
   }];
 }
 
+// A new leg starts right where the previous one ends — a sensible default
+// the user can then adjust.
+function nextStayDraft(code: string, name: string, previous: StayDraft[]): StayDraft {
+  const last = previous[previous.length - 1];
+  const start = last?.endDate ?? new Date();
+  return { countryCode: code, countryName: name, startDate: start, endDate: start };
+}
+
+const ROUTE_STOP_COLORS = ["#2563EB", "#0D9488", "#EA580C", "#7C3AED", "#DB2777", "#059669"];
+
+/**
+ * Shared "route" editor used by both the create wizard and the edit form:
+ * every country a trip touches is shown as an equal-standing stop (colored
+ * dot + connecting line, own DESDE/HASTA dates) — there's no special
+ * treatment for the first one, matching how the user actually thinks about
+ * a multi-country trip (it's not "1 main country + extras", it's a route).
+ */
+function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState<{ index: number; field: "start" | "end" } | null>(null);
+
+  const moveStay = (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= stays.length) return;
+    const next = [...stays];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChangeStays(next);
+  };
+  const removeStay = (index: number) => {
+    if (stays.length <= 1) return;
+    onChangeStays(stays.filter((_, i) => i !== index));
+  };
+  const openStopActions = (index: number) => {
+    const stop = stays[index];
+    const label = countryNameEs(stop?.countryCode) || stop?.countryName || "Tramo";
+    const actions: any[] = [];
+    if (index > 0) actions.push({ text: "Mover arriba", onPress: () => moveStay(index, -1) });
+    if (index < stays.length - 1) actions.push({ text: "Mover abajo", onPress: () => moveStay(index, 1) });
+    if (stays.length > 1) actions.push({ text: "Eliminar", style: "destructive", onPress: () => removeStay(index) });
+    actions.push({ text: "Cancelar", style: "cancel" });
+    appAlert(label, "¿Qué quieres hacer con este tramo?", actions);
+  };
+
+  const handleConfirmDate = (date: Date) => {
+    if (!datePickerTarget) return;
+    const { index, field } = datePickerTarget;
+    onChangeStays(stays.map((s, i) => {
+      if (i !== index) return s;
+      if (field === "start") return { ...s, startDate: date, endDate: s.endDate < date ? date : s.endDate };
+      return { ...s, endDate: date, startDate: date < s.startDate ? date : s.startDate };
+    }));
+    setDatePickerVisible(false);
+    setDatePickerTarget(null);
+  };
+
+  return (
+    <View>
+      {stays.map((stay, index) => {
+        const color = ROUTE_STOP_COLORS[index % ROUTE_STOP_COLORS.length];
+        const isLast = index === stays.length - 1;
+        return (
+          <View key={index} style={{ flexDirection: "row" }}>
+            <View style={{ width: 18, alignItems: "center" }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, marginTop: 20 }} />
+              {!isLast && <View style={{ width: 2, flex: 1, backgroundColor: "#E2E8F0", marginVertical: 2 }} />}
+            </View>
+            <View
+              style={{
+                flex: 1, marginLeft: 8, marginBottom: isLast ? 0 : 10,
+                backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#EEF2F7", padding: 14,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={{ fontSize: 16 }}>{flagEmojiFromISO2(stay.countryCode)}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{(stay.countryCode || "").toUpperCase()}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>
+                    {countryNameEs(stay.countryCode) || stay.countryName || "Sin país"}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => openStopActions(index)} style={{ padding: 4 }}>
+                  <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable
+                  onPress={() => { setDatePickerTarget({ index, field: "start" }); setDatePickerVisible(true); }}
+                  style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#E5E7EB" }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>DESDE</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.startDate)}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { setDatePickerTarget({ index, field: "end" }); setDatePickerVisible(true); }}
+                  style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#E5E7EB" }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>HASTA</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.endDate)}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        );
+      })}
+
+      <CrossPlatformDateTimePicker
+        isVisible={datePickerVisible}
+        mode="date"
+        date={
+          datePickerTarget
+            ? (datePickerTarget.field === "end" ? stays[datePickerTarget.index]?.endDate : stays[datePickerTarget.index]?.startDate) ?? new Date()
+            : new Date()
+        }
+        onConfirm={handleConfirmDate}
+        onCancel={() => { setDatePickerVisible(false); setDatePickerTarget(null); }}
+      />
+    </View>
+  );
+}
+
+/** One shared start/end date range applied to every country stay — for when splitting dates per country isn't worth the bother. */
+function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
+  const overallStart = stays.length ? new Date(Math.min(...stays.map((s) => s.startDate.getTime()))) : null;
+  const overallEnd = stays.length ? new Date(Math.max(...stays.map((s) => s.endDate.getTime()))) : null;
+
+  const [rangeStart, setRangeStart] = useState<Date | null>(overallStart);
+  const [rangeEnd, setRangeEnd] = useState<Date | null>(overallEnd);
+  const [calDate, setCalDate] = useState(() => overallStart ?? new Date());
+  const calYear = calDate.getFullYear();
+  const calMonth = calDate.getMonth();
+  const calCells = useMemo(() => getCalCells(calYear, calMonth), [calYear, calMonth]);
+
+  const handleCalDay = (day: number) => {
+    const date = new Date(calYear, calMonth, day);
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      setRangeStart(date);
+      setRangeEnd(null);
+    } else if (date < rangeStart) {
+      setRangeStart(date);
+      setRangeEnd(null);
+    } else {
+      setRangeEnd(date);
+      onChangeStays(stays.map((s) => ({ ...s, startDate: rangeStart, endDate: date })));
+    }
+  };
+
+  const isDaySelected = (day: number) => {
+    const date = new Date(calYear, calMonth, day);
+    if (!rangeStart) return false;
+    if (!rangeEnd) return date.toDateString() === rangeStart.toDateString();
+    return date >= rangeStart && date <= rangeEnd;
+  };
+  const isDayStart = (day: number) => rangeStart && new Date(calYear, calMonth, day).toDateString() === rangeStart.toDateString();
+  const isDayEnd   = (day: number) => rangeEnd   && new Date(calYear, calMonth, day).toDateString() === rangeEnd.toDateString();
+  const isDayInRange = (day: number) => {
+    if (!rangeStart || !rangeEnd) return false;
+    const date = new Date(calYear, calMonth, day);
+    return date > rangeStart && date < rangeEnd;
+  };
+
+  return (
+    <View style={{ gap: 12 }}>
+      {stays.length > 0 && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+          {stays.map((s) => (
+            <View
+              key={s.countryCode}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 4,
+                backgroundColor: "#EEF2FF", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+              }}
+            >
+              <Text style={{ fontSize: 12 }}>{flagEmojiFromISO2(s.countryCode)}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>
+                {countryNameEs(s.countryCode) || s.countryName}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <TouchableOpacity
+            onPress={() => setCalDate(new Date(calYear, calMonth - 1, 1))}
+            style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+          >
+            <Ionicons name="chevron-back" size={16} color="#374151" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>
+            {capitalize(new Date(calYear, calMonth).toLocaleDateString("es-ES", { month: "long", year: "numeric" }))}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setCalDate(new Date(calYear, calMonth + 1, 1))}
+            style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+          >
+            <Ionicons name="chevron-forward" size={16} color="#374151" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ flexDirection: "row", marginBottom: 4 }}>
+          {["L","M","X","J","V","S","D"].map(d => (
+            <View key={d} style={{ flex: 1, alignItems: "center" }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{d}</Text>
+            </View>
+          ))}
+        </View>
+
+        {Array.from({ length: calCells.length / 7 }, (_, wi) => (
+          <View key={wi} style={{ flexDirection: "row" }}>
+            {calCells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
+              const inRange = day != null && isDayInRange(day);
+              const isStart = day != null && isDayStart(day);
+              const isEnd   = day != null && isDayEnd(day);
+              const isSel   = day != null && isDaySelected(day);
+              const showLeftRange = !!day && (inRange || isEnd);
+              const showRightRange = !!day && (inRange || isStart);
+              return (
+                <TouchableOpacity
+                  key={di}
+                  onPress={() => day && handleCalDay(day)}
+                  disabled={!day}
+                  style={{ flex: 1, height: 40, alignItems: "center", justifyContent: "center", position: "relative" }}
+                >
+                  {day != null ? (
+                    <>
+                      {showLeftRange ? (
+                        <View pointerEvents="none" style={{ position: "absolute", left: 0, right: "50%", top: 4, bottom: 4, backgroundColor: "#EEF2FF" }} />
+                      ) : null}
+                      {showRightRange ? (
+                        <View pointerEvents="none" style={{ position: "absolute", left: "50%", right: 0, top: 4, bottom: 4, backgroundColor: "#EEF2FF" }} />
+                      ) : null}
+                    </>
+                  ) : null}
+                  {day != null ? (
+                    <View style={{
+                      width: 34, height: 34, borderRadius: 17,
+                      backgroundColor: isSel && !inRange ? colors.primary : "transparent",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: isSel ? "800" : "500",
+                        color: (isSel && !inRange) ? "white" : inRange ? colors.primary : "#0F172A",
+                      }}>
+                        {day}
+                      </Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>INICIO</Text>
+          <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{rangeStart ? formatShortDate(rangeStart) : "—"}</Text>
+        </View>
+        <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>FIN</Text>
+          <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{rangeEnd ? formatShortDate(rangeEnd) : "—"}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+type TripDateMode = "per_country" | "single_range";
+
+/** Toggle between per-country dates (route editor) and one shared start/end for the whole trip. */
+function TripDatesEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
+  const [mode, setMode] = useState<TripDateMode>("per_country");
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
+        {([
+          { id: "per_country" as const, label: "Por país" },
+          { id: "single_range" as const, label: "Inicio y fin" },
+        ]).map((opt) => {
+          const active = mode === opt.id;
+          return (
+            <TouchableOpacity
+              key={opt.id}
+              onPress={() => setMode(opt.id)}
+              style={{
+                flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: "center",
+                backgroundColor: active ? "white" : "transparent",
+                shadowColor: active ? "#000" : "transparent", shadowOpacity: active ? 0.06 : 0,
+                shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "#0F172A" : "#94A3B8" }}>{opt.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {mode === "per_country" ? (
+        <TripRouteEditor stays={stays} onChangeStays={onChangeStays} />
+      ) : (
+        <SingleRangeEditor stays={stays} onChangeStays={onChangeStays} />
+      )}
+    </View>
+  );
+}
+
 function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigation: any }) {
   const [name, setName]           = useState(editTrip.name ?? "");
   const [stays, setStays]         = useState<StayDraft[]>(() => initialStaysFromTrip(editTrip));
@@ -138,32 +446,10 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [datePickerTarget, setDatePickerTarget] = useState<{ index: number; field: "start" | "end" } | null>(null);
 
-  const handleConfirmDate = (date: Date) => {
-    if (!datePickerTarget) return;
-    const { index, field } = datePickerTarget;
-    setStays((prev) => prev.map((s, i) => {
-      if (i !== index) return s;
-      if (field === "start") return { ...s, startDate: date, endDate: s.endDate < date ? date : s.endDate };
-      return { ...s, endDate: date, startDate: date < s.startDate ? date : s.startDate };
-    }));
-    setDatePickerVisible(false);
-    setDatePickerTarget(null);
-  };
-
-  const addStay = () => {
-    setStays((prev) => {
-      const last = prev[prev.length - 1];
-      return [...prev, { countryCode: null, countryName: "", startDate: last?.endDate ?? new Date(), endDate: last?.endDate ?? new Date() }];
-    });
-  };
-  const removeStay = (index: number) => {
-    setStays((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
-  };
-  const updateStayCountry = (index: number, code: string | null, name: string) => {
-    setStays((prev) => prev.map((s, i) => (i === index ? { ...s, countryCode: code, countryName: name } : s)));
+  const addCountryStay = (code: string, name: string) => {
+    if (stays.some((s) => s.countryCode === code)) return;
+    setStays((prev) => [...prev, nextStayDraft(code, name, prev)]);
   };
 
   const totalDays = useMemo(() => {
@@ -286,71 +572,27 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
           />
         </View>
 
-        {/* Países y fechas */}
-        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7", gap: 14 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Ruta y fechas */}
+        <View style={{ gap: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 2 }}>
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
-              {stays.length > 1 ? "PAÍSES Y FECHAS" : "DESTINO Y FECHAS"}
+              {stays.length > 1 ? "RUTA Y FECHAS" : "DESTINO Y FECHAS"}
             </Text>
             {stays.length > 1 && (
               <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
             )}
           </View>
 
-          {stays.map((stay, index) => (
-            <View
-              key={index}
-              style={{
-                gap: 8,
-                paddingBottom: index === stays.length - 1 ? 0 : 14,
-                borderBottomWidth: index === stays.length - 1 ? 0 : 1,
-                borderBottomColor: "#F1F5F9",
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <CountrySelect
-                    valueName={stay.countryName}
-                    valueCode={stay.countryCode}
-                    onChange={({ name: n, code }: any) => updateStayCountry(index, code, n)}
-                  />
-                </View>
-                {stays.length > 1 && (
-                  <TouchableOpacity onPress={() => removeStay(index)} style={{ padding: 8 }}>
-                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable
-                  onPress={() => { setDatePickerTarget({ index, field: "start" }); setDatePickerVisible(true); }}
-                  style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>DESDE</Text>
-                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.startDate)}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => { setDatePickerTarget({ index, field: "end" }); setDatePickerVisible(true); }}
-                  style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>HASTA</Text>
-                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.endDate)}</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
+          <TripDatesEditor stays={stays} onChangeStays={setStays} />
 
-          <TouchableOpacity
-            onPress={addStay}
-            activeOpacity={0.8}
-            style={{
-              flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-              paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", borderColor: "#CBD5E1",
-            }}
-          >
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Añadir otro país</Text>
-          </TouchableOpacity>
+          <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÑADIR OTRO PAÍS</Text>
+            <CountrySelect
+              valueName=""
+              valueCode={null}
+              onChange={({ name: n, code }: any) => { if (code) addCountryStay(code, n); }}
+            />
+          </View>
         </View>
 
         {/* Estado */}
@@ -411,18 +653,6 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
 
         <View style={{ height: 16 }} />
       </ScrollView>
-
-      <CrossPlatformDateTimePicker
-        isVisible={datePickerVisible}
-        mode="date"
-        date={
-          datePickerTarget
-            ? (datePickerTarget.field === "end" ? stays[datePickerTarget.index]?.endDate : stays[datePickerTarget.index]?.startDate) ?? new Date()
-            : new Date()
-        }
-        onConfirm={handleConfirmDate}
-        onCancel={() => { setDatePickerVisible(false); setDatePickerTarget(null); }}
-      />
     </SafeAreaView>
   );
 }
@@ -435,19 +665,10 @@ export default function TripFormScreen({ route, navigation }: any) {
   return <CreateTripWizard navigation={navigation} />;
 }
 
-interface WizardCountry { code: string; name: string; }
-
 function CreateTripWizard({ navigation }: { navigation: any }) {
   const [step, setStep]               = useState<1 | 2 | 3 | 4>(1);
-  const [countries, setCountries]     = useState<WizardCountry[]>([]);
+  const [stays, setStays]             = useState<StayDraft[]>([]);
   const [searchQ, setSearchQ]         = useState("");
-  // Calendar-grid dates for the FIRST country only (kept exactly as before);
-  // countries added after the first get simple date pickers, in extraDates.
-  const [startDate, setStartDate]     = useState<Date | null>(null);
-  const [endDate, setEndDate]         = useState<Date | null>(null);
-  const [extraDates, setExtraDates]   = useState<{ startDate: Date; endDate: Date }[]>([]);
-  const [extraDatePickerVisible, setExtraDatePickerVisible] = useState(false);
-  const [extraDatePickerTarget, setExtraDatePickerTarget] = useState<{ index: number; field: "start" | "end" } | null>(null);
   const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
   const [companion, setCompanion]     = useState<string | null>(null);
@@ -457,111 +678,50 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   const [saving, setSaving]             = useState(false);
   const [createdTrip, setCreatedTrip] = useState<{ id: number; name: string } | null>(null);
 
-  // Calendar
-  const [calDate, setCalDate] = useState(() => new Date());
-  const calYear  = calDate.getFullYear();
-  const calMonth = calDate.getMonth();
-  const calCells = useMemo(() => getCalCells(calYear, calMonth), [calYear, calMonth]);
-
-  const days = useMemo(() => {
-    if (!startDate || !endDate) return null;
-    const d = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+  const totalDays = useMemo(() => {
+    if (stays.length === 0) return null;
+    const starts = stays.map((s) => s.startDate.getTime());
+    const ends = stays.map((s) => s.endDate.getTime());
+    const d = Math.round((Math.max(...ends) - Math.min(...starts)) / 86400000) + 1;
     return d > 0 ? d : 1;
-  }, [startDate, endDate]);
+  }, [stays]);
 
-  const selectedCountryLabel = countries.length === 0
+  const selectedCountryLabel = stays.length === 0
     ? ""
-    : countries.length === 1
-      ? countryNameEs(countries[0].code) || countries[0].name
-      : `${countries.length} países`;
+    : stays.length === 1
+      ? countryNameEs(stays[0].countryCode) || stays[0].countryName
+      : `${stays.length} países`;
 
-  // Toggle a country's membership in the selection (tap again to remove).
-  // The first country keeps driving the big calendar below; countries added
-  // after that get their own simple date range, defaulting to start right
-  // after the previous one ends.
+  // A trip is a route, not "1 main country + extras" — every selected
+  // country is an equal-standing stop. Toggling adds/removes it from the
+  // selection; a newly added one starts right where the last one ends.
   const toggleCountry = (code: string, name: string) => {
-    setCountries((prev) => {
-      const exists = prev.some((c) => c.code === code);
-      if (exists) {
-        const idx = prev.findIndex((c) => c.code === code);
-        if (idx === 0) { setStartDate(null); setEndDate(null); }
-        else setExtraDates((d) => d.filter((_, i) => i !== idx - 1));
-        return prev.filter((c) => c.code !== code);
-      }
-      if (prev.length > 0) {
-        const lastEnd = prev.length === 1 ? (endDate ?? startDate ?? new Date()) : extraDates[extraDates.length - 1]?.endDate ?? new Date();
-        setExtraDates((d) => [...d, { startDate: lastEnd, endDate: lastEnd }]);
-      }
-      return [...prev, { code, name }];
+    setStays((prev) => {
+      const exists = prev.some((s) => s.countryCode === code);
+      if (exists) return prev.filter((s) => s.countryCode !== code);
+      return [...prev, nextStayDraft(code, name, prev)];
     });
   };
   const addCountry = (code: string, name: string) => {
-    if (countries.some((c) => c.code === code)) return;
+    if (stays.some((s) => s.countryCode === code)) return;
     toggleCountry(code, name);
   };
   const removeCountryAt = (index: number) => {
-    const c = countries[index];
-    if (c) toggleCountry(c.code, c.name);
-  };
-
-  const handleConfirmExtraDate = (date: Date) => {
-    if (!extraDatePickerTarget) return;
-    const { index, field } = extraDatePickerTarget;
-    setExtraDates((prev) => prev.map((d, i) => {
-      if (i !== index) return d;
-      if (field === "start") return { startDate: date, endDate: d.endDate < date ? date : d.endDate };
-      return { endDate: date, startDate: date < d.startDate ? date : d.startDate };
-    }));
-    setExtraDatePickerVisible(false);
-    setExtraDatePickerTarget(null);
-  };
-
-  const handleCalDay = (day: number) => {
-    const date = new Date(calYear, calMonth, day);
-    if (!startDate || (startDate && endDate)) {
-      setStartDate(date);
-      setEndDate(null);
-    } else if (date < startDate) {
-      setStartDate(date);
-      setEndDate(null);
-    } else {
-      setEndDate(date);
-    }
-  };
-
-  const isDaySelected = (day: number) => {
-    const date = new Date(calYear, calMonth, day);
-    if (!startDate) return false;
-    if (!endDate) return date.toDateString() === startDate.toDateString();
-    return date >= startDate && date <= endDate;
-  };
-  const isDayStart = (day: number) => startDate && new Date(calYear, calMonth, day).toDateString() === startDate.toDateString();
-  const isDayEnd   = (day: number) => endDate   && new Date(calYear, calMonth, day).toDateString() === endDate.toDateString();
-  const isDayInRange = (day: number) => {
-    if (!startDate || !endDate) return false;
-    const date = new Date(calYear, calMonth, day);
-    return date > startDate && date < endDate;
+    setStays((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleCreate = async () => {
     if (!tripName.trim()) { appAlert("Falta el nombre", "Añade un nombre."); return; }
-    if (countries.length === 0) { appAlert("Falta el destino", "Selecciona al menos un país."); return; }
+    if (stays.length === 0) { appAlert("Falta el destino", "Selecciona al menos un país."); return; }
     try {
       setSaving(true);
-      const countryStays = countries.map((c, i) => {
-        if (i === 0) {
-          const s = startDate ?? new Date();
-          const e = endDate ?? s;
-          return { country: c.code, startDate: s.toISOString(), endDate: e.toISOString() };
-        }
-        const extra = extraDates[i - 1];
-        const s = extra?.startDate ?? new Date();
-        const e = extra?.endDate ?? s;
-        return { country: c.code, startDate: s.toISOString(), endDate: e.toISOString() };
-      });
       const res = await api.post("/trips", {
         name: tripName.trim(),
-        countryStays,
+        countryStays: stays.map((s) => ({
+          country: s.countryCode,
+          startDate: s.startDate.toISOString(),
+          endDate: s.endDate.toISOString(),
+        })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: "planning",
         coverImageUrl: coverImageUrl ?? undefined,
@@ -602,23 +762,27 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </Text>
 
           {/* Países seleccionados */}
-          {countries.length > 0 && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {countries.map((c, index) => (
+          {stays.length > 0 && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8 }}>
+                SELECCIONADOS · {stays.length}
+              </Text>
+              {stays.map((s, index) => (
                 <View
-                  key={c.code}
+                  key={s.countryCode}
                   style={{
-                    flexDirection: "row", alignItems: "center", gap: 6,
-                    backgroundColor: "#EEF2FF", borderRadius: 999,
-                    paddingLeft: 10, paddingRight: 6, paddingVertical: 6,
+                    flexDirection: "row", alignItems: "center", gap: 10,
+                    backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#EEF2F7",
+                    paddingHorizontal: 14, paddingVertical: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(c.code)}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>
-                    {countryNameEs(c.code) || c.name}
+                  <Text style={{ fontSize: 20 }}>{flagEmojiFromISO2(s.countryCode)}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{(s.countryCode || "").toUpperCase()}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }}>
+                    {countryNameEs(s.countryCode) || s.countryName}
                   </Text>
-                  <TouchableOpacity onPress={() => removeCountryAt(index)} style={{ padding: 2 }}>
-                    <Ionicons name="close-circle" size={16} color={colors.primary} />
+                  <TouchableOpacity onPress={() => removeCountryAt(index)} style={{ padding: 4 }}>
+                    <Ionicons name="close" size={18} color="#94A3B8" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -645,7 +809,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                 {POPULAR_DESTINATIONS.map(dest => {
-                  const selected = countries.some((c) => c.code === dest.code);
+                  const selected = stays.some((s) => s.countryCode === dest.code);
                   return (
                     <TouchableOpacity
                       key={dest.code}
@@ -680,7 +844,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Country select cuando buscan */}
           <View>
             <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 10 }}>
-              {searchQ ? "RESULTADO" : countries.length > 0 ? "AÑADIR OTRO PAÍS" : "OTRO DESTINO"}
+              {searchQ ? "RESULTADO" : stays.length > 0 ? "AÑADIR OTRO PAÍS" : "OTRO DESTINO"}
             </Text>
             <CountrySelect
               valueName=""
@@ -696,7 +860,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Continuar */}
           <TouchableOpacity
             onPress={() => {
-              if (countries.length === 0) {
+              if (stays.length === 0) {
                 appAlert("Selecciona un destino", "Elige a dónde quieres viajar.");
                 return;
               }
@@ -715,7 +879,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* ── PASO 2: ¿Cuándo viajas? ── */}
+      {/* ── PASO 2: Ruta y fechas ── */}
       {step === 2 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
           {/* Header */}
@@ -724,10 +888,10 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               <Ionicons name="chevron-back" size={22} color={colors.primary} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "700" }}>
-                {selectedCountryLabel || "Tu destino"}
+              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Ruta y fechas</Text>
+              <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
+                {stays.length > 1 ? "Ordena los países y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino")}
               </Text>
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>¿Cuándo viajas?</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 6 }}>
               {[1,2,3].map(n => (
@@ -736,150 +900,11 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </View>
           </View>
 
-          {/* Dates selected preview */}
-          {(startDate || endDate) && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#EEF2FF", borderRadius: 14, padding: 12 }}>
-              <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary, flex: 1 }}>
-                {startDate ? formatShortDate(startDate) : "—"} → {endDate ? formatShortDate(endDate) : "elige fin"}
-                {days ? `  ·  ${days} días` : ""}
-              </Text>
-              <TouchableOpacity onPress={() => { setStartDate(null); setEndDate(null); }}>
-                <Ionicons name="close-circle" size={18} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
+          {totalDays != null && stays.length > 1 && (
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
           )}
 
-          {/* Calendario */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
-            {/* Nav mes */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <TouchableOpacity
-                onPress={() => setCalDate(new Date(calYear, calMonth - 1, 1))}
-                style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
-              >
-                <Ionicons name="chevron-back" size={16} color="#374151" />
-              </TouchableOpacity>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>
-                {capitalize(new Date(calYear, calMonth).toLocaleDateString("es-ES", { month: "long", year: "numeric" }))}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setCalDate(new Date(calYear, calMonth + 1, 1))}
-                style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
-              >
-                <Ionicons name="chevron-forward" size={16} color="#374151" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Cabecera días */}
-            <View style={{ flexDirection: "row", marginBottom: 4 }}>
-              {["L","M","X","J","V","S","D"].map(d => (
-                <View key={d} style={{ flex: 1, alignItems: "center" }}>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{d}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Grid */}
-            {Array.from({ length: calCells.length / 7 }, (_, wi) => (
-              <View key={wi} style={{ flexDirection: "row" }}>
-                {calCells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
-                  const inRange = day != null && isDayInRange(day);
-                  const isStart = day != null && isDayStart(day);
-                  const isEnd   = day != null && isDayEnd(day);
-                  const isSel   = day != null && isDaySelected(day);
-                  const showLeftRange = !!day && (inRange || isEnd);
-                  const showRightRange = !!day && (inRange || isStart);
-                  return (
-                    <TouchableOpacity
-                      key={di}
-                      onPress={() => day && handleCalDay(day)}
-                      disabled={!day}
-                      style={{
-                        flex: 1, height: 40, alignItems: "center", justifyContent: "center",
-                        position: "relative",
-                      }}
-                    >
-                      {day != null ? (
-                        <>
-                          {showLeftRange ? (
-                            <View
-                              pointerEvents="none"
-                              style={{
-                                position: "absolute",
-                                left: 0,
-                                right: "50%",
-                                top: 4,
-                                bottom: 4,
-                                backgroundColor: "#EEF2FF",
-                              }}
-                            />
-                          ) : null}
-                          {showRightRange ? (
-                            <View
-                              pointerEvents="none"
-                              style={{
-                                position: "absolute",
-                                left: "50%",
-                                right: 0,
-                                top: 4,
-                                bottom: 4,
-                                backgroundColor: "#EEF2FF",
-                              }}
-                            />
-                          ) : null}
-                        </>
-                      ) : null}
-                      {day != null ? (
-                        <View style={{
-                          width: 34, height: 34, borderRadius: 17,
-                          backgroundColor: isSel && !inRange ? colors.primary : "transparent",
-                          alignItems: "center", justifyContent: "center",
-                        }}>
-                          <Text style={{
-                            fontSize: 13,
-                            fontWeight: isSel ? "800" : "500",
-                            color: (isSel && !inRange) ? "white" : inRange ? colors.primary : "#0F172A",
-                          }}>
-                            {day}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-
-          {/* Fechas de los países adicionales */}
-          {countries.slice(1).map((c, extraIndex) => {
-            const dates = extraDates[extraIndex];
-            if (!dates) return null;
-            return (
-              <View key={c.code} style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14, gap: 10 }}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
-                  {flagEmojiFromISO2(c.code)} {(countryNameEs(c.code) || c.name).toUpperCase()}
-                </Text>
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <Pressable
-                    onPress={() => { setExtraDatePickerTarget({ index: extraIndex, field: "start" }); setExtraDatePickerVisible(true); }}
-                    style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
-                  >
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>DESDE</Text>
-                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(dates.startDate)}</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => { setExtraDatePickerTarget({ index: extraIndex, field: "end" }); setExtraDatePickerVisible(true); }}
-                    style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
-                  >
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>HASTA</Text>
-                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(dates.endDate)}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })}
+          <TripDatesEditor stays={stays} onChangeStays={setStays} />
 
           {/* Viajeros */}
           <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
@@ -908,11 +933,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
 
           {/* Continuar */}
           <TouchableOpacity
-            onPress={() => {
-              if (!startDate) { appAlert("Elige fechas", "Selecciona al menos la fecha de inicio."); return; }
-              if (!endDate) setEndDate(startDate);
-              setStep(3);
-            }}
+            onPress={() => setStep(3)}
             activeOpacity={0.9}
             style={{ height: 52, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
           >
@@ -922,20 +943,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <View style={{ height: 20 }} />
         </ScrollView>
       )}
-
-      <CrossPlatformDateTimePicker
-        isVisible={extraDatePickerVisible}
-        mode="date"
-        date={
-          extraDatePickerTarget
-            ? (extraDatePickerTarget.field === "end"
-                ? extraDates[extraDatePickerTarget.index]?.endDate
-                : extraDates[extraDatePickerTarget.index]?.startDate) ?? new Date()
-            : new Date()
-        }
-        onConfirm={handleConfirmExtraDate}
-        onCancel={() => { setExtraDatePickerVisible(false); setExtraDatePickerTarget(null); }}
-      />
 
       {/* ── PASO 3: Últimos detalles ── */}
       {step === 3 && (
@@ -1088,21 +1095,21 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           {/* Preview card */}
-          {countries.length > 0 && (
+          {stays.length > 0 && (
             <View style={{
               width: "100%", backgroundColor: "#F8FAFC", borderRadius: 20, padding: 16,
               flexDirection: "row", alignItems: "center", gap: 14,
               borderWidth: 1, borderColor: "#EEF2F7",
             }}>
               <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center", flexDirection: "row" }}>
-                {countries.slice(0, 2).map((c) => (
-                  <Text key={c.code} style={{ fontSize: countries.length > 1 ? 26 : 36 }}>{flagEmojiFromISO2(c.code)}</Text>
+                {stays.slice(0, 2).map((s) => (
+                  <Text key={s.countryCode} style={{ fontSize: stays.length > 1 ? 26 : 36 }}>{flagEmojiFromISO2(s.countryCode)}</Text>
                 ))}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>{createdTrip?.name ?? tripName}</Text>
                 <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: 3 }}>
-                  {startDate ? formatShortDate(startDate) : "—"}{endDate && endDate.toDateString() !== startDate?.toDateString() ? ` – ${formatShortDate(endDate)}` : ""}
+                  {totalDays ? `${totalDays} días` : "—"}
                   {travelers > 1 ? ` · ${travelers} viajeros` : ""}
                 </Text>
               </View>
