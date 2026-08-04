@@ -597,36 +597,40 @@ function TripDatesEditor({
   onChangeStays: (next: StayDraft[]) => void;
   initialMode?: TripDateMode;
 }) {
-  const [mode, setMode] = useState<TripDateMode>(initialMode);
+  const singleCountry = stays.length <= 1;
+  const effectiveInitialMode: TripDateMode = singleCountry ? "single_range" : initialMode;
+  const [mode, setMode] = useState<TripDateMode>(effectiveInitialMode);
 
   useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
+    setMode(singleCountry ? "single_range" : initialMode);
+  }, [initialMode, singleCountry]);
 
   return (
     <View style={{ gap: 12 }}>
-      <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
-        {([
-          { id: "per_country" as const, label: "Por país" },
-          { id: "single_range" as const, label: "Inicio y fin" },
-        ]).map((opt) => {
-          const active = mode === opt.id;
-          return (
-            <TouchableOpacity
-              key={opt.id}
-              onPress={() => setMode(opt.id)}
-              style={{
-                flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: "center",
-                backgroundColor: active ? "white" : "transparent",
-                shadowColor: active ? "#000" : "transparent", shadowOpacity: active ? 0.06 : 0,
-                shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "#0F172A" : "#94A3B8" }}>{opt.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {!singleCountry && (
+        <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
+          {([
+            { id: "per_country" as const, label: "Por país" },
+            { id: "single_range" as const, label: "Inicio y fin" },
+          ]).map((opt) => {
+            const active = mode === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setMode(opt.id)}
+                style={{
+                  flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: "center",
+                  backgroundColor: active ? "white" : "transparent",
+                  shadowColor: active ? "#000" : "transparent", shadowOpacity: active ? 0.06 : 0,
+                  shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "#0F172A" : "#94A3B8" }}>{opt.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {mode === "per_country" ? (
         <TripRouteEditor stays={stays} onChangeStays={onChangeStays} />
