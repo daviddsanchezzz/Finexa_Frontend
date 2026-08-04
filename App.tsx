@@ -17,6 +17,7 @@ import { registerPushToken } from "./src/services/notificationService";
 import { queryClient } from "./src/lib/queryClient";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { ToastContainer } from "./src/components/ui/ToastContainer";
+import { ActionSheetHost } from "./src/components/ui/ActionSheetHost";
 import {
   isBiometricEnabled,
   authenticateWithBiometric,
@@ -143,6 +144,7 @@ export default function App() {
                   <ThemedNavigationContainer>
                     <AppContent />
                     <ToastContainer />
+                    <ActionSheetHost />
                   </ThemedNavigationContainer>
                 </BiometricGate>
               </SafeAreaProvider>

@@ -1,5 +1,6 @@
 // src/utils/appAlert.ts
 import { Alert, Platform } from "react-native";
+import { useUIStore } from "../store/uiStore";
 
 export type AppAlertButton = {
   text: string;
@@ -48,17 +49,6 @@ export function appAlert(
     return;
   }
 
-  // Más de 2 botones → prompt con opciones numeradas
-  const optionsText = buttons
-    .map((b, idx) => `${idx + 1}. ${b.text}`)
-    .join("\n");
-
-  const answer = window.prompt(
-    `${title}\n\n${message ?? ""}\n\n${optionsText}\n\nEscribe el número de la opción:`
-  );
-
-  const index = answer ? parseInt(answer, 10) - 1 : -1;
-  if (!isNaN(index) && index >= 0 && index < buttons.length) {
-    buttons[index].onPress && buttons[index].onPress();
-  }
+  // Más de 2 botones → hoja de acciones real (nunca un prompt numerado)
+  useUIStore.getState().showActionSheet(title, message, buttons);
 }

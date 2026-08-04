@@ -8,10 +8,26 @@ export interface Toast {
   type: ToastType;
 }
 
+export interface ActionSheetButton {
+  text: string;
+  onPress?: () => void;
+  style?: "default" | "cancel" | "destructive";
+}
+
+export interface ActionSheetState {
+  title: string;
+  message?: string;
+  buttons: ActionSheetButton[];
+}
+
 interface UIState {
   toasts: Toast[];
   showToast: (message: string, type?: ToastType) => void;
   dismissToast: (id: string) => void;
+
+  actionSheet: ActionSheetState | null;
+  showActionSheet: (title: string, message: string | undefined, buttons: ActionSheetButton[]) => void;
+  hideActionSheet: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -25,4 +41,8 @@ export const useUIStore = create<UIState>((set) => ({
   },
   dismissToast: (id) =>
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  actionSheet: null,
+  showActionSheet: (title, message, buttons) => set({ actionSheet: { title, message, buttons } }),
+  hideActionSheet: () => set({ actionSheet: null }),
 }));
