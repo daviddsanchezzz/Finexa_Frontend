@@ -54,7 +54,7 @@ interface StayDraft {
   endDate: Date | null;
 }
 
-/* â”€â”€â”€ Helpers â”€â”€â”€ */
+/* ─── Helpers ─── */
 function isValidISODate(iso?: string | null) {
   if (!iso) return false;
   return !Number.isNaN(new Date(iso).getTime());
@@ -62,7 +62,7 @@ function isValidISODate(iso?: string | null) {
 function parseMoney(text: string): number {
   const t = (text || "").trim();
   if (!t) return 0;
-  const n = Number(t.replace(/\./g, "").replace(",", ".").replace("â‚¬", "").trim());
+  const n = Number(t.replace(/\./g, "").replace(",", ".").replace("€", "").trim());
   return Number.isFinite(n) ? n : 0;
 }
 function looksLikeCca2(v?: string | null) {
@@ -70,7 +70,7 @@ function looksLikeCca2(v?: string | null) {
 }
 function flagEmojiFromISO2(code?: string | null) {
   const c = (code || "").trim().toUpperCase();
-  if (!/^[A-Z]{2}$/.test(c)) return "ðŸŒ";
+  if (!/^[A-Z]{2}$/.test(c)) return "🌍";
   return String.fromCodePoint(...[...c].map(ch => 127397 + ch.charCodeAt(0)));
 }
 function countryNameEs(code?: string | null) {
@@ -83,7 +83,7 @@ function formatShortDate(d: Date) {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
 }
 function formatOptionalShortDate(d?: Date | null) {
-  return d ? formatShortDate(d) : "â€”";
+  return d ? formatShortDate(d) : "—";
 }
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -205,7 +205,7 @@ function buildSmartStays(prev: StayDraft[], incoming: StayDraft[]) {
   return { stays: sorted };
 }
 
-/* â”€â”€â”€ Edit form (pantalla completa Ãºnica) â”€â”€â”€ */
+/* ─── Edit form (pantalla completa única) ─── */
 function initialStaysFromTrip(editTrip: TripFromApi): StayDraft[] {
   if (editTrip.countryStays && editTrip.countryStays.length > 0) {
     return editTrip.countryStays.map((s) => ({
@@ -234,7 +234,7 @@ const ROUTE_STOP_COLORS = ["#2563EB", "#0D9488", "#EA580C", "#7C3AED", "#DB2777"
 /**
  * Shared "route" editor used by both the create wizard and the edit form:
  * every country a trip touches is shown as an equal-standing stop (colored
- * dot + connecting line, own DESDE/HASTA dates) â€” there's no special
+ * dot + connecting line, own DESDE/HASTA dates) — there's no special
  * treatment for the first one, matching how the user actually thinks about
  * a multi-country trip (it's not "1 main country + extras", it's a route).
  */
@@ -336,7 +336,9 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
         mode="date"
         date={
           datePickerTarget
-            ? (datePickerTarget.field === "end" ? stays[datePickerTarget.index]?.endDate : stays[datePickerTarget.index]?.startDate) ?? new Date()
+            ? ((datePickerTarget.field === "end"
+              ? stays[datePickerTarget.index]?.endDate
+              : stays[datePickerTarget.index]?.startDate) ?? new Date())
             : new Date()
         }
         onConfirm={handleConfirmDate}
@@ -346,7 +348,7 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
   );
 }
 
-/** One shared start/end date range applied to every country stay â€” for when splitting dates per country isn't worth the bother. */
+/** One shared start/end date range applied to every country stay — for when splitting dates per country isn't worth the bother. */
 function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
   const overallStart = useMemo(() => {
     const starts = stays
@@ -607,7 +609,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   };
 
   const handleDelete = () => {
-    appAlert("Eliminar viaje", "Â¿Seguro? Esta acciÃ³n no se puede deshacer.", [
+    appAlert("Eliminar viaje", "¿Seguro? Esta acción no se puede deshacer.", [
       { text: "Cancelar", style: "cancel" },
       { text: "Eliminar", style: "destructive", onPress: async () => {
         try {
@@ -703,14 +705,14 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
               {stays.length > 1 ? "RUTA Y FECHAS" : "DESTINO Y FECHAS"}
             </Text>
             {stays.length > 1 && (
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} dÃ­as en total</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
             )}
           </View>
 
           <TripDatesEditor stays={stays} onChangeStays={updateStays} />
 
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÃ‘ADIR OTRO PAÃS</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÑADIR OTRO PAÍS</Text>
             <CountrySelect
               valueName=""
               valueCode={null}
@@ -746,7 +748,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
         <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
           <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>PRESUPUESTO ESTIMADO</Text>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>â‚¬</Text>
+            <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>€</Text>
             <TextInput
               value={budgetText}
               onChangeText={setBudgetText}
@@ -781,7 +783,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   );
 }
 
-/* â”€â”€â”€ Create wizard â”€â”€â”€ */
+/* ─── Create wizard ─── */
 export default function TripFormScreen({ route, navigation }: any) {
   const editTrip: TripFromApi | undefined = route?.params?.editTrip;
   if (editTrip) return <EditTripForm editTrip={editTrip} navigation={navigation} />;
@@ -807,9 +809,9 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     ? ""
     : stays.length === 1
       ? countryNameEs(stays[0].countryCode) || stays[0].countryName
-      : `${stays.length} paÃ­ses`;
+      : `${stays.length} países`;
 
-  // A trip is a route, not "1 main country + extras" â€” every selected
+  // A trip is a route, not "1 main country + extras" — every selected
   // country is an equal-standing stop. Toggling adds/removes it from the
   // selection; a newly added one starts right where the last one ends.
   const toggleCountry = (code: string, name: string) => {
@@ -837,8 +839,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   };
 
   const handleCreate = async () => {
-    if (!tripName.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre."); return; }
-    if (stays.length === 0) { appAlert("Falta el destino", "Selecciona al menos un paÃ­s."); return; }
+    if (!tripName.trim()) { appAlert("Falta el nombre", "Añade un nombre."); return; }
+    if (stays.length === 0) { appAlert("Falta el destino", "Selecciona al menos un país."); return; }
     try {
       setSaving(true);
       const res = await api.post("/trips", {
@@ -867,7 +869,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         <View style={{ height: 3, backgroundColor: colors.primary, width: `${progress * 100}%` }} />
       </View>
 
-      {/* â”€â”€ PASO 1: Â¿A dÃ³nde vas? â”€â”€ */}
+      {/* ── PASO 1: ¿A dónde vas? ── */}
       {step === 1 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }} keyboardShouldPersistTaps="handled">
           {/* Header */}
@@ -882,16 +884,16 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </View>
           </View>
 
-          <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>Â¿A dÃ³nde vas?</Text>
+          <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¿A dónde vas?</Text>
           <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: -14 }}>
-            Puedes elegir mÃ¡s de un paÃ­s si tu viaje pasa por varios.
+            Puedes elegir más de un país si tu viaje pasa por varios.
           </Text>
 
-          {/* PaÃ­ses seleccionados */}
+          {/* Países seleccionados */}
           {stays.length > 0 && (
             <View style={{ gap: 8 }}>
               <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8 }}>
-                SELECCIONADOS Â· {stays.length}
+                SELECCIONADOS · {stays.length}
               </Text>
               {stays.map((s, index) => (
                 <View
@@ -918,7 +920,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Country select */}
           <View>
             <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 10 }}>
-              {stays.length > 0 ? "AÃ‘ADIR OTRO PAÃS" : "PAÃS"}
+              {stays.length > 0 ? "AÑADIR OTRO PAÍS" : "PAÍS"}
             </Text>
             <CountrySelect
               valueName=""
@@ -935,7 +937,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <TouchableOpacity
             onPress={() => {
               if (stays.length === 0) {
-                appAlert("Selecciona un destino", "Elige a dÃ³nde quieres viajar.");
+                appAlert("Selecciona un destino", "Elige a dónde quieres viajar.");
                 return;
               }
               setStep(2);
@@ -953,7 +955,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* â”€â”€ PASO 2: Ruta y fechas â”€â”€ */}
+      {/* ── PASO 2: Ruta y fechas ── */}
       {step === 2 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
           {/* Header */}
@@ -964,7 +966,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Ruta y fechas</Text>
               <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
-                {stays.length > 1 ? "Ordena los paÃ­ses y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino")}
+                {stays.length > 1 ? "Ordena los países y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino")}
               </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 6 }}>
@@ -975,7 +977,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           {totalDays != null && stays.length > 1 && (
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} dÃ­as en total</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
           )}
 
           <TripDatesEditor stays={stays} onChangeStays={updateStays} />
@@ -1018,7 +1020,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* â”€â”€ PASO 3: Ãšltimos detalles â”€â”€ */}
+      {/* ── PASO 3: Últimos detalles ── */}
       {step === 3 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
           {/* Header */}
@@ -1027,7 +1029,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               <Ionicons name="chevron-back" size={22} color={colors.primary} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Ãšltimos detalles</Text>
+              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Últimos detalles</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 6 }}>
               {[1,2,3].map(n => (
@@ -1071,8 +1073,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                 <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
                   <Ionicons name="camera-outline" size={24} color={colors.primary} />
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>AÃ±adir foto de portada</Text>
-                <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galerÃ­a</Text>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
+                <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galería</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -1090,9 +1092,9 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             />
           </View>
 
-          {/* Â¿Con quiÃ©n viajas? */}
+          {/* ¿Con quién viajas? */}
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>Â¿CON QUIÃ‰N VIAJAS?</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>¿CON QUIÉN VIAJAS?</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {COMPANION_OPTIONS.map(o => {
                 const active = companion === o.id;
@@ -1120,7 +1122,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>PRESUPUESTO ESTIMADO</Text>
             <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>â‚¬</Text>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>€</Text>
               <TextInput
                 value={budgetText}
                 onChangeText={setBudgetText}
@@ -1153,7 +1155,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* â”€â”€ PASO 4: Â¡Viaje creado! â”€â”€ */}
+      {/* ── PASO 4: ¡Viaje creado! ── */}
       {step === 4 && (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 24 }}>
           {/* Check */}
@@ -1162,9 +1164,9 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           <View style={{ alignItems: "center", gap: 6 }}>
-            <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>Â¡Viaje creado!</Text>
+            <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¡Viaje creado!</Text>
             <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center" }}>
-              {createdTrip?.name ?? tripName} ya estÃ¡ en tu lista de viajes
+              {(createdTrip?.name ?? tripName)} ya está en tu lista de viajes
             </Text>
           </View>
 
@@ -1183,8 +1185,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>{createdTrip?.name ?? tripName}</Text>
                 <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: 3 }}>
-                  {totalDays ? `${totalDays} dÃ­as` : "â€”"}
-                  {travelers > 1 ? ` Â· ${travelers} viajeros` : ""}
+                  {totalDays ? `${totalDays} días` : "—"}
+                  {travelers > 1 ? ` · ${travelers} viajeros` : ""}
                 </Text>
               </View>
             </View>
