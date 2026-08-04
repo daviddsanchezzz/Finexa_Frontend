@@ -336,33 +336,40 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const countryCode = countryCodes[0] ?? null;
   const countryLabel = countryCodes.length > 0 ? countryCodes.map((c) => countryNameEs(c)).join(", ") : "Sin destino";
   const countryFlag = countryCodes.map((c) => cca2ToFlagEmoji(c)).join("");
-  const countryHeroLine = useMemo(() => {
-    const stays = (trip?.countryStays ?? [])
-      .map((stay) => ({
-        country: (stay.country || "").trim().toUpperCase(),
-        startDate: stay.startDate || null,
-        endDate: stay.endDate || null,
-      }))
-      .filter((stay) => stay.country);
+  const countryStaysForHero = useMemo(
+    () =>
+      (trip?.countryStays ?? [])
+        .map((stay) => ({
+          country: (stay.country || "").trim().toUpperCase(),
+          startDate: stay.startDate || null,
+          endDate: stay.endDate || null,
+        }))
+        .filter((stay) => stay.country),
+    [trip?.countryStays]
+  );
 
-    if (stays.length === 0) {
-      return countryCodes.map((code) => `${cca2ToFlagEmoji(code)} ${countryNameEs(code)}`).join(" · ");
-    }
-
-    const firstStart = stays[0]?.startDate ?? null;
-    const firstEnd = stays[0]?.endDate ?? null;
-    const allSameRange = stays.every(
+  const heroUsesSingleRange = useMemo(() => {
+    if (countryStaysForHero.length === 0) return true;
+    const firstStart = countryStaysForHero[0]?.startDate ?? null;
+    const firstEnd = countryStaysForHero[0]?.endDate ?? null;
+    return countryStaysForHero.every(
       (stay) => stay.startDate === firstStart && stay.endDate === firstEnd,
     );
+  }, [countryStaysForHero]);
 
-    if (allSameRange) {
-      return stays.map((stay) => `${cca2ToFlagEmoji(stay.country)} ${countryNameEs(stay.country)}`).join(" · ");
+  const heroHeaderLine = useMemo(() => {
+    const heroCountries = countryStaysForHero.length > 0
+      ? countryStaysForHero.map((stay) => stay.country)
+      : countryCodes;
+
+    if (heroCountries.length === 0) return "";
+    if (heroCountries.length === 1) {
+      const code = heroCountries[0];
+      return `${cca2ToFlagEmoji(code)} ${countryNameEs(code)}`;
     }
 
-    return stays
-      .map((stay) => `${cca2ToFlagEmoji(stay.country)} ${formatDateRange(stay.startDate, stay.endDate) ?? countryNameEs(stay.country)}`)
-      .join(" · ");
-  }, [trip?.countryStays, countryCodes]);
+    return heroCountries.map((code) => cca2ToFlagEmoji(code)).join(" ");
+  }, [countryStaysForHero, countryCodes]);
 
   // =========================
   // TASKS CALLBACKS
@@ -730,17 +737,24 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </View>
           ) : null;
 
-          const summaryLine = `${days > 0 ? `${days} días` : "—"} · ${formatEuro(totalGastado)}`;
+          const summaryLine = `${formatDateRange(trip.startDate, trip.endDate)} · ${days > 0 ? `${days} días` : "—"} · ${formatEuro(totalGastado)}`;
+          const dateLine = formatDateRange(trip.startDate, trip.endDate);
+          const daysLine = `${days > 0 ? `${days} días` : "—"}`;
+          const amountLine = formatEuro(totalGastado);
+
           const metaBlock = (
             <View style={{ marginTop: 6, gap: 4 }}>
-              {countryHeroLine ? (
+              {heroHeaderLine ? (
                 <Text
-                  style={{ fontSize: 14, color: "rgba(255,255,255,0.82)", fontWeight: "700" }}
+                  style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", fontWeight: "700" }}
                   numberOfLines={2}
                 >
-                  {countryHeroLine}
+                  {heroHeaderLine}
                 </Text>
               ) : null}
+              <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                {trip.name}
+              </Text>
               <Text
                 style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", fontWeight: "700" }}
                 numberOfLines={1}
@@ -750,21 +764,42 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </View>
           );
 
+          const photoMetaBlock = (
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
+              <View style={{ flex: 1, justifyContent: "flex-end" }}>
+                {heroHeaderLine ? (
+                  <Text
+                    style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", fontWeight: "700", marginBottom: 6 }}
+                    numberOfLines={2}
+                  >
+                    {heroHeaderLine}
+                  </Text>
+                ) : null}
+                <Text style={{ fontSize: 30, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                  {trip.name}
+                </Text>
+              </View>
+
+              <View style={{ minWidth: 140, alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                  {dateLine}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                  {daysLine}
+                </Text>
+                <Text style={{ fontSize: 26, fontWeight: "900", color: "white", marginTop: 10 }} numberOfLines={1}>
+                  {amountLine}
+                </Text>
+              </View>
+            </View>
+          );
+
           const heroInnerWithPhoto = (
             <>
               <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.35)" }} />
               {topBar}
-              <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
-                      {trip.name}
-                    </Text>
-                    {metaBlock}
-                  </View>
-                  {addCoverButton}
-                </View>
-                {budgetBar}
+              <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
+                {photoMetaBlock}
               </View>
             </>
           );
@@ -787,9 +822,6 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
-                      {trip.name}
-                    </Text>
                     {metaBlock}
                   </View>
                   {addCoverButton}
