@@ -35,6 +35,13 @@ function iconForType(type: string | null) {
       return { name: "airplane-outline" as const, bg: "#DBEAFE", color: "#2563EB" };
     case "trip_invite_accepted":
       return { name: "checkmark-circle-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
+    case "trip_reminder_transport":
+      return { name: "car-outline" as const, bg: "#DBEAFE", color: "#2563EB" };
+    case "trip_reminder_checkin":
+    case "trip_reminder_checkout":
+      return { name: "bed-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
+    case "trip_expense_added":
+      return { name: "receipt-outline" as const, bg: "#FEF3C7", color: "#D97706" };
     default:
       return { name: "notifications-outline" as const, bg: "#F3F4F6", color: "#6B7280" };
   }

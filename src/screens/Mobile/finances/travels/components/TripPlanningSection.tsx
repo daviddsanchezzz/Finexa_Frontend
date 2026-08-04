@@ -7,6 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
 import api from "../../../../../api/api";
 import TripMapView from "./TripMapView";
+import { useTripActivityStatus } from "../../../../../hooks/useTripActivityStatus";
 
 type TripPlanItemType =
   | "flight"
@@ -783,6 +784,18 @@ function ActivityCard({
   );
 }
 
+function NowMarker({ time }: { time: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 22, marginVertical: 8 }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: "#EF4444" }} />
+      <View style={{ backgroundColor: "#EF4444", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, marginHorizontal: 6 }}>
+        <Text style={{ color: "white", fontSize: 9, fontWeight: "900" }}>AHORA · {time}</Text>
+      </View>
+      <View style={{ flex: 1, height: 1, backgroundColor: "#EF4444" }} />
+    </View>
+  );
+}
+
 export default function TripPlanningSectionRedesign({
   tripId,
   trip,
@@ -958,6 +971,14 @@ export default function TripPlanningSectionRedesign({
   const isNoDate = selectedDay === NO_DATE;
   const dayNumber = isNoDate ? null : Math.max(1, dayKeys.findIndex((d) => d === selectedDay) + 1);
 
+  // Marca hecho/en curso/pendiente por item, y dónde insertar el separador
+  // "AHORA" — solo tiene sentido en el día de hoy.
+  const activityStatus = useTripActivityStatus(dayItems as any);
+  const todayKey = new Date().toLocaleDateString("en-CA");
+  const showNowMarker = !isNoDate && selectedDay === todayKey;
+  const firstNotDoneIdx = dayItems.findIndex((it) => activityStatus.statusById.get(it.id) !== "done");
+  const nowTimeLabel = activityStatus.now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+
   // Map keys — force remount when item identity or order changes (geocoding stays cached)
   const summaryMapKey = planningItems.map(i => `${i.id}:${(i as any).startAt ?? (i as any).day ?? ""}`).join("|");
   const dayMapKey = `${selectedDay}:` + dayItems.map(i => `${i.id}:${(i as any).startAt ?? ""}`).join("|");
@@ -1111,6 +1132,7 @@ export default function TripPlanningSectionRedesign({
                   backgroundColor: UI.rail,
                 }} />
               )}
+              {showNowMarker && firstNotDoneIdx === 0 && <NowMarker time={nowTimeLabel} />}
               {dayItems.map((it, idx) => {
                 const isLast = idx === dayItems.length - 1;
                 const bMeta = TYPE_META[it.type];
@@ -1118,24 +1140,48 @@ export default function TripPlanningSectionRedesign({
                 const dotAccent = expCat && EXPENSE_CAT_META[expCat as string]
                   ? EXPENSE_CAT_META[expCat as string].accent
                   : bMeta?.accent ?? UI.text;
+                const status = activityStatus.statusById.get(it.id);
+                const isDone = status === "done";
+                const isCurrent = status === "current";
 
-                return (
-                  <View key={it.id} style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                const row = (
+                  <View key={it.id} style={{ flexDirection: "row", alignItems: "flex-start", opacity: isDone ? 0.55 : 1 }}>
                     {/* Timeline dot */}
                     <View style={{ width: 22, alignItems: "center", paddingTop: 13 }}>
-                      <View style={{
-                        width: 10, height: 10, borderRadius: 99,
-                        backgroundColor: dotAccent,
-                        borderWidth: 2, borderColor: "#F6F8FC",
-                        zIndex: 1,
-                      }} />
+                      {isDone ? (
+                        <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+                      ) : (
+                        <View style={{
+                          width: 10, height: 10, borderRadius: 99,
+                          backgroundColor: isCurrent ? colors.primary : dotAccent,
+                          borderWidth: 2, borderColor: "#F6F8FC",
+                          zIndex: 1,
+                        }} />
+                      )}
                     </View>
                     <View style={{ flex: 1, marginLeft: 6, marginBottom: isLast ? 0 : 10 }}>
-                      <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
+                      {isCurrent ? (
+                        <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: "rgba(37,99,235,0.06)", padding: 3 }}>
+                          <Text style={{ fontSize: 9, fontWeight: "900", color: colors.primary, marginLeft: 6, marginBottom: 2 }}>EN CURSO</Text>
+                          <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
+                        </View>
+                      ) : (
+                        <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
+                      )}
                     </View>
                   </View>
                 );
+
+                return (
+                  <React.Fragment key={it.id}>
+                    {row}
+                    {showNowMarker && idx === firstNotDoneIdx - 1 && idx !== dayItems.length - 1 && (
+                      <NowMarker time={nowTimeLabel} />
+                    )}
+                  </React.Fragment>
+                );
               })}
+              {showNowMarker && firstNotDoneIdx === -1 && dayItems.length > 0 && <NowMarker time={nowTimeLabel} />}
             </View>
           )}
 
