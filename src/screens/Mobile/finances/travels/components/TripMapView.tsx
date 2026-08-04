@@ -36,7 +36,28 @@ const TYPE_COLOR: Partial<Record<string, string>> = {
   cafe: "#EA580C",
 };
 const DEFAULT_COLOR = "#A855F7";
-const DAY_COLORS = ["#2563EB", "#06B6D4", "#8B5CF6", "#F97316", "#16A34A", "#EC4899", "#EAB308", "#14B8A6"];
+const DAY_COLORS = [
+  "#2563EB",
+  "#06B6D4",
+  "#8B5CF6",
+  "#F97316",
+  "#16A34A",
+  "#EC4899",
+  "#EAB308",
+  "#14B8A6",
+  "#EF4444",
+  "#0F766E",
+  "#7C3AED",
+  "#EA580C",
+  "#65A30D",
+  "#DB2777",
+  "#0891B2",
+  "#DC2626",
+  "#4F46E5",
+  "#059669",
+  "#C2410C",
+  "#9333EA",
+];
 
 // ─── Geocoding cache (memory + localStorage para persistir entre sesiones) ──────
 
@@ -164,13 +185,51 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
     maxZoom:19,subdomains:'abcd'
   }).addTo(map);
+  function pointKey(p){
+    return p.lat.toFixed(4)+','+p.lng.toFixed(4);
+  }
+  function segmentKey(a,b){
+    var aKey=pointKey(a), bKey=pointKey(b);
+    return aKey < bKey ? aKey+'|'+bKey : bKey+'|'+aKey;
+  }
+  function offsetSegment(a,b,index,total){
+    if(total <= 1) return [[a.lat,a.lng],[b.lat,b.lng]];
+    var dx=b.lng-a.lng;
+    var dy=b.lat-a.lat;
+    var len=Math.sqrt(dx*dx + dy*dy) || 1;
+    var perpLat=-dx/len;
+    var perpLng=dy/len;
+    var step=Math.min(0.018, Math.max(0.0045, len * 0.01));
+    var delta=(index - ((total - 1) / 2)) * step;
+    return [
+      [a.lat + (perpLat * delta), a.lng + (perpLng * delta)],
+      [b.lat + (perpLat * delta), b.lng + (perpLng * delta)]
+    ];
+  }
   if(rt.length>1){
+    var segments=[];
     for(var i=1;i<rt.length;i++){
       var prev=rt[i-1],curr=rt[i];
-      L.polyline([[prev.lat,prev.lng],[curr.lat,curr.lng]],{
-        color:curr.color||prev.color||'#2563EB',weight:3,opacity:0.7,dashArray:'10,8',lineCap:'round',lineJoin:'round'
-      }).addTo(map);
+      segments.push({
+        from: prev,
+        to: curr,
+        color: curr.color||prev.color||'#2563EB',
+        key: segmentKey(prev,curr)
+      });
     }
+    var grouped={};
+    segments.forEach(function(segment){
+      if(!grouped[segment.key]) grouped[segment.key]=[];
+      grouped[segment.key].push(segment);
+    });
+    Object.keys(grouped).forEach(function(key){
+      var group=grouped[key];
+      group.forEach(function(segment,index){
+        L.polyline(offsetSegment(segment.from, segment.to, index, group.length),{
+          color:segment.color,weight:3,opacity:0.7,dashArray:'10,8',lineCap:'round',lineJoin:'round'
+        }).addTo(map);
+      });
+    });
   }
   var markerMode=${JSON.stringify(markerMode)};
   ms.forEach(function(m,i){
