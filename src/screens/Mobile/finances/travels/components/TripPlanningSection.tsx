@@ -1231,7 +1231,10 @@ export default function TripPlanningSectionRedesign({
               <Ionicons name="close" size={22} color="#64748B" />
             </Pressable>
           </View>
-          <TripMapView planItems={viewMode === "day" ? dayItems : planningItemsSorted} />
+          <TripMapView
+            planItems={viewMode === "day" ? dayItems : planningItemsSorted}
+            markerMode={viewMode === "day" ? "numbered" : "dots"}
+          />
         </SafeAreaView>
       </Modal>
     </View>
