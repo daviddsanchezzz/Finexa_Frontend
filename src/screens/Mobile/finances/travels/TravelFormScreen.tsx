@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Pressable,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../theme/theme";
@@ -162,9 +163,8 @@ function buildSmartStays(prev: StayDraft[], incoming: StayDraft[]) {
     let startDate = stay.startDate ? startOfDay(stay.startDate) : null;
     let endDate = stay.endDate ? startOfDay(stay.endDate) : null;
 
-    if (startDate && !endDate) endDate = startDate;
     if (endDate && !startDate) startDate = endDate;
-    if (startDate && endDate && endDate < startDate) [startDate, endDate] = [endDate, startDate];
+    if (startDate && endDate && endDate < startDate) endDate = null;
 
     return { ...stay, startDate, endDate };
   });
@@ -209,7 +209,7 @@ function buildSmartStays(prev: StayDraft[], incoming: StayDraft[]) {
       if (!hasFullRange(next) || !next.startDate || !next.endDate) continue;
       if (current.startDate <= next.endDate && current.endDate >= next.startDate) {
         return {
-          error: `Las fechas de ${countryNameEs(next.countryCode) || next.countryName} se solapan con otro paí­s.`,
+          error: `Las fechas de ${countryNameEs(next.countryCode) || next.countryName} se solapan con otro país.`,
         };
       }
     }
@@ -254,6 +254,7 @@ const ROUTE_STOP_COLORS = ["#2563EB", "#0D9488", "#EA580C", "#7C3AED", "#DB2777"
 function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerTarget, setDatePickerTarget] = useState<{ index: number; field: "start" | "end" } | null>(null);
+  const [actionsIndex, setActionsIndex] = useState<number | null>(null);
 
   const moveStay = (index: number, dir: -1 | 1) => {
     const target = index + dir;
@@ -266,17 +267,8 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
     if (stays.length <= 1) return;
     onChangeStays(stays.filter((_, i) => i !== index));
   };
-  const openStopActions = (index: number) => {
-    const stop = stays[index];
-    const label = countryNameEs(stop?.countryCode) || stop?.countryName || "Tramo";
-    const actions: any[] = [];
-    if (index > 0) actions.push({ text: "Mover arriba", onPress: () => moveStay(index, -1) });
-    if (index < stays.length - 1) actions.push({ text: "Mover abajo", onPress: () => moveStay(index, 1) });
-    if (stop?.startDate || stop?.endDate) actions.push({ text: "Borrar fechas", onPress: () => onChangeStays(stays.map((item, itemIndex) => itemIndex === index ? { ...item, startDate: null, endDate: null } : item)) });
-    if (stays.length > 1) actions.push({ text: "Eliminar", style: "destructive", onPress: () => removeStay(index) });
-    actions.push({ text: "Cancelar", style: "cancel" });
-    appAlert(label, "¿Qué quieres hacer con este tramo?", actions);
-  };
+  const openStopActions = (index: number) => setActionsIndex(index);
+  const closeStopActions = () => setActionsIndex(null);
 
   const handleConfirmDate = (date: Date) => {
     if (!datePickerTarget) return;
@@ -284,7 +276,7 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
     onChangeStays(stays.map((s, i) => {
       if (i !== index) return s;
       if (field === "start") {
-        const nextEnd = !s.endDate || s.endDate < date ? date : s.endDate;
+        const nextEnd = s.endDate && s.endDate >= date ? s.endDate : null;
         return { ...s, startDate: date, endDate: nextEnd };
       }
       const nextStart = !s.startDate || date < s.startDate ? date : s.startDate;
@@ -357,6 +349,80 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
         onConfirm={handleConfirmDate}
         onCancel={() => { setDatePickerVisible(false); setDatePickerTarget(null); }}
       />
+
+      <Modal
+        visible={actionsIndex != null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeStopActions}
+      >
+        <Pressable
+          onPress={closeStopActions}
+          style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.42)", justifyContent: "center", padding: 20 }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: "white", borderRadius: 24, padding: 20, gap: 10 }}
+          >
+            {actionsIndex != null ? (
+              <>
+                <Text style={{ fontSize: 24, fontWeight: "300", color: "#0F172A" }}>
+                  {countryNameEs(stays[actionsIndex]?.countryCode) || stays[actionsIndex]?.countryName || "Tramo"}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                  ¿Qué quieres hacer con este tramo?
+                </Text>
+
+                {actionsIndex > 0 && (
+                  <TouchableOpacity
+                    onPress={() => { moveStay(actionsIndex, -1); closeStopActions(); }}
+                    style={{ borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 14, paddingHorizontal: 14 }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#0F172A" }}>Mover arriba</Text>
+                  </TouchableOpacity>
+                )}
+
+                {actionsIndex < stays.length - 1 && (
+                  <TouchableOpacity
+                    onPress={() => { moveStay(actionsIndex, 1); closeStopActions(); }}
+                    style={{ borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 14, paddingHorizontal: 14 }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#0F172A" }}>Mover abajo</Text>
+                  </TouchableOpacity>
+                )}
+
+                {(stays[actionsIndex]?.startDate || stays[actionsIndex]?.endDate) && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onChangeStays(stays.map((item, itemIndex) => itemIndex === actionsIndex ? { ...item, startDate: null, endDate: null } : item));
+                      closeStopActions();
+                    }}
+                    style={{ borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 14, paddingHorizontal: 14 }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#0F172A" }}>Borrar fechas</Text>
+                  </TouchableOpacity>
+                )}
+
+                {stays.length > 1 && (
+                  <TouchableOpacity
+                    onPress={() => { removeStay(actionsIndex); closeStopActions(); }}
+                    style={{ borderRadius: 14, backgroundColor: "#FEF2F2", paddingVertical: 14, paddingHorizontal: 14 }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#DC2626" }}>Eliminar</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  onPress={closeStopActions}
+                  style={{ alignItems: "center", paddingTop: 6, paddingBottom: 2 }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#64748B" }}>Cancelar</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -541,7 +607,7 @@ function TripDatesEditor({
     <View style={{ gap: 12 }}>
       <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
         {([
-          { id: "per_country" as const, label: "Por paí­s" },
+          { id: "per_country" as const, label: "Por país" },
           { id: "single_range" as const, label: "Inicio y fin" },
         ]).map((opt) => {
           const active = mode === opt.id;
@@ -600,9 +666,9 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   };
 
   const handleSave = async () => {
-    if (!name.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre para el viaje."); return; }
+    if (!name.trim()) { appAlert("Falta el nombre", "Añade un nombre para el viaje."); return; }
     const validStays = stays.filter((s) => s.countryCode);
-    if (validStays.length === 0) { appAlert("Falta el paí­s", "Selecciona al menos un paí­s."); return; }
+    if (validStays.length === 0) { appAlert("Falta el país", "Selecciona al menos un país."); return; }
     try {
       setSaving(true);
       await api.patch(`/trips/${editTrip.id}`, {
@@ -694,7 +760,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
               <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
                 <Ionicons name="camera-outline" size={22} color={colors.primary} />
               </View>
-              <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>AÃ±adir foto de portada</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -722,7 +788,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
             )}
           </View>
 
-          <TripDatesEditor stays={stays} onChangeStays={updateStays} />
+          <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
 
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÑADIR OTRO PAÍS</Text>
