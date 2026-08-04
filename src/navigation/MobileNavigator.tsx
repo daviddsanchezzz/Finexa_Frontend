@@ -44,6 +44,7 @@ export type RootStackParamList = {
   InvestmentComposition: undefined;
   InvestmentTargetAllocation: undefined;
   Notifications: undefined;
+  Friends: undefined;
   BiometricSetup: undefined;
   NetWorth: undefined;
   FinancesSettings: undefined;
@@ -320,6 +321,13 @@ export default function MobileNavigator() {
             name="Notifications"
             getComponent={() =>
               require("../screens/Mobile/profile/NotificationsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="Friends"
+            getComponent={() =>
+              require("../screens/Mobile/profile/FriendsScreen").default
             }
           />
 

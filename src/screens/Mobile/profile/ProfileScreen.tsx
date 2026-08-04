@@ -4,10 +4,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../../context/AuthContext";
 import { colors } from "../../../theme/theme";
+import { useFriends } from "../../../hooks/useFriends";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
+  const { friends, incomingRequests } = useFriends();
   const sections = [
+    {
+      title: "Social",
+      items: [
+        { label: "Amigos", icon: "people-outline", navigate: "Friends", count: friends.length },
+        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications", badge: incomingRequests.length },
+      ],
+    },
     {
       title: "Perfil",
       items: [
@@ -20,7 +29,6 @@ export default function ProfileScreen({ navigation }: any) {
       items: [
         { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
         { label: "Apariencia", icon: "sunny-outline", navigate: "Appearance" },
-        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications" },
       ],
     },
     {
@@ -132,7 +140,30 @@ export default function ProfileScreen({ navigation }: any) {
                     />
                     <Text className="text-[15px] text-text font-medium">{item.label}</Text>
                   </View>
-                  <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
+                  <View className="flex-row items-center">
+                    {"count" in item && !!item.count && (
+                      <Text className="text-gray-400 text-[14px] mr-2">{item.count}</Text>
+                    )}
+                    {"badge" in item && !!item.badge && (
+                      <View
+                        style={{
+                          backgroundColor: "#EF4444",
+                          borderRadius: 100,
+                          minWidth: 18,
+                          height: 18,
+                          paddingHorizontal: 4,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 6,
+                        }}
+                      >
+                        <Text style={{ color: "white", fontSize: 11, fontWeight: "700" }}>
+                          {item.badge}
+                        </Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
