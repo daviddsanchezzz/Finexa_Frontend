@@ -769,25 +769,25 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <View style={{ flex: 1, justifyContent: "flex-end" }}>
                 {heroHeaderLine ? (
                   <Text
-                    style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", fontWeight: "700", marginBottom: 6 }}
+                    style={{ fontSize: 12, color: "rgba(255,255,255,0.76)", fontWeight: "700", marginBottom: 4 }}
                     numberOfLines={2}
                   >
                     {heroHeaderLine}
                   </Text>
                 ) : null}
-                <Text style={{ fontSize: 30, fontWeight: "900", color: "white" }} numberOfLines={1}>
+                <Text style={{ fontSize: 26, fontWeight: "900", color: "white", lineHeight: 28 }} numberOfLines={1}>
                   {trip.name}
                 </Text>
               </View>
 
-              <View style={{ minWidth: 140, alignItems: "flex-end" }}>
-                <Text style={{ fontSize: 18, fontWeight: "900", color: "white" }} numberOfLines={1}>
+              <View style={{ minWidth: 112, alignItems: "flex-end", paddingBottom: 2 }}>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
                   {dateLine}
                 </Text>
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "rgba(255,255,255,0.74)", marginTop: 2 }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginTop: 2 }}>
                   {daysLine}
                 </Text>
-                <Text style={{ fontSize: 26, fontWeight: "900", color: "white", marginTop: 10 }} numberOfLines={1}>
+                <Text style={{ fontSize: 20, fontWeight: "900", color: "white", marginTop: 6 }} numberOfLines={1}>
                   {amountLine}
                 </Text>
               </View>
