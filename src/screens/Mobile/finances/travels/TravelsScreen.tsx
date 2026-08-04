@@ -862,6 +862,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                     const showCost  = t.status === "seen" && (t.cost || 0) > 0;
                     const countryCodes = tripCountryCodes(t);
                     const isMultiCountry = countryCodes.length > 1;
+                    const showSingleCountryFlagNearTitle = !isMultiCountry && !!t.coverImageUrl && !!countryCodes[0];
 
                     return (
                       <TouchableOpacity
@@ -885,6 +886,9 @@ export default function TripsHomeScreen({ navigation }: any) {
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
                             {isMultiCountry && (
                               <CountryBadgesRow codes={countryCodes.slice(0, 3)} size={14} />
+                            )}
+                            {showSingleCountryFlagNearTitle && (
+                              <CountryBadge code={countryCodes[0]} size={14} />
                             )}
                             <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }} numberOfLines={1}>
                               {t.name}

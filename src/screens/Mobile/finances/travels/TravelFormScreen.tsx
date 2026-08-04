@@ -1,4 +1,4 @@
-// src/screens/Trips/TravelFormScreen.tsx
+﻿// src/screens/Trips/TravelFormScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -50,11 +50,11 @@ interface TripFromApi {
 interface StayDraft {
   countryCode: string | null;
   countryName: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | null;
+  endDate: Date | null;
 }
 
-/* ─── Helpers ─── */
+/* â”€â”€â”€ Helpers â”€â”€â”€ */
 function isValidISODate(iso?: string | null) {
   if (!iso) return false;
   return !Number.isNaN(new Date(iso).getTime());
@@ -62,7 +62,7 @@ function isValidISODate(iso?: string | null) {
 function parseMoney(text: string): number {
   const t = (text || "").trim();
   if (!t) return 0;
-  const n = Number(t.replace(/\./g, "").replace(",", ".").replace("€", "").trim());
+  const n = Number(t.replace(/\./g, "").replace(",", ".").replace("â‚¬", "").trim());
   return Number.isFinite(n) ? n : 0;
 }
 function looksLikeCca2(v?: string | null) {
@@ -70,7 +70,7 @@ function looksLikeCca2(v?: string | null) {
 }
 function flagEmojiFromISO2(code?: string | null) {
   const c = (code || "").trim().toUpperCase();
-  if (!/^[A-Z]{2}$/.test(c)) return "🌍";
+  if (!/^[A-Z]{2}$/.test(c)) return "ðŸŒ";
   return String.fromCodePoint(...[...c].map(ch => 127397 + ch.charCodeAt(0)));
 }
 function countryNameEs(code?: string | null) {
@@ -81,6 +81,47 @@ function countryNameEs(code?: string | null) {
 }
 function formatShortDate(d: Date) {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+}
+function formatOptionalShortDate(d?: Date | null) {
+  return d ? formatShortDate(d) : "â€”";
+}
+function startOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+function areSameDay(a?: Date | null, b?: Date | null) {
+  if (!a || !b) return false;
+  return startOfDay(a).getTime() === startOfDay(b).getTime();
+}
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+function hasFullRange(stay: StayDraft) {
+  return !!stay.startDate && !!stay.endDate;
+}
+function getStayKey(stay: StayDraft, index: number) {
+  return stay.countryCode || `${stay.countryName}-${index}`;
+}
+function sortStaysByDate(stays: StayDraft[], previousOrder?: string[]) {
+  const orderMap = new Map((previousOrder || []).map((key, index) => [key, index]));
+  return [...stays].sort((a, b) => {
+    const aTime = a.startDate ? startOfDay(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+    const bTime = b.startDate ? startOfDay(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+    if (aTime !== bTime) return aTime - bTime;
+    const aOrder = orderMap.get(getStayKey(a, 0)) ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = orderMap.get(getStayKey(b, 0)) ?? Number.MAX_SAFE_INTEGER;
+    return aOrder - bOrder;
+  });
+}
+function getTotalDays(stays: StayDraft[]) {
+  const starts = stays.map((s) => s.startDate?.getTime()).filter((value): value is number => Number.isFinite(value));
+  const ends = stays.map((s) => s.endDate?.getTime()).filter((value): value is number => Number.isFinite(value));
+  if (!starts.length || !ends.length) return null;
+  const days = Math.round((Math.max(...ends) - Math.min(...starts)) / 86400000) + 1;
+  return days > 0 ? days : 1;
 }
 function getCalCells(year: number, month: number): (number | null)[] {
   const first = new Date(year, month, 1).getDay();
@@ -101,31 +142,91 @@ const COMPANION_OPTIONS = [
   { id: "amigos", label: "Amigos",  icon: "people-circle-outline" as const },
 ];
 
-/* ─── Edit form (pantalla completa única) ─── */
+type TripDateMode = "per_country" | "single_range";
+
+function detectTripDateMode(stays: StayDraft[]): TripDateMode {
+  const ranged = stays.filter(hasFullRange);
+  if (!ranged.length) return "per_country";
+  const first = ranged[0];
+  const sameRange = stays.every(
+    (stay) => areSameDay(stay.startDate, first.startDate) && areSameDay(stay.endDate, first.endDate),
+  );
+  return sameRange ? "single_range" : "per_country";
+}
+
+function buildSmartStays(prev: StayDraft[], incoming: StayDraft[]) {
+  const previousOrder = prev.map((stay, index) => getStayKey(stay, index));
+  const prevByKey = new Map(prev.map((stay, index) => [getStayKey(stay, index), stay]));
+
+  const normalized = incoming.map((stay) => {
+    let startDate = stay.startDate ? startOfDay(stay.startDate) : null;
+    let endDate = stay.endDate ? startOfDay(stay.endDate) : null;
+
+    if (startDate && !endDate) endDate = startDate;
+    if (endDate && !startDate) startDate = endDate;
+    if (startDate && endDate && endDate < startDate) [startDate, endDate] = [endDate, startDate];
+
+    return { ...stay, startDate, endDate };
+  });
+
+  let sorted = sortStaysByDate(normalized, previousOrder);
+
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    const current = sorted[index];
+    const next = sorted[index + 1];
+    if (!current.endDate || next.startDate || next.endDate) continue;
+
+    const nextKey = getStayKey(next, index + 1);
+    const previousNext = prevByKey.get(nextKey);
+    const nextWasEmpty = !previousNext || (!previousNext.startDate && !previousNext.endDate);
+    if (!nextWasEmpty) continue;
+
+    const autoDate = addDays(current.endDate, 1);
+    sorted[index + 1] = { ...next, startDate: autoDate, endDate: autoDate };
+  }
+
+  sorted = sortStaysByDate(sorted, previousOrder);
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const current = sorted[index];
+    if (!hasFullRange(current) || !current.startDate || !current.endDate) continue;
+
+    for (let nextIndex = index + 1; nextIndex < sorted.length; nextIndex += 1) {
+      const next = sorted[nextIndex];
+      if (!hasFullRange(next) || !next.startDate || !next.endDate) continue;
+      if (current.startDate <= next.endDate && current.endDate >= next.startDate) {
+        return {
+          error: `Las fechas de ${countryNameEs(next.countryCode) || next.countryName} se solapan con otro paÃ­s.`,
+        };
+      }
+    }
+  }
+
+  return { stays: sorted };
+}
+
+/* â”€â”€â”€ Edit form (pantalla completa Ãºnica) â”€â”€â”€ */
 function initialStaysFromTrip(editTrip: TripFromApi): StayDraft[] {
   if (editTrip.countryStays && editTrip.countryStays.length > 0) {
     return editTrip.countryStays.map((s) => ({
       countryCode: looksLikeCca2(s.country) ? s.country.toUpperCase() : null,
       countryName: looksLikeCca2(s.country) ? "" : s.country || "",
-      startDate: isValidISODate(s.startDate) ? new Date(s.startDate!) : new Date(),
-      endDate: isValidISODate(s.endDate) ? new Date(s.endDate!) : new Date(),
+      startDate: isValidISODate(s.startDate) ? new Date(s.startDate!) : null,
+      endDate: isValidISODate(s.endDate) ? new Date(s.endDate!) : null,
     }));
   }
   const dest = editTrip.destination ?? null;
   return [{
     countryCode: looksLikeCca2(dest) ? String(dest).toUpperCase() : null,
     countryName: looksLikeCca2(dest) ? "" : String(dest || ""),
-    startDate: isValidISODate(editTrip.startDate) ? new Date(editTrip.startDate) : new Date(),
-    endDate: isValidISODate(editTrip.endDate) ? new Date(editTrip.endDate) : new Date(),
+    startDate: isValidISODate(editTrip.startDate) ? new Date(editTrip.startDate) : null,
+    endDate: isValidISODate(editTrip.endDate) ? new Date(editTrip.endDate) : null,
   }];
 }
 
-// A new leg starts right where the previous one ends — a sensible default
-// the user can then adjust.
+// New stays start without dates; the editor fills them intelligently when needed.
 function nextStayDraft(code: string, name: string, previous: StayDraft[]): StayDraft {
-  const last = previous[previous.length - 1];
-  const start = last?.endDate ?? new Date();
-  return { countryCode: code, countryName: name, startDate: start, endDate: start };
+  return { countryCode: code, countryName: name, startDate: null, endDate: null };
 }
 
 const ROUTE_STOP_COLORS = ["#2563EB", "#0D9488", "#EA580C", "#7C3AED", "#DB2777", "#059669"];
@@ -133,7 +234,7 @@ const ROUTE_STOP_COLORS = ["#2563EB", "#0D9488", "#EA580C", "#7C3AED", "#DB2777"
 /**
  * Shared "route" editor used by both the create wizard and the edit form:
  * every country a trip touches is shown as an equal-standing stop (colored
- * dot + connecting line, own DESDE/HASTA dates) — there's no special
+ * dot + connecting line, own DESDE/HASTA dates) â€” there's no special
  * treatment for the first one, matching how the user actually thinks about
  * a multi-country trip (it's not "1 main country + extras", it's a route).
  */
@@ -158,6 +259,7 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
     const actions: any[] = [];
     if (index > 0) actions.push({ text: "Mover arriba", onPress: () => moveStay(index, -1) });
     if (index < stays.length - 1) actions.push({ text: "Mover abajo", onPress: () => moveStay(index, 1) });
+    if (stop?.startDate || stop?.endDate) actions.push({ text: "Borrar fechas", onPress: () => onChangeStays(stays.map((item, itemIndex) => itemIndex === index ? { ...item, startDate: null, endDate: null } : item)) });
     if (stays.length > 1) actions.push({ text: "Eliminar", style: "destructive", onPress: () => removeStay(index) });
     actions.push({ text: "Cancelar", style: "cancel" });
     appAlert(label, "¿Qué quieres hacer con este tramo?", actions);
@@ -168,8 +270,12 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
     const { index, field } = datePickerTarget;
     onChangeStays(stays.map((s, i) => {
       if (i !== index) return s;
-      if (field === "start") return { ...s, startDate: date, endDate: s.endDate < date ? date : s.endDate };
-      return { ...s, endDate: date, startDate: date < s.startDate ? date : s.startDate };
+      if (field === "start") {
+        const nextEnd = !s.endDate || s.endDate < date ? date : s.endDate;
+        return { ...s, startDate: date, endDate: nextEnd };
+      }
+      const nextStart = !s.startDate || date < s.startDate ? date : s.startDate;
+      return { ...s, endDate: date, startDate: nextStart };
     }));
     setDatePickerVisible(false);
     setDatePickerTarget(null);
@@ -210,14 +316,14 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
                   style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#E5E7EB" }}
                 >
                   <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>DESDE</Text>
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.startDate)}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(stay.startDate)}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => { setDatePickerTarget({ index, field: "end" }); setDatePickerVisible(true); }}
                   style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#E5E7EB" }}
                 >
                   <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>HASTA</Text>
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.endDate)}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(stay.endDate)}</Text>
                 </Pressable>
               </View>
             </View>
@@ -240,10 +346,10 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
   );
 }
 
-/** One shared start/end date range applied to every country stay — for when splitting dates per country isn't worth the bother. */
+/** One shared start/end date range applied to every country stay â€” for when splitting dates per country isn't worth the bother. */
 function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
-  const overallStart = stays.length ? new Date(Math.min(...stays.map((s) => s.startDate.getTime()))) : null;
-  const overallEnd = stays.length ? new Date(Math.max(...stays.map((s) => s.endDate.getTime()))) : null;
+  const overallStart = useMemo(() => {`r`n    const starts = stays.map((s) => s.startDate?.getTime()).filter((value): value is number => Number.isFinite(value));`r`n    return starts.length ? new Date(Math.min(...starts)) : null;`r`n  }, [stays]);
+  const overallEnd = useMemo(() => {`r`n    const ends = stays.map((s) => s.endDate?.getTime()).filter((value): value is number => Number.isFinite(value));`r`n    return ends.length ? new Date(Math.max(...ends)) : null;`r`n  }, [stays]);
 
   const [rangeStart, setRangeStart] = useState<Date | null>(overallStart);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(overallEnd);
@@ -379,18 +485,16 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
           <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>INICIO</Text>
-          <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{rangeStart ? formatShortDate(rangeStart) : "—"}</Text>
+          <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(rangeStart)}</Text>
         </View>
         <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
           <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>FIN</Text>
-          <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{rangeEnd ? formatShortDate(rangeEnd) : "—"}</Text>
+          <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(rangeEnd)}</Text>
         </View>
       </View>
     </View>
   );
 }
-
-type TripDateMode = "per_country" | "single_range";
 
 /** Toggle between per-country dates (route editor) and one shared start/end for the whole trip. */
 function TripDatesEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
@@ -400,7 +504,7 @@ function TripDatesEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
     <View style={{ gap: 12 }}>
       <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
         {([
-          { id: "per_country" as const, label: "Por país" },
+          { id: "per_country" as const, label: "Por paÃ­s" },
           { id: "single_range" as const, label: "Inicio y fin" },
         ]).map((opt) => {
           const active = mode === opt.id;
@@ -432,7 +536,7 @@ function TripDatesEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
 
 function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigation: any }) {
   const [name, setName]           = useState(editTrip.name ?? "");
-  const [stays, setStays]         = useState<StayDraft[]>(() => initialStaysFromTrip(editTrip));
+  const initialStays = useMemo(() => initialStaysFromTrip(editTrip), [editTrip]);`r`n  const [stays, setStays]         = useState<StayDraft[]>(initialStays);`r`n  const [dateMode]                = useState<TripDateMode>(() => detectTripDateMode(initialStays));
   const [budgetText, setBudgetText] = useState(editTrip.budget != null ? String(editTrip.budget) : "");
   const [status, setStatus] = useState<TripStatus | null>((editTrip.status as TripStatus) ?? null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(editTrip.coverImageUrl ?? null);
@@ -454,9 +558,9 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   }, [stays]);
 
   const handleSave = async () => {
-    if (!name.trim()) { appAlert("Falta el nombre", "Añade un nombre para el viaje."); return; }
+    if (!name.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre para el viaje."); return; }
     const validStays = stays.filter((s) => s.countryCode);
-    if (validStays.length === 0) { appAlert("Falta el país", "Selecciona al menos un país."); return; }
+    if (validStays.length === 0) { appAlert("Falta el paÃ­s", "Selecciona al menos un paÃ­s."); return; }
     try {
       setSaving(true);
       await api.patch(`/trips/${editTrip.id}`, {
@@ -476,7 +580,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   };
 
   const handleDelete = () => {
-    appAlert("Eliminar viaje", "¿Seguro? Esta acción no se puede deshacer.", [
+    appAlert("Eliminar viaje", "Â¿Seguro? Esta acciÃ³n no se puede deshacer.", [
       { text: "Cancelar", style: "cancel" },
       { text: "Eliminar", style: "destructive", onPress: async () => {
         try {
@@ -548,7 +652,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
               <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
                 <Ionicons name="camera-outline" size={22} color={colors.primary} />
               </View>
-              <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>AÃ±adir foto de portada</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -572,14 +676,14 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
               {stays.length > 1 ? "RUTA Y FECHAS" : "DESTINO Y FECHAS"}
             </Text>
             {stays.length > 1 && (
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} dÃ­as en total</Text>
             )}
           </View>
 
-          <TripDatesEditor stays={stays} onChangeStays={setStays} />
+          <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
 
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÑADIR OTRO PAÍS</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÃ‘ADIR OTRO PAÃS</Text>
             <CountrySelect
               valueName=""
               valueCode={null}
@@ -615,7 +719,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
         <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
           <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>PRESUPUESTO ESTIMADO</Text>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>€</Text>
+            <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>â‚¬</Text>
             <TextInput
               value={budgetText}
               onChangeText={setBudgetText}
@@ -650,7 +754,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   );
 }
 
-/* ─── Create wizard ─── */
+/* â”€â”€â”€ Create wizard â”€â”€â”€ */
 export default function TripFormScreen({ route, navigation }: any) {
   const editTrip: TripFromApi | undefined = route?.params?.editTrip;
   if (editTrip) return <EditTripForm editTrip={editTrip} navigation={navigation} />;
@@ -683,9 +787,9 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     ? ""
     : stays.length === 1
       ? countryNameEs(stays[0].countryCode) || stays[0].countryName
-      : `${stays.length} países`;
+      : `${stays.length} paÃ­ses`;
 
-  // A trip is a route, not "1 main country + extras" — every selected
+  // A trip is a route, not "1 main country + extras" â€” every selected
   // country is an equal-standing stop. Toggling adds/removes it from the
   // selection; a newly added one starts right where the last one ends.
   const toggleCountry = (code: string, name: string) => {
@@ -704,8 +808,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   };
 
   const handleCreate = async () => {
-    if (!tripName.trim()) { appAlert("Falta el nombre", "Añade un nombre."); return; }
-    if (stays.length === 0) { appAlert("Falta el destino", "Selecciona al menos un país."); return; }
+    if (!tripName.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre."); return; }
+    if (stays.length === 0) { appAlert("Falta el destino", "Selecciona al menos un paÃ­s."); return; }
     try {
       setSaving(true);
       const res = await api.post("/trips", {
@@ -734,7 +838,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         <View style={{ height: 3, backgroundColor: colors.primary, width: `${progress * 100}%` }} />
       </View>
 
-      {/* ── PASO 1: ¿A dónde vas? ── */}
+      {/* â”€â”€ PASO 1: Â¿A dÃ³nde vas? â”€â”€ */}
       {step === 1 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }} keyboardShouldPersistTaps="handled">
           {/* Header */}
@@ -749,16 +853,16 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </View>
           </View>
 
-          <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¿A dónde vas?</Text>
+          <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>Â¿A dÃ³nde vas?</Text>
           <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: -14 }}>
-            Puedes elegir más de un país si tu viaje pasa por varios.
+            Puedes elegir mÃ¡s de un paÃ­s si tu viaje pasa por varios.
           </Text>
 
-          {/* Países seleccionados */}
+          {/* PaÃ­ses seleccionados */}
           {stays.length > 0 && (
             <View style={{ gap: 8 }}>
               <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8 }}>
-                SELECCIONADOS · {stays.length}
+                SELECCIONADOS Â· {stays.length}
               </Text>
               {stays.map((s, index) => (
                 <View
@@ -785,7 +889,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Country select */}
           <View>
             <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 10 }}>
-              {stays.length > 0 ? "AÑADIR OTRO PAÍS" : "PAÍS"}
+              {stays.length > 0 ? "AÃ‘ADIR OTRO PAÃS" : "PAÃS"}
             </Text>
             <CountrySelect
               valueName=""
@@ -802,7 +906,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <TouchableOpacity
             onPress={() => {
               if (stays.length === 0) {
-                appAlert("Selecciona un destino", "Elige a dónde quieres viajar.");
+                appAlert("Selecciona un destino", "Elige a dÃ³nde quieres viajar.");
                 return;
               }
               setStep(2);
@@ -820,7 +924,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* ── PASO 2: Ruta y fechas ── */}
+      {/* â”€â”€ PASO 2: Ruta y fechas â”€â”€ */}
       {step === 2 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
           {/* Header */}
@@ -831,7 +935,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Ruta y fechas</Text>
               <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
-                {stays.length > 1 ? "Ordena los países y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino")}
+                {stays.length > 1 ? "Ordena los paÃ­ses y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino")}
               </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 6 }}>
@@ -842,10 +946,10 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           {totalDays != null && stays.length > 1 && (
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} dÃ­as en total</Text>
           )}
 
-          <TripDatesEditor stays={stays} onChangeStays={setStays} />
+          <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
 
           {/* Viajeros */}
           <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
@@ -885,7 +989,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* ── PASO 3: Últimos detalles ── */}
+      {/* â”€â”€ PASO 3: Ãšltimos detalles â”€â”€ */}
       {step === 3 && (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
           {/* Header */}
@@ -894,7 +998,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               <Ionicons name="chevron-back" size={22} color={colors.primary} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Últimos detalles</Text>
+              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Ãšltimos detalles</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 6 }}>
               {[1,2,3].map(n => (
@@ -938,8 +1042,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                 <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
                   <Ionicons name="camera-outline" size={24} color={colors.primary} />
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
-                <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galería</Text>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>AÃ±adir foto de portada</Text>
+                <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galerÃ­a</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -957,9 +1061,9 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             />
           </View>
 
-          {/* ¿Con quién viajas? */}
+          {/* Â¿Con quiÃ©n viajas? */}
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>¿CON QUIÉN VIAJAS?</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>Â¿CON QUIÃ‰N VIAJAS?</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {COMPANION_OPTIONS.map(o => {
                 const active = companion === o.id;
@@ -987,7 +1091,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>PRESUPUESTO ESTIMADO</Text>
             <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>€</Text>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>â‚¬</Text>
               <TextInput
                 value={budgetText}
                 onChangeText={setBudgetText}
@@ -1020,7 +1124,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         </ScrollView>
       )}
 
-      {/* ── PASO 4: ¡Viaje creado! ── */}
+      {/* â”€â”€ PASO 4: Â¡Viaje creado! â”€â”€ */}
       {step === 4 && (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 24 }}>
           {/* Check */}
@@ -1029,9 +1133,9 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           <View style={{ alignItems: "center", gap: 6 }}>
-            <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¡Viaje creado!</Text>
+            <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>Â¡Viaje creado!</Text>
             <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center" }}>
-              {createdTrip?.name ?? tripName} ya está en tu lista de viajes
+              {createdTrip?.name ?? tripName} ya estÃ¡ en tu lista de viajes
             </Text>
           </View>
 
@@ -1050,8 +1154,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>{createdTrip?.name ?? tripName}</Text>
                 <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: 3 }}>
-                  {totalDays ? `${totalDays} días` : "—"}
-                  {travelers > 1 ? ` · ${travelers} viajeros` : ""}
+                  {totalDays ? `${totalDays} dÃ­as` : "â€”"}
+                  {travelers > 1 ? ` Â· ${travelers} viajeros` : ""}
                 </Text>
               </View>
             </View>
@@ -1086,3 +1190,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     </SafeAreaView>
   );
 }
+
+
+
+
+
