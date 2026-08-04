@@ -780,14 +780,14 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 </Text>
               </View>
 
-              <View style={{ minWidth: 112, alignItems: "flex-end", paddingBottom: 2 }}>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }} numberOfLines={1}>
+              <View style={{ minWidth: 108, alignItems: "flex-end", paddingBottom: 2 }}>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "white" }} numberOfLines={1}>
                   {dateLine}
                 </Text>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginTop: 2 }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginTop: 2 }}>
                   {daysLine}
                 </Text>
-                <Text style={{ fontSize: 20, fontWeight: "900", color: "white", marginTop: 6 }} numberOfLines={1}>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: "white", marginTop: 5 }} numberOfLines={1}>
                   {amountLine}
                 </Text>
               </View>
