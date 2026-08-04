@@ -336,7 +336,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const countryCode = countryCodes[0] ?? null;
   const countryLabel = countryCodes.length > 0 ? countryCodes.map((c) => countryNameEs(c)).join(", ") : "Sin destino";
   const countryFlag = countryCodes.map((c) => cca2ToFlagEmoji(c)).join("");
-  const countryHeroSummary = useMemo(() => {
+  const countryHeroLine = useMemo(() => {
     const stays = (trip?.countryStays ?? [])
       .map((stay) => ({
         country: (stay.country || "").trim().toUpperCase(),
@@ -346,25 +346,23 @@ export default function TripDetailScreen({ route, navigation }: any) {
       .filter((stay) => stay.country);
 
     if (stays.length === 0) {
-      return countryLabel ? `${countryFlag} ${countryLabel}`.trim() : "Sin destino";
+      return countryCodes.map((code) => `${cca2ToFlagEmoji(code)} ${countryNameEs(code)}`).join(" · ");
     }
 
     const firstStart = stays[0]?.startDate ?? null;
     const firstEnd = stays[0]?.endDate ?? null;
-    const isSingleRange = stays.every(
+    const allSameRange = stays.every(
       (stay) => stay.startDate === firstStart && stay.endDate === firstEnd,
     );
 
-    if (isSingleRange) {
-      return stays
-        .map((stay) => `${cca2ToFlagEmoji(stay.country)} ${countryNameEs(stay.country)}`)
-        .join(", ");
+    if (allSameRange) {
+      return stays.map((stay) => `${cca2ToFlagEmoji(stay.country)} ${countryNameEs(stay.country)}`).join(" · ");
     }
 
     return stays
       .map((stay) => `${cca2ToFlagEmoji(stay.country)} ${formatDateRange(stay.startDate, stay.endDate) ?? countryNameEs(stay.country)}`)
-      .join(", ");
-  }, [trip?.countryStays, countryFlag, countryLabel]);
+      .join(" · ");
+  }, [trip?.countryStays, countryCodes]);
 
   // =========================
   // TASKS CALLBACKS
@@ -732,26 +730,16 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </View>
           ) : null;
 
-          const datesBlock = (
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }} numberOfLines={1}>
-                {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
-              </Text>
-              {days > 0 && (
-                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{days} días</Text>
-              )}
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "white", marginTop: 5 }} numberOfLines={1}>
-                {formatEuro(totalGastado)}
-              </Text>
-              {trip.budget && trip.budget > 0 ? (
-                <Text style={{ fontSize: 10, color: budgetOver ? "#FCA5A5" : "rgba(255,255,255,0.65)", marginTop: 1 }}>
-                  de {formatEuro(trip.budget)}
-                </Text>
-              ) : null}
-            </View>
-          );
+          const summaryLine = `${days > 0 ? `${days} días` : "—"} · ${formatEuro(totalGastado)}`;
+          const countryLineBlock = countryHeroLine ? (
+            <Text
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.82)", fontWeight: "700", marginTop: 6 }}
+              numberOfLines={2}
+            >
+              {countryHeroLine}
+            </Text>
+          ) : null;
 
-          // ── Con foto: nombre abajo-izquierda junto al gasto/fechas (layout original) ──
           const heroInnerWithPhoto = (
             <>
               <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.35)" }} />
@@ -759,24 +747,18 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    {countryHeroSummary ? (
-                      <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
-                        {countryHeroSummary}
-                      </Text>
-                    ) : null}
                     <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
                       {trip.name}
                     </Text>
+                    {countryLineBlock}
                   </View>
-                  {datesBlock}
+                  {addCoverButton}
                 </View>
                 {budgetBar}
               </View>
             </>
           );
 
-          // ── Sin foto: bandera + nombre abajo-izquierda, fechas/gasto en una línea,
-          //    "Añadir foto" abajo-derecha, con un patrón de líneas decorativo de fondo ──
           const heroInnerNoPhoto = (
             <>
               <Svg
@@ -795,20 +777,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    {countryHeroSummary ? (
-                      <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
-                        {countryHeroSummary}
-                      </Text>
-                    ) : null}
                     <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
                       {trip.name}
                     </Text>
-                    <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 4 }} numberOfLines={1}>
-                      {formatDateRange(trip.startDate, trip.endDate) ?? "—"}
-                      {days > 0 ? ` · ${days} días` : ""}
-                      {" · "}{formatEuro(totalGastado)}
-                      {trip.budget && trip.budget > 0 ? ` de ${formatEuro(trip.budget)}` : ""}
-                    </Text>
+                    {countryLineBlock}
                   </View>
                   {addCoverButton}
                 </View>
