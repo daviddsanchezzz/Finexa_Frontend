@@ -12,6 +12,7 @@ import {
   FlatList,
   Image,
   useWindowDimensions,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,7 @@ import { TripPlanItemType, BudgetCategoryType, RoomType, BathroomType } from "..
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
 import { pickAndUploadAccommodationCover } from "../../../../utils/uploadTripCover";
+import { pickAndUploadTripAttachments, UploadedTripAttachment } from "../../../../utils/uploadTripAttachments";
 import { VisitStop, VisitStopType, VISIT_STOP_TYPES } from "./components/TripPlanningSection";
 
 // ==================== TYPES ====================
@@ -40,6 +42,10 @@ interface ActivityType {
   value: TripPlanItemType;
   icon: keyof typeof Ionicons.glyphMap;
 }
+
+type PlanAttachment = UploadedTripAttachment & {
+  id?: number;
+};
 
 // ==================== CONSTANTS ====================
 
@@ -476,7 +482,6 @@ export default function TripPlanFormScreen({
   const [actEndAt, setActEndAt] = useState<Date | null>(
     planItem?.endTime ? new Date(planItem.endTime) : null
   );
-  const [actNotes, setActNotes] = useState(planItem?.notes || "");
   const [actCostStr, setActCostStr] = useState(
     planItem?.cost && planItem.type !== "accommodation" && planItem.type !== "flight"
       ? String(planItem.cost).replace(".", ",")
@@ -515,7 +520,6 @@ export default function TripPlanFormScreen({
   const [expOccurredAt, setExpOccurredAt] = useState<Date | null>(
     planItem?.date ? new Date(planItem.date) : presetDay ? new Date(`${presetDay}T12:00`) : new Date()
   );
-  const [expNotes, setExpNotes] = useState(planItem?.notes || "");
   const [expEurPreview, setExpEurPreview] = useState<number | null>(null);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
 
@@ -527,8 +531,48 @@ export default function TripPlanFormScreen({
     return () => { cancelled = true; };
   }, [expAmountStr, expCurrency]);
 
+  const handleAddAttachments = async () => {
+    try {
+      setUploadingAttachments(true);
+      const uploaded = await pickAndUploadTripAttachments();
+      if (uploaded.length > 0) {
+        setPlanAttachments((prev) => [...prev, ...uploaded]);
+      }
+    } catch (error) {
+      console.error("Error subiendo adjuntos", error);
+      Alert.alert("Error", "No se pudieron subir los archivos");
+    } finally {
+      setUploadingAttachments(false);
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setPlanAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleOpenAttachment = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Error", "No se pudo abrir el archivo");
+    }
+  };
+
   // ==================== COMMON STATE ====================
 
+  const [planNotes, setPlanNotes] = useState(planItem?.notes || "");
+  const [planAttachments, setPlanAttachments] = useState<PlanAttachment[]>(
+    ((planItem as any)?.attachments ?? []).map((file: any) => ({
+      id: file.id,
+      kind: file.kind,
+      url: file.url,
+      filename: file.filename ?? null,
+      mimeType: file.mimeType ?? null,
+      sizeBytes: file.sizeBytes ?? null,
+      metadata: file.metadata ?? null,
+    }))
+  );
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -549,6 +593,8 @@ export default function TripPlanFormScreen({
         tripId,
         type: TripPlanItemType.flight,
         title: `${flightFrom} → ${flightTo}`,
+        notes: planNotes.trim() || null,
+        attachments: planAttachments.map(({ id, ...file }) => file),
         cost: parseCost(costStr),
         currency,
         startAt: flightDep?.toISOString() || null,
@@ -596,6 +642,8 @@ export default function TripPlanFormScreen({
         tripId,
         type,
         title: `${from} → ${to}`,
+        notes: planNotes.trim() || null,
+        attachments: planAttachments.map(({ id, ...file }) => file),
         cost: parseCost(costStr),
         currency,
         startAt: dep?.toISOString() || null,
@@ -637,6 +685,8 @@ export default function TripPlanFormScreen({
         tripId,
         type: TripPlanItemType.accommodation,
         title: accName,
+        notes: planNotes.trim() || null,
+        attachments: planAttachments.map(({ id, ...file }) => file),
         cost: parseCost(accCostStr),
         currency: accCurrency,
         accommodationDetails: {
@@ -687,7 +737,8 @@ export default function TripPlanFormScreen({
         location: actLocation || null,
         startTime: actStartAt?.toISOString() || null,
         endTime: actEndAt?.toISOString() || null,
-        notes: actNotes || null,
+        notes: planNotes.trim() || null,
+        attachments: planAttachments.map(({ id, ...file }) => file),
         cost: parseCost(actCostStr),
         currency: actCurrency,
       };
@@ -725,7 +776,8 @@ export default function TripPlanFormScreen({
         cost: amount,
         currency: expCurrency,
         date: expOccurredAt?.toISOString() || new Date().toISOString(),
-        notes: expNotes || null,
+        notes: planNotes.trim() || null,
+        attachments: planAttachments.map(({ id, ...file }) => file),
         metadata: { expenseCategory: expCategory },
       };
       if (isEdit) {
@@ -759,6 +811,8 @@ export default function TripPlanFormScreen({
         type: TripPlanItemType.visit,
         title: visitTitle,
         location: visitLocation.trim() || null,
+        notes: planNotes.trim() || null,
+        attachments: planAttachments.map(({ id, ...file }) => file),
         startAt: visitStartAt?.toISOString() || null,
         endAt: visitEndAt?.toISOString() || null,
         day: visitStartAt ? visitStartAt.toISOString().slice(0, 10) : presetDay || null,
@@ -1434,6 +1488,84 @@ export default function TripPlanFormScreen({
             )}
           </View>
         )}
+
+        <View style={{ marginTop: 4, marginBottom: 20 }}>
+          <Field
+            label="NOTAS"
+            value={planNotes}
+            onChange={setPlanNotes}
+            placeholder="Añade notas, recordatorios o detalles útiles"
+            autoCapitalize="sentences"
+            multiline
+          />
+
+          <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 8 }}>
+            ARCHIVOS
+          </Text>
+
+          <View style={{ gap: 8, marginBottom: 12 }}>
+            {planAttachments.map((file, index) => {
+              const isImage = file.kind === "image";
+              const isPdf = file.kind === "pdf";
+              return (
+                <View
+                  key={`${file.url}-${index}`}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                    borderWidth: 1,
+                    borderColor: UI.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons
+                      name={isImage ? "image-outline" : isPdf ? "document-text-outline" : "attach-outline"}
+                      size={18}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <TouchableOpacity style={{ flex: 1 }} onPress={() => handleOpenAttachment(file.url)}>
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: UI.text }} numberOfLines={1}>
+                      {file.filename || "Archivo"}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: UI.muted2, marginTop: 2 }} numberOfLines={1}>
+                      {isImage ? "Imagen" : isPdf ? "PDF" : "Archivo"}{file.sizeBytes ? ` · ${Math.max(1, Math.round(file.sizeBytes / 1024))} KB` : ""}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleRemoveAttachment(index)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+
+          <Pressable
+            onPress={handleAddAttachments}
+            disabled={uploadingAttachments}
+            style={({ pressed }) => ({
+              borderWidth: 1.5,
+              borderColor: UI.border,
+              borderStyle: "dashed",
+              borderRadius: 12,
+              paddingVertical: 12,
+              alignItems: "center",
+              backgroundColor: pressed ? "#F8FAFC" : "transparent",
+              opacity: uploadingAttachments ? 0.6 : 1,
+            })}
+          >
+            {uploadingAttachments ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>+ Añadir archivos</Text>
+            )}
+          </Pressable>
+        </View>
 
         {err && (
           <Text style={{ fontSize: 12, color: "#EF4444", textAlign: "center", marginTop: 8 }}>{err}</Text>

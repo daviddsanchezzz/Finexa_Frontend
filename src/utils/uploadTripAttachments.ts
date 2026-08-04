@@ -1,0 +1,131 @@
+import { Platform } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import { supabase } from "../lib/supabase";
+
+const BUCKET = "documents";
+
+export type UploadedTripAttachment = {
+  kind: string;
+  url: string;
+  filename: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  metadata?: any;
+};
+
+function safeExt(name?: string | null) {
+  const ext = (name || "").split(".").pop()?.trim();
+  return ext || "bin";
+}
+
+function safeFilename(name?: string | null) {
+  const base = (name || `file-${Date.now()}`).trim();
+  return base.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function attachmentKind(mimeType?: string | null, filename?: string | null) {
+  const mime = (mimeType || "").toLowerCase();
+  const name = (filename || "").toLowerCase();
+  if (mime.startsWith("image/")) return "image";
+  if (mime === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+  return "file";
+}
+
+async function uploadFileBlob(file: Blob, filename: string, mimeType?: string | null): Promise<UploadedTripAttachment | null> {
+  const ext = safeExt(filename);
+  const path = `plan-item-attachments/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: mimeType || file.type || undefined,
+  });
+
+  if (error) {
+    console.error("Attachment upload error:", error.message);
+    return null;
+  }
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return {
+    kind: attachmentKind(mimeType || file.type, filename),
+    url: data.publicUrl,
+    filename,
+    mimeType: mimeType || file.type || null,
+    sizeBytes: typeof file.size === "number" ? file.size : null,
+  };
+}
+
+async function pickWebFiles(): Promise<UploadedTripAttachment[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.accept = "*/*";
+    input.style.position = "fixed";
+    input.style.top = "-1000px";
+    input.style.left = "-1000px";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+
+    let settled = false;
+    const finish = (value: UploadedTripAttachment[]) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("focus", onWindowFocus);
+      if (input.parentNode) input.parentNode.removeChild(input);
+      resolve(value);
+    };
+
+    const onWindowFocus = () => {
+      setTimeout(() => {
+        if (!settled && !input.files?.length) finish([]);
+      }, 500);
+    };
+    window.addEventListener("focus", onWindowFocus);
+
+    input.oncancel = () => finish([]);
+
+    input.onchange = async () => {
+      const files = Array.from(input.files || []);
+      if (files.length === 0) {
+        finish([]);
+        return;
+      }
+
+      const uploaded = await Promise.all(
+        files.map((file) => uploadFileBlob(file, safeFilename(file.name), file.type || null))
+      );
+      finish(uploaded.filter((file): file is UploadedTripAttachment => !!file));
+    };
+
+    input.click();
+  });
+}
+
+async function pickNativeFiles(): Promise<UploadedTripAttachment[]> {
+  const result = await DocumentPicker.getDocumentAsync({
+    multiple: true,
+    copyToCacheDirectory: true,
+    type: "*/*",
+  });
+
+  if (result.canceled) return [];
+
+  const uploaded = await Promise.all(
+    result.assets.map(async (asset) => {
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      return uploadFileBlob(blob, safeFilename(asset.name), asset.mimeType || null);
+    })
+  );
+
+  return uploaded.filter((file): file is UploadedTripAttachment => !!file);
+}
+
+export async function pickAndUploadTripAttachments(): Promise<UploadedTripAttachment[]> {
+  if (Platform.OS === "web") {
+    return pickWebFiles();
+  }
+  return pickNativeFiles();
+}
