@@ -731,14 +731,24 @@ export default function TripDetailScreen({ route, navigation }: any) {
           ) : null;
 
           const summaryLine = `${days > 0 ? `${days} días` : "—"} · ${formatEuro(totalGastado)}`;
-          const countryLineBlock = countryHeroLine ? (
-            <Text
-              style={{ fontSize: 14, color: "rgba(255,255,255,0.82)", fontWeight: "700", marginTop: 6 }}
-              numberOfLines={2}
-            >
-              {countryHeroLine}
-            </Text>
-          ) : null;
+          const metaBlock = (
+            <View style={{ marginTop: 6, gap: 4 }}>
+              {countryHeroLine ? (
+                <Text
+                  style={{ fontSize: 14, color: "rgba(255,255,255,0.82)", fontWeight: "700" }}
+                  numberOfLines={2}
+                >
+                  {countryHeroLine}
+                </Text>
+              ) : null}
+              <Text
+                style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", fontWeight: "700" }}
+                numberOfLines={1}
+              >
+                {summaryLine}
+              </Text>
+            </View>
+          );
 
           const heroInnerWithPhoto = (
             <>
@@ -750,7 +760,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                     <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
                       {trip.name}
                     </Text>
-                    {countryLineBlock}
+                    {metaBlock}
                   </View>
                   {addCoverButton}
                 </View>
@@ -780,7 +790,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
                     <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
                       {trip.name}
                     </Text>
-                    {countryLineBlock}
+                    {metaBlock}
                   </View>
                   {addCoverButton}
                 </View>
