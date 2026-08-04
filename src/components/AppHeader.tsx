@@ -100,7 +100,7 @@ export default function AppHeader({
               marginRight: 4,
             }}
           >
-            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+            <Ionicons name="notifications" size={24} color="#0F172A" />
             {unreadNotificationsCount > 0 && (
               <View
                 style={{
