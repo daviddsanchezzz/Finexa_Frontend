@@ -348,8 +348,18 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
 
 /** One shared start/end date range applied to every country stay â€” for when splitting dates per country isn't worth the bother. */
 function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
-  const overallStart = useMemo(() => {`r`n    const starts = stays.map((s) => s.startDate?.getTime()).filter((value): value is number => Number.isFinite(value));`r`n    return starts.length ? new Date(Math.min(...starts)) : null;`r`n  }, [stays]);
-  const overallEnd = useMemo(() => {`r`n    const ends = stays.map((s) => s.endDate?.getTime()).filter((value): value is number => Number.isFinite(value));`r`n    return ends.length ? new Date(Math.max(...ends)) : null;`r`n  }, [stays]);
+  const overallStart = useMemo(() => {
+    const starts = stays
+      .map((s) => s.startDate?.getTime())
+      .filter((value): value is number => Number.isFinite(value));
+    return starts.length ? new Date(Math.min(...starts)) : null;
+  }, [stays]);
+  const overallEnd = useMemo(() => {
+    const ends = stays
+      .map((s) => s.endDate?.getTime())
+      .filter((value): value is number => Number.isFinite(value));
+    return ends.length ? new Date(Math.max(...ends)) : null;
+  }, [stays]);
 
   const [rangeStart, setRangeStart] = useState<Date | null>(overallStart);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(overallEnd);
@@ -497,8 +507,20 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
 }
 
 /** Toggle between per-country dates (route editor) and one shared start/end for the whole trip. */
-function TripDatesEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
-  const [mode, setMode] = useState<TripDateMode>("per_country");
+function TripDatesEditor({
+  stays,
+  onChangeStays,
+  initialMode = "per_country",
+}: {
+  stays: StayDraft[];
+  onChangeStays: (next: StayDraft[]) => void;
+  initialMode?: TripDateMode;
+}) {
+  const [mode, setMode] = useState<TripDateMode>(initialMode);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   return (
     <View style={{ gap: 12 }}>
@@ -536,7 +558,9 @@ function TripDatesEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
 
 function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigation: any }) {
   const [name, setName]           = useState(editTrip.name ?? "");
-  const initialStays = useMemo(() => initialStaysFromTrip(editTrip), [editTrip]);`r`n  const [stays, setStays]         = useState<StayDraft[]>(initialStays);`r`n  const [dateMode]                = useState<TripDateMode>(() => detectTripDateMode(initialStays));
+  const initialStays = useMemo(() => initialStaysFromTrip(editTrip), [editTrip]);
+  const [stays, setStays]         = useState<StayDraft[]>(initialStays);
+  const [dateMode]                = useState<TripDateMode>(() => detectTripDateMode(initialStays));
   const [budgetText, setBudgetText] = useState(editTrip.budget != null ? String(editTrip.budget) : "");
   const [status, setStatus] = useState<TripStatus | null>((editTrip.status as TripStatus) ?? null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(editTrip.coverImageUrl ?? null);
@@ -549,13 +573,16 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
     setStays((prev) => [...prev, nextStayDraft(code, name, prev)]);
   };
 
-  const totalDays = useMemo(() => {
-    const starts = stays.map((s) => s.startDate.getTime());
-    const ends = stays.map((s) => s.endDate.getTime());
-    if (!starts.length) return 1;
-    const d = Math.round((Math.max(...ends) - Math.min(...starts)) / 86400000) + 1;
-    return d > 0 ? d : 1;
-  }, [stays]);
+  const totalDays = useMemo(() => getTotalDays(stays), [stays]);
+
+  const updateStays = (next: StayDraft[]) => {
+    const result = buildSmartStays(stays, next);
+    if (result.error) {
+      appAlert("Fechas solapadas", result.error);
+      return;
+    }
+    setStays(result.stays);
+  };
 
   const handleSave = async () => {
     if (!name.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre para el viaje."); return; }
@@ -567,8 +594,8 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
         name: name.trim(),
         countryStays: validStays.map((s) => ({
           country: s.countryCode,
-          startDate: s.startDate.toISOString(),
-          endDate: s.endDate.toISOString(),
+          startDate: s.startDate ? s.startDate.toISOString() : undefined,
+          endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: status ?? undefined,
@@ -680,7 +707,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
             )}
           </View>
 
-          <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
+          <TripDatesEditor stays={stays} onChangeStays={updateStays} />
 
           <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÃ‘ADIR OTRO PAÃS</Text>
@@ -765,7 +792,6 @@ export default function TripFormScreen({ route, navigation }: any) {
 function CreateTripWizard({ navigation }: { navigation: any }) {
   const [step, setStep]               = useState<1 | 2 | 3 | 4>(1);
   const [stays, setStays]             = useState<StayDraft[]>([]);
-  const [searchQ, setSearchQ]         = useState("");
   const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
   const [companion, setCompanion]     = useState<string | null>(null);
@@ -775,13 +801,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   const [saving, setSaving]             = useState(false);
   const [createdTrip, setCreatedTrip] = useState<{ id: number; name: string } | null>(null);
 
-  const totalDays = useMemo(() => {
-    if (stays.length === 0) return null;
-    const starts = stays.map((s) => s.startDate.getTime());
-    const ends = stays.map((s) => s.endDate.getTime());
-    const d = Math.round((Math.max(...ends) - Math.min(...starts)) / 86400000) + 1;
-    return d > 0 ? d : 1;
-  }, [stays]);
+  const totalDays = useMemo(() => getTotalDays(stays), [stays]);
 
   const selectedCountryLabel = stays.length === 0
     ? ""
@@ -807,6 +827,15 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     setStays((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const updateStays = (next: StayDraft[]) => {
+    const result = buildSmartStays(stays, next);
+    if (result.error) {
+      appAlert("Fechas solapadas", result.error);
+      return;
+    }
+    setStays(result.stays);
+  };
+
   const handleCreate = async () => {
     if (!tripName.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre."); return; }
     if (stays.length === 0) { appAlert("Falta el destino", "Selecciona al menos un paÃ­s."); return; }
@@ -816,8 +845,8 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         name: tripName.trim(),
         countryStays: stays.map((s) => ({
           country: s.countryCode,
-          startDate: s.startDate.toISOString(),
-          endDate: s.endDate.toISOString(),
+          startDate: s.startDate ? s.startDate.toISOString() : undefined,
+          endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: "planning",
@@ -949,7 +978,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} dÃ­as en total</Text>
           )}
 
-          <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
+          <TripDatesEditor stays={stays} onChangeStays={updateStays} />
 
           {/* Viajeros */}
           <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
