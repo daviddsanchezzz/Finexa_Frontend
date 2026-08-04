@@ -89,6 +89,13 @@ export type TripNote = {
   updatedAt: string;
 };
 
+interface CountryStayFromApi {
+  country: string;
+  continent?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 interface TripFromApi {
   id: number;
   name: string;
@@ -105,6 +112,7 @@ interface TripFromApi {
   cost: number | null;
   budget?: number | null;
   coverImageUrl?: string | null;
+  countryStays?: CountryStayFromApi[] | null;
 }
 
 type TripTab = "summary" | "expenses" | "planning" | "info";
@@ -313,9 +321,21 @@ export default function TripDetailScreen({ route, navigation }: any) {
     planItems.reduce((sum, it) => sum + (it.cost ? Number(it.cost) : 0), 0) +
     tripTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
-  const countryCode = (trip?.destination || "").trim().toUpperCase() || null;
-  const countryLabel = countryCode ? countryNameEs(countryCode) : "Sin destino";
-  const countryFlag = cca2ToFlagEmoji(countryCode);
+  // A trip can span several countries (each with its own date range) — show
+  // every one of them wherever the trip's destination is displayed, not just
+  // the "primary" country kept in trip.destination for back-compat.
+  const countryCodes = useMemo(() => {
+    const codes = (trip?.countryStays ?? [])
+      .map((s) => (s.country || "").trim().toUpperCase())
+      .filter(Boolean);
+    if (codes.length > 0) return Array.from(new Set(codes));
+    const dest = (trip?.destination || "").trim().toUpperCase();
+    return dest ? [dest] : [];
+  }, [trip?.countryStays, trip?.destination]);
+
+  const countryCode = countryCodes[0] ?? null;
+  const countryLabel = countryCodes.length > 0 ? countryCodes.map((c) => countryNameEs(c)).join(", ") : "Sin destino";
+  const countryFlag = countryCodes.map((c) => cca2ToFlagEmoji(c)).join("");
 
   // =========================
   // TASKS CALLBACKS

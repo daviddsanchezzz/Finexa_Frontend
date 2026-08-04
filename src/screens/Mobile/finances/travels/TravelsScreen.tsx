@@ -24,6 +24,13 @@ type Continent =
   | "europe" | "africa" | "asia" | "north_america"
   | "south_america" | "oceania" | "antarctica";
 
+interface CountryStayFromApi {
+  country: string;
+  continent?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 interface TripFromApi {
   id: number;
   name: string;
@@ -36,6 +43,7 @@ interface TripFromApi {
   continent: Continent | null;
   year: number | null;
   coverImageUrl?: string | null;
+  countryStays?: CountryStayFromApi[] | null;
 }
 
 interface TripUI extends TripFromApi {}
@@ -116,6 +124,30 @@ function CountryBadge({ code, size = 20 }: { code?: string | null; size?: number
   return <Text style={{ fontSize: size }}>{flag}</Text>;
 }
 
+/* ─── Multi-country helpers (a trip can span several countries) ─── */
+function tripCountryCodes(trip: { destination?: string | null; countryStays?: CountryStayFromApi[] | null }): string[] {
+  const fromStays = (trip.countryStays ?? [])
+    .map((s) => (s.country || "").trim().toUpperCase())
+    .filter(Boolean);
+  if (fromStays.length > 0) return Array.from(new Set(fromStays));
+  const dest = (trip.destination || "").trim().toUpperCase();
+  return dest ? [dest] : [];
+}
+function tripCountriesLabel(trip: { destination?: string | null; countryStays?: CountryStayFromApi[] | null }): string {
+  const codes = tripCountryCodes(trip);
+  return codes.length > 0 ? codes.map((c) => countryNameEsFromISO2(c)).join(", ") : "—";
+}
+
+/** Row of flag badges, one per country a trip touches (falls back to a single "—" placeholder). */
+function CountryBadgesRow({ codes, size = 14, gap = 3 }: { codes: string[]; size?: number; gap?: number }) {
+  if (codes.length === 0) return null;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap }}>
+      {codes.map((code) => <CountryBadge key={code} code={code} size={size} />)}
+    </View>
+  );
+}
+
 /* ─── Trip thumbnail ─── */
 function TripThumbnail({ trip, size = 56 }: { trip: TripUI; size?: number }) {
   if (trip.coverImageUrl) {
@@ -127,8 +159,10 @@ function TripThumbnail({ trip, size = 56 }: { trip: TripUI; size?: number }) {
       />
     );
   }
-  const flagUrl = twemojiFlagUrlFromISO2(trip.destination);
-  const flag = flagEmojiFromISO2(trip.destination);
+  const codes = tripCountryCodes(trip);
+  const primary = codes[0] ?? null;
+  const flagUrl = twemojiFlagUrlFromISO2(primary);
+  const flag = flagEmojiFromISO2(primary);
   return (
     <View style={{
       width: size, height: size, borderRadius: 14,
@@ -136,11 +170,18 @@ function TripThumbnail({ trip, size = 56 }: { trip: TripUI; size?: number }) {
       alignItems: "center", justifyContent: "center",
       borderWidth: 1, borderColor: "#E0E7FF",
     }}>
-      {Platform.OS === "web" && flagUrl
+      {codes.length > 1 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          {codes.slice(0, 2).map((code) => (
+            <Text key={code} style={{ fontSize: size * 0.32 }}>{flagEmojiFromISO2(code)}</Text>
+          ))}
+        </View>
+      ) : Platform.OS === "web" && flagUrl ? (
         // @ts-ignore
-        ? <img src={flagUrl} alt={trip.destination || ""} style={{ width: size * 0.55, height: size * 0.55 }} />
-        : <Text style={{ fontSize: size * 0.44 }}>{flag}</Text>
-      }
+        <img src={flagUrl} alt={primary || ""} style={{ width: size * 0.55, height: size * 0.55 }} />
+      ) : (
+        <Text style={{ fontSize: size * 0.44 }}>{flag}</Text>
+      )}
     </View>
   );
 }
@@ -712,7 +753,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                         flexDirection: "row", alignItems: "center", gap: 10,
                       }}
                     >
-                      <CountryBadge code={t.destination} size={22} />
+                      <CountryBadgesRow codes={tripCountryCodes(t)} size={22} gap={4} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>{t.name}</Text>
                         {dateLabel ? <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600", marginTop: 2 }}>{dateLabel}</Text> : null}
@@ -846,8 +887,8 @@ export default function TripsHomeScreen({ navigation }: any) {
                         {/* Info */}
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                            {t.coverImageUrl && t.destination && (
-                              <CountryBadge code={t.destination} size={14} />
+                            {t.coverImageUrl && tripCountryCodes(t).length > 0 && (
+                              <CountryBadgesRow codes={tripCountryCodes(t)} size={14} />
                             )}
                             <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }} numberOfLines={1}>
                               {t.name}
@@ -858,8 +899,8 @@ export default function TripsHomeScreen({ navigation }: any) {
                               {dateLabel}{days ? ` · ${days} días` : ""}
                             </Text>
                           ) : (
-                            <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600", marginTop: 2 }}>
-                              {countryNameEsFromISO2(t.destination)}
+                            <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600", marginTop: 2 }} numberOfLines={1}>
+                              {tripCountriesLabel(t)}
                             </Text>
                           )}
                         </View>

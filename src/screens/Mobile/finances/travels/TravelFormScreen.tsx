@@ -435,13 +435,19 @@ export default function TripFormScreen({ route, navigation }: any) {
   return <CreateTripWizard navigation={navigation} />;
 }
 
+interface WizardCountry { code: string; name: string; }
+
 function CreateTripWizard({ navigation }: { navigation: any }) {
   const [step, setStep]               = useState<1 | 2 | 3 | 4>(1);
-  const [countryCode, setCountryCode] = useState<string | null>(null);
-  const [countryName, setCountryName] = useState("");
+  const [countries, setCountries]     = useState<WizardCountry[]>([]);
   const [searchQ, setSearchQ]         = useState("");
+  // Calendar-grid dates for the FIRST country only (kept exactly as before);
+  // countries added after the first get simple date pickers, in extraDates.
   const [startDate, setStartDate]     = useState<Date | null>(null);
   const [endDate, setEndDate]         = useState<Date | null>(null);
+  const [extraDates, setExtraDates]   = useState<{ startDate: Date; endDate: Date }[]>([]);
+  const [extraDatePickerVisible, setExtraDatePickerVisible] = useState(false);
+  const [extraDatePickerTarget, setExtraDatePickerTarget] = useState<{ index: number; field: "start" | "end" } | null>(null);
   const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
   const [companion, setCompanion]     = useState<string | null>(null);
@@ -450,7 +456,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving]             = useState(false);
   const [createdTrip, setCreatedTrip] = useState<{ id: number; name: string } | null>(null);
-  const [datePickerTarget, setDatePickerTarget] = useState<"start" | "end" | null>(null);
 
   // Calendar
   const [calDate, setCalDate] = useState(() => new Date());
@@ -464,7 +469,52 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
     return d > 0 ? d : 1;
   }, [startDate, endDate]);
 
-  const selectedCountryLabel = countryCode ? countryNameEs(countryCode) : countryName;
+  const selectedCountryLabel = countries.length === 0
+    ? ""
+    : countries.length === 1
+      ? countryNameEs(countries[0].code) || countries[0].name
+      : `${countries.length} países`;
+
+  // Toggle a country's membership in the selection (tap again to remove).
+  // The first country keeps driving the big calendar below; countries added
+  // after that get their own simple date range, defaulting to start right
+  // after the previous one ends.
+  const toggleCountry = (code: string, name: string) => {
+    setCountries((prev) => {
+      const exists = prev.some((c) => c.code === code);
+      if (exists) {
+        const idx = prev.findIndex((c) => c.code === code);
+        if (idx === 0) { setStartDate(null); setEndDate(null); }
+        else setExtraDates((d) => d.filter((_, i) => i !== idx - 1));
+        return prev.filter((c) => c.code !== code);
+      }
+      if (prev.length > 0) {
+        const lastEnd = prev.length === 1 ? (endDate ?? startDate ?? new Date()) : extraDates[extraDates.length - 1]?.endDate ?? new Date();
+        setExtraDates((d) => [...d, { startDate: lastEnd, endDate: lastEnd }]);
+      }
+      return [...prev, { code, name }];
+    });
+  };
+  const addCountry = (code: string, name: string) => {
+    if (countries.some((c) => c.code === code)) return;
+    toggleCountry(code, name);
+  };
+  const removeCountryAt = (index: number) => {
+    const c = countries[index];
+    if (c) toggleCountry(c.code, c.name);
+  };
+
+  const handleConfirmExtraDate = (date: Date) => {
+    if (!extraDatePickerTarget) return;
+    const { index, field } = extraDatePickerTarget;
+    setExtraDates((prev) => prev.map((d, i) => {
+      if (i !== index) return d;
+      if (field === "start") return { startDate: date, endDate: d.endDate < date ? date : d.endDate };
+      return { endDate: date, startDate: date < d.startDate ? date : d.startDate };
+    }));
+    setExtraDatePickerVisible(false);
+    setExtraDatePickerTarget(null);
+  };
 
   const handleCalDay = (day: number) => {
     const date = new Date(calYear, calMonth, day);
@@ -495,14 +545,23 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
 
   const handleCreate = async () => {
     if (!tripName.trim()) { appAlert("Falta el nombre", "Añade un nombre."); return; }
-    if (!countryCode && !countryName) { appAlert("Falta el destino", "Selecciona un país."); return; }
+    if (countries.length === 0) { appAlert("Falta el destino", "Selecciona al menos un país."); return; }
     try {
       setSaving(true);
+      const countryStays = countries.map((c, i) => {
+        if (i === 0) {
+          const s = startDate ?? new Date();
+          const e = endDate ?? s;
+          return { country: c.code, startDate: s.toISOString(), endDate: e.toISOString() };
+        }
+        const extra = extraDates[i - 1];
+        const s = extra?.startDate ?? new Date();
+        const e = extra?.endDate ?? s;
+        return { country: c.code, startDate: s.toISOString(), endDate: e.toISOString() };
+      });
       const res = await api.post("/trips", {
         name: tripName.trim(),
-        destination: countryCode ?? undefined,
-        startDate: startDate?.toISOString(),
-        endDate: endDate?.toISOString(),
+        countryStays,
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: "planning",
         coverImageUrl: coverImageUrl ?? undefined,
@@ -538,6 +597,33 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¿A dónde vas?</Text>
+          <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: -14 }}>
+            Puedes elegir más de un país si tu viaje pasa por varios.
+          </Text>
+
+          {/* Países seleccionados */}
+          {countries.length > 0 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {countries.map((c, index) => (
+                <View
+                  key={c.code}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: 6,
+                    backgroundColor: "#EEF2FF", borderRadius: 999,
+                    paddingLeft: 10, paddingRight: 6, paddingVertical: 6,
+                  }}
+                >
+                  <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(c.code)}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>
+                    {countryNameEs(c.code) || c.name}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeCountryAt(index)} style={{ padding: 2 }}>
+                    <Ionicons name="close-circle" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Búsqueda */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#F8FAFC", borderRadius: 16, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
@@ -559,11 +645,14 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                 {POPULAR_DESTINATIONS.map(dest => {
-                  const selected = countryCode === dest.code;
+                  const selected = countries.some((c) => c.code === dest.code);
                   return (
                     <TouchableOpacity
                       key={dest.code}
-                      onPress={() => { setCountryCode(dest.code); setCountryName(dest.name); setTripName(dest.name); }}
+                      onPress={() => {
+                        toggleCountry(dest.code, dest.name);
+                        if (!tripName) setTripName(dest.name);
+                      }}
                       activeOpacity={0.85}
                       style={{
                         width: "47%", aspectRatio: 1.1,
@@ -591,14 +680,14 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Country select cuando buscan */}
           <View>
             <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 10 }}>
-              {searchQ ? "RESULTADO" : "OTRO DESTINO"}
+              {searchQ ? "RESULTADO" : countries.length > 0 ? "AÑADIR OTRO PAÍS" : "OTRO DESTINO"}
             </Text>
             <CountrySelect
-              valueName={countryName}
-              valueCode={countryCode}
+              valueName=""
+              valueCode={null}
               onChange={({ name: n, code }: any) => {
-                setCountryCode(code);
-                setCountryName(n);
+                if (!code) return;
+                addCountry(code, n);
                 if (!tripName) setTripName(n);
               }}
             />
@@ -607,7 +696,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           {/* Continuar */}
           <TouchableOpacity
             onPress={() => {
-              if (!countryCode && !countryName.trim()) {
+              if (countries.length === 0) {
                 appAlert("Selecciona un destino", "Elige a dónde quieres viajar.");
                 return;
               }
@@ -763,6 +852,35 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             ))}
           </View>
 
+          {/* Fechas de los países adicionales */}
+          {countries.slice(1).map((c, extraIndex) => {
+            const dates = extraDates[extraIndex];
+            if (!dates) return null;
+            return (
+              <View key={c.code} style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14, gap: 10 }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+                  {flagEmojiFromISO2(c.code)} {(countryNameEs(c.code) || c.name).toUpperCase()}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <Pressable
+                    onPress={() => { setExtraDatePickerTarget({ index: extraIndex, field: "start" }); setExtraDatePickerVisible(true); }}
+                    style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>DESDE</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(dates.startDate)}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => { setExtraDatePickerTarget({ index: extraIndex, field: "end" }); setExtraDatePickerVisible(true); }}
+                    style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>HASTA</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(dates.endDate)}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+
           {/* Viajeros */}
           <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>VIAJEROS</Text>
@@ -804,6 +922,20 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <View style={{ height: 20 }} />
         </ScrollView>
       )}
+
+      <CrossPlatformDateTimePicker
+        isVisible={extraDatePickerVisible}
+        mode="date"
+        date={
+          extraDatePickerTarget
+            ? (extraDatePickerTarget.field === "end"
+                ? extraDates[extraDatePickerTarget.index]?.endDate
+                : extraDates[extraDatePickerTarget.index]?.startDate) ?? new Date()
+            : new Date()
+        }
+        onConfirm={handleConfirmExtraDate}
+        onCancel={() => { setExtraDatePickerVisible(false); setExtraDatePickerTarget(null); }}
+      />
 
       {/* ── PASO 3: Últimos detalles ── */}
       {step === 3 && (
@@ -956,14 +1088,16 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           </View>
 
           {/* Preview card */}
-          {countryCode && (
+          {countries.length > 0 && (
             <View style={{
               width: "100%", backgroundColor: "#F8FAFC", borderRadius: 20, padding: 16,
               flexDirection: "row", alignItems: "center", gap: 14,
               borderWidth: 1, borderColor: "#EEF2F7",
             }}>
-              <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 36 }}>{flagEmojiFromISO2(countryCode)}</Text>
+              <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center", flexDirection: "row" }}>
+                {countries.slice(0, 2).map((c) => (
+                  <Text key={c.code} style={{ fontSize: countries.length > 1 ? 26 : 36 }}>{flagEmojiFromISO2(c.code)}</Text>
+                ))}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>{createdTrip?.name ?? tripName}</Text>
