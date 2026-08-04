@@ -130,10 +130,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
     var icon=L.divIcon({
       className:'',
       html: markerMode === 'dots'
-        ? '<div style="width:12px;height:12px;background:'+m.color+';border-radius:999px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.22)"></div>'
+        ? '<div style="width:8px;height:8px;background:'+m.color+';border-radius:999px;border:1.5px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.18)"></div>'
         : '<div style="position:relative;width:26px;height:31px"><div style="width:26px;height:26px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:10px;font-weight:900;font-family:-apple-system,sans-serif">'+(i+1)+'</span></div></div>',
-      iconSize: markerMode === 'dots' ? [12,12] : [26,31],
-      iconAnchor: markerMode === 'dots' ? [6,6] : [13,29],
+      iconSize: markerMode === 'dots' ? [8,8] : [26,31],
+      iconAnchor: markerMode === 'dots' ? [4,4] : [13,29],
       popupAnchor:[0,-24]
     });
     var items=m.items.map(function(t){return'<div class="pu-item">'+t+'</div>'}).join('');
