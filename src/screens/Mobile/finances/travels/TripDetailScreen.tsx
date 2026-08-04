@@ -123,6 +123,8 @@ interface TripFromApi {
 
 type TripTab = "summary" | "expenses" | "planning" | "info";
 
+const TRIP_DETAIL_CACHE = new Map<number, TripFromApi>();
+
 const getTripStatus = (trip: { startDate: string; endDate: string }): TripStatus => {
   const today = new Date();
   const start = new Date(trip.startDate);
@@ -279,9 +281,10 @@ function WeatherWidget({ countryCode, tripName }: { countryCode: string; tripNam
 
 export default function TripDetailScreen({ route, navigation }: any) {
   const { tripId } = route.params || {};
+  const cachedTrip = typeof tripId === "number" ? TRIP_DETAIL_CACHE.get(tripId) ?? null : null;
 
-  const [trip, setTrip] = useState<TripFromApi | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trip, setTrip] = useState<TripFromApi | null>(cachedTrip);
+  const [loading, setLoading] = useState(!cachedTrip);
   const [tab, setTab] = useState<TripTab>("summary");
   const [planViewMode, setPlanViewMode] = useState<"day" | "summary">("day");
 
@@ -335,6 +338,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
       if (!silent) setLoading(true);
       const res = await api.get(`/trips/${tripId}`);
       setTrip(res.data);
+      TRIP_DETAIL_CACHE.set(tripId, res.data);
     } catch (err) {
       console.error("❌ Error al obtener viaje:", err);
     } finally {
@@ -343,6 +347,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
   };
 
   useEffect(() => {
+    if (cachedTrip) {
+      fetchTrip(true);
+      return;
+    }
     fetchTrip();
   }, [tripId]);
 
