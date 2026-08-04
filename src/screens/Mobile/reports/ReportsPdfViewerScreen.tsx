@@ -114,8 +114,8 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
     }
   };
 
-  const openInNewTab = () => {
-    if (blobUrl && typeof window !== "undefined") window.open(blobUrl, "_blank");
+  const openPdf = () => {
+    if (blobUrl && typeof window !== "undefined") window.location.href = blobUrl;
   };
 
   useEffect(() => {
@@ -167,12 +167,13 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
 
         // Mobile Safari/Chrome no renderizan bien un PDF embebido en
         // <iframe> (sale con un zoom fijo, recortado, sin controles reales
-        // ni botón de compartir). El propio visor nativo del navegador sí
-        // lo hace bien, así que ahí lo abrimos en pestaña nueva en vez de
-        // intentar incrustarlo.
+        // ni botón de compartir), y abrir una pestaña nueva desde código
+        // async suele ser bloqueado como pop-up. Navegar la misma pestaña
+        // al blob es lo único fiable: Safari lo abre directo en su propio
+        // visor con zoom y compartir nativos, sin pasos intermedios.
         if (isMobileWeb() && !autoOpenedRef.current) {
           autoOpenedRef.current = true;
-          window.open(objectUrl, "_blank");
+          window.location.href = objectUrl;
         }
       } catch (e: any) {
         Alert.alert("Error", e?.message || "No se pudo cargar el PDF");
@@ -298,21 +299,10 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
 
         {!loadingPdf && blobUrl && mobileWeb && (
           <View className="flex-1 items-center justify-center px-6">
-            <Ionicons name="document-text-outline" size={40} color={colors.primary} />
-            <Text className="text-text font-extrabold text-[16px] text-center mt-4">El PDF se ha abierto en una pestaña nueva</Text>
-            <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">
-              Ahí puedes hacer zoom y compartirlo con el botón de tu navegador.
-            </Text>
-            <TouchableOpacity
-              onPress={openInNewTab}
-              activeOpacity={0.85}
-              className="mt-5 px-5 py-3 rounded-2xl"
-              style={{ backgroundColor: colors.primary }}
-            >
-              <Text className="text-white font-bold text-[14px]">Abrir de nuevo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleShareWeb} disabled={sharing} activeOpacity={0.85} className="mt-3 px-5 py-3 rounded-2xl border border-gray-200">
-              {sharing ? <ActivityIndicator size="small" color={colors.primary} /> : <Text className="font-bold text-[14px]" style={{ color: colors.primary }}>Compartir</Text>}
+            <ActivityIndicator />
+            <Text className="mt-3 text-gray-500 font-semibold">Abriendo PDF…</Text>
+            <TouchableOpacity onPress={openPdf} activeOpacity={0.7} className="mt-6">
+              <Text className="font-bold text-[13px]" style={{ color: colors.primary }}>¿No se ha abierto? Toca aquí</Text>
             </TouchableOpacity>
           </View>
         )}

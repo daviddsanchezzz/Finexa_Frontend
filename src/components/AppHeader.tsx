@@ -95,18 +95,20 @@ export default function AppHeader({
             style={{
               width: 36,
               height: 36,
+              borderRadius: 18,
+              backgroundColor: "#F3F4F6",
               alignItems: "center",
               justifyContent: "center",
-              marginRight: 4,
+              marginRight: 6,
             }}
           >
-            <Ionicons name="notifications" size={24} color="#0F172A" />
+            <Ionicons name="notifications-outline" size={21} color="#0F172A" />
             {unreadNotificationsCount > 0 && (
               <View
                 style={{
                   position: "absolute",
-                  top: 4,
-                  right: 4,
+                  top: 3,
+                  right: 3,
                   backgroundColor: "#EF4444",
                   borderRadius: 100,
                   minWidth: 16,
