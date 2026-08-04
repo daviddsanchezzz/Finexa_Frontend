@@ -3,17 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import Modal from "react-native-modal";
 import { colors } from "../theme/theme";
 import { FriendRequest } from "../hooks/useFriends";
-
-function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-const AVATAR_COLORS = ["#8B5CF6", "#F97316", "#10B981", "#3B82F6", "#EC4899", "#EAB308"];
+import { avatarColorForId, initialsFromName } from "../utils/avatarColor";
 
 interface Props {
   visible: boolean;
@@ -41,13 +31,13 @@ export default function FriendRequestModal({ visible, request, onClose, onAccept
             width: 72,
             height: 72,
             borderRadius: 36,
-            backgroundColor: AVATAR_COLORS[user.id % AVATAR_COLORS.length],
+            backgroundColor: avatarColorForId(user.id),
             alignItems: "center",
             justifyContent: "center",
             marginBottom: 14,
           }}
         >
-          <Text style={{ color: "white", fontWeight: "800", fontSize: 26 }}>{initials(user.name)}</Text>
+          <Text style={{ color: "white", fontWeight: "800", fontSize: 26 }}>{initialsFromName(user.name)}</Text>
         </View>
 
         <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>{user.name}</Text>

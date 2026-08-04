@@ -15,20 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../theme/theme";
 import { appAlert } from "../../../utils/appAlert";
 import { useFriends, FriendUser, FriendRequest } from "../../../hooks/useFriends";
-
-function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-const AVATAR_COLORS = ["#8B5CF6", "#F97316", "#10B981", "#3B82F6", "#EC4899", "#EAB308"];
-function avatarColor(id: number) {
-  return AVATAR_COLORS[id % AVATAR_COLORS.length];
-}
+import { avatarColorForId, initialsFromName } from "../../../utils/avatarColor";
 
 function Avatar({ user, size = 44 }: { user: FriendUser; size?: number }) {
   return (
@@ -37,13 +24,13 @@ function Avatar({ user, size = 44 }: { user: FriendUser; size?: number }) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: avatarColor(user.id),
+        backgroundColor: avatarColorForId(user.id),
         alignItems: "center",
         justifyContent: "center",
       }}
     >
       <Text style={{ color: "white", fontWeight: "800", fontSize: size * 0.36 }}>
-        {initials(user.name)}
+        {initialsFromName(user.name)}
       </Text>
     </View>
   );

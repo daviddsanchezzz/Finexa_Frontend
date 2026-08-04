@@ -20,6 +20,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import { appAlert } from "../../../../utils/appAlert";
+import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
@@ -143,17 +144,6 @@ const getStatusStyle = (status: TripStatus) => {
   }
 };
 
-const COMPANION_AVATAR_COLORS = ["#8B5CF6", "#F97316", "#10B981", "#3B82F6", "#EC4899", "#EAB308"];
-
-function companionInitials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 function CompanionAvatars({ people }: { people: { id: number; name: string }[] }) {
   if (people.length < 2) return null;
   return (
@@ -165,7 +155,7 @@ function CompanionAvatars({ people }: { people: { id: number; name: string }[] }
             width: 26,
             height: 26,
             borderRadius: 13,
-            backgroundColor: COMPANION_AVATAR_COLORS[p.id % COMPANION_AVATAR_COLORS.length],
+            backgroundColor: avatarColorForId(p.id),
             borderWidth: 1.5,
             borderColor: "white",
             alignItems: "center",
@@ -173,7 +163,7 @@ function CompanionAvatars({ people }: { people: { id: number; name: string }[] }
             marginLeft: idx === 0 ? 0 : -8,
           }}
         >
-          <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }}>{companionInitials(p.name)}</Text>
+          <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }}>{initialsFromName(p.name)}</Text>
         </View>
       ))}
     </View>

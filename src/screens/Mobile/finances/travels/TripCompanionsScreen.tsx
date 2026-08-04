@@ -7,17 +7,7 @@ import { colors } from "../../../../theme/theme";
 import { useAuth } from "../../../../context/AuthContext";
 import { appAlert } from "../../../../utils/appAlert";
 import { useTripMembers, TripMemberUser, TripInviteCandidate } from "../../../../hooks/useTripMembers";
-
-function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-const AVATAR_COLORS = ["#8B5CF6", "#F97316", "#10B981", "#3B82F6", "#EC4899", "#EAB308"];
+import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 
 function Avatar({ user, size = 40 }: { user: { id: number; name: string }; size?: number }) {
   return (
@@ -26,12 +16,12 @@ function Avatar({ user, size = 40 }: { user: { id: number; name: string }; size?
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: AVATAR_COLORS[user.id % AVATAR_COLORS.length],
+        backgroundColor: avatarColorForId(user.id),
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Text style={{ color: "white", fontWeight: "800", fontSize: size * 0.36 }}>{initials(user.name)}</Text>
+      <Text style={{ color: "white", fontWeight: "800", fontSize: size * 0.36 }}>{initialsFromName(user.name)}</Text>
     </View>
   );
 }

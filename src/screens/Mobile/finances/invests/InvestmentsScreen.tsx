@@ -1034,7 +1034,7 @@ const submitContribution = useCallback(() => {
       {/* -- Header -- */}
       <View className="px-5 pb-3" style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={{ flex: 1 }}>
-          <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={false} />
+          <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
         </View>
         <TouchableOpacity
           onPress={() => setFabOpen(true)}

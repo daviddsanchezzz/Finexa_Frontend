@@ -6,6 +6,8 @@ import { colors } from "../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { useAuth } from "../context/AuthContext";
+import { avatarColorForId, initialsFromName } from "../utils/avatarColor";
 
 interface Props {
   onOpenDateModal?: () => void;
@@ -35,6 +37,7 @@ export default function AppHeader({
   unreadNotificationsCount = 0,
 }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user } = useAuth();
 
   const formattedLabel = dateLabel
     ? dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)
@@ -68,15 +71,19 @@ export default function AppHeader({
               width: 36,
               height: 36,
               borderRadius: 18,
-              backgroundColor: "#F3F4F6",
-              borderWidth: 1.2,
-              borderColor: "#E5E7EB",
+              backgroundColor: user ? avatarColorForId(user.id) : "#F3F4F6",
               alignItems: "center",
               justifyContent: "center",
               marginRight: 10,
             }}
           >
-            <Ionicons name="person-outline" size={18} color={colors.text} />
+            {user ? (
+              <Text style={{ color: "white", fontSize: 13, fontWeight: "800" }}>
+                {initialsFromName(user.name)}
+              </Text>
+            ) : (
+              <Ionicons name="person-outline" size={18} color={colors.text} />
+            )}
           </TouchableOpacity>
         )}
 

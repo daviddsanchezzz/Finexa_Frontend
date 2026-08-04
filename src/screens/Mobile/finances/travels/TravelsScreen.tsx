@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
+import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 
 type TripStatus = "wishlist" | "planning" | "seen";
 type BoardMode = "status" | "continent" | "year";
@@ -44,9 +45,41 @@ interface TripFromApi {
   year: number | null;
   coverImageUrl?: string | null;
   countryStays?: CountryStayFromApi[] | null;
+  user?: { id: number; name: string } | null;
+  members?: { user: { id: number; name: string } }[] | null;
 }
 
 interface TripUI extends TripFromApi {}
+
+function tripCompanions(t: TripFromApi) {
+  return [...(t.user ? [t.user] : []), ...((t.members ?? []).map((m) => m.user))];
+}
+
+function CompanionsMiniRow({ people }: { people: { id: number; name: string }[] }) {
+  if (people.length < 2) return null;
+  return (
+    <View style={{ flexDirection: "row", marginTop: 4 }}>
+      {people.slice(0, 4).map((p, idx) => (
+        <View
+          key={p.id}
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: avatarColorForId(p.id),
+            borderWidth: 1.5,
+            borderColor: "white",
+            alignItems: "center",
+            justifyContent: "center",
+            marginLeft: idx === 0 ? 0 : -6,
+          }}
+        >
+          <Text style={{ color: "white", fontSize: 7, fontWeight: "800" }}>{initialsFromName(p.name)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 type TripsSummaryDto = {
   daysToNextTrip: number | null;
@@ -751,6 +784,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>{t.name}</Text>
                         {dateLabel ? <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600", marginTop: 2 }}>{dateLabel}</Text> : null}
+                        <CompanionsMiniRow people={tripCompanions(t)} />
                       </View>
                     </TouchableOpacity>
                   );
@@ -903,6 +937,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                               {tripCountriesLabel(t)}
                             </Text>
                           )}
+                          <CompanionsMiniRow people={tripCompanions(t)} />
                         </View>
 
                         {/* Derecha */}
