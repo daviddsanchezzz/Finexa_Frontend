@@ -6,6 +6,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { colors } from "../../../theme/theme";
 import { useFriends } from "../../../hooks/useFriends";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
+import { avatarColorForId, initialsFromName } from "../../../utils/avatarColor";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -73,15 +74,20 @@ export default function ProfileScreen({ navigation }: any) {
           <Ionicons name="close-outline" size={22} color={colors.text} />
         </TouchableOpacity>
 
-        <View className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 mb-3 mt-4">
-          <Image
-            source={{
-              uri:
-                user?.avatar ||
-                "https://cdn-icons-png.flaticon.com/512/847/847969.png",
-            }}
-            className="w-full h-full"
-          />
+        <View
+          className="w-20 h-20 rounded-full mb-3 mt-4 items-center justify-center overflow-hidden"
+          style={{ backgroundColor: user ? avatarColorForId(user.id) : "#E5E7EB" }}
+        >
+          {user?.avatar ? (
+            <Image
+              source={{ uri: user.avatar }}
+              className="w-full h-full rounded-full"
+            />
+          ) : (
+            <Text style={{ color: "white", fontSize: 28, fontWeight: "800" }}>
+              {initialsFromName(user?.name || "Usuario")}
+            </Text>
+          )}
         </View>
 
         <Text className="text-xl font-bold text-text">{user?.name || "Usuario"}</Text>

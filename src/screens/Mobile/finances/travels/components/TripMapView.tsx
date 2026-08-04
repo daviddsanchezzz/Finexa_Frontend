@@ -16,7 +16,12 @@ interface MapMarker extends GeoPoint {
   color: string;
   items: string[];
   order: number;
-  inBounds: boolean; // false for airports — keep out of fitBounds so map stays on destination
+  inBounds?: boolean;
+}
+
+interface RoutePoint extends GeoPoint {
+  order: number;
+  color: string;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -31,6 +36,7 @@ const TYPE_COLOR: Partial<Record<string, string>> = {
   cafe: "#EA580C",
 };
 const DEFAULT_COLOR = "#A855F7";
+const DAY_COLORS = ["#2563EB", "#06B6D4", "#8B5CF6", "#F97316", "#16A34A", "#EC4899", "#EAB308", "#14B8A6"];
 
 // ─── Geocoding cache (memory + localStorage para persistir entre sesiones) ──────
 
@@ -74,6 +80,44 @@ async function geocode(query: string): Promise<GeoPoint | null> {
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
+function normalizeDayKey(item: TripPlanItem): string | null {
+  return item.day ?? item.date ?? item.startAt?.slice(0, 10) ?? item.endAt?.slice(0, 10) ?? null;
+}
+
+function buildDayColorMap(items: TripPlanItem[]): Map<string, string> {
+  const keys = Array.from(new Set(items.map(normalizeDayKey).filter((value): value is string => !!value))).sort();
+  return new Map(keys.map((key, index) => [key, DAY_COLORS[index % DAY_COLORS.length]]));
+}
+
+function colorForItem(item: TripPlanItem, dayColorMap: Map<string, string>, markerMode: "numbered" | "dots"): string {
+  if (markerMode !== "dots") return TYPE_COLOR[item.type] ?? DEFAULT_COLOR;
+  const dayKey = normalizeDayKey(item);
+  return (dayKey ? dayColorMap.get(dayKey) : null) ?? DEFAULT_COLOR;
+}
+
+function offsetOverlappingDots(markers: MapMarker[], markerMode: "numbered" | "dots"): MapMarker[] {
+  if (markerMode !== "dots") return markers;
+
+  const groups = new Map<string, MapMarker[]>();
+  markers.forEach((marker) => {
+    const key = `${marker.lat.toFixed(4)}:${marker.lng.toFixed(4)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(marker);
+  });
+
+  groups.forEach((group) => {
+    if (group.length <= 1) return;
+    group.forEach((marker, index) => {
+      const angle = (Math.PI * 2 * index) / group.length;
+      const radius = 0.0026;
+      marker.lat += Math.sin(angle) * radius;
+      marker.lng += Math.cos(angle) * radius;
+    });
+  });
+
+  return markers;
+}
+
 function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -82,7 +126,7 @@ function esc(s: string): string {
 
 function buildLeafletHTML(
   markers: MapMarker[],
-  routePoints: { lat: number; lng: number; order: number }[],
+  routePoints: RoutePoint[],
   markerMode: "numbered" | "dots"
 ): string {
   const safe = markers.map(m => ({ ...m, title: esc(m.title), items: m.items.map(esc) }));
@@ -121,19 +165,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
     maxZoom:19,subdomains:'abcd'
   }).addTo(map);
   if(rt.length>1){
-    L.polyline(rt.map(function(p){return[p.lat,p.lng]}),{
-      color:'#2563EB',weight:3,opacity:0.65,dashArray:'10,8',lineCap:'round',lineJoin:'round'
-    }).addTo(map);
+    for(var i=1;i<rt.length;i++){
+      var prev=rt[i-1],curr=rt[i];
+      L.polyline([[prev.lat,prev.lng],[curr.lat,curr.lng]],{
+        color:curr.color||prev.color||'#2563EB',weight:3,opacity:0.7,dashArray:'10,8',lineCap:'round',lineJoin:'round'
+      }).addTo(map);
+    }
   }
   var markerMode=${JSON.stringify(markerMode)};
   ms.forEach(function(m,i){
     var icon=L.divIcon({
       className:'',
       html: markerMode === 'dots'
-        ? '<div style="width:8px;height:8px;background:'+m.color+';border-radius:999px;border:1.5px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.18)"></div>'
-        : '<div style="position:relative;width:24px;height:29px"><div style="width:24px;height:24px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:9px;font-weight:900;font-family:-apple-system,sans-serif">'+(i+1)+'</span></div></div>',
-      iconSize: markerMode === 'dots' ? [8,8] : [26,31],
-      iconAnchor: markerMode === 'dots' ? [4,4] : [12,27],
+        ? '<div style="width:7px;height:7px;background:'+m.color+';border-radius:999px;border:1.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.16)"></div>'
+        : '<div style="position:relative;width:22px;height:27px"><div style="width:22px;height:22px;background:'+m.color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:8px;font-weight:900;font-family:-apple-system,sans-serif">'+(i+1)+'</span></div></div>',
+      iconSize: markerMode === 'dots' ? [7,7] : [24,29],
+      iconAnchor: markerMode === 'dots' ? [3.5,3.5] : [11,25],
       popupAnchor:[0,-24]
     });
     var items=m.items.map(function(t){return'<div class="pu-item">'+t+'</div>'}).join('');
@@ -216,6 +263,8 @@ export default function TripMapView({
   const [html, setHtml] = useState("");
   const [mapVersion, setMapVersion] = useState(0);
 
+  const dayColorMap = useMemo(() => buildDayColorMap(planItems), [planItems]);
+
   const locRequests = useMemo(() => {
     const seen = new Map<string, { color: string; displayName: string; itemTitle: string; order: number }[]>();
 
@@ -226,7 +275,7 @@ export default function TripMapView({
     };
 
     planItems.forEach((item, idx) => {
-      const color = TYPE_COLOR[item.type] ?? DEFAULT_COLOR;
+      const color = colorForItem(item, dayColorMap, markerMode);
       if (item.type === "accommodation") {
         const d = item.accommodationDetails;
         // Prefer city+country (cleaner query), fallback to full address or location
@@ -236,7 +285,7 @@ export default function TripMapView({
             || d.name || null
           : null) ?? item.location ?? null;
         const displayName = d?.city || d?.name || item.location || item.title;
-        if (q) push(q, "#16A34A", displayName, item.title, idx);
+        if (q) push(q, color, displayName, item.title, idx);
       } else if (item.type === "flight") {
         // Origen y destino: campos estructurados, con fallback a "FROM → TO" parseado del título
         const fd = item.flightDetails;
@@ -251,19 +300,19 @@ export default function TripMapView({
 
       const dt = item.destinationTransport;
       if (dt?.fromName) {
-        push(dt.fromName, "#0EA5E9", dt.fromName, item.title, idx);
+        push(dt.fromName, color, dt.fromName, item.title, idx);
       }
       if (dt?.toName) {
-        push(dt.toName, "#0EA5E9", dt.toName, item.title, idx + 0.5);
+        push(dt.toName, color, dt.toName, item.title, idx + 0.5);
       }
       // Fallback when destinationTransport has no fromName/toName but item has location
       if (dt && !dt.fromName && !dt.toName && item.location) {
-        push(item.location, "#0EA5E9", item.location, item.title, idx);
+        push(item.location, color, item.location, item.title, idx);
       }
     });
 
     return seen;
-  }, [planItems]);
+  }, [dayColorMap, markerMode, planItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -278,7 +327,7 @@ export default function TripMapView({
       }
 
       const pins: MapMarker[] = [];
-      const routePoints: { lat: number; lng: number; order: number }[] = [];
+      const routePoints: RoutePoint[] = [];
 
       for (let i = 0; i < entries.length; i++) {
         if (cancelled) return;
@@ -290,25 +339,37 @@ export default function TripMapView({
 
         if (geo) {
           // Route: one point per occurrence (preserves repeated locations like BCN at start and end)
-          metas.forEach(m => routePoints.push({ lat: geo.lat, lng: geo.lng, order: m.order }));
+          metas.forEach(m => routePoints.push({ lat: geo.lat, lng: geo.lng, order: m.order, color: m.color }));
 
-          // Pins: deduplicated by proximity
-          const nearby = pins.find(
-            m => Math.abs(m.lat - geo.lat) < 0.002 && Math.abs(m.lng - geo.lng) < 0.002
-          );
-          if (nearby) {
-            metas.forEach(m => {
-              if (!nearby.items.includes(m.itemTitle)) nearby.items.push(m.itemTitle);
+          // Pins: in summary mode keep day colors separated; in numbered mode merge nearby points
+          if (markerMode === "dots") {
+            metas.forEach((m) => {
+              pins.push({
+                lat: geo.lat, lng: geo.lng,
+                title: m.displayName,
+                color: m.color,
+                items: [m.itemTitle],
+                order: m.order,
+              });
             });
           } else {
-            const first = metas[0];
-            pins.push({
-              lat: geo.lat, lng: geo.lng,
-              title: first.displayName,
-              color: first.color,
-              items: metas.map(m => m.itemTitle),
-              order: Math.min(...metas.map(m => m.order)),
-            });
+            const nearby = pins.find(
+              m => Math.abs(m.lat - geo.lat) < 0.002 && Math.abs(m.lng - geo.lng) < 0.002
+            );
+            if (nearby) {
+              metas.forEach(m => {
+                if (!nearby.items.includes(m.itemTitle)) nearby.items.push(m.itemTitle);
+              });
+            } else {
+              const first = metas[0];
+              pins.push({
+                lat: geo.lat, lng: geo.lng,
+                title: first.displayName,
+                color: first.color,
+                items: metas.map(m => m.itemTitle),
+                order: Math.min(...metas.map(m => m.order)),
+              });
+            }
           }
         }
 
@@ -316,7 +377,7 @@ export default function TripMapView({
       }
 
       if (!cancelled) {
-        setHtml(buildLeafletHTML(pins, routePoints, markerMode));
+        setHtml(buildLeafletHTML(offsetOverlappingDots(pins, markerMode), routePoints, markerMode));
         setMapVersion(v => v + 1);
         setLoading(false);
       }

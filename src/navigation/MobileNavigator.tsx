@@ -38,7 +38,7 @@ export type RootStackParamList = {
   InvestmentValuation: undefined;
   InvestmentDetail: undefined;
   Reports: undefined;
-  ReportsPdfViewer: undefined;
+  ReportsPdfViewer: { path?: string; title?: string; base64?: string; fileName?: string } | undefined;
   MonthlyContributions: undefined;
   InvestmentOperation: undefined;
   InvestmentComposition: undefined;

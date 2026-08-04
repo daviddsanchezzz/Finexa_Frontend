@@ -9,57 +9,86 @@ import { storage } from "../../../utils/storage";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
-// En web NO hay WebView. En iOS/Android sí.
 const WebViewNative = Platform.OS === "web" ? null : require("react-native-webview").WebView;
 
 function isMobileWeb() {
   if (Platform.OS !== "web") return false;
-  // RN-web corre en browser: navigator existe
   const ua = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
   return /iPhone|iPad|iPod|Android/i.test(ua);
 }
 
+function base64ToBlobUrl(base64: string) {
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: "application/pdf" });
+  return URL.createObjectURL(blob);
+}
+
 export default function ReportsPdfViewerScreen({ navigation, route }: any) {
-  const { path, title } = route.params as { path: string; title: string };
+  const { path, title, base64, fileName } = route.params as {
+    path?: string;
+    title?: string;
+    base64?: string;
+    fileName?: string;
+  };
 
   const [token, setToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
-
-  // Web: URL del blob para mostrar/abrir
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [sharing, setSharing] = useState(false);
 
+  const safePdfName = useMemo(() => {
+    const raw = (fileName || title || "documento").replace(/\.pdf$/i, "");
+    return raw.replace(/\s+/g, "_") + ".pdf";
+  }, [fileName, title]);
+
+  const url = useMemo(() => {
+    const baseURL = (api as any)?.defaults?.baseURL;
+    if (!baseURL || !path) return null;
+    return `${String(baseURL).replace(/\/$/, "")}${path}`;
+  }, [path]);
+
   const handleShare = async () => {
-    if (!url || !token) return;
+    if (!url && !base64) return;
     try {
       setSharing(true);
-      const fileName = title.replace(/\s+/g, "_") + ".pdf";
-      const localUri = FileSystem.cacheDirectory + fileName;
-      const res = await FileSystem.downloadAsync(url, localUri, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status !== 200) throw new Error(`Error ${res.status}`);
+      const localUri = FileSystem.cacheDirectory + safePdfName;
+
+      if (base64) {
+        await FileSystem.writeAsStringAsync(localUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } else {
+        if (!url || !token) return;
+        const res = await FileSystem.downloadAsync(url, localUri, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status !== 200) throw new Error(`Error ${res.status}`);
+      }
+
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert("Compartir no disponible", "Tu dispositivo no soporta esta función.");
+        Alert.alert("Compartir no disponible", "Tu dispositivo no soporta esta funci?n.");
         return;
       }
-      await Sharing.shareAsync(res.uri, { mimeType: "application/pdf", dialogTitle: title });
+      await Sharing.shareAsync(localUri, { mimeType: "application/pdf", dialogTitle: title || "PDF" });
     } catch (e: any) {
-      Alert.alert("Error", e?.message || "No se pudo descargar el informe");
+      Alert.alert("Error", e?.message || "No se pudo abrir el PDF");
     } finally {
       setSharing(false);
     }
   };
 
-  const url = useMemo(() => {
-    const baseURL = (api as any)?.defaults?.baseURL;
-    if (!baseURL) return null;
-    return `${String(baseURL).replace(/\/$/, "")}${path}`;
-  }, [path]);
-
   useEffect(() => {
+    if (base64) {
+      setLoadingToken(false);
+      return;
+    }
     const loadToken = async () => {
       try {
         const t = await storage.getItem("access_token");
@@ -71,38 +100,38 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
       }
     };
     loadToken();
-  }, []);
+  }, [base64]);
 
-  // Web: descargar PDF con Authorization y convertirlo a blob URL
   useEffect(() => {
     const run = async () => {
       if (Platform.OS !== "web") return;
-      if (!url || !token) return;
-
       try {
         setLoadingPdf(true);
 
+        if (base64) {
+          const objectUrl = base64ToBlobUrl(base64);
+          setBlobUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return objectUrl;
+          });
+          return;
+        }
+
+        if (!url || !token) return;
         const res = await fetch(url, {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         });
-
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
         }
-
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
-
         setBlobUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return objectUrl;
         });
-
-        // Si quieres auto-abrir en móvil web (puede ser bloqueado por el navegador):
-        // if (isMobileWeb()) window.open(objectUrl, "_blank");
-
       } catch (e: any) {
         Alert.alert("Error", e?.message || "No se pudo cargar el PDF");
       } finally {
@@ -120,7 +149,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         });
       }
     };
-  }, [url, token]);
+  }, [url, token, base64]);
 
   const Header = (
     <View className="px-5 pt-2 pb-3 flex-row items-center justify-between">
@@ -133,7 +162,7 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
       </TouchableOpacity>
 
       <Text className="text-[16px] font-extrabold text-text">
-        {title || "Informe"}
+        {title || "PDF"}
       </Text>
 
       {Platform.OS !== "web" ? (
@@ -155,51 +184,42 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
     </View>
   );
 
-  if (!url) {
+  if (!url && !base64) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         {Header}
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-text font-extrabold text-[16px] text-center">
-            Falta configuración
-          </Text>
-          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">
-            No encuentro api.defaults.baseURL.
-          </Text>
+          <Text className="text-text font-extrabold text-[16px] text-center">Falta configuraci?n</Text>
+          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">No se recibi? el PDF.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (loadingToken) {
+  if (!base64 && loadingToken) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         {Header}
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
-          <Text className="mt-3 text-gray-500 font-semibold">Cargando…</Text>
+          <Text className="mt-3 text-gray-500 font-semibold">Cargando?</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!token) {
+  if (!base64 && !token) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         {Header}
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-text font-extrabold text-[16px] text-center">
-            Sesión no válida
-          </Text>
-          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">
-            No se encontró access_token. Inicia sesión de nuevo.
-          </Text>
+          <Text className="text-text font-extrabold text-[16px] text-center">Sesi?n no v?lida</Text>
+          <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">No se encontr? access_token. Inicia sesi?n de nuevo.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ✅ WEB
   if (Platform.OS === "web") {
     const mobileWeb = isMobileWeb();
 
@@ -210,47 +230,27 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
         {loadingPdf && (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator />
-            <Text className="mt-3 text-gray-500 font-semibold">
-              Descargando PDF…
-            </Text>
+            <Text className="mt-3 text-gray-500 font-semibold">Cargando PDF?</Text>
           </View>
         )}
 
         {!loadingPdf && !blobUrl && (
           <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-text font-extrabold text-[16px] text-center">
-              No se pudo mostrar el PDF
-            </Text>
-            <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">
-              Revisa permisos o el endpoint.
-            </Text>
+            <Text className="text-text font-extrabold text-[16px] text-center">No se pudo mostrar el PDF</Text>
+            <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2">Revisa permisos o el endpoint.</Text>
           </View>
         )}
 
-        {/* WEB MÓVIL: NO iframe (visor embebido falla) */}
         {!loadingPdf && blobUrl && mobileWeb && (
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-text font-extrabold text-[16px] text-center">
-              Abrir informe
-            </Text>
-            <Text className="text-gray-500 font-semibold text-[13px] text-center mt-2 leading-5">
-              En móvil, el visor de PDF embebido suele impedir zoom/paginación.
-              Ábrelo en una pestaña nueva.
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => window.open(blobUrl, "_blank")}
-              activeOpacity={0.85}
-              className="mt-4 bg-primary rounded-2xl py-4 px-5 items-center"
-            >
-              <Text className="text-white font-extrabold text-[15px]">
-                Abrir PDF
-              </Text>
-            </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <iframe
+              src={blobUrl}
+              style={{ width: "100%", height: "100%", border: "none" }}
+              title={title || "PDF"}
+            />
           </View>
         )}
 
-        {/* WEB DESKTOP: iframe */}
         {!loadingPdf && blobUrl && !mobileWeb && (
           <View style={{ flex: 1 }}>
             <iframe
@@ -264,18 +264,14 @@ export default function ReportsPdfViewerScreen({ navigation, route }: any) {
     );
   }
 
-  // ✅ iOS/Android: WebView con Authorization header
   return (
     <SafeAreaView className="flex-1 bg-background">
       {Header}
       <WebViewNative
         source={{
-          uri: url,
-          headers: { Authorization: `Bearer ${token}` },
+          uri: base64 ? `data:application/pdf;base64,${base64}` : url,
+          headers: base64 ? undefined : { Authorization: `Bearer ${token}` },
         }}
-        // Opcional: mejoras UX
-        // startInLoadingState
-        // renderLoading={() => <ActivityIndicator style={{ marginTop: 20 }} />}
       />
     </SafeAreaView>
   );

@@ -626,62 +626,31 @@ export default function TripDetailScreen({ route, navigation }: any) {
 
       const { pdfUrl, base64, fileName } = res.data || {};
 
-      if (pdfUrl) {
-        await Linking.openURL(pdfUrl);
-      } else if (base64) {
-        const safeFileName =
-          fileName && fileName.trim().length > 0
-            ? fileName.replace(/[^a-zA-Z0-9_\-\.]/g, "_")
-            : `viaje-${trip.id}.pdf`;
-
-        if (Platform.OS === "web") {
-          try {
-            if (typeof window !== "undefined") {
-              const byteCharacters = atob(base64);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: "application/pdf" });
-              const url = URL.createObjectURL(blob);
-
-              window.open(url, "_blank");
-              setTimeout(() => URL.revokeObjectURL(url), 60_000);
-            } else {
-              throw new Error("Entorno web no disponible para abrir PDF");
-            }
-          } catch (e) {
-            console.error("❌ Error al abrir PDF en web:", e);
-            Alert.alert("Error al abrir PDF", "No se ha podido abrir el archivo en el navegador.");
-          }
-        } else {
-          try {
-            const dataUrl = `data:application/pdf;base64,${base64}`;
-            const supported = await Linking.canOpenURL(dataUrl);
-
-            if (supported) {
-              await Linking.openURL(dataUrl);
-            } else {
-              Alert.alert(
-                "PDF generado",
-                "El archivo se ha generado correctamente, pero no se ha podido abrir automáticamente."
-              );
-            }
-          } catch (e) {
-            console.error("❌ Error al abrir PDF en nativo:", e);
-            Alert.alert("Error al abrir PDF", "No se ha podido abrir el archivo en el dispositivo.");
-          }
-        }
-      } else {
-        Alert.alert(
-          "No se ha podido generar el PDF",
-          "No se ha recibido ningún archivo desde el servidor."
-        );
+      if (base64) {
+        navigation.navigate("ReportsPdfViewer", {
+          title: trip.name || "Viaje",
+          base64,
+          fileName,
+        });
+        return;
       }
+
+      if (pdfUrl) {
+        navigation.navigate("ReportsPdfViewer", {
+          title: trip.name || "Viaje",
+          path: pdfUrl,
+          fileName,
+        });
+        return;
+      }
+
+      appAlert(
+        "No se ha podido generar el PDF",
+        "No se ha recibido ningún archivo desde el servidor."
+      );
     } catch (error) {
-      console.error("❌ Error al exportar viaje", error);
-      Alert.alert(
+      console.error("? Error al exportar viaje", error);
+      appAlert(
         "Error al exportar",
         "Ha ocurrido un error al generar el PDF. Inténtalo de nuevo más tarde."
       );
