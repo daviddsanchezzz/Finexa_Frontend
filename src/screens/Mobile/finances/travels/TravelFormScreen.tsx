@@ -23,6 +23,13 @@ import { appAlert } from "../../../../utils/appAlert";
 type TripStatus = "seen" | "planning" | "wishlist";
 type DateField = "start" | "end" | null;
 
+interface CountryStayFromApi {
+  country: string;
+  continent?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 interface TripFromApi {
   id: number;
   userId: number;
@@ -38,6 +45,14 @@ interface TripFromApi {
   year?: number | null;
   cost?: number | null;
   coverImageUrl?: string | null;
+  countryStays?: CountryStayFromApi[] | null;
+}
+
+interface StayDraft {
+  countryCode: string | null;
+  countryName: string;
+  startDate: Date;
+  endDate: Date;
 }
 
 /* ─── Helpers ─── */
@@ -96,16 +111,27 @@ const COMPANION_OPTIONS = [
 ];
 
 /* ─── Edit form (pantalla completa única) ─── */
+function initialStaysFromTrip(editTrip: TripFromApi): StayDraft[] {
+  if (editTrip.countryStays && editTrip.countryStays.length > 0) {
+    return editTrip.countryStays.map((s) => ({
+      countryCode: looksLikeCca2(s.country) ? s.country.toUpperCase() : null,
+      countryName: looksLikeCca2(s.country) ? "" : s.country || "",
+      startDate: isValidISODate(s.startDate) ? new Date(s.startDate!) : new Date(),
+      endDate: isValidISODate(s.endDate) ? new Date(s.endDate!) : new Date(),
+    }));
+  }
+  const dest = editTrip.destination ?? null;
+  return [{
+    countryCode: looksLikeCca2(dest) ? String(dest).toUpperCase() : null,
+    countryName: looksLikeCca2(dest) ? "" : String(dest || ""),
+    startDate: isValidISODate(editTrip.startDate) ? new Date(editTrip.startDate) : new Date(),
+    endDate: isValidISODate(editTrip.endDate) ? new Date(editTrip.endDate) : new Date(),
+  }];
+}
+
 function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigation: any }) {
   const [name, setName]           = useState(editTrip.name ?? "");
-  const [countryCode, setCountryCode] = useState<string | null>(null);
-  const [countryName, setCountryName] = useState("");
-  const [startDate, setStartDate] = useState<Date>(
-    isValidISODate(editTrip.startDate) ? new Date(editTrip.startDate) : new Date()
-  );
-  const [endDate, setEndDate] = useState<Date>(
-    isValidISODate(editTrip.endDate) ? new Date(editTrip.endDate) : new Date()
-  );
+  const [stays, setStays]         = useState<StayDraft[]>(() => initialStaysFromTrip(editTrip));
   const [budgetText, setBudgetText] = useState(editTrip.budget != null ? String(editTrip.budget) : "");
   const [status, setStatus] = useState<TripStatus | null>((editTrip.status as TripStatus) ?? null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(editTrip.coverImageUrl ?? null);
@@ -113,41 +139,54 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   const [saving, setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [dateField, setDateField] = useState<DateField>(null);
-
-  useEffect(() => {
-    const dest = editTrip?.destination ?? null;
-    if (!dest) return;
-    if (looksLikeCca2(dest)) { setCountryCode(String(dest).toUpperCase()); }
-    else { setCountryName(String(dest)); }
-  }, [editTrip?.id]);
+  const [datePickerTarget, setDatePickerTarget] = useState<{ index: number; field: "start" | "end" } | null>(null);
 
   const handleConfirmDate = (date: Date) => {
-    if (dateField === "start") {
-      setStartDate(date);
-      if (endDate < date) setEndDate(date);
-    } else if (dateField === "end") {
-      if (date < startDate) setStartDate(date);
-      setEndDate(date);
-    }
+    if (!datePickerTarget) return;
+    const { index, field } = datePickerTarget;
+    setStays((prev) => prev.map((s, i) => {
+      if (i !== index) return s;
+      if (field === "start") return { ...s, startDate: date, endDate: s.endDate < date ? date : s.endDate };
+      return { ...s, endDate: date, startDate: date < s.startDate ? date : s.startDate };
+    }));
     setDatePickerVisible(false);
-    setDateField(null);
+    setDatePickerTarget(null);
   };
 
-  const days = useMemo(() => {
-    const d = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+  const addStay = () => {
+    setStays((prev) => {
+      const last = prev[prev.length - 1];
+      return [...prev, { countryCode: null, countryName: "", startDate: last?.endDate ?? new Date(), endDate: last?.endDate ?? new Date() }];
+    });
+  };
+  const removeStay = (index: number) => {
+    setStays((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+  };
+  const updateStayCountry = (index: number, code: string | null, name: string) => {
+    setStays((prev) => prev.map((s, i) => (i === index ? { ...s, countryCode: code, countryName: name } : s)));
+  };
+
+  const totalDays = useMemo(() => {
+    const starts = stays.map((s) => s.startDate.getTime());
+    const ends = stays.map((s) => s.endDate.getTime());
+    if (!starts.length) return 1;
+    const d = Math.round((Math.max(...ends) - Math.min(...starts)) / 86400000) + 1;
     return d > 0 ? d : 1;
-  }, [startDate, endDate]);
+  }, [stays]);
 
   const handleSave = async () => {
     if (!name.trim()) { appAlert("Falta el nombre", "Añade un nombre para el viaje."); return; }
+    const validStays = stays.filter((s) => s.countryCode);
+    if (validStays.length === 0) { appAlert("Falta el país", "Selecciona al menos un país."); return; }
     try {
       setSaving(true);
       await api.patch(`/trips/${editTrip.id}`, {
         name: name.trim(),
-        destination: countryCode ?? undefined,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        countryStays: validStays.map((s) => ({
+          country: s.countryCode,
+          startDate: s.startDate.toISOString(),
+          endDate: s.endDate.toISOString(),
+        })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
         status: status ?? undefined,
         coverImageUrl: coverImageUrl ?? null,
@@ -247,35 +286,71 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
           />
         </View>
 
-        {/* País */}
-        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>DESTINO</Text>
-          <CountrySelect
-            valueName={countryName}
-            valueCode={countryCode}
-            onChange={({ name: n, code }: any) => { setCountryName(n); setCountryCode(code); }}
-          />
-        </View>
-
-        {/* Fechas */}
-        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>FECHAS · {days} días</Text>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              onPress={() => { setDateField("start"); setDatePickerVisible(true); }}
-              style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
-            >
-              <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>DESDE</Text>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(startDate)}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => { setDateField("end"); setDatePickerVisible(true); }}
-              style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
-            >
-              <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>HASTA</Text>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(endDate)}</Text>
-            </Pressable>
+        {/* Países y fechas */}
+        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7", gap: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
+              {stays.length > 1 ? "PAÍSES Y FECHAS" : "DESTINO Y FECHAS"}
+            </Text>
+            {stays.length > 1 && (
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
+            )}
           </View>
+
+          {stays.map((stay, index) => (
+            <View
+              key={index}
+              style={{
+                gap: 8,
+                paddingBottom: index === stays.length - 1 ? 0 : 14,
+                borderBottomWidth: index === stays.length - 1 ? 0 : 1,
+                borderBottomColor: "#F1F5F9",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <CountrySelect
+                    valueName={stay.countryName}
+                    valueCode={stay.countryCode}
+                    onChange={({ name: n, code }: any) => updateStayCountry(index, code, n)}
+                  />
+                </View>
+                {stays.length > 1 && (
+                  <TouchableOpacity onPress={() => removeStay(index)} style={{ padding: 8 }}>
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable
+                  onPress={() => { setDatePickerTarget({ index, field: "start" }); setDatePickerVisible(true); }}
+                  style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>DESDE</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.startDate)}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { setDatePickerTarget({ index, field: "end" }); setDatePickerVisible(true); }}
+                  style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>HASTA</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatShortDate(stay.endDate)}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity
+            onPress={addStay}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+              paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", borderColor: "#CBD5E1",
+            }}
+          >
+            <Ionicons name="add" size={16} color={colors.primary} />
+            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Añadir otro país</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Estado */}
@@ -340,9 +415,13 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
       <CrossPlatformDateTimePicker
         isVisible={datePickerVisible}
         mode="date"
-        date={(dateField === "end" ? endDate : startDate) ?? new Date()}
+        date={
+          datePickerTarget
+            ? (datePickerTarget.field === "end" ? stays[datePickerTarget.index]?.endDate : stays[datePickerTarget.index]?.startDate) ?? new Date()
+            : new Date()
+        }
         onConfirm={handleConfirmDate}
-        onCancel={() => { setDatePickerVisible(false); setDateField(null); }}
+        onCancel={() => { setDatePickerVisible(false); setDatePickerTarget(null); }}
       />
     </SafeAreaView>
   );
