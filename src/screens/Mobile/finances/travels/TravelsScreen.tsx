@@ -451,6 +451,10 @@ export default function TripsHomeScreen({ navigation }: any) {
     </TouchableOpacity>
   );
 
+  if (loading && trips.length === 0) {
+    return <TravelsScreenSkeleton />;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
@@ -861,9 +865,7 @@ export default function TripsHomeScreen({ navigation }: any) {
 
             {/* Trip list */}
             <View style={{ paddingHorizontal: 20 }}>
-              {(loading && trips.length === 0) ? (
-                <TravelsScreenSkeleton />
-              ) : isEmptyAll ? (
+              {isEmptyAll ? (
                 <View style={{ alignItems: "center", paddingVertical: 48, gap: 12 }}>
                   <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
                     <Text style={{ fontSize: 32 }}>✈️</Text>

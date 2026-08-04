@@ -21,6 +21,7 @@ import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import { appAlert } from "../../../../utils/appAlert";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
+import { TripDetailScreenSkeleton } from "../../../../components/skeletons/TripDetailScreenSkeleton";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
@@ -665,19 +666,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   // =========================
 
   if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-background">
-        <View className="px-5 pt-3 pb-2 flex-row items-center">
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 12, paddingVertical: 4 }}>
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-900">Detalle de viaje</Text>
-        </View>
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <TripDetailScreenSkeleton />;
   }
 
   if (!trip) {
