@@ -187,6 +187,19 @@ function buildSmartStays(prev: StayDraft[], incoming: StayDraft[]) {
 
   sorted = sortStaysByDate(sorted, previousOrder);
 
+  const rangedStays = sorted.filter((stay) => hasFullRange(stay) && stay.startDate && stay.endDate);
+  if (rangedStays.length > 1) {
+    const firstRange = rangedStays[0];
+    const allSameRange = rangedStays.every(
+      (stay) =>
+        stay.startDate?.getTime() === firstRange.startDate?.getTime() &&
+        stay.endDate?.getTime() === firstRange.endDate?.getTime(),
+    );
+    if (allSameRange) {
+      return { stays: sorted };
+    }
+  }
+
   for (let index = 0; index < sorted.length; index += 1) {
     const current = sorted[index];
     if (!hasFullRange(current) || !current.startDate || !current.endDate) continue;
@@ -196,7 +209,7 @@ function buildSmartStays(prev: StayDraft[], incoming: StayDraft[]) {
       if (!hasFullRange(next) || !next.startDate || !next.endDate) continue;
       if (current.startDate <= next.endDate && current.endDate >= next.startDate) {
         return {
-          error: `Las fechas de ${countryNameEs(next.countryCode) || next.countryName} se solapan con otro paÃ­s.`,
+          error: `Las fechas de ${countryNameEs(next.countryCode) || next.countryName} se solapan con otro paí­s.`,
         };
       }
     }
@@ -528,7 +541,7 @@ function TripDatesEditor({
     <View style={{ gap: 12 }}>
       <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
         {([
-          { id: "per_country" as const, label: "Por paÃ­s" },
+          { id: "per_country" as const, label: "Por paí­s" },
           { id: "single_range" as const, label: "Inicio y fin" },
         ]).map((opt) => {
           const active = mode === opt.id;
@@ -589,7 +602,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   const handleSave = async () => {
     if (!name.trim()) { appAlert("Falta el nombre", "AÃ±ade un nombre para el viaje."); return; }
     const validStays = stays.filter((s) => s.countryCode);
-    if (validStays.length === 0) { appAlert("Falta el paÃ­s", "Selecciona al menos un paÃ­s."); return; }
+    if (validStays.length === 0) { appAlert("Falta el paí­s", "Selecciona al menos un paí­s."); return; }
     try {
       setSaving(true);
       await api.patch(`/trips/${editTrip.id}`, {

@@ -336,6 +336,35 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const countryCode = countryCodes[0] ?? null;
   const countryLabel = countryCodes.length > 0 ? countryCodes.map((c) => countryNameEs(c)).join(", ") : "Sin destino";
   const countryFlag = countryCodes.map((c) => cca2ToFlagEmoji(c)).join("");
+  const countryHeroSummary = useMemo(() => {
+    const stays = (trip?.countryStays ?? [])
+      .map((stay) => ({
+        country: (stay.country || "").trim().toUpperCase(),
+        startDate: stay.startDate || null,
+        endDate: stay.endDate || null,
+      }))
+      .filter((stay) => stay.country);
+
+    if (stays.length === 0) {
+      return countryLabel ? `${countryFlag} ${countryLabel}`.trim() : "Sin destino";
+    }
+
+    const firstStart = stays[0]?.startDate ?? null;
+    const firstEnd = stays[0]?.endDate ?? null;
+    const isSingleRange = stays.every(
+      (stay) => stay.startDate === firstStart && stay.endDate === firstEnd,
+    );
+
+    if (isSingleRange) {
+      return stays
+        .map((stay) => `${cca2ToFlagEmoji(stay.country)} ${countryNameEs(stay.country)}`)
+        .join(", ");
+    }
+
+    return stays
+      .map((stay) => `${cca2ToFlagEmoji(stay.country)} ${formatDateRange(stay.startDate, stay.endDate) ?? countryNameEs(stay.country)}`)
+      .join(", ");
+  }, [trip?.countryStays, countryFlag, countryLabel]);
 
   // =========================
   // TASKS CALLBACKS
@@ -730,9 +759,9 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    {countryLabel ? (
+                    {countryHeroSummary ? (
                       <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
-                        {countryFlag} {countryLabel}
+                        {countryHeroSummary}
                       </Text>
                     ) : null}
                     <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
@@ -766,9 +795,9 @@ export default function TripDetailScreen({ route, navigation }: any) {
               <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    {countryLabel ? (
+                    {countryHeroSummary ? (
                       <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginBottom: 2 }}>
-                        {countryFlag} {countryLabel}
+                        {countryHeroSummary}
                       </Text>
                     ) : null}
                     <Text style={{ fontSize: 24, fontWeight: "900", color: "white" }} numberOfLines={1}>
