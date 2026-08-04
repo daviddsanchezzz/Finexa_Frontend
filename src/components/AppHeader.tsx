@@ -74,7 +74,7 @@ export default function AppHeader({
               backgroundColor: user ? avatarColorForId(user.id) : "#F3F4F6",
               alignItems: "center",
               justifyContent: "center",
-              marginRight: 10,
+              marginRight: 6,
             }}
           >
             {user ? (
@@ -97,7 +97,7 @@ export default function AppHeader({
               height: 36,
               alignItems: "center",
               justifyContent: "center",
-              marginRight: 10,
+              marginRight: 4,
             }}
           >
             <Ionicons name="notifications-outline" size={22} color={colors.primary} />
