@@ -487,6 +487,7 @@ export default function TripPlanFormScreen({
   // ==================== VISIT STATE ====================
 
   const [visitTitle, setVisitTitle] = useState(planItem?.title || "");
+  const [visitLocation, setVisitLocation] = useState(planItem?.location || "");
   const [visitStartAt, setVisitStartAt] = useState<Date | null>(
     planItem?.startAt ? new Date(planItem.startAt) : presetDay ? new Date(`${presetDay}T09:00`) : null
   );
@@ -757,6 +758,7 @@ export default function TripPlanFormScreen({
         tripId,
         type: TripPlanItemType.visit,
         title: visitTitle,
+        location: visitLocation.trim() || null,
         startAt: visitStartAt?.toISOString() || null,
         endAt: visitEndAt?.toISOString() || null,
         day: visitStartAt ? visitStartAt.toISOString().slice(0, 10) : presetDay || null,
@@ -1280,6 +1282,13 @@ export default function TripPlanFormScreen({
         {mainTab === "visit" && (
           <View>
             <Field label="TÍTULO" value={visitTitle} onChange={setVisitTitle} placeholder='Ej: Visitar Palermo' autoCapitalize="sentences" />
+            <Field
+              label="UBICACION PARA EL MAPA"
+              value={visitLocation}
+              onChange={setVisitLocation}
+              placeholder="Ej: Cefalu, Sicilia"
+              autoCapitalize="words"
+            />
 
             <Row2>
               <View style={{ flex: 1 }}>
