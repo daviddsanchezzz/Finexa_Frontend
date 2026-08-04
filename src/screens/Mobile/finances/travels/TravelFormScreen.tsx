@@ -94,13 +94,6 @@ function getCalCells(year: number, month: number): (number | null)[] {
 function capitalize(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
-const POPULAR_DESTINATIONS = [
-  { code: "GR", name: "Grecia" },
-  { code: "JP", name: "Japón" },
-  { code: "MA", name: "Marruecos" },
-  { code: "IT", name: "Sicilia" },
-];
-
 const COMPANION_OPTIONS = [
   { id: "solo",   label: "Solo",    icon: "person-outline" as const },
   { id: "pareja", label: "Pareja",  icon: "heart-outline" as const },
@@ -789,62 +782,10 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </View>
           )}
 
-          {/* Búsqueda */}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#F8FAFC", borderRadius: 16, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-            <Ionicons name="search-outline" size={18} color="#94A3B8" />
-            <TextInput
-              value={searchQ}
-              onChangeText={setSearchQ}
-              placeholder="Ciudad, región o país..."
-              placeholderTextColor="#CBD5E1"
-              style={{ flex: 1, fontSize: 15, color: "#0F172A", paddingVertical: 0 }}
-            />
-          </View>
-
-          {/* Populares */}
-          {!searchQ && (
-            <View>
-              <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 12 }}>
-                POPULARES ESTA TEMPORADA
-              </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-                {POPULAR_DESTINATIONS.map(dest => {
-                  const selected = stays.some((s) => s.countryCode === dest.code);
-                  return (
-                    <TouchableOpacity
-                      key={dest.code}
-                      onPress={() => {
-                        toggleCountry(dest.code, dest.name);
-                        if (!tripName) setTripName(dest.name);
-                      }}
-                      activeOpacity={0.85}
-                      style={{
-                        width: "47%", aspectRatio: 1.1,
-                        borderRadius: 18, overflow: "hidden",
-                        borderWidth: selected ? 2.5 : 0,
-                        borderColor: selected ? colors.primary : "transparent",
-                      }}
-                    >
-                      <View style={{
-                        flex: 1, backgroundColor: selected ? "#EEF2FF" : "#F1F5F9",
-                        alignItems: "center", justifyContent: "center",
-                      }}>
-                        <Text style={{ fontSize: 52 }}>{flagEmojiFromISO2(dest.code)}</Text>
-                      </View>
-                      <View style={{ backgroundColor: selected ? colors.primary : "#0F172A", paddingVertical: 8, alignItems: "center" }}>
-                        <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>{dest.name}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Country select cuando buscan */}
+          {/* Country select */}
           <View>
             <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 10 }}>
-              {searchQ ? "RESULTADO" : stays.length > 0 ? "AÑADIR OTRO PAÍS" : "OTRO DESTINO"}
+              {stays.length > 0 ? "AÑADIR OTRO PAÍS" : "PAÍS"}
             </Text>
             <CountrySelect
               valueName=""

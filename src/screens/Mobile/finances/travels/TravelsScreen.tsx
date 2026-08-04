@@ -170,17 +170,11 @@ function TripThumbnail({ trip, size = 56 }: { trip: TripUI; size?: number }) {
       alignItems: "center", justifyContent: "center",
       borderWidth: 1, borderColor: "#E0E7FF",
     }}>
-      {codes.length > 1 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-          {codes.slice(0, 2).map((code) => (
-            <Text key={code} style={{ fontSize: size * 0.32 }}>{flagEmojiFromISO2(code)}</Text>
-          ))}
-        </View>
-      ) : Platform.OS === "web" && flagUrl ? (
+      {codes.length <= 1 && Platform.OS === "web" && flagUrl ? (
         // @ts-ignore
         <img src={flagUrl} alt={primary || ""} style={{ width: size * 0.55, height: size * 0.55 }} />
       ) : (
-        <Text style={{ fontSize: size * 0.44 }}>{flag}</Text>
+        <Text style={{ fontSize: size * 0.44 }}>{codes.length <= 1 ? flag : "🌍"}</Text>
       )}
     </View>
   );
@@ -866,6 +860,8 @@ export default function TripsHomeScreen({ navigation }: any) {
                     const dateLabel = formatDateRange(t.startDate, t.endDate);
                     const days      = tripDurationDays(t);
                     const showCost  = t.status === "seen" && (t.cost || 0) > 0;
+                    const countryCodes = tripCountryCodes(t);
+                    const isMultiCountry = countryCodes.length > 1;
 
                     return (
                       <TouchableOpacity
@@ -887,8 +883,8 @@ export default function TripsHomeScreen({ navigation }: any) {
                         {/* Info */}
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                            {t.coverImageUrl && tripCountryCodes(t).length > 0 && (
-                              <CountryBadgesRow codes={tripCountryCodes(t)} size={14} />
+                            {isMultiCountry && (
+                              <CountryBadgesRow codes={countryCodes.slice(0, 3)} size={14} />
                             )}
                             <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }} numberOfLines={1}>
                               {t.name}
