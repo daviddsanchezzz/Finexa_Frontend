@@ -81,8 +81,8 @@ export default function WorldOverviewScreen() {
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
-          <View style={{ borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
-            <WorldMapSvg visitedCodes={visitedCodes} height={240} visitedColor={colors.primary} />
+          <View style={{ marginHorizontal: -20, marginBottom: 16, overflow: "hidden" }}>
+            <WorldMapSvg visitedCodes={visitedCodes} height={320} visitedColor={colors.primary} />
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
