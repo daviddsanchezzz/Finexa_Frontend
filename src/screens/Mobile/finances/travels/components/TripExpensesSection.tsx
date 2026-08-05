@@ -411,7 +411,7 @@ export default function TripExpensesSection({
       await api.patch(`/trips/${tripId}/plan-items/${planItemId}`, {
         type: target.type,
         title: target.title,
-        cost: linkingItem.cost,
+        cost: safeNumber(linkingItem.cost),
         transactionId: linkingItem.transactionId,
       });
       await api.delete(`/trips/${tripId}/plan-items/${linkingItem.id}`);
