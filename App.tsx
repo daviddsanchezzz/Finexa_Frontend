@@ -18,6 +18,8 @@ import { queryClient } from "./src/lib/queryClient";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { ToastContainer } from "./src/components/ui/ToastContainer";
 import { ActionSheetHost } from "./src/components/ui/ActionSheetHost";
+import LiveTripCard from "./src/components/LiveTripCard";
+import { navigationRef } from "./src/navigation/navigationRef";
 import {
   isBiometricEnabled,
   authenticateWithBiometric,
@@ -61,7 +63,7 @@ function AppContent() {
 function ThemedNavigationContainer({ children }: { children: React.ReactNode }) {
   const { isDark } = useTheme();
   return (
-    <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={isDark ? DarkTheme : DefaultTheme}>
       {children}
     </NavigationContainer>
   );
@@ -145,6 +147,7 @@ export default function App() {
                     <AppContent />
                     <ToastContainer />
                     <ActionSheetHost />
+                    <LiveTripCard />
                   </ThemedNavigationContainer>
                 </BiometricGate>
               </SafeAreaProvider>

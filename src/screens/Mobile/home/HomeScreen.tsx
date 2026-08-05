@@ -7,7 +7,6 @@ import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
 import WalletSelectorModal from "../../../components/WalletSelectorModal";
 import NotificationsSheet from "../../../components/NotificationsSheet";
-import LiveTripCard from "../../../components/LiveTripCard";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
@@ -175,7 +174,6 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       <NotificationsSheet visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
-      <LiveTripCard />
 
       {Platform.OS === "web" && !loading && (
         <View style={{ position: "absolute", top: 52, left: 0, right: 0, alignItems: "center", zIndex: 0 }}>

@@ -1,18 +1,22 @@
-import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity } from "react-native";
+import React from "react";
+import { View, Text, Image, TouchableOpacity, Pressable } from "react-native";
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useOngoingTrip } from "../hooks/useOngoingTrip";
 import { useTripActivityStatus, minutesUntil, formatCountdown } from "../hooks/useTripActivityStatus";
+import { useUIStore } from "../store/uiStore";
+import { CountryFlag } from "./CountryFlag";
+import { navigate } from "../navigation/navigationRef";
 
 export default function LiveTripCard() {
-  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { trip } = useOngoingTrip();
-  const { currentItem, nextItem, now } = useTripActivityStatus(trip?.planItems);
-  const [dismissed, setDismissed] = useState(false);
+  const { currentItem, currentItemEnd, nextItem, now } = useTripActivityStatus(trip?.planItems);
+  const minimized = useUIStore((s) => s.liveTripMinimized);
+  const setMinimized = useUIStore((s) => s.setLiveTripMinimized);
 
-  if (!trip || dismissed) return null;
+  if (!trip) return null;
 
   const start = trip.startDate ? new Date(trip.startDate) : null;
   const end = trip.endDate ? new Date(trip.endDate) : null;
@@ -21,39 +25,97 @@ export default function LiveTripCard() {
 
   const headline = currentItem ?? nextItem;
   const headlineLabel = currentItem ? "Ahora" : "Siguiente";
-  const countdown = !currentItem && nextItem?.startAt ? formatCountdown(minutesUntil(nextItem.startAt, now)) : null;
+  const countdown = currentItem && currentItemEnd
+    ? `termina ${formatCountdown(minutesUntil(currentItemEnd.toISOString(), now))}`
+    : !currentItem && nextItem?.startAt
+    ? formatCountdown(minutesUntil(nextItem.startAt, now))
+    : null;
+
+  // Navegar desde el modal (atajos / "Ir al viaje") lo minimiza a la burbuja
+  // en vez de cerrarlo del todo, para poder volver a abrirlo desde cualquier pantalla.
+  const goTo = (screen: string, params: any) => {
+    setMinimized(true);
+    navigate(screen, params);
+  };
 
   const shortcuts = [
     {
       key: "ticket",
       label: "Ticket",
       icon: "airplane-outline" as const,
-      onPress: () => navigation.navigate("Reservas", { tripId: trip.id, planItems: trip.planItems }),
+      onPress: () => goTo("Reservas", { tripId: trip.id, planItems: trip.planItems }),
     },
     {
       key: "docs",
       label: "Documentos",
       icon: "document-text-outline" as const,
-      onPress: () => navigation.navigate("TripDocuments", { tripId: trip.id, destination: trip.destination, tripName: trip.name, endDate: trip.endDate }),
+      onPress: () => goTo("TripDocuments", { tripId: trip.id, destination: trip.destination, tripName: trip.name, endDate: trip.endDate }),
     },
     {
       key: "weather",
       label: "Clima",
       icon: "sunny-outline" as const,
-      onPress: () => navigation.navigate("TripDetail", { tripId: trip.id }),
+      onPress: () => goTo("TripDetail", { tripId: trip.id }),
     },
     {
       key: "contacts",
       label: "Contactos",
       icon: "call-outline" as const,
-      onPress: () => navigation.navigate("Contactos", { tripId: trip.id, destination: trip.destination, planItems: trip.planItems }),
+      onPress: () => goTo("Contactos", { tripId: trip.id, destination: trip.destination, planItems: trip.planItems }),
     },
   ];
+
+  if (minimized) {
+    return (
+      <Pressable
+        onPress={() => setMinimized(false)}
+        style={{
+          position: "absolute",
+          top: insets.top + 60,
+          right: 16,
+          zIndex: 9999,
+          width: 46,
+          height: 46,
+          borderRadius: 23,
+          backgroundColor: "#111827",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOpacity: 0.25,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 6,
+        }}
+      >
+        {trip.coverImageUrl ? (
+          <Image source={{ uri: trip.coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+        ) : trip.destination ? (
+          <CountryFlag cca2={trip.destination} size={46} radius={0} />
+        ) : (
+          <Ionicons name="airplane" size={20} color="white" />
+        )}
+        <View
+          style={{
+            position: "absolute",
+            bottom: -1,
+            right: -1,
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            backgroundColor: "#16A34A",
+            borderWidth: 2,
+            borderColor: "white",
+          }}
+        />
+      </Pressable>
+    );
+  }
 
   return (
     <Modal
       isVisible
-      onBackdropPress={() => setDismissed(true)}
+      onBackdropPress={() => setMinimized(true)}
       backdropOpacity={0.45}
       animationIn="fadeIn"
       animationOut="fadeOut"
@@ -61,7 +123,7 @@ export default function LiveTripCard() {
     >
       <View style={{ backgroundColor: "#111827", borderRadius: 22, overflow: "hidden" }}>
         <TouchableOpacity
-          onPress={() => setDismissed(true)}
+          onPress={() => setMinimized(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={{
             position: "absolute",
@@ -106,9 +168,12 @@ export default function LiveTripCard() {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: "white", fontSize: 17, fontWeight: "800" }} numberOfLines={1}>
-                {trip.name}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                {trip.destination ? <CountryFlag cca2={trip.destination} size={16} radius={3} /> : null}
+                <Text style={{ color: "white", fontSize: 17, fontWeight: "800", flexShrink: 1 }} numberOfLines={1}>
+                  {trip.name}
+                </Text>
+              </View>
               {headline ? (
                 <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 2 }} numberOfLines={1}>
                   {headlineLabel}: {headline.title}
@@ -129,7 +194,7 @@ export default function LiveTripCard() {
         </View>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate("TripDetail", { tripId: trip.id })}
+          onPress={() => goTo("TripDetail", { tripId: trip.id })}
           style={{ paddingVertical: 12, alignItems: "center" }}
           activeOpacity={0.8}
         >

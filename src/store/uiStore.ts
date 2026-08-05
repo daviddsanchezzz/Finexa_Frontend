@@ -28,6 +28,10 @@ interface UIState {
   actionSheet: ActionSheetState | null;
   showActionSheet: (title: string, message: string | undefined, buttons: ActionSheetButton[]) => void;
   hideActionSheet: () => void;
+
+  // Tarjeta de "viaje en curso": minimizada = solo la burbuja flotante.
+  liveTripMinimized: boolean;
+  setLiveTripMinimized: (v: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -45,4 +49,7 @@ export const useUIStore = create<UIState>((set) => ({
   actionSheet: null,
   showActionSheet: (title, message, buttons) => set({ actionSheet: { title, message, buttons } }),
   hideActionSheet: () => set({ actionSheet: null }),
+
+  liveTripMinimized: false,
+  setLiveTripMinimized: (v) => set({ liveTripMinimized: v }),
 }));

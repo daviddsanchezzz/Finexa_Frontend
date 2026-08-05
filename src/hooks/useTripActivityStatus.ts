@@ -34,6 +34,7 @@ export function useTripActivityStatus<T extends TripActivityItem>(planItems: T[]
 
     const statusById = new Map<number, ActivityStatus>();
     let currentItem: T | null = null;
+    let currentItemEnd: Date | null = null;
     let nextItem: T | null = null;
 
     for (let i = 0; i < timed.length; i++) {
@@ -49,6 +50,7 @@ export function useTripActivityStatus<T extends TripActivityItem>(planItems: T[]
       } else if (start.getTime() <= now.getTime()) {
         status = "current";
         currentItem = item;
+        currentItemEnd = end;
       } else {
         status = "upcoming";
         if (!nextItem) nextItem = item;
@@ -56,7 +58,7 @@ export function useTripActivityStatus<T extends TripActivityItem>(planItems: T[]
       statusById.set(item.id, status);
     }
 
-    return { now, currentItem, nextItem, statusById };
+    return { now, currentItem, currentItemEnd, nextItem, statusById };
   }, [planItems, now]);
 }
 
