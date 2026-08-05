@@ -10,10 +10,15 @@ function normCca2(cca2?: string | null) {
 export function CountryFlag({
   cca2,
   size = 26,
+  width,
+  height,
   radius = 6,
 }: {
   cca2?: string | null;
   size?: number;
+  /** Overrides `size` for a non-square flag (real flags are wider than tall). */
+  width?: number;
+  height?: number;
   radius?: number;
 }) {
   const cc = useMemo(() => normCca2(cca2), [cca2]);
@@ -21,9 +26,12 @@ export function CountryFlag({
 
   if (!cc) return null;
 
+  const w = width ?? size;
+  const h = height ?? size;
+
   return (
-    <View style={{ width: size, height: size, borderRadius: radius, overflow: "hidden" }}>
-      <SvgUri width={size} height={size} uri={uri} />
+    <View style={{ width: w, height: h, borderRadius: radius, overflow: "hidden" }}>
+      <SvgUri width={w} height={h} uri={uri} />
     </View>
   );
 }

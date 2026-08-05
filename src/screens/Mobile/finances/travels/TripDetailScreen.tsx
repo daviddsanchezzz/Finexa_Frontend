@@ -281,12 +281,12 @@ function WeatherWidget({ countryCode, tripName }: { countryCode: string; tripNam
 }
 
 export default function TripDetailScreen({ route, navigation }: any) {
-  const { tripId } = route.params || {};
+  const { tripId, initialTab } = route.params || {};
   const cachedTrip = typeof tripId === "number" ? TRIP_DETAIL_CACHE.get(tripId) ?? null : null;
 
   const [trip, setTrip] = useState<TripFromApi | null>(cachedTrip);
   const [loading, setLoading] = useState(!cachedTrip);
-  const [tab, setTab] = useState<TripTab>("summary");
+  const [tab, setTab] = useState<TripTab>(initialTab ?? "summary");
   const [planViewMode, setPlanViewMode] = useState<"day" | "summary">("day");
 
   // Exportar PDF

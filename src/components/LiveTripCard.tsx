@@ -40,8 +40,21 @@ export default function LiveTripCard() {
 
   const shortcuts = [
     {
+      key: "expense",
+      label: "+ Gasto",
+      icon: "add-circle-outline" as const,
+      onPress: () =>
+        goTo("Add", {
+          prefillData: {
+            type: "expense",
+            categoryId: (trip as any).categoryId ?? undefined,
+            subcategoryId: (trip as any).subcategoryId ?? undefined,
+          },
+        }),
+    },
+    {
       key: "ticket",
-      label: "Ticket",
+      label: "Reservas",
       icon: "airplane-outline" as const,
       onPress: () => goTo("Reservas", { tripId: trip.id, planItems: trip.planItems }),
     },
@@ -50,12 +63,6 @@ export default function LiveTripCard() {
       label: "Documentos",
       icon: "document-text-outline" as const,
       onPress: () => goTo("TripDocuments", { tripId: trip.id, destination: trip.destination, tripName: trip.name, endDate: trip.endDate }),
-    },
-    {
-      key: "weather",
-      label: "Clima",
-      icon: "sunny-outline" as const,
-      onPress: () => goTo("TripDetail", { tripId: trip.id }),
     },
     {
       key: "contacts",
@@ -95,19 +102,26 @@ export default function LiveTripCard() {
         ) : (
           <Ionicons name="airplane" size={20} color="white" />
         )}
-        <View
-          style={{
-            position: "absolute",
-            bottom: -1,
-            right: -1,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            backgroundColor: "#16A34A",
-            borderWidth: 2,
-            borderColor: "white",
-          }}
-        />
+        {dayNumber != null && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: -5,
+              right: -5,
+              minWidth: 20,
+              height: 20,
+              borderRadius: 10,
+              paddingHorizontal: 3,
+              backgroundColor: "#16A34A",
+              borderWidth: 2,
+              borderColor: "white",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: "white", fontSize: 10, fontWeight: "900" }}>{dayNumber}</Text>
+          </View>
+        )}
       </Pressable>
     );
   }
@@ -167,18 +181,26 @@ export default function LiveTripCard() {
                 </View>
               )}
             </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                {trip.destination ? <CountryFlag cca2={trip.destination} size={16} radius={3} /> : null}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                {trip.destination ? <CountryFlag cca2={trip.destination} width={22} height={16} radius={3} /> : null}
                 <Text style={{ color: "white", fontSize: 17, fontWeight: "800", flexShrink: 1 }} numberOfLines={1}>
                   {trip.name}
                 </Text>
               </View>
               {headline ? (
-                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                  {headlineLabel}: {headline.title}
-                  {countdown ? ` · ${countdown}` : ""}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
+                  <Text style={{ flexShrink: 1, color: "rgba(255,255,255,0.75)", fontSize: 12 }} numberOfLines={1}>
+                    {headlineLabel}: {headline.title}
+                  </Text>
+                  {countdown ? (
+                    <View style={{ marginLeft: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.14)" }}>
+                      <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }} numberOfLines={1}>
+                        {countdown}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               ) : null}
             </View>
           </View>
@@ -194,7 +216,7 @@ export default function LiveTripCard() {
         </View>
 
         <TouchableOpacity
-          onPress={() => goTo("TripDetail", { tripId: trip.id })}
+          onPress={() => goTo("TripDetail", { tripId: trip.id, initialTab: "planning" })}
           style={{ paddingVertical: 12, alignItems: "center" }}
           activeOpacity={0.8}
         >
