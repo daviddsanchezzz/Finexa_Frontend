@@ -2,7 +2,7 @@ import api from "../api/api";
 
 const SESSION_KEY = 'finexa_quick_add';
 
-export type QuickAddParams = { amount: number; merchant: string; cardName?: string; qid: string };
+export type QuickAddParams = { amount: number; merchant: string; cardName?: string; qid: string; rawQuery?: string };
 
 function generateQid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -52,7 +52,11 @@ export function readQuickAddFromUrl(): { params: QuickAddParams; fromNotificatio
   const cardName = params.get('card') ?? undefined;
   const nid = params.get('nid');
   const qid = nid || generateQid();
-  return { params: { amount, merchant, cardName, qid }, fromNotification: !!nid };
+  // Guardamos la query string tal cual la manda el Shortcut (sin parsear) —
+  // sirve para diagnosticar por qué a veces el comercio llega vacío: así
+  // vemos exactamente qué mandó Apple, no lo que nosotros interpretamos.
+  const rawQuery = window.location.search;
+  return { params: { amount, merchant, cardName, qid, rawQuery }, fromNotification: !!nid };
 }
 
 // Crea (fire-and-forget) la notificación de "nuevo gasto" pendiente en el
@@ -64,6 +68,7 @@ export function sendQuickAddNotification(params: QuickAddParams): void {
     merchant: params.merchant,
     cardName: params.cardName,
     qid: params.qid,
+    rawQuery: params.rawQuery,
   }).catch(() => null);
 }
 

@@ -24,7 +24,7 @@ function GalleryPage({ image }: { image: GalleryImage }) {
   const [loading, setLoading] = useState(true);
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      {loading && <ActivityIndicator color="white" style={{ position: "absolute" }} />}
+      {loading && <ActivityIndicator color="#94A3B8" style={{ position: "absolute" }} />}
       {Platform.OS === "web" ? (
         <View
           style={{
@@ -124,7 +124,7 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
 
   return (
     <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#0B0B0F" }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
         <View
           style={{
             flexDirection: "row",
@@ -132,17 +132,52 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
             justifyContent: "space-between",
             paddingHorizontal: 16,
             paddingVertical: 10,
+            position: "relative",
           }}
         >
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={26} color="white" />
+            <Ionicons name="close" size={26} color="#0F172A" />
           </TouchableOpacity>
           {images.length > 1 && (
-            <Text style={{ fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.75)" }}>
+            <Text
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                textAlign: "center",
+                fontSize: 13,
+                fontWeight: "700",
+                color: "#94A3B8",
+              }}
+              pointerEvents="none"
+            >
               {index + 1} / {images.length}
             </Text>
           )}
-          <View style={{ width: 26 }} />
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {Platform.OS === "web" && (
+              <TouchableOpacity
+                onPress={handleDownloadWeb}
+                disabled={busy}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ padding: 4, opacity: busy ? 0.5 : 1 }}
+              >
+                <Ionicons name="download-outline" size={20} color="#475569" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={handleShare}
+              disabled={busy}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 4, opacity: busy ? 0.5 : 1 }}
+            >
+              {busy ? (
+                <ActivityIndicator size="small" color="#475569" />
+              ) : (
+                <Ionicons name="share-outline" size={20} color="#475569" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Carousel<GalleryImage>
@@ -157,7 +192,7 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
         />
 
         {images.length > 1 && (
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, paddingBottom: 4 }}>
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, paddingVertical: 10 }}>
             {images.map((img, i) => (
               <View
                 key={img.id ?? `${img.url}-${i}`}
@@ -165,45 +200,12 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
                   width: i === index ? 16 : 6,
                   height: 6,
                   borderRadius: 3,
-                  backgroundColor: i === index ? "white" : "rgba(255,255,255,0.35)",
+                  backgroundColor: i === index ? "#0F172A" : "#E2E8F0",
                 }}
               />
             ))}
           </View>
         )}
-
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: 28,
-            paddingVertical: 16,
-            paddingBottom: 24,
-          }}
-        >
-          {Platform.OS === "web" && (
-            <TouchableOpacity
-              onPress={handleDownloadWeb}
-              disabled={busy}
-              style={{ alignItems: "center", gap: 4, opacity: busy ? 0.5 : 1 }}
-            >
-              <Ionicons name="download-outline" size={24} color="white" />
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Descargar</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={handleShare}
-            disabled={busy}
-            style={{ alignItems: "center", gap: 4, opacity: busy ? 0.5 : 1 }}
-          >
-            {busy ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Ionicons name="share-outline" size={24} color="white" />
-            )}
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Compartir</Text>
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
     </Modal>
   );
