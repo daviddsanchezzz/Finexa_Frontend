@@ -357,7 +357,7 @@ export default function TripExpensesSection({
   const [cat, setCat] = useState<DisplayCategoryKey | null>(null);
   const [subTab, setSubTab] = useState<"all" | "pending">("all");
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
-  const [linkSaving, setLinkSaving] = useState(false);
+  const [savingItemId, setSavingItemId] = useState<number | null>(null);
   const [linkSearch, setLinkSearch] = useState("");
 
   const pendingItems = useMemo(
@@ -398,14 +398,15 @@ export default function TripExpensesSection({
   const closeLinkModal = () => {
     setLinkingItem(null);
     setLinkSearch("");
+    setSavingItemId(null);
   };
 
   const handleLinkToPlan = async (planItemId: number) => {
-    if (!linkingItem || linkSaving) return;
+    if (!linkingItem || savingItemId !== null) return;
     const target = linkableItems.find((i) => i.id === planItemId);
     if (!target) return;
     try {
-      setLinkSaving(true);
+      setSavingItemId(planItemId);
       // El DTO exige type/title aunque no cambien: reenviamos los del item
       // destino tal cual (a diferencia de "crear gasto", aquí el item ya
       // tiene su propio nombre). La nota de la transacción (guardada como
@@ -438,7 +439,7 @@ export default function TripExpensesSection({
       closeLinkModal();
       onRefresh?.();
     } catch {
-      setLinkSaving(false);
+      setSavingItemId(null);
     }
   };
 
@@ -800,7 +801,7 @@ const entries = useMemo(() => {
       <Modal visible={!!linkingItem} transparent animationType="slide" onRequestClose={closeLinkModal}>
         <Pressable
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
-          onPress={() => { if (!linkSaving) closeLinkModal(); }}
+          onPress={() => { if (savingItemId === null) closeLinkModal(); }}
         >
           <Pressable
             style={{ backgroundColor: "white", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32 }}
@@ -814,7 +815,7 @@ const entries = useMemo(() => {
             {/* Header */}
             <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: UI.border }}>
               <Text style={{ flex: 1, fontSize: 16, fontWeight: "900", color: UI.text }}>Vincular al plan</Text>
-              {!linkSaving && (
+              {savingItemId === null && (
                 <TouchableOpacity onPress={closeLinkModal}>
                   <Ionicons name="close" size={22} color={UI.muted} />
                 </TouchableOpacity>
@@ -864,11 +865,12 @@ const entries = useMemo(() => {
                   const piCat = categoryForItem(pi);
                   const piDef = BUDGET_DEFS.find((d) => d.key === piCat) ?? BUDGET_DEFS[BUDGET_DEFS.length - 1];
                   const piEmoji = emojiForPlanItem(pi, piDef.emoji);
+                  const isSavingThis = savingItemId === pi.id;
                   return (
                   <TouchableOpacity
                     key={pi.id}
                     onPress={() => handleLinkToPlan(pi.id)}
-                    disabled={linkSaving}
+                    disabled={savingItemId !== null}
                     activeOpacity={0.7}
                     style={{
                       flexDirection: "row",
@@ -877,7 +879,7 @@ const entries = useMemo(() => {
                       paddingVertical: 11,
                       borderBottomWidth: idx < filteredLinkableItems.length - 1 ? 1 : 0,
                       borderBottomColor: UI.border,
-                      opacity: linkSaving ? 0.5 : 1,
+                      opacity: savingItemId !== null && !isSavingThis ? 0.4 : 1,
                     }}
                   >
                     <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: piDef.badgeBg, alignItems: "center", justifyContent: "center" }}>
@@ -892,7 +894,7 @@ const entries = useMemo(() => {
                     {safeNumber(pi.cost) > 0 && (
                       <Text style={{ fontSize: 12, fontWeight: "700", color: UI.muted }}>{formatEuro(safeNumber(pi.cost))}</Text>
                     )}
-                    {linkSaving ? (
+                    {isSavingThis ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
