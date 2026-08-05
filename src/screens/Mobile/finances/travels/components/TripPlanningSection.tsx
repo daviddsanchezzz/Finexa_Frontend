@@ -852,7 +852,7 @@ export default function TripPlanningSectionRedesign({
   }, [planItems]);
 
   const planningItems = useMemo(
-    () => [...planItems.filter((i) => i.type !== "accommodation"), ...accommodationEvents],
+    () => [...planItems.filter((i) => i.type !== "accommodation" && i.type !== "expense"), ...accommodationEvents],
     [planItems, accommodationEvents]
   );
 

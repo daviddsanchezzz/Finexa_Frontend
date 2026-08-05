@@ -25,6 +25,17 @@ import { matchWalletByCard } from "../../../utils/quickAdd";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
 
+// Mismas categorías que la pestaña "Gastos" de un viaje (TripExpensesSection).
+const TRIP_EXPENSE_CATEGORIES = [
+  { value: "transport_local", label: "Transporte", emoji: "🚗" },
+  { value: "food", label: "Comida", emoji: "🍽️" },
+  { value: "activities", label: "Actividades", emoji: "🎟️" },
+  { value: "shopping", label: "Compras", emoji: "🛍️" },
+  { value: "leisure", label: "Ocio", emoji: "🎉" },
+  { value: "accommodation", label: "Alojamiento", emoji: "🏨" },
+  { value: "other", label: "Otro", emoji: "···" },
+];
+
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
   const editData = (route.params as any)?.editData || null;
@@ -54,6 +65,7 @@ export default function AddScreen({ navigation }: any) {
   const [selectedWalletTo, setSelectedWalletTo] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [selectedSub, setSelectedSub] = useState<any>(null);
+  const [tripExpenseCategory, setTripExpenseCategory] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [calcVisible, setCalcVisible] = useState(false);
   const [calcExpression, setCalcExpression] = useState("");
@@ -209,6 +221,13 @@ export default function AddScreen({ navigation }: any) {
   ]);
 
   //---------------------------------------
+  // Limpiar categoría de viaje si cambia la subcategoría
+  //---------------------------------------
+  useEffect(() => {
+    setTripExpenseCategory(null);
+  }, [selectedSub?.id]);
+
+  //---------------------------------------
   // Resetear pantalla al entrar
   //---------------------------------------
   useFocusEffect(
@@ -220,6 +239,7 @@ export default function AddScreen({ navigation }: any) {
         setSelectedWalletTo(null);
         setSelectedCategory(null);
         setSelectedSub(null);
+        setTripExpenseCategory(null);
         setSelectedInvestmentAsset(null);
         setAmount("");
         setDescription("");
@@ -355,6 +375,10 @@ export default function AddScreen({ navigation }: any) {
       payload.walletId = selectedWallet.id;
       payload.categoryId = selectedCategory?.id || null;
       payload.subcategoryId = selectedSub?.id || null;
+
+      if (!isEditing && selectedSub?.tripId && tripExpenseCategory) {
+        payload.tripExpenseCategory = tripExpenseCategory;
+      }
     }
 
     // Recurrencia
@@ -746,6 +770,32 @@ export default function AddScreen({ navigation }: any) {
                       + Crear subcategoría
                     </Text>
                   </TouchableOpacity>
+                </ScrollView>
+              </>
+            )}
+
+            {/* CATEGORÍA DE VIAJE — solo si la subcategoría pertenece a un viaje */}
+            {type !== "transfer" && !isEditing && selectedSub?.tripId && (
+              <>
+                <Text className="text-[13px] text-gray-400 mb-2">
+                  ¿En qué se fue este gasto del viaje?
+                </Text>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                  {TRIP_EXPENSE_CATEGORIES.map((opt) => {
+                    const isSelected = tripExpenseCategory === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        onPress={() => setTripExpenseCategory(isSelected ? null : opt.value)}
+                        style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
+                      >
+                        <Text style={chipText}>
+                          {opt.emoji} {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               </>
             )}

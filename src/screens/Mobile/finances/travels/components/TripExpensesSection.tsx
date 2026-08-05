@@ -9,7 +9,6 @@ import api from "../../../../../api/api";
 // ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
 export enum BudgetCategoryType {
   accommodation = "accommodation",
-  transport_main = "transport_main",
   transport_local = "transport_local",
   food = "food",
   activities = "activities",
@@ -145,8 +144,7 @@ type BudgetDef = {
 
 const BUDGET_DEFS: BudgetDef[] = [
   { key: BudgetCategoryType.accommodation,   label: "Alojamiento",          emoji: "🏨",  accent: "#22C55E", badgeBg: "rgba(34,197,94,0.12)" },
-  { key: BudgetCategoryType.transport_main,  label: "Transporte principal", emoji: "✈️",  accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)" },
-  { key: BudgetCategoryType.transport_local, label: "Transporte local",     emoji: "🚌",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
+  { key: BudgetCategoryType.transport_local, label: "Transporte",           emoji: "🚗",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
   { key: BudgetCategoryType.food,            label: "Comida",               emoji: "🍽️", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)" },
   { key: BudgetCategoryType.activities,      label: "Actividades / visitas",emoji: "🗺️", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)" },
   { key: BudgetCategoryType.leisure,         label: "Ocio",                 emoji: "🍷",  accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)" },
@@ -165,9 +163,8 @@ function categoryForItem(item: TripPlanItem): BudgetCategoryType {
   const t = item.type;
 
   if (t === "accommodation") return BudgetCategoryType.accommodation;
-  if (t === "flight" || t === "transport_destination") return BudgetCategoryType.transport_main;
 
-  if (t === "transport_local" || t === "transport" || t === "taxi") return BudgetCategoryType.transport_local;
+  if (t === "flight" || t === "transport_destination" || t === "transport_local" || t === "transport" || t === "taxi") return BudgetCategoryType.transport_local;
 
   if (t === "restaurant" || t === "cafe" || t === "market") return BudgetCategoryType.food;
 
@@ -434,7 +431,6 @@ const entries = useMemo(() => {
   const totalsByCategory = useMemo(() => {
     const t: Record<BudgetCategoryType, number> = {
       accommodation: 0,
-      transport_main: 0,
       transport_local: 0,
       food: 0,
       activities: 0,
@@ -707,6 +703,24 @@ const entries = useMemo(() => {
                         <Text style={{ fontSize: 12, fontWeight: "800", color: "#16A34A" }}>Crear gasto</Text>
                       </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate("TripPlanForm", { tripId, planItem: item })}
+                      style={{
+                        marginTop: 8,
+                        marginLeft: 46,
+                        alignSelf: "flex-start",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="airplane-outline" size={12} color={UI.muted} />
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted }}>
+                        O crear item de itinerario (vuelo, alojamiento...)
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                   {idx < pendingItems.length - 1 ? (
                     <View style={{ height: 1, backgroundColor: "rgba(245,158,11,0.20)", marginLeft: 12 }} />

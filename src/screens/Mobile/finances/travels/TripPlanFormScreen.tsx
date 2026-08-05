@@ -923,6 +923,7 @@ export default function TripPlanFormScreen({
     { label: "Comida",      value: BudgetCategoryType.food,            emoji: "🍽️" },
     { label: "Actividades", value: BudgetCategoryType.activities,      emoji: "🎟️" },
     { label: "Compras",     value: BudgetCategoryType.shopping,        emoji: "🛍️" },
+    { label: "Ocio",        value: BudgetCategoryType.leisure,         emoji: "🎉" },
     { label: "Otro",        value: BudgetCategoryType.other,           emoji: "···" },
   ];
 
