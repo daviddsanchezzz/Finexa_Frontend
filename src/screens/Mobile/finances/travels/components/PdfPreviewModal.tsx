@@ -1,5 +1,5 @@
 // src/screens/Mobile/finances/travels/components/PdfPreviewModal.tsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Modal, Platform, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +21,19 @@ interface Props {
 }
 
 export default function PdfPreviewModal({ visible, url, title, onClose }: Props) {
+  // Mobile Safari/Chrome no renderizan bien un PDF embebido en <iframe> (sale
+  // recortado, sin controles ni compartir), así que en vez de mostrar un
+  // mensaje pidiendo un toque extra, navegamos directo al PDF — el propio
+  // navegador lo abre en su visor nativo (mismo enfoque que ReportsPdfViewer).
+  const autoOpenedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!visible || !url) return;
+    if (Platform.OS !== "web" || !isMobileWeb()) return;
+    if (autoOpenedFor.current === url) return;
+    autoOpenedFor.current = url;
+    window.location.href = url;
+  }, [visible, url]);
+
   if (!url) return null;
 
   return (
@@ -50,10 +63,10 @@ export default function PdfPreviewModal({ visible, url, title, onClose }: Props)
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}>
               <Ionicons name="document-text-outline" size={32} color="#94A3B8" />
               <Text style={{ marginTop: 10, fontSize: 13, color: "#64748B", textAlign: "center" }}>
-                Tu navegador no puede mostrar el PDF aquí dentro.
+                Abriendo el PDF…
               </Text>
               <TouchableOpacity onPress={() => Linking.openURL(url)} style={{ marginTop: 14 }}>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: colors.primary }}>Abrir documento</Text>
+                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>¿No se ha abierto? Toca aquí</Text>
               </TouchableOpacity>
             </View>
           ) : (
