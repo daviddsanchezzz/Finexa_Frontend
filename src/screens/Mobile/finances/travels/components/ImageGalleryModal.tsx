@@ -1,8 +1,9 @@
 // src/screens/Mobile/finances/travels/components/ImageGalleryModal.tsx
-import React, { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, Modal, Image, FlatList, useWindowDimensions, Platform, ActivityIndicator } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, Modal, Image, Platform, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { Carousel } from "react-native-reanimated-carousel";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
@@ -19,9 +20,11 @@ interface Props {
   onClose: () => void;
 }
 
-function GalleryPage({ image, width }: { image: GalleryImage; width: number }) {
+function GalleryPage({ image }: { image: GalleryImage }) {
+  const [loading, setLoading] = useState(true);
   return (
-    <View style={{ width, height: "100%", alignItems: "center", justifyContent: "center" }}>
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      {loading && <ActivityIndicator color="white" style={{ position: "absolute" }} />}
       {Platform.OS === "web" ? (
         <View
           style={{
@@ -31,18 +34,30 @@ function GalleryPage({ image, width }: { image: GalleryImage; width: number }) {
             backgroundSize: "contain",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
+            opacity: loading ? 0 : 1,
           } as any}
-        />
+        >
+          <Image
+            source={{ uri: image.url }}
+            style={{ width: 0, height: 0 }}
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          />
+        </View>
       ) : (
-        <Image source={{ uri: image.url }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
+        <Image
+          source={{ uri: image.url }}
+          style={{ width: "100%", height: "100%", opacity: loading ? 0 : 1 }}
+          resizeMode="contain"
+          onLoad={() => setLoading(false)}
+          onError={() => setLoading(false)}
+        />
       )}
     </View>
   );
 }
 
 export default function ImageGalleryModal({ visible, images, initialIndex, onClose }: Props) {
-  const { width, height } = useWindowDimensions();
-  const listRef = useRef<FlatList<GalleryImage>>(null);
   const [index, setIndex] = useState(initialIndex);
   const [busy, setBusy] = useState(false);
 
@@ -109,7 +124,7 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
 
   return (
     <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "black" }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#0B0B0F" }}>
         <View
           style={{
             flexDirection: "row",
@@ -130,24 +145,31 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
           <View style={{ width: 26 }} />
         </View>
 
-        {width > 0 && (
-          <FlatList
-            ref={listRef}
-            data={images}
-            keyExtractor={(img, i) => `${img.id ?? img.url}-${i}`}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            initialScrollIndex={initialIndex}
-            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-            renderItem={({ item }) => <GalleryPage image={item} width={width} />}
-            onScroll={(e) => {
-              const next = Math.round(e.nativeEvent.contentOffset.x / width);
-              setIndex((prev) => (prev === next ? prev : Math.max(0, Math.min(images.length - 1, next))));
-            }}
-            scrollEventThrottle={32}
-            style={{ flex: 1 }}
-          />
+        <Carousel<GalleryImage>
+          key={initialIndex}
+          data={images}
+          defaultIndex={initialIndex}
+          loop={false}
+          style={{ flex: 1, width: "100%" }}
+          onSnapToItem={setIndex}
+          keyExtractor={(img, i) => `${img.id ?? img.url}-${i}`}
+          renderItem={({ item }) => <GalleryPage image={item} />}
+        />
+
+        {images.length > 1 && (
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, paddingBottom: 4 }}>
+            {images.map((img, i) => (
+              <View
+                key={img.id ?? `${img.url}-${i}`}
+                style={{
+                  width: i === index ? 16 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: i === index ? "white" : "rgba(255,255,255,0.35)",
+                }}
+              />
+            ))}
+          </View>
         )}
 
         <View
