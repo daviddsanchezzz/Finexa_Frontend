@@ -22,16 +22,18 @@ interface Props {
 
 export default function PdfPreviewModal({ visible, url, title, onClose }: Props) {
   // Mobile Safari/Chrome no renderizan bien un PDF embebido en <iframe> (sale
-  // recortado, sin controles ni compartir), así que en vez de mostrar un
-  // mensaje pidiendo un toque extra, navegamos directo al PDF — el propio
-  // navegador lo abre en su visor nativo (mismo enfoque que ReportsPdfViewer).
+  // recortado, sin controles ni compartir). Lo abrimos en pestaña nueva
+  // (Linking.openURL ya hace window.open con target _blank) y cerramos este
+  // modal — NUNCA navegar la propia pestaña (window.location.href) al PDF:
+  // eso saca a la SPA de su propio historial y, al volver, la app queda en
+  // un estado roto (se perdía el modal/pantalla desde el que se abrió).
   const autoOpenedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!visible || !url) return;
     if (Platform.OS !== "web" || !isMobileWeb()) return;
     if (autoOpenedFor.current === url) return;
     autoOpenedFor.current = url;
-    window.location.href = url;
+    Linking.openURL(url).finally(() => onClose());
   }, [visible, url]);
 
   if (!url) return null;

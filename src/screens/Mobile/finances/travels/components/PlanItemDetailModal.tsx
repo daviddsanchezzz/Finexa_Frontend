@@ -119,6 +119,12 @@ const TYPE_EMOJI: Record<string, string> = {
   visit: "🚶",
 };
 
+function isMobileWeb() {
+  if (Platform.OS !== "web") return false;
+  const ua = typeof navigator !== "undefined" && navigator.userAgent ? navigator.userAgent : "";
+  return /iPhone|iPad|iPod|Android/i.test(ua);
+}
+
 function emojiForItem(item: DetailPlanItem): string {
   if (item.type === "transport_destination" || item.type === "transport_local" || item.type === "transport") {
     const mode = item.destinationTransport?.mode;
@@ -212,6 +218,14 @@ export default function PlanItemDetailModal({ visible, tripId, item, onClose, on
 
   const openAttachment = async (file: DetailAttachment) => {
     if (file.kind === "pdf") {
+      // Móvil web: nada de modal + navegar la propia pestaña al PDF (eso
+      // rompe el historial de la SPA — al volver, la app queda en un estado
+      // raro). Abrir en pestaña nueva, en el mismo tap (sync, para que el
+      // navegador no lo bloquee como popup) — cerrarla te devuelve intacto.
+      if (isMobileWeb()) {
+        Linking.openURL(file.url).catch(() => {});
+        return;
+      }
       setPreviewFile(file);
       return;
     }
