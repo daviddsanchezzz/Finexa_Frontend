@@ -402,9 +402,15 @@ export default function TripExpensesSection({
 
   const handleLinkToPlan = async (planItemId: number) => {
     if (!linkingItem || linkSaving) return;
+    const target = linkableItems.find((i) => i.id === planItemId);
+    if (!target) return;
     try {
       setLinkSaving(true);
+      // El DTO exige type/title aunque no cambien: reenviamos los del item
+      // destino tal cual, solo cost/transactionId son los que de verdad cambian.
       await api.patch(`/trips/${tripId}/plan-items/${planItemId}`, {
+        type: target.type,
+        title: target.title,
         cost: linkingItem.cost,
         transactionId: linkingItem.transactionId,
       });
