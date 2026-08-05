@@ -414,9 +414,22 @@ export default function TripExpensesSection({
       const notes = linkedNote
         ? (target.notes ? `${target.notes}\n${linkedNote}` : linkedNote)
         : target.notes;
+      const t = target as any;
+      // El PATCH del backend reemplaza el item entero (no es un update parcial:
+      // cualquier campo ausente se guarda como null) — hay que reenviar la
+      // fecha/hora/ubicación tal cual las tenía o se perderían al vincular.
       await api.patch(`/trips/${tripId}/plan-items/${planItemId}`, {
         type: target.type,
         title: target.title,
+        date: t.date ?? undefined,
+        startTime: t.startTime ?? undefined,
+        endTime: t.endTime ?? undefined,
+        day: t.day ?? undefined,
+        startAt: t.startAt ?? undefined,
+        endAt: t.endAt ?? undefined,
+        timezone: t.timezone ?? undefined,
+        location: target.location ?? undefined,
+        currency: target.currency ?? undefined,
         cost: safeNumber(linkingItem.cost),
         transactionId: linkingItem.transactionId,
         notes: notes ?? undefined,
