@@ -195,7 +195,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MapsLinkRow({ label, value, url }: { label: string; value: string; url: string | null }) {
+function LinkRow({ label, value, url }: { label: string; value: string; url: string | null }) {
   return (
     <TouchableOpacity onPress={() => url && Linking.openURL(url)} disabled={!url} activeOpacity={0.7}>
       <View className="flex-row justify-between">
@@ -348,9 +348,9 @@ export default function PlanItemDetailModal({ visible, tripId, item, onClose, on
                 {!!ad?.checkInAt && <InfoRow label="Check-in" value={joinText([fmtDayTime(ad.checkInAt).day, fmtDayTime(ad.checkInAt).time])} />}
                 {!!ad?.checkOutAt && <InfoRow label="Check-out" value={joinText([fmtDayTime(ad.checkOutAt).day, fmtDayTime(ad.checkOutAt).time])} />}
                 {!!ad?.bookingRef && <InfoRow label="Confirmación" value={ad.bookingRef} />}
-                {!!ad?.phone && <InfoRow label="Teléfono" value={ad.phone} />}
+                {!!ad?.phone && <LinkRow label="Teléfono" value={ad.phone} url={`tel:${ad.phone.replace(/\s+/g, "")}`} />}
                 {!!ad?.website && <InfoRow label="Web" value={ad.website} />}
-                {!!accLocation && <MapsLinkRow label="Dirección" value={accLocation} url={mapsUrl} />}
+                {!!accLocation && <LinkRow label="Dirección" value={accLocation} url={mapsUrl} />}
               </>
             )}
 
@@ -391,7 +391,7 @@ export default function PlanItemDetailModal({ visible, tripId, item, onClose, on
               </>
             )}
 
-            {isOtherType && !!item.location && <MapsLinkRow label="Lugar" value={item.location} url={locationMapsUrl} />}
+            {isOtherType && !!item.location && <LinkRow label="Lugar" value={item.location} url={locationMapsUrl} />}
 
             {!!item.notes && (
               <View style={{ marginTop: 4 }}>

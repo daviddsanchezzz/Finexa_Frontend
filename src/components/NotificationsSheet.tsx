@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { colors } from "../theme/theme";
 import { useNotificationsFeed, FeedNotification } from "../hooks/useNotificationsFeed";
 import { useFriendRequestFromNotification } from "../hooks/useFriendRequestFromNotification";
@@ -40,6 +41,8 @@ function iconForType(type: string | null) {
       return { name: "bed-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
     case "trip_expense_added":
       return { name: "receipt-outline" as const, bg: "#FEF3C7", color: "#D97706" };
+    case "quick_transaction":
+      return { name: "card-outline" as const, bg: "#DBEAFE", color: "#2563EB" };
     default:
       return { name: "notifications-outline" as const, bg: "#F3F4F6", color: "#6B7280" };
   }
@@ -51,16 +54,37 @@ interface Props {
 }
 
 export default function NotificationsSheet({ visible, onClose }: Props) {
+  const navigation = useNavigation<any>();
   const { notifications, isLoading, markRead } = useNotificationsFeed();
-  const friendReq = useFriendRequestFromNotification(markRead);
-  const tripInv = useTripInviteFromNotification(markRead);
+  const friendReq = useFriendRequestFromNotification();
+  const tripInv = useTripInviteFromNotification();
 
   const unread = notifications.filter((n) => !n.read);
 
   const handlePress = (n: FeedNotification) => {
     if (n.type === "friend_request") friendReq.handlePress(n);
     else if (n.type === "trip_invite") tripInv.handlePress(n);
-    else if (!n.read) markRead(n.id);
+    else if (n.type === "quick_transaction") {
+      const d = (n.data ?? {}) as { amount?: number; merchant?: string; cardName?: string; qid?: string };
+      onClose();
+      navigation.navigate("MainTabs", {
+        screen: "Add",
+        params: {
+          prefillData: {
+            type: "expense",
+            amount: d.amount,
+            description: d.merchant,
+            cardName: d.cardName,
+            quickAddId: d.qid,
+            date: new Date().toISOString(),
+          },
+        },
+      });
+      // No se marca como leída aquí: solo se resuelve cuando el gasto
+      // realmente se guarda.
+    }
+    // El resto no hace nada especial al tocarlas — marcarlas como leídas es
+    // una acción explícita (X), no un efecto secundario del tap.
   };
 
   return (
@@ -74,9 +98,19 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
         <View className="bg-white rounded-t-3xl p-5 pb-8" style={{ maxHeight: "75%" }}>
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-[17px] font-semibold text-text">Notificaciones</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text className="text-[14px] text-gray-500 font-medium">Cerrar</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  onClose();
+                  navigation.navigate("Notifications");
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "500", color: colors.primary }}>Ver todas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose}>
+                <Text className="text-[14px] text-gray-500 font-medium">Cerrar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {isLoading ? (
@@ -120,15 +154,24 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
                         {n.message} · {timeAgo(n.createdAt)}
                       </Text>
                     </View>
-                    <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: colors.primary,
-                        marginTop: 6,
+                    <TouchableOpacity
+                      onPress={(e: any) => {
+                        e?.stopPropagation?.();
+                        markRead(n.id);
                       }}
-                    />
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      activeOpacity={0.6}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 2,
+                      }}
+                    >
+                      <Ionicons name="close" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 );
               })}
