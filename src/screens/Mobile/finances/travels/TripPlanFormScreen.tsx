@@ -385,6 +385,24 @@ export default function TripPlanFormScreen({
     planItem?.type === TripPlanItemType.transport_local ? "local" : "principal"
   );
 
+  // ==================== RESERVATION FLAG ====================
+  // Determina si este item aparece en "Reservas". Se autorrellena según el
+  // tipo (igual que hacía antes el filtro fijo de ReservasScreen) pero el
+  // usuario puede marcarlo/desmarcarlo a mano para cualquier tipo (p.ej. un
+  // ferry con billete adjunto).
+  const defaultIsReservation = (tab: MainTab, transport: TransportSubTab) =>
+    tab === "accommodation" || (tab === "transport" && transport === "flight");
+
+  const [isReservation, setIsReservation] = useState<boolean>(() =>
+    isEdit ? Boolean((planItem as any)?.isReservation) : defaultIsReservation(mainTab, transportTab)
+  );
+  const [isReservationTouched, setIsReservationTouched] = useState(false);
+
+  useEffect(() => {
+    if (isEdit || isReservationTouched) return;
+    setIsReservation(defaultIsReservation(mainTab, transportTab));
+  }, [mainTab, transportTab, isEdit, isReservationTouched]);
+
   // ==================== FLIGHT STATE ====================
 
   // Parse "VY6600 · BCN → PMO" or "BCN → PMO" as fallback when flightDetails fields are missing
@@ -599,6 +617,7 @@ export default function TripPlanFormScreen({
         title: `${flightFrom} → ${flightTo}`,
         notes: planNotes.trim() || null,
         attachments: planAttachments.map(({ id, ...file }) => file),
+        isReservation,
         cost: parseCost(costStr),
         currency,
         startAt: flightDep?.toISOString() || null,
@@ -648,6 +667,7 @@ export default function TripPlanFormScreen({
         title: `${from} → ${to}`,
         notes: planNotes.trim() || null,
         attachments: planAttachments.map(({ id, ...file }) => file),
+        isReservation,
         cost: parseCost(costStr),
         currency,
         startAt: dep?.toISOString() || null,
@@ -691,6 +711,7 @@ export default function TripPlanFormScreen({
         title: accName,
         notes: planNotes.trim() || null,
         attachments: planAttachments.map(({ id, ...file }) => file),
+        isReservation,
         cost: parseCost(accCostStr),
         currency: accCurrency,
         accommodationDetails: {
@@ -743,6 +764,7 @@ export default function TripPlanFormScreen({
         endTime: actEndAt?.toISOString() || null,
         notes: planNotes.trim() || null,
         attachments: planAttachments.map(({ id, ...file }) => file),
+        isReservation,
         cost: parseCost(actCostStr),
         currency: actCurrency,
       };
@@ -782,6 +804,7 @@ export default function TripPlanFormScreen({
         date: expOccurredAt?.toISOString() || new Date().toISOString(),
         notes: planNotes.trim() || null,
         attachments: planAttachments.map(({ id, ...file }) => file),
+        isReservation,
         metadata: { expenseCategory: expCategory },
       };
       if (isEdit) {
@@ -817,6 +840,7 @@ export default function TripPlanFormScreen({
         location: visitLocation.trim() || null,
         notes: planNotes.trim() || null,
         attachments: planAttachments.map(({ id, ...file }) => file),
+        isReservation,
         startAt: visitStartAt?.toISOString() || null,
         endAt: visitEndAt?.toISOString() || null,
         day: visitStartAt ? visitStartAt.toISOString().slice(0, 10) : presetDay || null,
@@ -1503,6 +1527,43 @@ export default function TripPlanFormScreen({
             autoCapitalize="sentences"
             multiline
           />
+
+          <Pressable
+            onPress={() => { setIsReservation((v) => !v); setIsReservationTouched(true); }}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              borderWidth: 1,
+              borderColor: isReservation ? colors.primary : UI.border,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 12,
+              backgroundColor: pressed ? "#F8FAFC" : isReservation ? "rgba(37,99,235,0.06)" : "white",
+              marginBottom: 16,
+            })}
+          >
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                borderWidth: 1.5,
+                borderColor: isReservation ? colors.primary : UI.border,
+                backgroundColor: isReservation ? colors.primary : "transparent",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {isReservation && <Ionicons name="checkmark" size={15} color="white" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: UI.text }}>Es una reserva</Text>
+              <Text style={{ fontSize: 11, color: UI.muted2, marginTop: 1 }}>
+                Aparecerá en "Reservas", junto a tus vuelos y alojamientos
+              </Text>
+            </View>
+          </Pressable>
 
           <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted, letterSpacing: 0.4, marginBottom: 8 }}>
             ARCHIVOS

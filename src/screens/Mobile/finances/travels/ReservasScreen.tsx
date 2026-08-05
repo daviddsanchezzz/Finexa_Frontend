@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 
-type ReservaFilter = "all" | "flight" | "accommodation";
+type ReservaFilter = "all" | "flight" | "accommodation" | "other";
 
 interface FlightDetails {
   flightNumberIata?: string | null;
@@ -33,6 +33,23 @@ interface AccommodationDetails {
   rooms?: number | null;
 }
 
+interface DestinationTransportDetails {
+  mode?: string | null;
+  company?: string | null;
+  bookingRef?: string | null;
+  fromName?: string | null;
+  toName?: string | null;
+  depAt?: string | null;
+  arrAt?: string | null;
+}
+
+interface PlanItemAttachment {
+  id?: number;
+  kind: string;
+  url: string;
+  filename?: string | null;
+}
+
 interface TripPlanItem {
   id: number;
   type: string;
@@ -40,8 +57,29 @@ interface TripPlanItem {
   tripId?: number;
   startAt?: string | null;
   endAt?: string | null;
+  cost?: number | string | null;
+  notes?: string | null;
+  isReservation?: boolean | null;
   flightDetails?: FlightDetails | null;
   accommodationDetails?: AccommodationDetails | null;
+  destinationTransport?: DestinationTransportDetails | null;
+  attachments?: PlanItemAttachment[] | null;
+}
+
+function emojiForPlanItem(item: TripPlanItem): string {
+  if (item.type === "flight") return "✈️";
+  if (item.type === "accommodation") return "🏨";
+  if (item.type === "taxi") return "🚕";
+  if (item.type === "transport_destination" || item.type === "transport_local" || item.type === "transport") {
+    const mode = item.destinationTransport?.mode;
+    if (mode === "train") return "🚂";
+    if (mode === "car") return "🚗";
+    if (mode === "ferry") return "⛴️";
+    return "🚌";
+  }
+  if (item.type === "restaurant" || item.type === "cafe") return "🍽️";
+  if (item.type === "activity" || item.type === "guided_tour" || item.type === "free_tour") return "🎟️";
+  return "📌";
 }
 
 function fmtDayTime(iso?: string | null) {
@@ -72,13 +110,14 @@ export default function ReservasScreen() {
   const [filter, setFilter] = useState<ReservaFilter>("all");
 
   const reservations = useMemo(
-    () => (planItems as TripPlanItem[]).filter((item) => item.type === "flight" || item.type === "accommodation"),
+    () => (planItems as TripPlanItem[]).filter((item) => item.isReservation === true),
     [planItems]
   );
 
   const filtered = useMemo(() => {
     if (filter === "flight") return reservations.filter((item) => item.type === "flight");
     if (filter === "accommodation") return reservations.filter((item) => item.type === "accommodation");
+    if (filter === "other") return reservations.filter((item) => item.type !== "flight" && item.type !== "accommodation");
     return reservations;
   }, [reservations, filter]);
 
@@ -98,6 +137,7 @@ export default function ReservasScreen() {
           { key: "all", label: "Todas" },
           { key: "flight", label: "Vuelos" },
           { key: "accommodation", label: "Alojamiento" },
+          { key: "other", label: "Otras" },
         ] as { key: ReservaFilter; label: string }[]).map((opt) => {
           const active = filter === opt.key;
           return (
@@ -125,15 +165,17 @@ export default function ReservasScreen() {
           <View style={{ alignItems: "center", paddingVertical: 48, gap: 8 }}>
             <Ionicons name="briefcase-outline" size={40} color="#CBD5E1" />
             <Text style={{ fontSize: 13, color: "#94A3B8", textAlign: "center" }}>
-              No hay vuelos ni alojamientos registrados en este viaje todavía.
+              No hay reservas marcadas en este viaje todavía. Marca "Es una reserva" al crear o editar un elemento del itinerario para verlo aquí.
             </Text>
           </View>
         ) : (
           filtered.map((item) =>
             item.type === "flight" ? (
               <FlightReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
-            ) : (
+            ) : item.type === "accommodation" ? (
               <AccommodationReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
+            ) : (
+              <GenericReservationCard key={item.id} item={item} onPress={() => openItem(item)} />
             )
           )
         )}
@@ -416,5 +458,90 @@ function ReservationMetaRow({
       <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", minWidth: 74 }}>{label}</Text>
       <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#0F172A" }}>{value}</Text>
     </View>
+  );
+}
+
+function GenericReservationCard({ item, onPress }: { item: TripPlanItem; onPress: () => void }) {
+  const td = item.destinationTransport;
+  const dep = fmtDayTime(item.startAt);
+  const route = td ? joinText([td.fromName, td.toName]) : null;
+  const cost = item.cost != null ? Number(item.cost) : null;
+  const bookingRef = td?.bookingRef;
+
+  const openAttachment = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      // silencioso: si el link falla, el usuario puede reintentar
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
+    >
+      <View style={{ paddingHorizontal: 14, paddingTop: 13, paddingBottom: 13 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 4 }}>{item.title}</Text>
+            {!!route && <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>{route}</Text>}
+            {(dep.day || dep.time) && (
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
+                {joinText([dep.day, dep.time])}
+              </Text>
+            )}
+          </View>
+
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#EFF6FF",
+            }}
+          >
+            <Text style={{ fontSize: 17 }}>{emojiForPlanItem(item)}</Text>
+          </View>
+        </View>
+
+        {(cost != null || bookingRef || td?.company) && (
+          <View style={{ borderTopWidth: 1, borderTopColor: "#EEF2F7", paddingTop: 10, gap: 7, marginBottom: item.attachments?.length ? 10 : 0 }}>
+            {!!td?.company && <ReservationMetaRow icon="business-outline" label="Compañía" value={td.company} />}
+            {!!bookingRef && <ReservationMetaRow icon="key-outline" label="Confirmación" value={bookingRef} />}
+            {cost != null && <ReservationMetaRow icon="cash-outline" label="Coste" value={`${cost.toFixed(2).replace(".", ",")} €`} />}
+          </View>
+        )}
+
+        {!!item.attachments?.length && (
+          <View style={{ gap: 6 }}>
+            {item.attachments.map((file, index) => (
+              <TouchableOpacity
+                key={file.id ?? `${file.url}-${index}`}
+                onPress={() => openAttachment(file.url)}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: "#EFF6FF",
+                  borderRadius: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                }}
+              >
+                <Ionicons name={file.kind === "image" ? "image-outline" : "document-text-outline"} size={15} color={colors.primary} />
+                <Text style={{ flex: 1, fontSize: 12, fontWeight: "700", color: colors.primary }} numberOfLines={1}>
+                  {file.filename || "Ver documento"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
   );
 }

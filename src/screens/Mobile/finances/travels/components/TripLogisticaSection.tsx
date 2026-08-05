@@ -28,6 +28,7 @@ interface TripPlanItem {
   type: string;
   title: string;
   startAt?: string | null;
+  isReservation?: boolean | null;
   flightDetails?: FlightDetails | null;
   accommodationDetails?: AccommodationDetails | null;
 }
@@ -73,7 +74,7 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
   const docsCount = (hasPassport ? 1 : 0) + (hasDni ? 1 : 0) + (hasInsurance ? 1 : 0);
 
   const reservationsCount = useMemo(
-    () => planItems.filter((item) => item.type === "flight" || item.type === "accommodation").length,
+    () => planItems.filter((item) => item.isReservation === true).length,
     [planItems]
   );
 
