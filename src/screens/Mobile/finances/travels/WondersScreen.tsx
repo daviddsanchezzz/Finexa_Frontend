@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import { useWonders, WonderEra } from "../../../../hooks/useWonders";
+import { getImageNaturalSize } from "./WonderDetailScreen";
 
 const THUMB_SIZE = 44;
 
@@ -64,8 +65,8 @@ function WonderThumbnail({ uri, offset, offsetX }: { uri: string; offset: number
         style={{ position: "absolute", top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
         resizeMode="cover"
         onLoad={(e: any) => {
-          const s = e?.nativeEvent?.source;
-          if (s?.width && s?.height) setNaturalSize({ w: s.width, h: s.height });
+          const size = getImageNaturalSize(e);
+          if (size) setNaturalSize(size);
         }}
         onError={() => {
           if (retryCount < 1) {

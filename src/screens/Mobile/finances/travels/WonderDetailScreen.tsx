@@ -10,6 +10,17 @@ import { colors } from "../../../../theme/theme";
 import { useWonders } from "../../../../hooks/useWonders";
 import { pickAndUploadWonderPhoto } from "../../../../utils/uploadTripCover";
 
+// RN nativo entrega el tamaño real en nativeEvent.source.{width,height}; en
+// React Native Web ese campo no existe — ahí nativeEvent es el Event del DOM
+// y hay que leer naturalWidth/naturalHeight del <img> real en nativeEvent.target.
+export function getImageNaturalSize(e: any): { w: number; h: number } | null {
+  const src = e?.nativeEvent?.source;
+  if (src?.width && src?.height) return { w: src.width, h: src.height };
+  const target = e?.nativeEvent?.target;
+  if (target?.naturalWidth && target?.naturalHeight) return { w: target.naturalWidth, h: target.naturalHeight };
+  return null;
+}
+
 interface TripOption {
   id: number;
   name: string;
@@ -359,8 +370,8 @@ export default function WonderDetailScreen() {
               }}
               editable={showPhotoControls}
               onLoad={(e: any) => {
-                const src = e?.nativeEvent?.source;
-                if (src?.width && src?.height) setNaturalSize({ w: src.width, h: src.height });
+                const size = getImageNaturalSize(e);
+                if (size) setNaturalSize(size);
               }}
               onError={() => {
                 // A freshly-uploaded photo can briefly fail to load while it
