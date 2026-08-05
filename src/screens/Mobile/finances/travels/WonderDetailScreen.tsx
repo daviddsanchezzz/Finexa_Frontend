@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch, PanResponder, Pressable } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch, PanResponder, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -23,90 +23,120 @@ const MONTH_LABELS = [
 
 const NO_TRIP = -1;
 
-// Computes a manual "cover" crop using real pixel math (position/top/width/height)
-// instead of the CSS `object-position` style, which React Native Web does not
-// reliably forward through the Image style prop.
-function computeCoverLayout(
+// Computes the "cover" geometry (rendered image size + how much it overflows
+// the frame on each axis) independent of crop position — used both to draw
+// the image and to convert a drag gesture's pixel delta into an offset delta.
+function computeCoverGeometry(
   containerWidth: number,
   containerHeight: number,
-  natural: { w: number; h: number } | null,
-  offset: number
+  natural: { w: number; h: number } | null
 ) {
-  if (!natural || containerWidth <= 0 || natural.w <= 0 || natural.h <= 0) {
-    return { width: containerWidth, height: containerHeight, top: 0, left: 0 };
+  if (!natural || containerWidth <= 0 || containerHeight <= 0 || natural.w <= 0 || natural.h <= 0) {
+    return { width: containerWidth, height: containerHeight, overflowX: 0, overflowY: 0 };
   }
   const containerRatio = containerWidth / containerHeight;
   const imageRatio = natural.w / natural.h;
 
+  let width: number;
+  let height: number;
   if (imageRatio >= containerRatio) {
-    // Image is relatively wider than the box: height matches, width overflows (horizontal crop, centered).
-    const height = containerHeight;
-    const width = containerHeight * imageRatio;
-    return { width, height, top: 0, left: -(width - containerWidth) / 2 };
+    height = containerHeight;
+    width = containerHeight * imageRatio;
+  } else {
+    width = containerWidth;
+    height = containerWidth / imageRatio;
   }
-
-  // Image is relatively taller than the box: width matches, height overflows (vertical crop).
-  const width = containerWidth;
-  const height = containerWidth / imageRatio;
-  const overflow = height - containerHeight;
-  return { width, height, top: -overflow * offset, left: 0 };
+  return { width, height, overflowX: Math.max(0, width - containerWidth), overflowY: Math.max(0, height - containerHeight) };
 }
 
-const SLIDER_HANDLE = 22;
-
-// A horizontal drag slider that controls a vertical crop offset. Dragging is
-// horizontal on purpose — a vertical drag here would fight the screen's own
-// vertical scroll gesture.
-function PhotoOffsetSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const trackRef = useRef<View>(null);
-  const [trackWidth, setTrackWidth] = useState(0);
-  const trackPageX = useRef(0);
-
-  const measureTrack = () => {
-    trackRef.current?.measure((_x, _y, width, _height, pageX) => {
-      trackPageX.current = pageX;
-      setTrackWidth(width);
-    });
+// Instead of the CSS `object-position` style (which React Native Web does not
+// reliably forward through the Image style prop), position is applied as real
+// pixel math (top/left) derived from the 0..1 offset fractions.
+function layoutFromOffset(
+  geometry: { width: number; height: number; overflowX: number; overflowY: number },
+  offsetX: number,
+  offsetY: number
+) {
+  return {
+    width: geometry.width,
+    height: geometry.height,
+    left: -geometry.overflowX * offsetX,
+    top: -geometry.overflowY * offsetY,
   };
+}
+
+const CROP_FRAME_HEIGHT = 220;
+
+// Lets the user drag the photo directly inside the frame to choose what's
+// visible — both axes at once, unlike a slider. Only the axis that actually
+// overflows the frame has any visible effect; the other stays put.
+function DraggablePhoto({
+  uri,
+  natural,
+  offsetX,
+  offsetY,
+  onChange,
+  editable,
+  onLoad,
+  onError,
+}: {
+  uri: string;
+  natural: { w: number; h: number } | null;
+  offsetX: number;
+  offsetY: number;
+  onChange: (x: number, y: number) => void;
+  editable: boolean;
+  onLoad: (e: any) => void;
+  onError: () => void;
+}) {
+  const [frameWidth, setFrameWidth] = useState(0);
+  const geometry = computeCoverGeometry(frameWidth, CROP_FRAME_HEIGHT, natural);
+  const layout = layoutFromOffset(geometry, offsetX, offsetY);
+  const dragStart = useRef({ offsetX: 0.5, offsetY: 0.5 });
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        measureTrack();
-        const x = evt.nativeEvent.locationX;
-        if (trackWidth > 0) onChange(Math.max(0, Math.min(1, x / trackWidth)));
+      onStartShouldSetPanResponder: () => editable,
+      onMoveShouldSetPanResponder: (_evt, gesture) => editable && (Math.abs(gesture.dx) > 2 || Math.abs(gesture.dy) > 2),
+      onPanResponderGrant: () => {
+        dragStart.current = { offsetX, offsetY };
       },
-      onPanResponderMove: (_evt, gestureState) => {
-        if (trackWidth <= 0) return;
-        const x = gestureState.moveX - trackPageX.current;
-        onChange(Math.max(0, Math.min(1, x / trackWidth)));
+      onPanResponderMove: (_evt, gesture) => {
+        const nextX = geometry.overflowX > 0
+          ? Math.max(0, Math.min(1, dragStart.current.offsetX - gesture.dx / geometry.overflowX))
+          : 0.5;
+        const nextY = geometry.overflowY > 0
+          ? Math.max(0, Math.min(1, dragStart.current.offsetY - gesture.dy / geometry.overflowY))
+          : 0.5;
+        onChange(nextX, nextY);
       },
     })
   ).current;
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", minWidth: 42 }}>Arriba</Text>
-      <View
-        ref={trackRef}
-        onLayout={measureTrack}
-        {...panResponder.panHandlers}
-        style={{ flex: 1, height: SLIDER_HANDLE + 8, justifyContent: "center" }}
-      >
-        <View style={{ height: 4, borderRadius: 2, backgroundColor: "#E5E7EB" }} />
-        <View
-          style={{
-            position: "absolute",
-            left: Math.max(0, Math.min(trackWidth, value * trackWidth)) - SLIDER_HANDLE / 2,
-            width: SLIDER_HANDLE, height: SLIDER_HANDLE, borderRadius: SLIDER_HANDLE / 2,
-            backgroundColor: colors.primary, borderWidth: 2, borderColor: "white",
-            shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2,
-          }}
+    <View
+      onLayout={(e) => setFrameWidth(Math.round(e.nativeEvent.layout.width))}
+      style={{ width: "100%", height: CROP_FRAME_HEIGHT, overflow: "hidden", position: "relative" }}
+    >
+      {frameWidth > 0 && (
+        <Image
+          source={{ uri }}
+          style={{ position: "absolute", top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
+          resizeMode="cover"
+          onLoad={onLoad}
+          onError={onError}
         />
-      </View>
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", minWidth: 38, textAlign: "right" }}>Abajo</Text>
+      )}
+      {editable && (
+        <View
+          {...panResponder.panHandlers}
+          style={
+            Platform.OS === "web"
+              ? ({ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, cursor: "grab" } as any)
+              : { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }
+          }
+        />
+      )}
     </View>
   );
 }
@@ -152,12 +182,12 @@ export default function WonderDetailScreen() {
   const [visitedYear, setVisitedYear] = useState(currentMonthYear().year);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoOffset, setPhotoOffset] = useState(0.5);
+  const [photoOffsetX, setPhotoOffsetX] = useState(0.5);
   const [imageRetryCount, setImageRetryCount] = useState(0);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [tripId, setTripId] = useState<number | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [photoTileWidth, setPhotoTileWidth] = useState(0);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [showPhotoControls, setShowPhotoControls] = useState(false);
 
@@ -177,6 +207,7 @@ export default function WonderDetailScreen() {
     setVisitedYear(year);
     setPhotoUrl(wonder.photoUrl);
     setPhotoOffset(wonder.photoOffset ?? 0.5);
+    setPhotoOffsetX(wonder.photoOffsetX ?? 0.5);
     setImageLoadFailed(false);
     setImageRetryCount(0);
     setTripId(wonder.tripId);
@@ -206,6 +237,8 @@ export default function WonderDetailScreen() {
       const url = await pickAndUploadWonderPhoto();
       if (url) {
         setPhotoUrl(url);
+        setPhotoOffset(0.5);
+        setPhotoOffsetX(0.5);
         setImageLoadFailed(false);
         setImageRetryCount(0);
       }
@@ -243,6 +276,7 @@ export default function WonderDetailScreen() {
         visitedAt,
         photoUrl: visited ? photoUrl ?? undefined : undefined,
         photoOffset: visited && photoUrl ? photoOffset : undefined,
+        photoOffsetX: visited && photoUrl ? photoOffsetX : undefined,
         tripId: visited ? tripId ?? undefined : undefined,
       });
       navigation.goBack();
@@ -270,38 +304,31 @@ export default function WonderDetailScreen() {
       )}
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, gap: 16 }}>
-        <TouchableOpacity
-          onPress={handlePickPhoto}
-          activeOpacity={0.85}
-          onLayout={(e) => setPhotoTileWidth(Math.round(e.nativeEvent.layout.width))}
+        <View
           style={{
-            height: 180, borderRadius: 16, backgroundColor: "#F3F4F6",
-            borderWidth: 1, borderColor: "#E5E7EB", borderStyle: "dashed",
+            height: CROP_FRAME_HEIGHT, borderRadius: 16, backgroundColor: "#F3F4F6",
+            borderWidth: 1, borderColor: "#E5E7EB",
             alignItems: "center", justifyContent: "center", overflow: "hidden",
             position: "relative",
           }}
         >
           {uploadingPhoto ? (
             <ActivityIndicator color={colors.primary} />
-          ) : photoUrl && !imageLoadFailed && photoTileWidth > 0 ? (
-            <Image
-              source={{
-                uri:
-                  imageRetryCount === 0
-                    ? photoUrl
-                    : `${photoUrl}${photoUrl.includes("?") ? "&" : "?"}retry=${imageRetryCount}`,
+          ) : photoUrl && !imageLoadFailed ? (
+            <DraggablePhoto
+              uri={
+                imageRetryCount === 0
+                  ? photoUrl
+                  : `${photoUrl}${photoUrl.includes("?") ? "&" : "?"}retry=${imageRetryCount}`
+              }
+              natural={naturalSize}
+              offsetX={photoOffsetX}
+              offsetY={photoOffset}
+              onChange={(x, y) => {
+                setPhotoOffsetX(x);
+                setPhotoOffset(y);
               }}
-              style={(() => {
-                const layout = computeCoverLayout(photoTileWidth, 180, naturalSize, photoOffset);
-                return {
-                  position: "absolute",
-                  top: layout.top,
-                  left: layout.left,
-                  width: layout.width,
-                  height: layout.height,
-                };
-              })()}
-              resizeMode="cover"
+              editable={showPhotoControls}
               onLoad={(e: any) => {
                 const src = e?.nativeEvent?.source;
                 if (src?.width && src?.height) setNaturalSize({ w: src.width, h: src.height });
@@ -317,122 +344,84 @@ export default function WonderDetailScreen() {
                 }
               }}
             />
-          ) : photoUrl && imageLoadFailed ? (
-            <>
-              <Ionicons name="alert-circle-outline" size={28} color="#F59E0B" />
-              <Text style={{ fontSize: 12, color: "#B45309", fontWeight: "600", marginTop: 6, textAlign: "center", paddingHorizontal: 20 }}>
-                No se pudo cargar la foto. Toca para subir otra.
-              </Text>
-            </>
           ) : (
-            <>
-              <Ionicons name="image-outline" size={28} color="#9CA3AF" />
-              <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600", marginTop: 6 }}>
-                Añadir tu foto en {wonder.name}
-              </Text>
-            </>
+            <TouchableOpacity
+              onPress={handlePickPhoto}
+              activeOpacity={0.85}
+              style={{ flex: 1, width: "100%", alignItems: "center", justifyContent: "center", borderStyle: "dashed", borderWidth: 1, borderColor: "#E5E7EB" }}
+            >
+              {photoUrl && imageLoadFailed ? (
+                <>
+                  <Ionicons name="alert-circle-outline" size={28} color="#F59E0B" />
+                  <Text style={{ fontSize: 12, color: "#B45309", fontWeight: "600", marginTop: 6, textAlign: "center", paddingHorizontal: 20 }}>
+                    No se pudo cargar la foto. Toca para subir otra.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={28} color="#9CA3AF" />
+                  <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600", marginTop: 6 }}>
+                    Añadir tu foto en {wonder.name}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {photoUrl && !imageLoadFailed && !uploadingPhoto && showPhotoControls && (
+            <View
+              pointerEvents="none"
+              style={{ position: "absolute", top: 10, left: 0, right: 0, alignItems: "center" }}
+            >
+              <View style={{ backgroundColor: "rgba(15,23,42,0.55)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Arrastra la foto para encuadrarla</Text>
+              </View>
+            </View>
           )}
 
           {photoUrl && !imageLoadFailed && !uploadingPhoto && (
-            <Pressable
-              onPress={() => setShowPhotoControls((v) => !v)}
-              style={({ pressed }) => ({
-                position: "absolute",
-                right: 12,
-                bottom: 12,
-                height: 38,
-                paddingHorizontal: 12,
-                borderRadius: 12,
-                backgroundColor: "rgba(15,23,42,0.55)",
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.22)",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                opacity: pressed ? 0.9 : 1,
-              })}
-            >
-              <Ionicons name="scan-outline" size={16} color="white" />
-              <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>
-                {showPhotoControls ? "Listo" : "Reencuadrar"}
-              </Text>
-            </Pressable>
+            <View style={{ position: "absolute", right: 12, bottom: 12, flexDirection: "row", gap: 8 }}>
+              {showPhotoControls && (
+                <Pressable
+                  onPress={() => { setPhotoOffset(0.5); setPhotoOffsetX(0.5); }}
+                  style={({ pressed }) => ({
+                    height: 38, paddingHorizontal: 12, borderRadius: 12,
+                    backgroundColor: "rgba(15,23,42,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
+                    alignItems: "center", justifyContent: "center", opacity: pressed ? 0.9 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>Centrar</Text>
+                </Pressable>
+              )}
+              {!showPhotoControls && (
+                <Pressable
+                  onPress={handlePickPhoto}
+                  style={({ pressed }) => ({
+                    height: 38, paddingHorizontal: 12, borderRadius: 12,
+                    backgroundColor: "rgba(15,23,42,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
+                    flexDirection: "row", alignItems: "center", gap: 6, opacity: pressed ? 0.9 : 1,
+                  })}
+                >
+                  <Ionicons name="image-outline" size={16} color="white" />
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>Cambiar</Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => setShowPhotoControls((v) => !v)}
+                style={({ pressed }) => ({
+                  height: 38, paddingHorizontal: 12, borderRadius: 12,
+                  backgroundColor: "rgba(15,23,42,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
+                  flexDirection: "row", alignItems: "center", gap: 6, opacity: pressed ? 0.9 : 1,
+                })}
+              >
+                <Ionicons name="scan-outline" size={16} color="white" />
+                <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>
+                  {showPhotoControls ? "Listo" : "Reencuadrar"}
+                </Text>
+              </Pressable>
+            </View>
           )}
-        </TouchableOpacity>
-
-        {photoUrl && !imageLoadFailed && !uploadingPhoto && showPhotoControls && (
-          <View
-            style={{
-              backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
-              paddingHorizontal: 14, paddingVertical: 12, marginTop: -8, gap: 12,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>
-                  AJUSTAR ENCUADRE
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B" }}>
-                  Mueve la foto para decidir qué zona se muestra.
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setPhotoOffset(0.5)}
-                activeOpacity={0.85}
-                style={{
-                  height: 34,
-                  paddingHorizontal: 12,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "#F8FAFC",
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: "800", color: "#334155" }}>Centrar</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <TouchableOpacity
-                onPress={() => setPhotoOffset((v) => Math.max(0, Number((v - 0.08).toFixed(2))))}
-                activeOpacity={0.85}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: "#F8FAFC",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="chevron-up" size={18} color="#475569" />
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <PhotoOffsetSlider value={photoOffset} onChange={setPhotoOffset} />
-              </View>
-              <TouchableOpacity
-                onPress={() => setPhotoOffset((v) => Math.min(1, Number((v + 0.08).toFixed(2))))}
-                activeOpacity={0.85}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: "#F8FAFC",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="chevron-down" size={18} color="#475569" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        </View>
 
         <View
           style={{

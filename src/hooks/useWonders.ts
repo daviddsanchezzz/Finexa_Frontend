@@ -14,6 +14,8 @@ export interface Wonder {
   photoUrl: string | null;
   /** Vertical crop focal point, 0 (top) .. 1 (bottom); null = 0.5 (center). */
   photoOffset: number | null;
+  /** Horizontal crop focal point, 0 (left) .. 1 (right); null = 0.5 (center). */
+  photoOffsetX: number | null;
   tripId: number | null;
 }
 
@@ -22,6 +24,7 @@ export interface UpdateWonderVisitInput {
   visitedAt?: string;
   photoUrl?: string;
   photoOffset?: number;
+  photoOffsetX?: number;
   tripId?: number;
 }
 

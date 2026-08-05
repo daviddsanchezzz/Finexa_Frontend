@@ -15,7 +15,8 @@ function computeCoverLayout(
   containerWidth: number,
   containerHeight: number,
   natural: { w: number; h: number } | null,
-  offset: number | null
+  offsetX: number | null,
+  offsetY: number | null
 ) {
   if (!natural || natural.w <= 0 || natural.h <= 0) {
     return { width: containerWidth, height: containerHeight, top: 0, left: 0 };
@@ -23,20 +24,21 @@ function computeCoverLayout(
   const containerRatio = containerWidth / containerHeight;
   const imageRatio = natural.w / natural.h;
 
+  let width: number;
+  let height: number;
   if (imageRatio >= containerRatio) {
-    const height = containerHeight;
-    const width = containerHeight * imageRatio;
-    return { width, height, top: 0, left: -(width - containerWidth) / 2 };
+    height = containerHeight;
+    width = containerHeight * imageRatio;
+  } else {
+    width = containerWidth;
+    height = containerWidth / imageRatio;
   }
-
-  const width = containerWidth;
-  const height = containerWidth / imageRatio;
-  const overflow = height - containerHeight;
-  const top = -overflow * (offset ?? 0.5);
-  return { width, height, top, left: 0 };
+  const overflowX = Math.max(0, width - containerWidth);
+  const overflowY = Math.max(0, height - containerHeight);
+  return { width, height, top: -overflowY * (offsetY ?? 0.5), left: -overflowX * (offsetX ?? 0.5) };
 }
 
-function WonderThumbnail({ uri, offset }: { uri: string; offset: number | null }) {
+function WonderThumbnail({ uri, offset, offsetX }: { uri: string; offset: number | null; offsetX: number | null }) {
   const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
@@ -53,7 +55,7 @@ function WonderThumbnail({ uri, offset }: { uri: string; offset: number | null }
   // just-uploaded photo whose first fetch fails while it's still
   // propagating on the storage provider's edge.
   const src = retryCount === 0 ? uri : `${uri}${uri.includes("?") ? "&" : "?"}retry=${retryCount}`;
-  const layout = computeCoverLayout(THUMB_SIZE, THUMB_SIZE, naturalSize, offset);
+  const layout = computeCoverLayout(THUMB_SIZE, THUMB_SIZE, naturalSize, offsetX, offset);
 
   return (
     <View style={{ width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: 10, backgroundColor: "#F3F4F6", overflow: "hidden", position: "relative" }}>
@@ -150,7 +152,7 @@ export default function WondersScreen() {
                 padding: 16, gap: 12,
               }}
             >
-              {wonder.photoUrl && <WonderThumbnail uri={wonder.photoUrl} offset={wonder.photoOffset} />}
+              {wonder.photoUrl && <WonderThumbnail uri={wonder.photoUrl} offset={wonder.photoOffset} offsetX={wonder.photoOffsetX} />}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Text style={{ fontSize: 15 }}>{flagEmojiFromISO2(wonder.country)}</Text>
