@@ -1,10 +1,11 @@
 // src/screens/Trips/components/TripExpensesSection.tsx
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert, Linking, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Linking, TouchableOpacity, Modal, ActivityIndicator, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 import api from "../../../../../api/api";
+import { appAlert } from "../../../../../utils/appAlert";
 
 // ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
 export enum BudgetCategoryType {
@@ -357,6 +358,7 @@ export default function TripExpensesSection({
   const [subTab, setSubTab] = useState<"all" | "pending">("all");
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
   const [linkSaving, setLinkSaving] = useState(false);
+  const [linkSearch, setLinkSearch] = useState("");
 
   const pendingItems = useMemo(
     () => (planItems || []).filter((i) => i.metadata?.pending === true),
@@ -374,15 +376,28 @@ export default function TripExpensesSection({
     [nonPendingPlanItems]
   );
 
-  const handleCreateExpense = async (pendingItem: TripPlanItem) => {
-    try {
-      await api.patch(`/trips/${tripId}/plan-items/${pendingItem.id}`, {
-        metadata: { expenseCategory: "other" },
-      });
-      onRefresh?.();
-    } catch {
-      // silently ignore
-    }
+  const filteredLinkableItems = useMemo(() => {
+    const q = linkSearch.trim().toLowerCase();
+    if (!q) return linkableItems;
+    return linkableItems.filter(
+      (i) => (i.title || "").toLowerCase().includes(q) || (i.location || "").toLowerCase().includes(q)
+    );
+  }, [linkableItems, linkSearch]);
+
+  const handlePendingItemMenu = (pendingItem: TripPlanItem) => {
+    appAlert(pendingItem.title || "Nuevo gasto", "¿Qué quieres hacer con este gasto?", [
+      { text: "Vincular a un item del plan", onPress: () => setLinkingItem(pendingItem) },
+      {
+        text: "Crear gasto / item de itinerario",
+        onPress: () => navigation.navigate("TripPlanForm", { tripId, planItem: pendingItem }),
+      },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
+  const closeLinkModal = () => {
+    setLinkingItem(null);
+    setLinkSearch("");
   };
 
   const handleLinkToPlan = async (planItemId: number) => {
@@ -394,7 +409,7 @@ export default function TripExpensesSection({
         transactionId: linkingItem.transactionId,
       });
       await api.delete(`/trips/${tripId}/plan-items/${linkingItem.id}`);
-      setLinkingItem(null);
+      closeLinkModal();
       onRefresh?.();
     } catch {
       setLinkSaving(false);
@@ -714,85 +729,37 @@ const entries = useMemo(() => {
             <View style={{ backgroundColor: "rgba(245,158,11,0.06)", borderRadius: 18, borderWidth: 1, borderColor: "rgba(245,158,11,0.30)", paddingVertical: 4 }}>
               {pendingItems.map((item, idx) => (
                 <View key={item.id}>
-                  <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-                    {/* Fila principal */}
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: "rgba(245,158,11,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(245,158,11,0.25)" }}>
-                        <Ionicons name="receipt-outline" size={13} color="#D97706" />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
-                          {item.title || "Nuevo gasto"}
+                  <Pressable
+                    onPress={() => handlePendingItemMenu(item)}
+                    style={({ pressed }) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 9,
+                      backgroundColor: pressed ? "rgba(245,158,11,0.08)" : "transparent",
+                    })}
+                  >
+                    <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: "rgba(245,158,11,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(245,158,11,0.25)" }}>
+                      <Ionicons name="receipt-outline" size={12} color="#D97706" />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
+                        {item.title || "Nuevo gasto"}
+                      </Text>
+                      {item.location ? (
+                        <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }} numberOfLines={1}>
+                          {item.location}
                         </Text>
-                        {item.location ? (
-                          <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }} numberOfLines={1}>
-                            {item.location}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: "900", color: "#D97706" }}>
-                        {formatEuro(safeNumber(item.cost))}
-                      </Text>
+                      ) : null}
                     </View>
-
-                    {/* Botones de acción */}
-                    <View style={{ flexDirection: "row", gap: 6, marginTop: 6, marginLeft: 36 }}>
-                      <TouchableOpacity
-                        onPress={() => setLinkingItem(item)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 5,
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: colors.primary,
-                          alignItems: "center",
-                          flexDirection: "row",
-                          justifyContent: "center",
-                          gap: 4,
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="link-outline" size={11} color={colors.primary} />
-                        <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Vincular al plan</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleCreateExpense(item)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 5,
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: "#22C55E",
-                          alignItems: "center",
-                          flexDirection: "row",
-                          justifyContent: "center",
-                          gap: 4,
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="add-circle-outline" size={11} color="#16A34A" />
-                        <Text style={{ fontSize: 11, fontWeight: "800", color: "#16A34A" }}>Crear gasto</Text>
-                      </TouchableOpacity>
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#D97706" }}>
+                      {formatEuro(safeNumber(item.cost))}
+                    </Text>
+                    <View style={{ width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name="ellipsis-vertical" size={15} color={UI.muted} />
                     </View>
-
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate("TripPlanForm", { tripId, planItem: item })}
-                      style={{
-                        marginTop: 5,
-                        marginLeft: 36,
-                        alignSelf: "flex-start",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="airplane-outline" size={10} color={UI.muted} />
-                      <Text style={{ fontSize: 10, fontWeight: "700", color: UI.muted }}>
-                        O crear item de itinerario (vuelo, alojamiento...)
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  </Pressable>
                   {idx < pendingItems.length - 1 ? (
                     <View style={{ height: 1, backgroundColor: "rgba(245,158,11,0.20)", marginLeft: 12 }} />
                   ) : null}
@@ -804,10 +771,10 @@ const entries = useMemo(() => {
       </ScrollView>
 
       {/* Modal: vincular a plan item existente */}
-      <Modal visible={!!linkingItem} transparent animationType="slide" onRequestClose={() => setLinkingItem(null)}>
+      <Modal visible={!!linkingItem} transparent animationType="slide" onRequestClose={closeLinkModal}>
         <Pressable
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
-          onPress={() => { if (!linkSaving) setLinkingItem(null); }}
+          onPress={() => { if (!linkSaving) closeLinkModal(); }}
         >
           <Pressable
             style={{ backgroundColor: "white", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32 }}
@@ -822,7 +789,7 @@ const entries = useMemo(() => {
             <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: UI.border }}>
               <Text style={{ flex: 1, fontSize: 16, fontWeight: "900", color: UI.text }}>Vincular al plan</Text>
               {!linkSaving && (
-                <TouchableOpacity onPress={() => setLinkingItem(null)}>
+                <TouchableOpacity onPress={closeLinkModal}>
                   <Ionicons name="close" size={22} color={UI.muted} />
                 </TouchableOpacity>
               )}
@@ -839,18 +806,39 @@ const entries = useMemo(() => {
               </View>
             )}
 
-            <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted, marginHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
+            {/* Buscador */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginTop: 14, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: "rgba(148,163,184,0.10)" }}>
+              <Ionicons name="search-outline" size={16} color={UI.muted} />
+              <TextInput
+                value={linkSearch}
+                onChangeText={setLinkSearch}
+                placeholder="Buscar en el plan..."
+                placeholderTextColor={UI.muted2}
+                style={{ flex: 1, fontSize: 13, fontWeight: "600", color: UI.text, padding: 0 }}
+              />
+              {!!linkSearch && (
+                <TouchableOpacity onPress={() => setLinkSearch("")}>
+                  <Ionicons name="close-circle" size={16} color={UI.muted2} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted, marginHorizontal: 20, marginTop: 14, marginBottom: 8 }}>
               Selecciona el plan al que vincular este gasto:
             </Text>
 
             {/* Lista plan items */}
             <ScrollView style={{ maxHeight: 300 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
-              {linkableItems.length === 0 ? (
+              {filteredLinkableItems.length === 0 ? (
                 <Text style={{ fontSize: 13, color: UI.muted2, textAlign: "center", paddingVertical: 20 }}>
-                  No hay ítems en el plan disponibles
+                  {linkableItems.length === 0 ? "No hay ítems en el plan disponibles" : "Sin resultados"}
                 </Text>
               ) : (
-                linkableItems.map((pi, idx) => (
+                filteredLinkableItems.map((pi, idx) => {
+                  const piCat = categoryForItem(pi);
+                  const piDef = BUDGET_DEFS.find((d) => d.key === piCat) ?? BUDGET_DEFS[BUDGET_DEFS.length - 1];
+                  const piEmoji = emojiForPlanItem(pi, piDef.emoji);
+                  return (
                   <TouchableOpacity
                     key={pi.id}
                     onPress={() => handleLinkToPlan(pi.id)}
@@ -861,13 +849,13 @@ const entries = useMemo(() => {
                       alignItems: "center",
                       gap: 10,
                       paddingVertical: 11,
-                      borderBottomWidth: idx < linkableItems.length - 1 ? 1 : 0,
+                      borderBottomWidth: idx < filteredLinkableItems.length - 1 ? 1 : 0,
                       borderBottomColor: UI.border,
                       opacity: linkSaving ? 0.5 : 1,
                     }}
                   >
-                    <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(148,163,184,0.12)", alignItems: "center", justifyContent: "center" }}>
-                      <Ionicons name="document-text-outline" size={15} color={UI.muted} />
+                    <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: piDef.badgeBg, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ fontSize: 15, lineHeight: 18 }}>{piEmoji}</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={{ fontSize: 13, fontWeight: "800", color: UI.text }} numberOfLines={1}>{pi.title}</Text>
@@ -884,7 +872,8 @@ const entries = useMemo(() => {
                       <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
                     )}
                   </TouchableOpacity>
-                ))
+                  );
+                })
               )}
             </ScrollView>
           </Pressable>

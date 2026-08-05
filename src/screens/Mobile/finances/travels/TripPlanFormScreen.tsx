@@ -577,7 +577,11 @@ export default function TripPlanFormScreen({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [step, setStep] = useState<"pick" | "form">(isEdit || presetType ? "form" : "pick");
+  // Un "gasto pendiente" (creado desde una transacción sin clasificar) todavía
+  // no tiene un tipo real elegido — aunque venga como planItem (edición), se
+  // debe mostrar el selector de tipo igualmente para que el usuario lo elija.
+  const isPendingReclass = isEdit && !!(planItem as any)?.metadata?.pending;
+  const [step, setStep] = useState<"pick" | "form">((isEdit && !isPendingReclass) || presetType ? "form" : "pick");
 
   // ==================== SAVE HANDLERS ====================
 
@@ -981,7 +985,7 @@ export default function TripPlanFormScreen({
       {/* FORM HEADER */}
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: UI.border }}>
         <TouchableOpacity
-          onPress={() => (isEdit ? navigation.goBack() : setStep("pick"))}
+          onPress={() => ((isEdit && !isPendingReclass) ? navigation.goBack() : setStep("pick"))}
           style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginRight: 4 }}
         >
           <Ionicons name="chevron-back" size={22} color={UI.text} />
