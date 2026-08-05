@@ -7,6 +7,7 @@ import { colors } from "../../../../../theme/theme";
 import api from "../../../../../api/api";
 import { appAlert } from "../../../../../utils/appAlert";
 import PdfPreviewModal from "./PdfPreviewModal";
+import ImageGalleryModal from "./ImageGalleryModal";
 
 export interface DetailAttachment {
   id?: number;
@@ -213,6 +214,7 @@ function MapsLinkRow({ label, value, url }: { label: string; value: string; url:
 export default function PlanItemDetailModal({ visible, tripId, item, onClose, onEdit, onDeleted, cityContext }: Props) {
   const [deleting, setDeleting] = React.useState(false);
   const [previewFile, setPreviewFile] = React.useState<DetailAttachment | null>(null);
+  const [galleryIndex, setGalleryIndex] = React.useState<number | null>(null);
 
   if (!item) return null;
 
@@ -407,7 +409,7 @@ export default function PlanItemDetailModal({ visible, tripId, item, onClose, on
                     {images.map((file, index) => (
                       <TouchableOpacity
                         key={file.id ?? `${file.url}-${index}`}
-                        onPress={() => openAttachment(file)}
+                        onPress={() => setGalleryIndex(index)}
                         activeOpacity={0.85}
                         style={{ width: 72, height: 72, borderRadius: 12, overflow: "hidden", backgroundColor: "#F3F4F6" }}
                       >
@@ -488,6 +490,13 @@ export default function PlanItemDetailModal({ visible, tripId, item, onClose, on
       url={previewFile?.url ?? null}
       title={previewFile?.filename}
       onClose={() => setPreviewFile(null)}
+    />
+
+    <ImageGalleryModal
+      visible={galleryIndex != null}
+      images={images}
+      initialIndex={galleryIndex ?? 0}
+      onClose={() => setGalleryIndex(null)}
     />
     </>
   );
