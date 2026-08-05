@@ -1,5 +1,5 @@
 // src/navigation/DesktopShellNavigator.tsx
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { View, Text, ScrollView, Image, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -115,7 +115,7 @@ function DesktopShellLayout({
     if (!params) return;
     clearQuickAddFromSession();
     const id = setTimeout(() => {
-      openCreateTx({ amount: params.amount, description: params.merchant, cardName: params.cardName });
+      openCreateTx({ amount: params.amount, description: params.merchant, cardName: params.cardName, quickAddId: params.qid });
     }, 300);
     return () => clearTimeout(id);
   }, [openCreateTx]);

@@ -42,6 +42,8 @@ function iconForType(type: string | null) {
       return { name: "bed-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
     case "trip_expense_added":
       return { name: "receipt-outline" as const, bg: "#FEF3C7", color: "#D97706" };
+    case "quick_transaction":
+      return { name: "card-outline" as const, bg: "#DBEAFE", color: "#2563EB" };
     default:
       return { name: "notifications-outline" as const, bg: "#F3F4F6", color: "#6B7280" };
   }
@@ -56,6 +58,24 @@ export default function NotificationsScreen() {
   const handlePress = (n: FeedNotification) => {
     if (n.type === "friend_request") friendReq.handlePress(n);
     else if (n.type === "trip_invite") tripInv.handlePress(n);
+    else if (n.type === "quick_transaction") {
+      const d = (n.data ?? {}) as { amount?: number; merchant?: string; cardName?: string; qid?: string };
+      navigation.navigate("MainTabs", {
+        screen: "Add",
+        params: {
+          prefillData: {
+            type: "expense",
+            amount: d.amount,
+            description: d.merchant,
+            cardName: d.cardName,
+            quickAddId: d.qid,
+            date: new Date().toISOString(),
+          },
+        },
+      });
+      // No se marca como leída aquí: solo se resuelve cuando el gasto
+      // realmente se guarda (para que siga recordándotelo si cierras sin guardar).
+    }
     else if (!n.read) markRead(n.id);
   };
 

@@ -19,7 +19,7 @@ import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { ToastContainer } from "./src/components/ui/ToastContainer";
 import { ActionSheetHost } from "./src/components/ui/ActionSheetHost";
 import LiveTripCard from "./src/components/LiveTripCard";
-import { navigationRef } from "./src/navigation/navigationRef";
+import { navigationRef, navigate } from "./src/navigation/navigationRef";
 import {
   isBiometricEnabled,
   authenticateWithBiometric,
@@ -44,10 +44,25 @@ function AppContent() {
       }
     );
 
-    // Escuchar cuando el usuario toca una notificaciÃ³n
+    // Escuchar cuando el usuario toca una notificación
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (_response) => {
-        // AquÃ­ puedes navegar a la pantalla relevante segÃºn response.notification.request.content.data
+      (response) => {
+        const data = response.notification.request.content.data as Record<string, any> | undefined;
+        if (data?.type === "quick_transaction") {
+          navigate("MainTabs", {
+            screen: "Add",
+            params: {
+              prefillData: {
+                type: "expense",
+                amount: data.amount,
+                description: data.merchant,
+                cardName: data.cardName,
+                quickAddId: data.qid,
+                date: new Date().toISOString(),
+              },
+            },
+          });
+        }
       }
     );
 

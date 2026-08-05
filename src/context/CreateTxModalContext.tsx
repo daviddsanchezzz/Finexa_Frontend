@@ -12,6 +12,7 @@ export type CreateTxPrefill = {
   amount?: number;
   description?: string;
   cardName?: string;
+  quickAddId?: string;
 };
 
 /**

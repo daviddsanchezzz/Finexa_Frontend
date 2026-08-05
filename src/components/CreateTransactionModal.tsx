@@ -30,6 +30,7 @@ type Prefill = {
   amount?: number;
   description?: string;
   cardName?: string;
+  quickAddId?: string;
 };
 
 type Props = {
@@ -436,6 +437,10 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     } else {
       payload.isRecurring = false;
       payload.recurrence = null;
+    }
+
+    if (prefill?.quickAddId) {
+      payload.quickAddId = prefill.quickAddId;
     }
 
     try {

@@ -1,6 +1,13 @@
+import api from "../api/api";
+
 const SESSION_KEY = 'finexa_quick_add';
 
-export type QuickAddParams = { amount: number; merchant: string; cardName?: string };
+export type QuickAddParams = { amount: number; merchant: string; cardName?: string; qid: string };
+
+function generateQid(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 // Words that identify card networks/tiers but not the bank — ignored during matching
 const CARD_NOISE = new Set([
@@ -34,7 +41,7 @@ export function matchWalletByCard(
   return null;
 }
 
-export function readQuickAddFromUrl(): QuickAddParams | null {
+export function readQuickAddFromUrl(): { params: QuickAddParams; fromNotification: boolean } | null {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   if (!params.get('qa')) return null;
@@ -43,7 +50,21 @@ export function readQuickAddFromUrl(): QuickAddParams | null {
   const merchant = params.get('merchant') ?? '';
   if (!isFinite(amount) || amount <= 0) return null;
   const cardName = params.get('card') ?? undefined;
-  return { amount, merchant, cardName };
+  const nid = params.get('nid');
+  const qid = nid || generateQid();
+  return { params: { amount, merchant, cardName, qid }, fromNotification: !!nid };
+}
+
+// Crea (fire-and-forget) la notificación de "nuevo gasto" pendiente en el
+// backend. Se llama solo la primera vez que se abre el link (no cuando se
+// vuelve a abrir tocando la propia notificación, porque ya existe).
+export function sendQuickAddNotification(params: QuickAddParams): void {
+  api.post('/notifications/quick-transaction', {
+    amount: params.amount,
+    merchant: params.merchant,
+    cardName: params.cardName,
+    qid: params.qid,
+  }).catch(() => null);
 }
 
 export function saveQuickAddToSession(params: QuickAddParams): void {

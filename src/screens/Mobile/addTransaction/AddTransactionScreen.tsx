@@ -381,6 +381,10 @@ export default function AddScreen({ navigation }: any) {
       }
     }
 
+    if (!isEditing && prefillData?.quickAddId) {
+      payload.quickAddId = prefillData.quickAddId;
+    }
+
     // Recurrencia
     if (recurrenceInterval !== "never") {
       payload.isRecurring = true;
