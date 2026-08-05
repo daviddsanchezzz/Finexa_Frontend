@@ -131,20 +131,20 @@ export default function LiveTripCard() {
           <View
             style={{
               position: "absolute",
-              bottom: -6,
-              right: -6,
-              minWidth: 21,
-              height: 21,
-              borderRadius: 11,
-              paddingHorizontal: 4,
+              bottom: -5,
+              right: -5,
+              minWidth: 17,
+              height: 17,
+              borderRadius: 9,
+              paddingHorizontal: 3,
               backgroundColor: "#16A34A",
-              borderWidth: 2,
+              borderWidth: 1.5,
               borderColor: "white",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Text style={{ color: "white", fontSize: 10, fontWeight: "900" }}>{dayNumber}</Text>
+            <Text style={{ color: "white", fontSize: 8.5, fontWeight: "900" }}>{dayNumber}</Text>
           </View>
         )}
       </Pressable>

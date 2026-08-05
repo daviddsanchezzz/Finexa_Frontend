@@ -902,11 +902,16 @@ export default function TripPlanningSectionRedesign({
 
   // ── State ─────────────────────────────────────────────────────────────────
 
-  const [selectedDay, setSelectedDay] = useState<string>(dayKeys[0] ?? NO_DATE);
+  // Si el viaje está en curso, entrar directamente al día de hoy en vez de
+  // siempre al primer día del itinerario.
+  const todayKey = new Date().toLocaleDateString("en-CA");
+  const defaultDay = (keys: string[]) => (keys.includes(todayKey) ? todayKey : keys[0] ?? NO_DATE);
+
+  const [selectedDay, setSelectedDay] = useState<string>(defaultDay(dayKeys));
 
   useEffect(() => {
     if (!dayKeys.length) { setSelectedDay(NO_DATE); return; }
-    if (!dayKeys.includes(selectedDay)) setSelectedDay(dayKeys[0] ?? NO_DATE);
+    if (!dayKeys.includes(selectedDay)) setSelectedDay(defaultDay(dayKeys));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayKeys.join("|")]);
 
@@ -974,7 +979,6 @@ export default function TripPlanningSectionRedesign({
   // Marca hecho/en curso/pendiente por item, y dónde insertar el separador
   // "AHORA" — solo tiene sentido en el día de hoy.
   const activityStatus = useTripActivityStatus(dayItems as any);
-  const todayKey = new Date().toLocaleDateString("en-CA");
   const showNowMarker = !isNoDate && selectedDay === todayKey;
   const firstNotDoneIdx = dayItems.findIndex((it) => activityStatus.statusById.get(it.id) !== "done");
   const nowTimeLabel = activityStatus.now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });

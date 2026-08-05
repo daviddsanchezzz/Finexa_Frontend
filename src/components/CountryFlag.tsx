@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
-import { View } from "react-native";
-import { SvgUri } from "react-native-svg";
+import { View, Image } from "react-native";
 
 function normCca2(cca2?: string | null) {
   const cc = String(cca2 || "").trim().toLowerCase();
@@ -22,7 +21,11 @@ export function CountryFlag({
   radius?: number;
 }) {
   const cc = useMemo(() => normCca2(cca2), [cca2]);
-  const uri = useMemo(() => (cc ? `https://flagcdn.com/${cc}.svg` : ""), [cc]);
+  // PNG en vez de SVG: react-native-svg no soporta bien banderas con texto
+  // vectorial complejo (p.ej. la caligrafía árabe de Arabia Saudí no se
+  // llega a pintar y solo queda el fondo sólido). Un raster ya renderizado
+  // siempre muestra el diseño completo.
+  const uri = useMemo(() => (cc ? `https://flagcdn.com/w80/${cc}.png` : ""), [cc]);
 
   if (!cc) return null;
 
@@ -31,7 +34,7 @@ export function CountryFlag({
 
   return (
     <View style={{ width: w, height: h, borderRadius: radius, overflow: "hidden" }}>
-      <SvgUri width={w} height={h} uri={uri} />
+      <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
     </View>
   );
 }
