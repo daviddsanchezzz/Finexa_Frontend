@@ -407,12 +407,19 @@ export default function TripExpensesSection({
     try {
       setLinkSaving(true);
       // El DTO exige type/title aunque no cambien: reenviamos los del item
-      // destino tal cual, solo cost/transactionId son los que de verdad cambian.
+      // destino tal cual (a diferencia de "crear gasto", aquí el item ya
+      // tiene su propio nombre). La nota de la transacción (guardada como
+      // title del gasto pendiente) pasa a ser la nota del item, no su título.
+      const linkedNote = (linkingItem.title || "").trim();
+      const notes = linkedNote
+        ? (target.notes ? `${target.notes}\n${linkedNote}` : linkedNote)
+        : target.notes;
       await api.patch(`/trips/${tripId}/plan-items/${planItemId}`, {
         type: target.type,
         title: target.title,
         cost: safeNumber(linkingItem.cost),
         transactionId: linkingItem.transactionId,
+        notes: notes ?? undefined,
       });
       await api.delete(`/trips/${tripId}/plan-items/${linkingItem.id}`);
       closeLinkModal();
