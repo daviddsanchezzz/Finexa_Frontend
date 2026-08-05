@@ -8,11 +8,17 @@ import { useTripActivityStatus, minutesUntil, formatCountdown } from "../hooks/u
 import { useUIStore } from "../store/uiStore";
 import { CountryFlag } from "./CountryFlag";
 import { navigate } from "../navigation/navigationRef";
+import { colors } from "../theme/theme";
+
+const ACCENT = colors.primary;
+const ACCENT_SOFT = "rgba(0,60,197,0.09)";
+const INK = "#0B1220";
+const MUTED = "#5B6A80";
 
 export default function LiveTripCard() {
   const insets = useSafeAreaInsets();
   const { trip } = useOngoingTrip();
-  const { currentItem, currentItemEnd, nextItem, now } = useTripActivityStatus(trip?.planItems);
+  const { currentItem, nextItem, now } = useTripActivityStatus(trip?.planItems);
   const minimized = useUIStore((s) => s.liveTripMinimized);
   const setMinimized = useUIStore((s) => s.setLiveTripMinimized);
 
@@ -25,9 +31,18 @@ export default function LiveTripCard() {
 
   const headline = currentItem ?? nextItem;
   const headlineLabel = currentItem ? "Ahora" : "Siguiente";
-  const countdown = currentItem && currentItemEnd
-    ? `termina ${formatCountdown(minutesUntil(currentItemEnd.toISOString(), now))}`
-    : !currentItem && nextItem?.startAt
+
+  // Si hay una actividad en curso, la segunda línea no repite su propio
+  // tiempo restante — informa de qué viene después. Si no hay actividad en
+  // curso, el headline ya ES "Siguiente", así que aquí solo va la cuenta atrás.
+  const nextTimeLabel = nextItem?.startAt
+    ? new Date(nextItem.startAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const subLine = currentItem
+    ? nextItem
+      ? `Siguiente: ${nextTimeLabel ? `${nextTimeLabel} · ` : ""}${nextItem.title}`
+      : null
+    : nextItem?.startAt
     ? formatCountdown(minutesUntil(nextItem.startAt, now))
     : null;
 
@@ -41,8 +56,8 @@ export default function LiveTripCard() {
   const shortcuts = [
     {
       key: "expense",
-      label: "+ Gasto",
-      icon: "add-circle-outline" as const,
+      label: "Añadir Gasto",
+      icon: "cash-outline" as const,
       onPress: () =>
         goTo("Add", {
           prefillData: {
@@ -55,7 +70,7 @@ export default function LiveTripCard() {
     {
       key: "ticket",
       label: "Reservas",
-      icon: "airplane-outline" as const,
+      icon: "ticket-outline" as const,
       onPress: () => goTo("Reservas", { tripId: trip.id, planItems: trip.planItems }),
     },
     {
@@ -84,10 +99,6 @@ export default function LiveTripCard() {
           width: 46,
           height: 46,
           borderRadius: 23,
-          backgroundColor: "#111827",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
           shadowColor: "#000",
           shadowOpacity: 0.25,
           shadowRadius: 8,
@@ -95,23 +106,37 @@ export default function LiveTripCard() {
           elevation: 6,
         }}
       >
-        {trip.coverImageUrl ? (
-          <Image source={{ uri: trip.coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-        ) : trip.destination ? (
-          <CountryFlag cca2={trip.destination} size={46} radius={0} />
-        ) : (
-          <Ionicons name="airplane" size={20} color="white" />
-        )}
+        {/* Capa recortada en círculo: solo la foto/bandera vive aquí dentro */}
+        <View
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: 23,
+            backgroundColor: "#111827",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          {trip.coverImageUrl ? (
+            <Image source={{ uri: trip.coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          ) : trip.destination ? (
+            <CountryFlag cca2={trip.destination} size={46} radius={0} />
+          ) : (
+            <Ionicons name="airplane" size={20} color="white" />
+          )}
+        </View>
+        {/* Insignia del día: fuera del contenedor recortado para que sobresalga de verdad */}
         {dayNumber != null && (
           <View
             style={{
               position: "absolute",
-              bottom: -5,
-              right: -5,
-              minWidth: 20,
-              height: 20,
-              borderRadius: 10,
-              paddingHorizontal: 3,
+              bottom: -6,
+              right: -6,
+              minWidth: 21,
+              height: 21,
+              borderRadius: 11,
+              paddingHorizontal: 4,
               backgroundColor: "#16A34A",
               borderWidth: 2,
               borderColor: "white",
@@ -135,7 +160,20 @@ export default function LiveTripCard() {
       animationOut="fadeOut"
       style={{ margin: 0, justifyContent: "flex-start", paddingTop: 60, paddingHorizontal: 16 }}
     >
-      <View style={{ backgroundColor: "#111827", borderRadius: 22, overflow: "hidden" }}>
+      <View
+        style={{
+          backgroundColor: "white",
+          borderRadius: 22,
+          overflow: "hidden",
+          borderWidth: 1,
+          borderColor: "rgba(15,23,42,0.07)",
+          shadowColor: "#0B1220",
+          shadowOpacity: 0.16,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: 10 },
+          elevation: 8,
+        }}
+      >
         <TouchableOpacity
           onPress={() => setMinimized(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -147,12 +185,12 @@ export default function LiveTripCard() {
             width: 26,
             height: 26,
             borderRadius: 13,
-            backgroundColor: "rgba(255,255,255,0.15)",
+            backgroundColor: "rgba(15,23,42,0.06)",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Ionicons name="close" size={15} color="white" />
+          <Ionicons name="close" size={15} color={MUTED} />
         </TouchableOpacity>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
@@ -172,55 +210,71 @@ export default function LiveTripCard() {
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <View style={{ width: 52, height: 52, borderRadius: 14, overflow: "hidden", backgroundColor: "#1F2937" }}>
-              {trip.coverImageUrl ? (
-                <Image source={{ uri: trip.coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-              ) : (
-                <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                  <Ionicons name="image-outline" size={20} color="rgba(255,255,255,0.4)" />
+            <View style={{ width: 52, height: 52 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 14, overflow: "hidden", backgroundColor: "rgba(15,23,42,0.06)" }}>
+                {trip.coverImageUrl ? (
+                  <Image source={{ uri: trip.coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                ) : (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="image-outline" size={20} color={MUTED} />
+                  </View>
+                )}
+              </View>
+              {/* Bandera como insignia sobre la foto: fuera de la fila del nombre,
+                  para poder hacerla más grande sin competir por el espacio del texto. */}
+              {trip.destination ? (
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: -5,
+                    right: -5,
+                    borderRadius: 5,
+                    overflow: "hidden",
+                    borderWidth: 2,
+                    borderColor: "white",
+                  }}
+                >
+                  <CountryFlag cca2={trip.destination} width={28} height={20} radius={0} />
                 </View>
-              )}
+              ) : null}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-                {trip.destination ? <CountryFlag cca2={trip.destination} width={22} height={16} radius={3} /> : null}
-                <Text style={{ color: "white", fontSize: 17, fontWeight: "800", flexShrink: 1 }} numberOfLines={1}>
-                  {trip.name}
-                </Text>
-              </View>
+              <Text style={{ color: INK, fontSize: 17, fontWeight: "800" }} numberOfLines={1}>
+                {trip.name}
+              </Text>
               {headline ? (
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
-                  <Text style={{ flexShrink: 1, color: "rgba(255,255,255,0.75)", fontSize: 12 }} numberOfLines={1}>
+                <>
+                  <Text style={{ color: MUTED, fontSize: 12, fontWeight: "600", marginTop: 3 }} numberOfLines={1}>
                     {headlineLabel}: {headline.title}
                   </Text>
-                  {countdown ? (
-                    <View style={{ marginLeft: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.14)" }}>
-                      <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }} numberOfLines={1}>
-                        {countdown}
-                      </Text>
-                    </View>
+                  {subLine ? (
+                    <Text style={{ color: "rgba(91,106,128,0.75)", fontSize: 10.5, fontWeight: "600", marginTop: 1 }} numberOfLines={1}>
+                      {subLine}
+                    </Text>
                   ) : null}
-                </View>
+                </>
               ) : null}
             </View>
           </View>
         </View>
 
-        <View style={{ flexDirection: "row", backgroundColor: "rgba(255,255,255,0.06)", paddingVertical: 12 }}>
+        <View style={{ flexDirection: "row", backgroundColor: "rgba(15,23,42,0.025)", paddingVertical: 12, borderTopWidth: 1, borderTopColor: "rgba(15,23,42,0.06)" }}>
           {shortcuts.map((s) => (
-            <TouchableOpacity key={s.key} onPress={s.onPress} style={{ flex: 1, alignItems: "center", gap: 4 }} activeOpacity={0.75}>
-              <Ionicons name={s.icon} size={20} color="white" />
-              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 10, fontWeight: "700" }}>{s.label}</Text>
+            <TouchableOpacity key={s.key} onPress={s.onPress} style={{ flex: 1, alignItems: "center", gap: 6 }} activeOpacity={0.75}>
+              <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: ACCENT_SOFT, alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name={s.icon} size={17} color={ACCENT} />
+              </View>
+              <Text style={{ color: INK, fontSize: 9.5, fontWeight: "700" }}>{s.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <TouchableOpacity
           onPress={() => goTo("TripDetail", { tripId: trip.id, initialTab: "planning" })}
-          style={{ paddingVertical: 12, alignItems: "center" }}
+          style={{ paddingVertical: 12, alignItems: "center", borderTopWidth: 1, borderTopColor: "rgba(15,23,42,0.06)" }}
           activeOpacity={0.8}
         >
-          <Text style={{ color: "#60A5FA", fontSize: 13, fontWeight: "700" }}>Ir al viaje →</Text>
+          <Text style={{ color: ACCENT, fontSize: 13, fontWeight: "700" }}>Ir al viaje →</Text>
         </TouchableOpacity>
       </View>
     </Modal>
