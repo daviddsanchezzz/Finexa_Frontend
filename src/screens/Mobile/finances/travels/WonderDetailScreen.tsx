@@ -132,7 +132,15 @@ function DraggablePhoto({
           {...panResponder.panHandlers}
           style={
             Platform.OS === "web"
-              ? ({ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, cursor: "grab" } as any)
+              ? ({
+                  position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                  cursor: "grab",
+                  // Without this, mobile browsers treat a touch-drag here as a
+                  // page scroll/pan and steal the gesture before PanResponder
+                  // ever sees continuous move events — the frame just sits there.
+                  touchAction: "none",
+                  userSelect: "none",
+                } as any)
               : { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }
           }
         />
