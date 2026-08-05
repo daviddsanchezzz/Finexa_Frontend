@@ -92,26 +92,48 @@ function DraggablePhoto({
   const [frameWidth, setFrameWidth] = useState(0);
   const geometry = computeCoverGeometry(frameWidth, CROP_FRAME_HEIGHT, natural);
   const layout = layoutFromOffset(geometry, offsetX, offsetY);
-  const dragStart = useRef({ offsetX: 0.5, offsetY: 0.5 });
+  const dragStart = useRef({ offsetX: 0.5, offsetY: 0.5, x: 0, y: 0 });
+  const pointerDragging = useRef(false);
 
+  const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+  const applyDelta = (dx: number, dy: number) => {
+    const nextX = geometry.overflowX > 0 ? clamp01(dragStart.current.offsetX - dx / geometry.overflowX) : 0.5;
+    const nextY = geometry.overflowY > 0 ? clamp01(dragStart.current.offsetY - dy / geometry.overflowY) : 0.5;
+    onChange(nextX, nextY);
+  };
+
+  // Native (iOS/Android app): PanResponder is the standard RN gesture path.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => editable,
-      onMoveShouldSetPanResponder: (_evt, gesture) => editable && (Math.abs(gesture.dx) > 2 || Math.abs(gesture.dy) > 2),
+      onMoveShouldSetPanResponder: () => editable,
       onPanResponderGrant: () => {
-        dragStart.current = { offsetX, offsetY };
+        dragStart.current = { ...dragStart.current, offsetX, offsetY };
       },
-      onPanResponderMove: (_evt, gesture) => {
-        const nextX = geometry.overflowX > 0
-          ? Math.max(0, Math.min(1, dragStart.current.offsetX - gesture.dx / geometry.overflowX))
-          : 0.5;
-        const nextY = geometry.overflowY > 0
-          ? Math.max(0, Math.min(1, dragStart.current.offsetY - gesture.dy / geometry.overflowY))
-          : 0.5;
-        onChange(nextX, nextY);
-      },
+      onPanResponderMove: (_evt, gesture) => applyDelta(gesture.dx, gesture.dy),
     })
   ).current;
+
+  // Web: PanResponder's touch handling is unreliable here (a touch-drag gets
+  // stolen by the page's own scroll before continuous move events arrive, even
+  // with touchAction: none). Pointer Events are the browser-native mechanism
+  // for exactly this and work consistently for mouse + touch + pen.
+  const handlePointerDown = (e: any) => {
+    if (!editable) return;
+    e.preventDefault?.();
+    pointerDragging.current = true;
+    dragStart.current = { offsetX, offsetY, x: e.clientX, y: e.clientY };
+    try {
+      e.currentTarget?.setPointerCapture?.(e.pointerId);
+    } catch {}
+  };
+  const handlePointerMove = (e: any) => {
+    if (!pointerDragging.current) return;
+    applyDelta(e.clientX - dragStart.current.x, e.clientY - dragStart.current.y);
+  };
+  const endPointerDrag = () => {
+    pointerDragging.current = false;
+  };
 
   return (
     <View
@@ -127,24 +149,23 @@ function DraggablePhoto({
           onError={onError}
         />
       )}
-      {editable && (
-        <View
-          {...panResponder.panHandlers}
-          style={
-            Platform.OS === "web"
-              ? ({
-                  position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-                  cursor: "grab",
-                  // Without this, mobile browsers treat a touch-drag here as a
-                  // page scroll/pan and steal the gesture before PanResponder
-                  // ever sees continuous move events — the frame just sits there.
-                  touchAction: "none",
-                  userSelect: "none",
-                } as any)
-              : { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }
-          }
+      {editable && Platform.OS === "web" ? (
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPointerDrag}
+          onPointerCancel={endPointerDrag}
+          onPointerLeave={endPointerDrag}
+          style={{
+            position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+            cursor: "grab",
+            touchAction: "none",
+            userSelect: "none",
+          }}
         />
-      )}
+      ) : editable ? (
+        <View {...panResponder.panHandlers} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+      ) : null}
     </View>
   );
 }
