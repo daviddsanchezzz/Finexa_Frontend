@@ -6,6 +6,7 @@ import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 import api from "../../../../../api/api";
 import { appAlert } from "../../../../../utils/appAlert";
+import PlanItemDetailModal from "./PlanItemDetailModal";
 
 // ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
 export enum BudgetCategoryType {
@@ -359,6 +360,7 @@ export default function TripExpensesSection({
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
   const [savingItemId, setSavingItemId] = useState<number | null>(null);
   const [linkSearch, setLinkSearch] = useState("");
+  const [detailItem, setDetailItem] = useState<TripPlanItem | null>(null);
 
   const pendingItems = useMemo(
     () => (planItems || []).filter((i) => i.metadata?.pending === true),
@@ -665,7 +667,7 @@ const entries = useMemo(() => {
                     onSetPaymentStatus={onSetPaymentStatus}
                     onPress={() => {
                       onPressItem?.(it);
-                      navigation.navigate("TripPlanForm", { tripId, planItem: it });
+                      setDetailItem(it);
                     }}
                   />
                   {idx < filtered.length - 1 ? (
@@ -907,6 +909,21 @@ const entries = useMemo(() => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <PlanItemDetailModal
+        visible={!!detailItem}
+        tripId={tripId}
+        item={detailItem as any}
+        onClose={() => setDetailItem(null)}
+        onEdit={(it) => {
+          setDetailItem(null);
+          navigation.navigate("TripPlanForm", { tripId, planItem: it });
+        }}
+        onDeleted={() => {
+          setDetailItem(null);
+          onRefresh?.();
+        }}
+      />
     </View>
   );
 }

@@ -8,6 +8,7 @@ import { colors } from "../../../../../theme/theme";
 import api from "../../../../../api/api";
 import TripMapView from "./TripMapView";
 import { useTripActivityStatus } from "../../../../../hooks/useTripActivityStatus";
+import PlanItemDetailModal from "./PlanItemDetailModal";
 
 type TripPlanItemType =
   | "flight"
@@ -936,12 +937,15 @@ export default function TripPlanningSectionRedesign({
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
   };
 
+  const resolveRealItem = (item: TripPlanItem) =>
+    (item as any)._realId ? { ...item, id: (item as any)._realId } : item;
+
   const handleEdit = (item: TripPlanItem) => {
-    const realItem = (item as any)._realId
-      ? { ...item, id: (item as any)._realId }
-      : item;
-    navigation.navigate("TripPlanForm", { tripId, planItem: realItem });
+    navigation.navigate("TripPlanForm", { tripId, planItem: resolveRealItem(item) });
   };
+
+  const [detailItem, setDetailItem] = useState<TripPlanItem | null>(null);
+  const openDetail = (item: TripPlanItem) => setDetailItem(resolveRealItem(item));
 
   const handleQuickSave = async () => {
     if (!quickTitle.trim() || quickSaving) return;
@@ -1167,10 +1171,10 @@ export default function TripPlanningSectionRedesign({
                       {isCurrent ? (
                         <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: "rgba(37,99,235,0.06)", padding: 3 }}>
                           <Text style={{ fontSize: 9, fontWeight: "900", color: colors.primary, marginLeft: 6, marginBottom: 2 }}>EN CURSO</Text>
-                          <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
+                          <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => openDetail(it)} />
                         </View>
                       ) : (
-                        <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
+                        <ActivityCard item={it} currentDay={selectedDay} isLastDay={selectedDay === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => openDetail(it)} />
                       )}
                     </View>
                   </View>
@@ -1254,7 +1258,7 @@ export default function TripPlanningSectionRedesign({
                 ) : (
                   <View style={{ gap: 8 }}>
                     {items.map((it) => (
-                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} isLastDay={d === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => handleEdit(it)} />
+                      <ActivityCard key={`${d}-${it.id}`} item={it} currentDay={d} isLastDay={d === dayKeys[dayKeys.length - 1]} cityContext={trip?.name} onPress={() => openDetail(it)} />
                     ))}
                   </View>
                 )}
@@ -1287,6 +1291,22 @@ export default function TripPlanningSectionRedesign({
           />
         </SafeAreaView>
       </Modal>
+
+      <PlanItemDetailModal
+        visible={!!detailItem}
+        tripId={tripId}
+        item={detailItem as any}
+        cityContext={trip?.name}
+        onClose={() => setDetailItem(null)}
+        onEdit={(it) => {
+          setDetailItem(null);
+          handleEdit(it as any);
+        }}
+        onDeleted={() => {
+          setDetailItem(null);
+          onRefresh?.();
+        }}
+      />
     </View>
   );
 }

@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
+import PlanItemDetailModal from "./components/PlanItemDetailModal";
 
 type ReservaFilter = "all" | "flight" | "accommodation" | "other";
 
@@ -105,13 +106,15 @@ function buildGoogleMapsUrl(query?: string | null) {
 export default function ReservasScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { tripId, planItems = [] } = route.params || {};
+  const { tripId } = route.params || {};
 
   const [filter, setFilter] = useState<ReservaFilter>("all");
+  const [items, setItems] = useState<TripPlanItem[]>(route.params?.planItems ?? []);
+  const [detailItem, setDetailItem] = useState<TripPlanItem | null>(null);
 
   const reservations = useMemo(
-    () => (planItems as TripPlanItem[]).filter((item) => item.isReservation === true),
-    [planItems]
+    () => items.filter((item) => item.isReservation === true),
+    [items]
   );
 
   const filtered = useMemo(() => {
@@ -121,7 +124,7 @@ export default function ReservasScreen() {
     return reservations;
   }, [reservations, filter]);
 
-  const openItem = (item: TripPlanItem) => navigation.navigate("TripPlanForm", { tripId, planItem: item });
+  const openItem = (item: TripPlanItem) => setDetailItem(item);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -160,7 +163,7 @@ export default function ReservasScreen() {
         })}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 10 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 8 }} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 48, gap: 8 }}>
             <Ionicons name="briefcase-outline" size={40} color="#CBD5E1" />
@@ -180,6 +183,21 @@ export default function ReservasScreen() {
           )
         )}
       </ScrollView>
+
+      <PlanItemDetailModal
+        visible={!!detailItem}
+        tripId={tripId}
+        item={detailItem as any}
+        onClose={() => setDetailItem(null)}
+        onEdit={(it) => {
+          setDetailItem(null);
+          navigation.navigate("TripPlanForm", { tripId, planItem: it });
+        }}
+        onDeleted={() => {
+          setItems((prev) => prev.filter((i) => i.id !== detailItem?.id));
+          setDetailItem(null);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -193,42 +211,44 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
   const dep = fmtDayTime(item.startAt);
   const arr = fmtDayTime(item.endAt);
 
+  const hasFooter = !!(fd.gate || fd.seat || fd.bookingRef);
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={{ borderRadius: 18, overflow: "hidden", backgroundColor: "#0B1220" }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={{ borderRadius: 14, overflow: "hidden", backgroundColor: "#0B1220" }}>
       <View
         style={{
           backgroundColor: "#0F172A",
-          paddingHorizontal: 15,
-          paddingTop: 13,
-          paddingBottom: 14,
+          paddingHorizontal: 13,
+          paddingTop: 10,
+          paddingBottom: 10,
         }}
       >
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            {!!subtitle && <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.60)", marginBottom: 3 }}>{subtitle}</Text>}
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.42)", letterSpacing: 0.8 }}>VUELO</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 12 }}>
+            <Ionicons name="airplane" size={12} color="rgba(255,255,255,0.55)" />
+            {!!subtitle && (
+              <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)" }} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
           </View>
-          <Ionicons name="airplane" size={18} color="rgba(255,255,255,0.80)" />
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 27, fontWeight: "900", color: "white", letterSpacing: 0.3 }}>{fromCode}</Text>
+            <Text style={{ fontSize: 21, fontWeight: "900", color: "white", letterSpacing: 0.2 }}>{fromCode}</Text>
           </View>
 
-          <View style={{ width: 84, alignItems: "center" }}>
+          <View style={{ width: 64, alignItems: "center" }}>
             <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
               <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
-              <Ionicons name="airplane" size={13} color="#60A5FA" style={{ marginHorizontal: 7, transform: [{ rotate: "90deg" }] }} />
+              <Ionicons name="airplane" size={11} color="#60A5FA" style={{ marginHorizontal: 5, transform: [{ rotate: "90deg" }] }} />
               <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
             </View>
-            <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.55)", marginTop: 5 }}>
-              {flightNum || "Reserva"}
-            </Text>
           </View>
 
           <View style={{ flex: 1, alignItems: "flex-end" }}>
-            <Text style={{ fontSize: 27, fontWeight: "900", color: "white", letterSpacing: 0.3 }}>{toCode}</Text>
+            <Text style={{ fontSize: 21, fontWeight: "900", color: "white", letterSpacing: 0.2 }}>{toCode}</Text>
           </View>
         </View>
 
@@ -237,28 +257,11 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
           <FlightTimeBlock align="right" label="LLEGADA" day={arr.day} time={arr.time} />
         </View>
 
-        {(fd.gate || fd.seat) && (
+        {hasFooter && (
           <View
             style={{
-              marginTop: 12,
-              paddingTop: 10,
-              borderTopWidth: 1,
-              borderTopColor: "rgba(255,255,255,0.10)",
-              flexDirection: "row",
-              justifyContent: "center",
-              gap: 18,
-            }}
-          >
-            {!!fd.gate && <FlightBadge label="PUERTA" value={fd.gate} />}
-            {!!fd.seat && <FlightBadge label="ASIENTO" value={fd.seat} />}
-          </View>
-        )}
-
-        {!!fd.bookingRef && (
-          <View
-            style={{
-              marginTop: 12,
-              paddingTop: 10,
+              marginTop: 8,
+              paddingTop: 8,
               borderTopWidth: 1,
               borderTopColor: "rgba(255,255,255,0.10)",
               flexDirection: "row",
@@ -266,8 +269,11 @@ function FlightReservationCard({ item, onPress }: { item: TripPlanItem; onPress:
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.48)" }}>Código reserva</Text>
-            <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>{fd.bookingRef}</Text>
+            <View style={{ flexDirection: "row", gap: 14 }}>
+              {!!fd.gate && <FlightBadge label="PUERTA" value={fd.gate} />}
+              {!!fd.seat && <FlightBadge label="ASIENTO" value={fd.seat} />}
+            </View>
+            {!!fd.bookingRef && <Text style={{ fontSize: 11, fontWeight: "800", color: "white" }}>{fd.bookingRef}</Text>}
           </View>
         )}
       </View>
@@ -288,18 +294,20 @@ function FlightTimeBlock({
 }) {
   return (
     <View style={{ alignItems: align === "left" ? "flex-start" : "flex-end" }}>
-      <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 3 }}>{label}</Text>
-      <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.64)", marginBottom: 1 }}>{day || "—"}</Text>
-      <Text style={{ fontSize: 18, fontWeight: "900", color: "white" }}>{time || "—"}</Text>
+      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 5 }}>
+        <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>{time || "—"}</Text>
+        <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)" }}>{day || "—"}</Text>
+      </View>
     </View>
   );
 }
 
 function FlightBadge({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ alignItems: "center", minWidth: 68 }}>
-      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 13, fontWeight: "900", color: "white" }}>{value}</Text>
+    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
+      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.48)" }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "900", color: "white" }}>{value}</Text>
     </View>
   );
 }
@@ -320,82 +328,64 @@ function AccommodationReservationCard({ item, onPress }: { item: TripPlanItem; o
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
-      style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
+      style={{ backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
     >
-      {!!ad.coverImageUrl && (
-        Platform.OS === "web" ? (
-          <View
-            style={{
-              height: 112,
-              backgroundImage: `url(${ad.coverImageUrl})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            } as any}
-          />
-        ) : (
-          <Image source={{ uri: ad.coverImageUrl }} style={{ width: "100%", height: 112 }} resizeMode="cover" />
-        )
-      )}
-
-      <View style={{ paddingHorizontal: 14, paddingTop: 13, paddingBottom: 13 }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 5 }}>{title}</Text>
-            {!!location && (
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={(event: any) => {
-                  event?.stopPropagation?.();
-                  if (mapsUrl) void Linking.openURL(mapsUrl);
-                }}
-                disabled={!mapsUrl}
-                style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}
-              >
-                <Ionicons name="location-outline" size={13} color={mapsUrl ? colors.primary : "#64748B"} style={{ marginTop: 1 }} />
-                <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: mapsUrl ? colors.primary : "#64748B", lineHeight: 16 }}>
-                  {location}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#EFF6FF",
-            }}
-          >
-            <Ionicons name="bed-outline" size={18} color="#2563EB" />
-          </View>
-        </View>
-
-        {!!metaLine && (
-          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>{metaLine}</Text>
+      <View style={{ flexDirection: "row" }}>
+        {!!ad.coverImageUrl && (
+          Platform.OS === "web" ? (
+            <View
+              style={{
+                width: 64,
+                alignSelf: "stretch",
+                backgroundImage: `url(${ad.coverImageUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              } as any}
+            />
+          ) : (
+            <Image source={{ uri: ad.coverImageUrl }} style={{ width: 64, alignSelf: "stretch" }} resizeMode="cover" />
+          )
         )}
 
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: ad.bookingRef || ad.phone || ad.website ? 12 : 0,
-          }}
-        >
-          <StayTimeInline tone="checkin" label="Check-in" day={checkIn.day} time={checkIn.time} />
-          <StayTimeInline tone="checkout" label="Check-out" day={checkOut.day} time={checkOut.time} />
-        </View>
-
-        {(ad.bookingRef || ad.phone || ad.website) && (
-          <View style={{ borderTopWidth: 1, borderTopColor: "#EEF2F7", paddingTop: 10, gap: 7 }}>
-            {!!ad.bookingRef && <ReservationMetaRow icon="key-outline" label="Confirmación" value={ad.bookingRef} />}
-            {!!ad.phone && <ReservationMetaRow icon="call-outline" label="Teléfono" value={ad.phone} />}
-            {!!ad.website && <ReservationMetaRow icon="globe-outline" label="Web" value={ad.website} />}
+        <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>{title}</Text>
+              {!!location && (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={(event: any) => {
+                    event?.stopPropagation?.();
+                    if (mapsUrl) void Linking.openURL(mapsUrl);
+                  }}
+                  disabled={!mapsUrl}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}
+                >
+                  <Ionicons name="location-outline" size={11} color={mapsUrl ? colors.primary : "#64748B"} />
+                  <Text style={{ flex: 1, fontSize: 10, fontWeight: "700", color: mapsUrl ? colors.primary : "#64748B" }} numberOfLines={1}>
+                    {location}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Ionicons name="bed-outline" size={16} color="#2563EB" />
           </View>
-        )}
+
+          {!!metaLine && (
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 6 }}>{metaLine}</Text>
+          )}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+            <StayTimeInline tone="checkin" label="Check-in" day={checkIn.day} time={checkIn.time} />
+            <StayTimeInline tone="checkout" label="Check-out" day={checkOut.day} time={checkOut.time} />
+          </View>
+
+          {!!ad.bookingRef && (
+            <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 6 }} numberOfLines={1}>
+              Confirmación · {ad.bookingRef}
+            </Text>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -418,45 +408,28 @@ function StayTimeInline({
   const iconBg = tone === "checkin" ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.10)";
 
   return (
-    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
       <View
         style={{
-          width: 28,
-          height: 28,
+          width: 20,
+          height: 20,
           borderRadius: 999,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: iconBg,
         }}
       >
-        <Ionicons name={iconName} size={14} color={accent} />
+        <Ionicons name={iconName} size={11} color={accent} />
       </View>
 
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 9, fontWeight: "800", color: accent, marginBottom: 0, textTransform: "uppercase" }}>
+      <View>
+        <Text style={{ fontSize: 8, fontWeight: "800", color: accent, textTransform: "uppercase" }}>
           {label}
         </Text>
-        <Text style={{ fontSize: 10, fontWeight: "700", color: "#64748B", marginBottom: 0 }}>{day || "—"}</Text>
-        <Text style={{ fontSize: 14, fontWeight: "900", color: valueColor }}>{time || "—"}</Text>
+        <Text style={{ fontSize: 11, fontWeight: "900", color: valueColor }}>
+          {day || "—"} {time ? `· ${time}` : ""}
+        </Text>
       </View>
-    </View>
-  );
-}
-
-function ReservationMetaRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-      <Ionicons name={icon} size={13} color="#94A3B8" />
-      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", minWidth: 74 }}>{label}</Text>
-      <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#0F172A" }}>{value}</Text>
     </View>
   );
 }
@@ -464,82 +437,50 @@ function ReservationMetaRow({
 function GenericReservationCard({ item, onPress }: { item: TripPlanItem; onPress: () => void }) {
   const td = item.destinationTransport;
   const dep = fmtDayTime(item.startAt);
-  const route = td ? joinText([td.fromName, td.toName]) : null;
-  const cost = item.cost != null ? Number(item.cost) : null;
-  const bookingRef = td?.bookingRef;
-
-  const openAttachment = async (url: string) => {
-    try {
-      await Linking.openURL(url);
-    } catch {
-      // silencioso: si el link falla, el usuario puede reintentar
-    }
-  };
+  const attachmentCount = item.attachments?.length ?? 0;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
-      style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
+      style={{ backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#E8EEF7", overflow: "hidden" }}
     >
-      <View style={{ paddingHorizontal: 14, paddingTop: 13, paddingBottom: 13 }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 4 }}>{item.title}</Text>
-            {!!route && <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>{route}</Text>}
-            {(dep.day || dep.time) && (
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginTop: 2 }}>
-                {joinText([dep.day, dep.time])}
-              </Text>
-            )}
-          </View>
-
+      <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
+              width: 30,
+              height: 30,
+              borderRadius: 10,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "#EFF6FF",
             }}
           >
-            <Text style={{ fontSize: 17 }}>{emojiForPlanItem(item)}</Text>
+            <Text style={{ fontSize: 14 }}>{emojiForPlanItem(item)}</Text>
           </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>{item.title}</Text>
+            {!!(dep.day || dep.time) && (
+              <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }} numberOfLines={1}>
+                {joinText([dep.day, dep.time])}
+              </Text>
+            )}
+          </View>
+
+          {attachmentCount > 0 && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+              <Ionicons name="attach-outline" size={14} color="#94A3B8" />
+              <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>{attachmentCount}</Text>
+            </View>
+          )}
         </View>
 
-        {(cost != null || bookingRef || td?.company) && (
-          <View style={{ borderTopWidth: 1, borderTopColor: "#EEF2F7", paddingTop: 10, gap: 7, marginBottom: item.attachments?.length ? 10 : 0 }}>
-            {!!td?.company && <ReservationMetaRow icon="business-outline" label="Compañía" value={td.company} />}
-            {!!bookingRef && <ReservationMetaRow icon="key-outline" label="Confirmación" value={bookingRef} />}
-            {cost != null && <ReservationMetaRow icon="cash-outline" label="Coste" value={`${cost.toFixed(2).replace(".", ",")} €`} />}
-          </View>
-        )}
-
-        {!!item.attachments?.length && (
-          <View style={{ gap: 6 }}>
-            {item.attachments.map((file, index) => (
-              <TouchableOpacity
-                key={file.id ?? `${file.url}-${index}`}
-                onPress={() => openAttachment(file.url)}
-                activeOpacity={0.75}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  backgroundColor: "#EFF6FF",
-                  borderRadius: 10,
-                  paddingHorizontal: 10,
-                  paddingVertical: 8,
-                }}
-              >
-                <Ionicons name={file.kind === "image" ? "image-outline" : "document-text-outline"} size={15} color={colors.primary} />
-                <Text style={{ flex: 1, fontSize: 12, fontWeight: "700", color: colors.primary }} numberOfLines={1}>
-                  {file.filename || "Ver documento"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        {!!(td?.company || td?.bookingRef) && (
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 6 }} numberOfLines={1}>
+            {joinText([td?.company, td?.bookingRef ? `Ref. ${td.bookingRef}` : null])}
+          </Text>
         )}
       </View>
     </TouchableOpacity>
