@@ -142,9 +142,19 @@ type BudgetDef = {
   badgeBg: string;
 };
 
-const BUDGET_DEFS: BudgetDef[] = [
+// Solo para agrupar/visualizar en esta pantalla: el picker de categorías al
+// crear un gasto tiene un único "Transporte" (BudgetCategoryType.transport_local),
+// pero aquí sí distinguimos transporte local (coche, taxi...) de transporte al
+// destino (vuelos, trenes/traslados de llegada-salida) cuando el item viene del
+// itinerario, porque ese dato ya existe en item.type sin pedírselo al usuario.
+type DisplayCategoryKey = BudgetCategoryType | "transport_destination";
+
+type BudgetDefDisplay = Omit<BudgetDef, "key"> & { key: DisplayCategoryKey };
+
+const BUDGET_DEFS: BudgetDefDisplay[] = [
   { key: BudgetCategoryType.accommodation,   label: "Alojamiento",          emoji: "🏨",  accent: "#22C55E", badgeBg: "rgba(34,197,94,0.12)" },
-  { key: BudgetCategoryType.transport_local, label: "Transporte",           emoji: "🚗",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
+  { key: "transport_destination",            label: "Transporte al destino",emoji: "✈️",  accent: "#2563EB", badgeBg: "rgba(37,99,235,0.12)" },
+  { key: BudgetCategoryType.transport_local, label: "Transporte local",     emoji: "🚗",  accent: "#0EA5E9", badgeBg: "rgba(14,165,233,0.12)" },
   { key: BudgetCategoryType.food,            label: "Comida",               emoji: "🍽️", accent: "#F97316", badgeBg: "rgba(249,115,22,0.12)" },
   { key: BudgetCategoryType.activities,      label: "Actividades / visitas",emoji: "🗺️", accent: "#A855F7", badgeBg: "rgba(168,85,247,0.12)" },
   { key: BudgetCategoryType.leisure,         label: "Ocio",                 emoji: "🍷",  accent: "#EF4444", badgeBg: "rgba(239,68,68,0.10)" },
@@ -153,7 +163,7 @@ const BUDGET_DEFS: BudgetDef[] = [
 ];
 
 /** ====== Mapping como desktop ====== */
-function categoryForItem(item: TripPlanItem): BudgetCategoryType {
+function categoryForItem(item: TripPlanItem): DisplayCategoryKey {
   if (item.type === "expense") {
     // backend stores in metadata.expenseCategory; fallback to legacy expenseDetails.category
     const c = (item.metadata?.expenseCategory ?? item.expenseDetails?.category) as BudgetCategoryType | undefined | null;
@@ -164,7 +174,9 @@ function categoryForItem(item: TripPlanItem): BudgetCategoryType {
 
   if (t === "accommodation") return BudgetCategoryType.accommodation;
 
-  if (t === "flight" || t === "transport_destination" || t === "transport_local" || t === "transport" || t === "taxi") return BudgetCategoryType.transport_local;
+  if (t === "flight" || t === "transport_destination") return "transport_destination";
+
+  if (t === "transport_local" || t === "transport" || t === "taxi") return BudgetCategoryType.transport_local;
 
   if (t === "restaurant" || t === "cafe" || t === "market") return BudgetCategoryType.food;
 
@@ -341,7 +353,7 @@ export default function TripExpensesSection({
   onRefresh,
 }: Props) {
   const navigation = useNavigation<any>();
-  const [cat, setCat] = useState<BudgetCategoryType | null>(null);
+  const [cat, setCat] = useState<DisplayCategoryKey | null>(null);
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
   const [linkSaving, setLinkSaving] = useState(false);
 
@@ -429,8 +441,9 @@ const entries = useMemo(() => {
   const txTotal = useMemo(() => transactions.reduce((s, tx) => s + safeNumber(tx.amount), 0), [transactions]);
 
   const totalsByCategory = useMemo(() => {
-    const t: Record<BudgetCategoryType, number> = {
+    const t: Record<DisplayCategoryKey, number> = {
       accommodation: 0,
+      transport_destination: 0,
       transport_local: 0,
       food: 0,
       activities: 0,
