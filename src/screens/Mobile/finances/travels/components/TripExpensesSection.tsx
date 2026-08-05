@@ -354,6 +354,7 @@ export default function TripExpensesSection({
 }: Props) {
   const navigation = useNavigation<any>();
   const [cat, setCat] = useState<DisplayCategoryKey | null>(null);
+  const [subTab, setSubTab] = useState<"all" | "pending">("all");
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
   const [linkSaving, setLinkSaving] = useState(false);
 
@@ -489,7 +490,7 @@ const entries = useMemo(() => {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22, paddingTop: 10 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}>
         {/* TOTAL GASTADO — inline sin fondo */}
         {visibleKpis.length > 0 && (
           <View style={{ marginBottom: 16 }}>
@@ -560,8 +561,48 @@ const entries = useMemo(() => {
           </View>
         )}
 
+        {/* SUB-TABS: Todos los gastos / Nuevos gastos */}
+        <View style={{ flexDirection: "row", backgroundColor: "rgba(148,163,184,0.12)", borderRadius: 12, padding: 3, marginBottom: 14 }}>
+          <Pressable
+            onPress={() => setSubTab("all")}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 9,
+              alignItems: "center",
+              backgroundColor: subTab === "all" ? "white" : "transparent",
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "800", color: subTab === "all" ? UI.text : UI.muted }}>
+              Todos los gastos
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setSubTab("pending")}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 9,
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
+              gap: 6,
+              backgroundColor: subTab === "pending" ? "white" : "transparent",
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "800", color: subTab === "pending" ? UI.text : UI.muted }}>
+              Nuevos gastos
+            </Text>
+            {pendingItems.length > 0 && (
+              <View style={{ minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 10, fontWeight: "900", color: "white" }}>{pendingItems.length}</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
+
         {/* ITEMS filtrados */}
-        {filtered.length > 0 && (
+        {subTab === "all" && filtered.length > 0 && (
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>
@@ -594,8 +635,17 @@ const entries = useMemo(() => {
           </View>
         )}
 
+        {subTab === "all" && filtered.length === 0 && visibleTxs.length === 0 && (
+          <View style={{ alignItems: "center", paddingVertical: 40 }}>
+            <Ionicons name="receipt-outline" size={22} color="#94A3B8" />
+            <Text style={{ marginTop: 8, fontSize: 13, color: UI.muted, textAlign: "center" }}>
+              No hay gastos en esta categoría
+            </Text>
+          </View>
+        )}
+
         {/* TRANSACCIONES registradas */}
-        {visibleTxs.length > 0 && (
+        {subTab === "all" && visibleTxs.length > 0 && (
           <View style={{ marginBottom: 12 }}>
             <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 }}>
               REGISTRADAS
@@ -640,8 +690,16 @@ const entries = useMemo(() => {
         )}
 
         {/* ===== NUEVOS GASTOS ===== */}
-        {pendingItems.length > 0 && (
-          <View style={{ marginHorizontal: 0, marginTop: 18 }}>
+        {subTab === "pending" && pendingItems.length === 0 && (
+          <View style={{ alignItems: "center", paddingVertical: 40 }}>
+            <Ionicons name="checkmark-circle-outline" size={22} color="#94A3B8" />
+            <Text style={{ marginTop: 8, fontSize: 13, color: UI.muted, textAlign: "center" }}>
+              No tienes gastos nuevos por clasificar
+            </Text>
+          </View>
+        )}
+        {subTab === "pending" && pendingItems.length > 0 && (
+          <View style={{ marginHorizontal: 0, marginTop: 0 }}>
             {/* Header con badge */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, marginLeft: 2 }}>
               <View style={{ width: 20, height: 20, borderRadius: 999, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center" }}>
@@ -656,81 +714,81 @@ const entries = useMemo(() => {
             <View style={{ backgroundColor: "rgba(245,158,11,0.06)", borderRadius: 18, borderWidth: 1, borderColor: "rgba(245,158,11,0.30)", paddingVertical: 4 }}>
               {pendingItems.map((item, idx) => (
                 <View key={item.id}>
-                  <View style={{ paddingHorizontal: 12, paddingVertical: 12 }}>
+                  <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
                     {/* Fila principal */}
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                      <View style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: "rgba(245,158,11,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(245,158,11,0.25)" }}>
-                        <Ionicons name="receipt-outline" size={16} color="#D97706" />
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: "rgba(245,158,11,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(245,158,11,0.25)" }}>
+                        <Ionicons name="receipt-outline" size={13} color="#D97706" />
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
                           {item.title || "Nuevo gasto"}
                         </Text>
                         {item.location ? (
-                          <Text style={{ fontSize: 11, fontWeight: "600", color: UI.muted2, marginTop: 1 }} numberOfLines={1}>
+                          <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }} numberOfLines={1}>
                             {item.location}
                           </Text>
                         ) : null}
                       </View>
-                      <Text style={{ fontSize: 14, fontWeight: "900", color: "#D97706" }}>
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: "#D97706" }}>
                         {formatEuro(safeNumber(item.cost))}
                       </Text>
                     </View>
 
                     {/* Botones de acción */}
-                    <View style={{ flexDirection: "row", gap: 8, marginTop: 10, marginLeft: 46 }}>
+                    <View style={{ flexDirection: "row", gap: 6, marginTop: 6, marginLeft: 36 }}>
                       <TouchableOpacity
                         onPress={() => setLinkingItem(item)}
                         style={{
                           flex: 1,
-                          paddingVertical: 7,
-                          borderRadius: 10,
+                          paddingVertical: 5,
+                          borderRadius: 8,
                           borderWidth: 1,
                           borderColor: colors.primary,
                           alignItems: "center",
                           flexDirection: "row",
                           justifyContent: "center",
-                          gap: 5,
+                          gap: 4,
                         }}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="link-outline" size={13} color={colors.primary} />
-                        <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary }}>Vincular al plan</Text>
+                        <Ionicons name="link-outline" size={11} color={colors.primary} />
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: colors.primary }}>Vincular al plan</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleCreateExpense(item)}
                         style={{
                           flex: 1,
-                          paddingVertical: 7,
-                          borderRadius: 10,
+                          paddingVertical: 5,
+                          borderRadius: 8,
                           borderWidth: 1,
                           borderColor: "#22C55E",
                           alignItems: "center",
                           flexDirection: "row",
                           justifyContent: "center",
-                          gap: 5,
+                          gap: 4,
                         }}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="add-circle-outline" size={13} color="#16A34A" />
-                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#16A34A" }}>Crear gasto</Text>
+                        <Ionicons name="add-circle-outline" size={11} color="#16A34A" />
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: "#16A34A" }}>Crear gasto</Text>
                       </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
                       onPress={() => navigation.navigate("TripPlanForm", { tripId, planItem: item })}
                       style={{
-                        marginTop: 8,
-                        marginLeft: 46,
+                        marginTop: 5,
+                        marginLeft: 36,
                         alignSelf: "flex-start",
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 5,
+                        gap: 4,
                       }}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="airplane-outline" size={12} color={UI.muted} />
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted }}>
+                      <Ionicons name="airplane-outline" size={10} color={UI.muted} />
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: UI.muted }}>
                         O crear item de itinerario (vuelo, alojamiento...)
                       </Text>
                     </TouchableOpacity>

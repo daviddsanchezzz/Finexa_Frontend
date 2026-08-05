@@ -65,6 +65,7 @@ export interface TripPlanItem {
   transactionId?: number | null;
   cost?: number | null;
   logistics?: boolean | null;
+  metadata?: { pending?: boolean; expenseCategory?: string | null } | null;
 }
 
 export type TaskStatus = "to_do" | "done";
@@ -382,6 +383,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   }, [trip]);
 
   const planItems: TripPlanItem[] = trip?.planItems || [];
+  const pendingExpensesCount = planItems.filter((it) => it.metadata?.pending === true).length;
   const tripTransactions = (trip?.transactions || []).filter((tx) => tx.type === "expense");
   const tasks: TripTask[] = trip?.tasks || [];
   const notes: TripNote[] = trip?.notes || [];
@@ -965,9 +967,16 @@ export default function TripDetailScreen({ route, navigation }: any) {
                   marginBottom: -1,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
-                  {opt.label}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                  <Text style={{ fontSize: 12, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
+                    {opt.label}
+                  </Text>
+                  {opt.key === "expenses" && pendingExpensesCount > 0 && (
+                    <View style={{ minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ fontSize: 9, fontWeight: "900", color: "white" }}>{pendingExpensesCount}</Text>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })}
