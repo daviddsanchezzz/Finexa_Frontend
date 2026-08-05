@@ -52,8 +52,8 @@ function iconForType(type: string | null) {
 export default function NotificationsScreen() {
   const navigation = useNavigation<any>();
   const { notifications, isLoading, unreadCount, markRead, markAllRead } = useNotificationsFeed();
-  const friendReq = useFriendRequestFromNotification(markRead);
-  const tripInv = useTripInviteFromNotification(markRead);
+  const friendReq = useFriendRequestFromNotification();
+  const tripInv = useTripInviteFromNotification();
 
   const handlePress = (n: FeedNotification) => {
     if (n.type === "friend_request") friendReq.handlePress(n);
@@ -76,7 +76,8 @@ export default function NotificationsScreen() {
       // No se marca como leída aquí: solo se resuelve cuando el gasto
       // realmente se guarda (para que siga recordándotelo si cierras sin guardar).
     }
-    else if (!n.read) markRead(n.id);
+    // El resto de tipos no hacen nada especial al tocarlas — marcarlas como
+    // leídas es una acción explícita (botón X), no un efecto secundario del tap.
   };
 
   return (
@@ -168,15 +169,24 @@ export default function NotificationsScreen() {
                   </Text>
                 </View>
                 {!n.read && (
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: colors.primary,
-                      marginTop: 6,
+                  <TouchableOpacity
+                    onPress={(e: any) => {
+                      e?.stopPropagation?.();
+                      markRead(n.id);
                     }}
-                  />
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.6}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginTop: 2,
+                    }}
+                  >
+                    <Ionicons name="close" size={16} color="#9CA3AF" />
+                  </TouchableOpacity>
                 )}
               </TouchableOpacity>
             );

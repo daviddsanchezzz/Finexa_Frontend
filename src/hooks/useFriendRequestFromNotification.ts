@@ -2,13 +2,12 @@ import { useState } from "react";
 import { useFriends, FriendRequest } from "./useFriends";
 import { FeedNotification } from "./useNotificationsFeed";
 
-export function useFriendRequestFromNotification(markRead: (id: number) => Promise<any>) {
+export function useFriendRequestFromNotification() {
   const { incomingRequests, acceptRequest, rejectRequest } = useFriends();
   const [selectedRequest, setSelectedRequest] = useState<FriendRequest | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const handlePress = (n: FeedNotification) => {
-    if (!n.read) markRead(n.id);
     if (n.type === "friend_request") {
       const friendshipId = n.data?.friendshipId as number | undefined;
       const match = incomingRequests.find((r) => r.id === friendshipId);

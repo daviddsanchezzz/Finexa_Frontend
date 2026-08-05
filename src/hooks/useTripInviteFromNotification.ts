@@ -2,12 +2,11 @@ import { useState } from "react";
 import { useTripInviteActions } from "./useTripInvites";
 import { FeedNotification } from "./useNotificationsFeed";
 
-export function useTripInviteFromNotification(markRead: (id: number) => Promise<any>) {
+export function useTripInviteFromNotification() {
   const { accept, reject, isLoading } = useTripInviteActions();
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
 
   const handlePress = (n: FeedNotification) => {
-    if (!n.read) markRead(n.id);
     if (n.type === "trip_invite") {
       const memberId = n.data?.tripMemberId as number | undefined;
       if (memberId != null) setSelectedMemberId(memberId);
