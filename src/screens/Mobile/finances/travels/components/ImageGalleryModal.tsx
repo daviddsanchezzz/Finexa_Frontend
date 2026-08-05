@@ -101,27 +101,6 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
     }
   };
 
-  const handleDownloadWeb = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch(current.url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filenameFor(current);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      // silencioso: si falla, el usuario puede reintentar
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
@@ -155,16 +134,6 @@ export default function ImageGalleryModal({ visible, images, initialIndex, onClo
             </Text>
           )}
           <View style={{ flexDirection: "row", gap: 6 }}>
-            {Platform.OS === "web" && (
-              <TouchableOpacity
-                onPress={handleDownloadWeb}
-                disabled={busy}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{ padding: 4, opacity: busy ? 0.5 : 1 }}
-              >
-                <Ionicons name="download-outline" size={20} color="#475569" />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity
               onPress={handleShare}
               disabled={busy}
