@@ -388,9 +388,10 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const tasks: TripTask[] = trip?.tasks || [];
   const notes: TripNote[] = trip?.notes || [];
 
-  // Compute total from live data (planItems + linked transactions) to avoid stale trip.cost
+  // Compute total from live data (planItems + linked transactions) to avoid stale trip.cost.
+  // Los "nuevos gastos" sin clasificar (metadata.pending) no cuentan hasta que se asignan al viaje.
   const totalGastado =
-    planItems.reduce((sum, it) => sum + (it.cost ? Number(it.cost) : 0), 0) +
+    planItems.reduce((sum, it) => sum + (it.metadata?.pending ? 0 : (it.cost ? Number(it.cost) : 0)), 0) +
     tripTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   // A trip can span several countries (each with its own date range) — show
