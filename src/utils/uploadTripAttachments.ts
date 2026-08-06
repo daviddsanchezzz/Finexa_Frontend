@@ -129,3 +129,9 @@ export async function pickAndUploadTripAttachments(): Promise<UploadedTripAttach
   }
   return pickNativeFiles();
 }
+
+/** Igual que pickAndUploadTripAttachments pero para flujos de un único archivo (escaneo de documento). */
+export async function pickAndUploadSingleTripAttachment(): Promise<UploadedTripAttachment | null> {
+  const files = await pickAndUploadTripAttachments();
+  return files[0] ?? null;
+}

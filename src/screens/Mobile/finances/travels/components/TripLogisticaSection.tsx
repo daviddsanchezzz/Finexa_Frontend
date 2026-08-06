@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../../../theme/theme";
 import { useUserDocuments } from "../../../../../hooks/useUserDocuments";
-import { useTripDocuments } from "../../../../../hooks/useTripDocuments";
 import { useTripContacts } from "../../../../../hooks/useTripContacts";
 import { getEmergencyNumber } from "../../../../../utils/emergencyNumbers";
 import { appAlert } from "../../../../../utils/appAlert";
@@ -55,7 +54,7 @@ interface TripLite {
   name?: string | null;
   destination?: string | null;
   endDate?: string | null;
-  countryStays?: { country: string }[] | null;
+  countryStays?: { country: string; startDate?: string | null; endDate?: string | null }[] | null;
 }
 
 interface Props {
@@ -69,14 +68,14 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
   const navigation = useNavigation<any>();
 
   const { documentsByType: userDocsByType, isLoading: userDocsLoading } = useUserDocuments();
-  const { documentsByType: tripDocsByType, isLoading: tripDocsLoading } = useTripDocuments(tripId);
   const { contacts, isLoading: contactsLoading } = useTripContacts(tripId);
 
-  const hasPassport = userDocsByType.has("passport");
-  const hasDni = userDocsByType.has("dni");
-  const hasInsurance = tripDocsByType.has("travel_insurance");
-  const docsLoading = userDocsLoading || tripDocsLoading;
-  const docsCount = (hasPassport ? 1 : 0) + (hasDni ? 1 : 0) + (hasInsurance ? 1 : 0);
+  // Lo único realmente obligatorio para viajar es llevar un documento de
+  // identidad (DNI o pasaporte, según destino) — el resto (seguro, EHIC...)
+  // es recomendado/opcional y se gestiona dentro de la pantalla Documentos.
+  const hasIdentityDoc = userDocsByType.has("passport") || userDocsByType.has("dni");
+  const docsLoading = userDocsLoading;
+  const docsCount = hasIdentityDoc ? 1 : 0;
 
   const reservationsCount = useMemo(
     () => planItems.filter((item) => item.isReservation === true).length,
@@ -104,6 +103,7 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
       destination: trip?.destination ?? null,
       tripName: trip?.name ?? null,
       endDate: trip?.endDate ?? null,
+      countryStays: trip?.countryStays ?? undefined,
     });
 
   const openReservas = () => navigation.navigate("Reservas", { tripId, planItems });
@@ -127,9 +127,9 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}>
-      {!docsLoading && !hasInsurance && (
+      {!docsLoading && !hasIdentityDoc && (
         <TouchableOpacity
-          onPress={openDocuments}
+          onPress={() => navigation.navigate("MyDocuments")}
           activeOpacity={0.8}
           style={{
             flexDirection: "row",
@@ -143,14 +143,14 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
         >
           <Ionicons name="warning-outline" size={18} color="#DC2626" />
           <Text style={{ flex: 1, fontSize: 12, fontWeight: "700", color: "#991B1B" }}>
-            Te falta añadir el seguro de viaje
+            Te falta añadir tu DNI o pasaporte
           </Text>
           <Text style={{ fontSize: 12, fontWeight: "800", color: "#DC2626" }}>Añadir</Text>
         </TouchableOpacity>
       )}
 
       <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
-        <StatCard label="Documentos" value={docsLoading ? "—" : `${docsCount}/3`} onPress={openDocuments} />
+        <StatCard label="Documentos" value={docsLoading ? "—" : `${docsCount}/1`} onPress={openDocuments} />
         <StatCard label="Reservas" value={String(reservationsCount)} onPress={openReservas} />
         <StatCard label="Contactos" value={contactsLoading ? "—" : String(contactsCount)} onPress={openContactos} />
       </View>

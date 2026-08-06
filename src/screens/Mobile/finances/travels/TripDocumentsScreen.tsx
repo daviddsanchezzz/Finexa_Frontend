@@ -1,22 +1,15 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Modal,
-  Pressable,
-} from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
-import { useUserDocuments, getDocumentStatus, DocumentStatus } from "../../../../hooks/useUserDocuments";
-import { useTripDocuments } from "../../../../hooks/useTripDocuments";
-import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
-import { getDestinationRequirements, DESTINATION_REQUIREMENTS_DISCLAIMER } from "../../../../utils/destinationRequirements";
+import { useUserDocuments, getDocumentStatus, type DocumentStatus, type UserDocument, type UserDocumentType } from "../../../../hooks/useUserDocuments";
+import { useTripDocuments, type TripDocument } from "../../../../hooks/useTripDocuments";
+import { getTripDocTypeConfig } from "../../../../utils/tripDocumentTypes";
+import { getPersonalDocTypeConfig } from "../../../../utils/personalDocumentTypes";
+import { getDestinationInfo, type EntryRequirement, type RequirementStatus } from "../../../../utils/destinationInfo";
+import DocumentFormModal from "../../../../components/DocumentFormModal";
 
 const STATUS_META: Record<DocumentStatus, { label: string; color: string; bg: string }> = {
   "no-expiry": { label: "Sin caducidad indicada", color: "#6B7280", bg: "#F3F4F6" },
@@ -25,38 +18,106 @@ const STATUS_META: Record<DocumentStatus, { label: string; color: string; bg: st
   expired: { label: "Caducado", color: "#DC2626", bg: "#FEE2E2" },
 };
 
+const REQ_STATUS_META: Record<RequirementStatus, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+  ok: { icon: "checkmark-circle", color: "#16A34A" },
+  info: { icon: "information-circle", color: "#D97706" },
+  required: { icon: "alert-circle", color: "#DC2626" },
+};
+
+/** Requisitos de entrada con un documento PERSONAL asociado (se gestionan en Mis documentos) */
+const ACTIONABLE_REQ_TO_DOC_TYPE: Record<string, UserDocumentType> = {
+  visa: "visa",
+  vaccines: "vaccine",
+};
+
+type ActiveModal =
+  | { kind: "trip"; doc: TripDocument | null }
+  | { kind: "personal"; type: UserDocumentType; doc: UserDocument | null; presetCountry?: string; presetCountryLabel?: string };
+
 function fmtDate(iso: string | null) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function flagEmoji(code: string) {
+  const c = code.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "🌍";
+  return String.fromCodePoint(...[...c].map((ch) => 127397 + ch.charCodeAt(0)));
+}
+
+interface CountryStayParam {
+  country: string;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export default function TripDocumentsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { tripId, destination, tripName, endDate } = route.params || {};
+  const { tripId, destination, tripName, endDate, countryStays } = route.params || {};
 
-  const { documentsByType: userDocsByType, isLoading: userDocsLoading } = useUserDocuments();
+  const {
+    documentsByType: userDocsByType,
+    isLoading: userDocsLoading,
+    createDocument: createUserDocument,
+    updateDocument: updateUserDocument,
+    deleteDocument: deleteUserDocument,
+    isSaving: userDocsSaving,
+    isDeleting: userDocsDeleting,
+  } = useUserDocuments();
   const {
     documentsByType: tripDocsByType,
     isLoading: tripDocsLoading,
-    upsertDocument,
-    deleteDocument,
-    isSaving,
-    isDeleting,
+    createDocument: createTripDocument,
+    updateDocument: updateTripDocument,
+    deleteDocument: deleteTripDocument,
+    isSaving: tripDocsSaving,
+    isDeleting: tripDocsDeleting,
   } = useTripDocuments(tripId);
 
-  const [insuranceModalOpen, setInsuranceModalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<ActiveModal | null>(null);
 
-  const passport = userDocsByType.get("passport") ?? null;
-  const dni = userDocsByType.get("dni") ?? null;
-  const insurance = tripDocsByType.get("travel_insurance") ?? null;
-
-  const nationality = passport?.country ?? dni?.country ?? null;
-  const requirements = getDestinationRequirements(nationality, destination);
+  const passport = userDocsByType.get("passport")?.[0] ?? null;
+  const dni = userDocsByType.get("dni")?.[0] ?? null;
+  const insurance = tripDocsByType.get("travel_insurance")?.[0] ?? null;
 
   const tripEnd = endDate ? new Date(endDate) : null;
   const passportExpiresBeforeTrip =
     !!passport?.expiryDate && !!tripEnd && new Date(passport.expiryDate) < tripEnd;
+
+  const stays: CountryStayParam[] = useMemo(() => {
+    const fromStays: CountryStayParam[] = Array.isArray(countryStays)
+      ? countryStays
+          .map((s: any) => (typeof s === "string" ? { country: s } : s))
+          .filter((s: any) => s?.country)
+      : [];
+    if (fromStays.length) return fromStays;
+    return destination ? [{ country: destination }] : [];
+  }, [countryStays, destination]);
+
+  const closeModal = () => setActiveModal(null);
+
+  const handleSave = async (input: Record<string, any>) => {
+    if (activeModal?.kind === "trip") {
+      if (activeModal.doc) await updateTripDocument(activeModal.doc.id, input);
+      else await createTripDocument({ type: "travel_insurance", ...input });
+    } else if (activeModal?.kind === "personal") {
+      if (activeModal.doc) await updateUserDocument(activeModal.doc.id, input);
+      else await createUserDocument({ type: activeModal.type, ...input });
+    }
+    closeModal();
+  };
+
+  const handleDelete = async () => {
+    if (activeModal?.kind === "trip" && activeModal.doc) {
+      await deleteTripDocument(activeModal.doc.id);
+    } else if (activeModal?.kind === "personal" && activeModal.doc) {
+      await deleteUserDocument(activeModal.doc.id);
+    }
+    closeModal();
+  };
+
+  const loading = userDocsLoading || tripDocsLoading;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -80,8 +141,12 @@ export default function TripDocumentsScreen() {
           </View>
         )}
 
-        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden", marginBottom: 20 }}>
-          {userDocsLoading || tripDocsLoading ? (
+        <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+          Tus documentos
+        </Text>
+
+        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden", marginBottom: 10 }}>
+          {loading ? (
             <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
           ) : (
             <>
@@ -95,72 +160,131 @@ export default function TripDocumentsScreen() {
                 emoji="🪪"
                 title="DNI / Carnet"
                 doc={dni}
-                isLast={!insurance && !insuranceModalOpen}
                 onPress={() => navigation.navigate("MyDocuments")}
               />
-              <InsuranceRow
-                doc={insurance}
-                onPress={() => setInsuranceModalOpen(true)}
-              />
+              <InsuranceRow doc={insurance} onPress={() => setActiveModal({ kind: "trip", doc: insurance })} />
             </>
           )}
         </View>
 
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
-          Requisitos del destino
-        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("MyDocuments")}
+          activeOpacity={0.7}
+          style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 20 }}
+        >
+          <Ionicons name="person-outline" size={14} color={colors.primary} />
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>
+            Vacunas, tarjeta sanitaria y carnet de conducir se gestionan desde Mis documentos
+          </Text>
+        </TouchableOpacity>
 
-        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", padding: 16, marginBottom: 12 }}>
-          {requirements.length > 0 ? (
-            requirements.map((r) => (
-              <View key={r.key} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                <Text style={{ fontSize: 13, color: "#1F2937", fontWeight: "600" }}>{r.label}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={{ fontSize: 13, color: "#6B7280" }}>
-              No tenemos información fiable sobre los requisitos para este destino.
+        {stays.length > 0 && (
+          <>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+              Por país del viaje
             </Text>
-          )}
-        </View>
+
+            {stays.map((stay) => {
+              const info = getDestinationInfo(stay.country);
+              const dateRange = joinText([fmtDate(stay.startDate ?? null), fmtDate(stay.endDate ?? null)], " – ");
+              return (
+                <View key={stay.country} style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", padding: 14, marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 16 }}>{flagEmoji(stay.country)}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{info?.name ?? stay.country}</Text>
+                    {!!dateRange && <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8" }}>· {dateRange}</Text>}
+                  </View>
+
+                  {!info ? (
+                    <Text style={{ fontSize: 12, color: "#94A3B8" }}>Sin información curada de este destino.</Text>
+                  ) : (() => {
+                    const pendingReqs = info.entryRequirements.filter((r) => r.status !== "ok");
+                    if (pendingReqs.length === 0) {
+                      return (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <Ionicons name="checkmark-circle" size={17} color="#16A34A" />
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#16A34A" }}>
+                            No necesitas nada especial para entrar
+                          </Text>
+                        </View>
+                      );
+                    }
+                    return pendingReqs.map((req) => {
+                      const docType = ACTIONABLE_REQ_TO_DOC_TYPE[req.key];
+                      const existingDoc = docType
+                        ? userDocsByType.get(docType)?.find((d) => d.country === stay.country) ?? null
+                        : null;
+                      return (
+                        <CountryRequirementRow
+                          key={req.key}
+                          req={req}
+                          existingDoc={existingDoc}
+                          onAdd={
+                            docType
+                              ? () =>
+                                  setActiveModal({
+                                    kind: "personal",
+                                    type: docType,
+                                    doc: existingDoc,
+                                    presetCountry: stay.country,
+                                    presetCountryLabel: info.name,
+                                  })
+                              : undefined
+                          }
+                        />
+                      );
+                    });
+                  })()}
+                </View>
+              );
+            })}
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate("DestinationInfo", { tripId, destination, countryStays, tripName })}
+              activeOpacity={0.7}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 20 }}
+            >
+              <Ionicons name="globe-outline" size={15} color={colors.primary} />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>Ver requisitos de entrada del destino</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <Text style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 16 }}>
-          {DESTINATION_REQUIREMENTS_DISCLAIMER}
+          Información orientativa — verifica siempre los requisitos oficiales antes de viajar.
         </Text>
       </ScrollView>
 
-      {insuranceModalOpen && (
-        <InsuranceFormModal
-          doc={insurance}
-          saving={isSaving}
-          deleting={isDeleting}
-          onClose={() => setInsuranceModalOpen(false)}
-          onSave={async (input) => {
-            await upsertDocument("travel_insurance", input);
-            setInsuranceModalOpen(false);
-          }}
-          onDelete={async () => {
-            await deleteDocument("travel_insurance");
-            setInsuranceModalOpen(false);
-          }}
+      {activeModal && (
+        <DocumentFormModal
+          config={activeModal.kind === "trip" ? getTripDocTypeConfig("travel_insurance") : getPersonalDocTypeConfig(activeModal.type)}
+          doc={activeModal.doc}
+          presetCountry={activeModal.kind === "personal" ? activeModal.presetCountry : undefined}
+          presetCountryLabel={activeModal.kind === "personal" ? activeModal.presetCountryLabel : undefined}
+          saving={activeModal.kind === "trip" ? tripDocsSaving : userDocsSaving}
+          deleting={activeModal.kind === "trip" ? tripDocsDeleting : userDocsDeleting}
+          onClose={closeModal}
+          onSave={handleSave}
+          onDelete={activeModal.doc ? handleDelete : undefined}
         />
       )}
     </SafeAreaView>
   );
 }
 
+function joinText(parts: Array<string | null | undefined>, sep: string) {
+  return parts.filter(Boolean).join(sep);
+}
+
 function ProfileDocRow({
   emoji,
   title,
   doc,
-  isLast,
   onPress,
 }: {
   emoji: string;
   title: string;
   doc: { expiryDate: string | null } | null;
-  isLast?: boolean;
   onPress: () => void;
 }) {
   const status = doc ? getDocumentStatus(doc.expiryDate) : null;
@@ -172,7 +296,7 @@ function ProfileDocRow({
       activeOpacity={0.7}
       style={{
         flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14,
-        borderBottomWidth: isLast ? 0 : 1, borderBottomColor: "#F3F4F6",
+        borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
       }}
     >
       <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
@@ -195,29 +319,22 @@ function ProfileDocRow({
   );
 }
 
-function InsuranceRow({
-  doc,
-  onPress,
-}: {
-  doc: { provider: string | null; expiryDate: string | null } | null;
-  onPress: () => void;
-}) {
+function InsuranceRow({ doc, onPress }: { doc: TripDocument | null; onPress: () => void }) {
+  const config = getTripDocTypeConfig("travel_insurance");
+
   if (!doc) {
     return (
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
-        style={{
-          flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14,
-          borderWidth: 1.5, borderColor: "#FCA5A5", borderStyle: "dashed", borderRadius: 14, margin: 10,
-        }}
+        style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 }}
       >
-        <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-          <Text style={{ fontSize: 20 }}>🛡️</Text>
+        <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+          <Text style={{ fontSize: 20 }}>{config.emoji}</Text>
         </View>
         <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>Seguro de viaje</Text>
-          <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", marginTop: 2 }}>Falta añadir</Text>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>{config.title}</Text>
+          <Text style={{ fontSize: 12, color: "#D97706", fontWeight: "600", marginTop: 2 }}>Recomendado</Text>
         </View>
         <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>+ Añadir</Text>
       </TouchableOpacity>
@@ -231,13 +348,11 @@ function InsuranceRow({
       style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 }}
     >
       <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#ECFDF5", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-        <Text style={{ fontSize: 20 }}>🛡️</Text>
+        <Text style={{ fontSize: 20 }}>{config.emoji}</Text>
       </View>
       <View style={{ flex: 1, marginRight: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>Seguro de viaje</Text>
-        <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }} numberOfLines={1}>
-          {doc.provider || "Sin aseguradora indicada"}{doc.expiryDate ? ` · Caduca ${fmtDate(doc.expiryDate)}` : ""}
-        </Text>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>{config.title}</Text>
+        <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }} numberOfLines={1}>{config.summary(doc)}</Text>
       </View>
       <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#DCFCE7" }}>
         <Text style={{ fontSize: 10, fontWeight: "800", color: "#16A34A" }}>Añadido</Text>
@@ -246,93 +361,39 @@ function InsuranceRow({
   );
 }
 
-function InsuranceFormModal({
-  doc,
-  saving,
-  deleting,
-  onClose,
-  onSave,
-  onDelete,
+function CountryRequirementRow({
+  req,
+  existingDoc,
+  onAdd,
 }: {
-  doc: { provider: string | null; referenceCode: string | null; expiryDate: string | null } | null;
-  saving: boolean;
-  deleting: boolean;
-  onClose: () => void;
-  onSave: (input: { provider?: string | null; referenceCode?: string | null; expiryDate?: string | null }) => Promise<void>;
-  onDelete: () => Promise<void>;
+  req: EntryRequirement;
+  existingDoc: UserDocument | null;
+  onAdd?: () => void;
 }) {
-  const [provider, setProvider] = useState(doc?.provider ?? "");
-  const [referenceCode, setReferenceCode] = useState(doc?.referenceCode ?? "");
-  const [expiryDate, setExpiryDate] = useState<Date | null>(doc?.expiryDate ? new Date(doc.expiryDate) : null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const meta = REQ_STATUS_META[req.status];
+  const showAction = !!onAdd && (req.status !== "ok" || !!existingDoc);
 
   return (
-    <Modal visible transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View style={{ backgroundColor: "white", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>Seguro de viaje</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={22} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", marginBottom: 6 }}>ASEGURADORA</Text>
-          <TextInput
-            value={provider}
-            onChangeText={setProvider}
-            placeholder="Ej: Mapfre, Allianz..."
-            style={{ borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: "#0F172A", marginBottom: 16 }}
-          />
-
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", marginBottom: 6 }}>Nº DE PÓLIZA (OPCIONAL)</Text>
-          <TextInput
-            value={referenceCode}
-            onChangeText={setReferenceCode}
-            placeholder="Ej: POL123456"
-            autoCapitalize="characters"
-            style={{ borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: "#0F172A", marginBottom: 16 }}
-          />
-
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", marginBottom: 6 }}>CADUCA (OPCIONAL)</Text>
-          <TouchableOpacity
-            onPress={() => setPickerOpen(true)}
-            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 24 }}
-          >
-            <Text style={{ fontSize: 14, color: expiryDate ? "#0F172A" : "#9CA3AF" }}>
-              {expiryDate ? fmtDate(expiryDate.toISOString()) : "Selecciona una fecha"}
-            </Text>
-            <Ionicons name="calendar-outline" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <CrossPlatformDateTimePicker
-            isVisible={pickerOpen}
-            date={expiryDate ?? new Date()}
-            mode="date"
-            onConfirm={(d) => { setExpiryDate(d); setPickerOpen(false); }}
-            onCancel={() => setPickerOpen(false)}
-          />
-
-          <TouchableOpacity
-            disabled={!provider.trim() || saving}
-            onPress={() => onSave({
-              provider: provider.trim() || null,
-              referenceCode: referenceCode.trim() || null,
-              expiryDate: expiryDate ? expiryDate.toISOString() : null,
-            })}
-            style={{ backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: "center", opacity: !provider.trim() || saving ? 0.5 : 1, marginBottom: doc ? 10 : 0 }}
-          >
-            {saving ? <ActivityIndicator color="white" /> : <Text style={{ color: "white", fontWeight: "800", fontSize: 14 }}>Guardar</Text>}
-          </TouchableOpacity>
-
-          {doc && (
-            <TouchableOpacity disabled={deleting} onPress={onDelete} style={{ alignItems: "center", paddingVertical: 10, opacity: deleting ? 0.5 : 1 }}>
-              {deleting ? <ActivityIndicator color="#DC2626" /> : <Text style={{ color: "#DC2626", fontWeight: "700", fontSize: 13 }}>Eliminar</Text>}
-            </TouchableOpacity>
-          )}
-        </View>
+    <TouchableOpacity
+      disabled={!showAction}
+      onPress={onAdd}
+      activeOpacity={showAction ? 0.7 : 1}
+      style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 }}
+    >
+      <Ionicons name={meta.icon} size={17} color={meta.color} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13, fontWeight: "700", color: "#0F172A" }}>{req.label}</Text>
+        <Text style={{ fontSize: 11, color: "#64748B", marginTop: 1 }} numberOfLines={2}>{req.value}</Text>
       </View>
-    </Modal>
+      {showAction && (
+        existingDoc ? (
+          <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#DCFCE7" }}>
+            <Text style={{ fontSize: 10, fontWeight: "800", color: "#16A34A" }}>Añadido</Text>
+          </View>
+        ) : (
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>+ Añadir</Text>
+        )
+      )}
+    </TouchableOpacity>
   );
 }

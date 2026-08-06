@@ -3,24 +3,45 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
 
-export type UserDocumentType = "passport" | "dni";
+export type UserDocumentType =
+  | "passport"
+  | "dni"
+  | "visa"
+  | "vaccine"
+  | "ehic"
+  | "private_health_insurance"
+  | "driving_license"
+  | "driving_license_international";
 
 export interface UserDocument {
   id: number;
   userId: number;
   type: UserDocumentType;
-  country: string;
+  provider: string | null;
+  country: string | null;
   documentNumber: string | null;
   expiryDate: string | null;
+  metadata: Record<string, any> | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileMimeType: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface UpsertUserDocumentInput {
-  country: string;
+export interface CreateUserDocumentInput {
+  type: UserDocumentType;
+  provider?: string | null;
+  country?: string | null;
   documentNumber?: string | null;
   expiryDate?: string | null;
+  metadata?: Record<string, any> | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileMimeType?: string | null;
 }
+
+export type UpdateUserDocumentInput = Omit<CreateUserDocumentInput, "type">;
 
 const QUERY_KEY = ["userDocuments"];
 
@@ -33,37 +54,48 @@ export function useUserDocuments() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const upsertMutation = useMutation({
-    mutationFn: async ({ type, input }: { type: UserDocumentType; input: UpsertUserDocumentInput }) =>
-      (await api.put(`/users/me/documents/${type}`, input)).data as UserDocument,
+  const createMutation = useMutation({
+    mutationFn: async (input: CreateUserDocumentInput) =>
+      (await api.post("/users/me/documents", input)).data as UserDocument,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, input }: { id: number; input: UpdateUserDocumentInput }) =>
+      (await api.patch(`/users/me/documents/${id}`, input)).data as UserDocument,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (type: UserDocumentType) => {
-      await api.delete(`/users/me/documents/${type}`);
+    mutationFn: async (id: number) => {
+      await api.delete(`/users/me/documents/${id}`);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
-  const documentsByType = useMemo(
-    () => new Map(query.data?.map((d) => [d.type, d] as const)),
-    [query.data]
-  );
+  const documentsByType = useMemo(() => {
+    const map = new Map<UserDocumentType, UserDocument[]>();
+    for (const doc of query.data ?? []) {
+      const arr = map.get(doc.type);
+      if (arr) arr.push(doc);
+      else map.set(doc.type, [doc]);
+    }
+    return map;
+  }, [query.data]);
 
   return {
     documents: query.data ?? [],
     documentsByType,
     isLoading: query.isLoading,
-    upsertDocument: (type: UserDocumentType, input: UpsertUserDocumentInput) =>
-      upsertMutation.mutateAsync({ type, input }),
-    deleteDocument: (type: UserDocumentType) => deleteMutation.mutateAsync(type),
-    isSaving: upsertMutation.isPending,
+    createDocument: (input: CreateUserDocumentInput) => createMutation.mutateAsync(input),
+    updateDocument: (id: number, input: UpdateUserDocumentInput) => updateMutation.mutateAsync({ id, input }),
+    deleteDocument: (id: number) => deleteMutation.mutateAsync(id),
+    isSaving: createMutation.isPending || updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
   };
 }
 
-/** Estado derivado de la caducidad, usado por el pill de "Mis documentos" y (más adelante) por Logística. */
+/** Estado derivado de la caducidad, usado por el pill de "Mis documentos" y Logística. */
 export type DocumentStatus = "no-expiry" | "valid" | "expiring-soon" | "expired";
 
 export function getDocumentStatus(expiryDate: string | null): DocumentStatus {

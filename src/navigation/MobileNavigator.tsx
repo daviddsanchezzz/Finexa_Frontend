@@ -50,7 +50,13 @@ export type RootStackParamList = {
   NetWorth: undefined;
   FinancesSettings: undefined;
   MyDocuments: undefined;
-  TripDocuments: undefined;
+  TripDocuments: {
+    tripId: number;
+    destination?: string | null;
+    tripName?: string | null;
+    endDate?: string | null;
+    countryStays?: { country: string; startDate?: string | null; endDate?: string | null }[] | null;
+  };
   DestinationInfo: { tripId: number; destination?: string | null; countryStays?: { country: string }[]; tripName?: string | null };
   PhraseBook: { phraseLanguage: string; destinationName?: string };
   Reservas: undefined;
