@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { colors } from "../../../../theme/theme";
 import { useTripGallery, type TripGalleryPhoto } from "../../../../hooks/useTripGallery";
 import { pickAndUploadTripAttachments } from "../../../../utils/uploadTripAttachments";
@@ -35,6 +37,59 @@ function dayLabel(dateKey: string) {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", timeZone: "UTC" });
 }
 
+function photoFilename(photo: TripGalleryPhoto) {
+  return photo.fileName || `foto-${photo.id}.jpg`;
+}
+
+async function shareGalleryPhotos(photos: TripGalleryPhoto[]) {
+  if (photos.length === 0) return;
+
+  if (Platform.OS === "web") {
+    try {
+      const files = await Promise.all(
+        photos.map(async (p) => {
+          const res = await fetch(p.url);
+          const blob = await res.blob();
+          return new File([blob], photoFilename(p), { type: blob.type || "image/jpeg" });
+        })
+      );
+      const nav: any = typeof navigator !== "undefined" ? navigator : null;
+      if (nav?.canShare?.({ files })) {
+        await nav.share({ files });
+        return;
+      }
+      // Fallback: descarga cada archivo
+      for (const file of files) {
+        const blobUrl = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch {
+      // silencioso: si falla, el usuario puede reintentar
+    }
+    return;
+  }
+
+  // Nativo: expo-sharing no soporta compartir varios archivos a la vez,
+  // así que abrimos la hoja de compartir una vez por foto.
+  for (const p of photos) {
+    try {
+      const localUri = (FileSystem as any).cacheDirectory + photoFilename(p);
+      await FileSystem.downloadAsync(p.url, localUri);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(localUri);
+      }
+    } catch {
+      // continúa con el resto
+    }
+  }
+}
+
 export default function TripGalleryScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -44,6 +99,9 @@ export default function TripGalleryScreen() {
   const [filter, setFilter] = useState<string>("all"); // "all" | "general" | dateKey
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<{ images: TripGalleryPhoto[]; index: number } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const selectionMode = selectedIds.size > 0;
 
   const tripDays = useMemo(() => computeTripDays(startDate, endDate), [startDate, endDate]);
 
@@ -99,11 +157,59 @@ export default function TripGalleryScreen() {
     appAlert("¿Fotos de qué día?", undefined, buttons);
   };
 
-  const confirmDelete = (photo: TripGalleryPhoto) => {
-    appAlert("Eliminar foto", "¿Seguro que quieres eliminarla?", [
-      { text: "Eliminar", style: "destructive", onPress: () => deletePhoto(photo.id) },
+  const toggleSelected = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handlePhotoPress = (sectionPhotos: TripGalleryPhoto[], idx: number) => {
+    if (selectionMode) {
+      toggleSelected(sectionPhotos[idx].id);
+    } else {
+      setGalleryIndex({ images: sectionPhotos, index: idx });
+    }
+  };
+
+  const handlePhotoLongPress = (photo: TripGalleryPhoto) => {
+    toggleSelected(photo.id);
+  };
+
+  const selectedPhotos = useMemo(
+    () => photos.filter((p) => selectedIds.has(p.id)),
+    [photos, selectedIds]
+  );
+
+  const handleBulkDelete = () => {
+    const count = selectedIds.size;
+    appAlert("Eliminar fotos", `¿Seguro que quieres eliminar ${count} foto${count === 1 ? "" : "s"}?`, [
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          setBulkBusy(true);
+          try {
+            await Promise.all(Array.from(selectedIds).map((id) => deletePhoto(id)));
+            setSelectedIds(new Set());
+          } finally {
+            setBulkBusy(false);
+          }
+        },
+      },
       { text: "Cancelar", style: "cancel" },
     ]);
+  };
+
+  const handleBulkShare = async () => {
+    setBulkBusy(true);
+    try {
+      await shareGalleryPhotos(selectedPhotos);
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const visibleDayKeys = filter === "all" ? populatedDayKeys : filter === "general" ? [] : [filter];
@@ -114,21 +220,34 @@ export default function TripGalleryScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 8 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+        <TouchableOpacity
+          onPress={() => (selectionMode ? setSelectedIds(new Set()) : navigation.goBack())}
+          style={{ padding: 4 }}
+        >
+          <Ionicons name={selectionMode ? "close" : "chevron-back"} size={24} color={colors.primary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 20, fontWeight: "900", color: "#0F172A" }}>Galería</Text>
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
-            {photos.length} foto{photos.length === 1 ? "" : "s"}{subtitleLocation ? ` · ${subtitleLocation}` : ""}
-          </Text>
+          {selectionMode ? (
+            <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>
+              {selectedIds.size} seleccionada{selectedIds.size === 1 ? "" : "s"}
+            </Text>
+          ) : (
+            <>
+              <Text style={{ fontSize: 20, fontWeight: "900", color: "#0F172A" }}>Galería</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
+                {photos.length} foto{photos.length === 1 ? "" : "s"}{subtitleLocation ? ` · ${subtitleLocation}` : ""}
+              </Text>
+            </>
+          )}
         </View>
-        <TouchableOpacity onPress={openDayPicker} style={{ padding: 4 }}>
-          <Ionicons name="add" size={26} color={colors.primary} />
-        </TouchableOpacity>
+        {!selectionMode && (
+          <TouchableOpacity onPress={openDayPicker} style={{ padding: 4 }}>
+            <Ionicons name="add" size={26} color={colors.primary} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {showChipBar && (
+      {!selectionMode && showChipBar && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -149,7 +268,7 @@ export default function TripGalleryScreen() {
         </ScrollView>
       )}
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: selectionMode ? 100 : 40 }} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
@@ -163,9 +282,11 @@ export default function TripGalleryScreen() {
                   title={`DÍA ${dayMeta?.index ?? ""} · ${dayLabel(key)}`}
                   photos={dayPhotos}
                   uploading={uploadingKey === key}
+                  selectionMode={selectionMode}
+                  selectedIds={selectedIds}
                   onAdd={() => uploadTo(key, key)}
-                  onOpenPhoto={(idx) => setGalleryIndex({ images: dayPhotos, index: idx })}
-                  onDeletePhoto={confirmDelete}
+                  onPressPhoto={(idx) => handlePhotoPress(dayPhotos, idx)}
+                  onLongPressPhoto={handlePhotoLongPress}
                 />
               );
             })}
@@ -173,17 +294,45 @@ export default function TripGalleryScreen() {
             {showGeneral && (
               <GallerySection
                 title="GENERAL DEL VIAJE"
-                badge="sin enlazar"
                 photos={generalPhotos}
                 uploading={uploadingKey === "general"}
+                selectionMode={selectionMode}
+                selectedIds={selectedIds}
                 onAdd={() => uploadTo(null, "general")}
-                onOpenPhoto={(idx) => setGalleryIndex({ images: generalPhotos, index: idx })}
-                onDeletePhoto={confirmDelete}
+                onPressPhoto={(idx) => handlePhotoPress(generalPhotos, idx)}
+                onLongPressPhoto={handlePhotoLongPress}
               />
             )}
           </>
         )}
       </ScrollView>
+
+      {selectionMode && (
+        <View
+          style={{
+            position: "absolute", left: 0, right: 0, bottom: 0,
+            flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28,
+            backgroundColor: "white", borderTopWidth: 1, borderTopColor: "#F1F5F9",
+          }}
+        >
+          <TouchableOpacity
+            onPress={handleBulkShare}
+            disabled={bulkBusy}
+            style={{ flex: 1, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 13, opacity: bulkBusy ? 0.6 : 1 }}
+          >
+            <Ionicons name="share-outline" size={18} color="#0F172A" />
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>Compartir</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleBulkDelete}
+            disabled={bulkBusy}
+            style={{ flex: 1, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "#FEE2E2", paddingVertical: 13, opacity: bulkBusy ? 0.6 : 1 }}
+          >
+            {bulkBusy ? <ActivityIndicator color="#DC2626" /> : <Ionicons name="trash-outline" size={18} color="#DC2626" />}
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#DC2626" }}>Eliminar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {galleryIndex && (
         <ImageGalleryModal
@@ -218,57 +367,69 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 
 function GallerySection({
   title,
-  badge,
   photos,
   uploading,
+  selectionMode,
+  selectedIds,
   onAdd,
-  onOpenPhoto,
-  onDeletePhoto,
+  onPressPhoto,
+  onLongPressPhoto,
 }: {
   title: string;
-  badge?: string;
   photos: TripGalleryPhoto[];
   uploading: boolean;
+  selectionMode: boolean;
+  selectedIds: Set<number>;
   onAdd: () => void;
-  onOpenPhoto: (index: number) => void;
-  onDeletePhoto: (photo: TripGalleryPhoto) => void;
+  onPressPhoto: (index: number) => void;
+  onLongPressPhoto: (photo: TripGalleryPhoto) => void;
 }) {
   return (
     <View style={{ marginBottom: 24 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8 }}>
-          {title}
-        </Text>
-        {!!badge && (
-          <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: "#EFF6FF" }}>
-            <Text style={{ fontSize: 9, fontWeight: "800", color: colors.primary }}>{badge}</Text>
-          </View>
-        )}
-      </View>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+        {title}
+      </Text>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: "1.5%" }}>
-        {photos.map((photo, idx) => (
-          <TouchableOpacity
-            key={photo.id}
-            onPress={() => onOpenPhoto(idx)}
-            onLongPress={() => onDeletePhoto(photo)}
-            style={{ width: "32.3%", aspectRatio: 1, borderRadius: 12, overflow: "hidden", marginBottom: 8, backgroundColor: "#F1F5F9" }}
-          >
-            <Image source={{ uri: photo.url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-          </TouchableOpacity>
-        ))}
+        {photos.map((photo, idx) => {
+          const selected = selectedIds.has(photo.id);
+          return (
+            <TouchableOpacity
+              key={photo.id}
+              onPress={() => onPressPhoto(idx)}
+              onLongPress={() => onLongPressPhoto(photo)}
+              style={{ width: "32.3%", aspectRatio: 1, borderRadius: 12, overflow: "hidden", marginBottom: 8, backgroundColor: "#F1F5F9" }}
+            >
+              <Image source={{ uri: photo.url }} style={{ width: "100%", height: "100%", opacity: selectionMode && !selected ? 0.55 : 1 }} resizeMode="cover" />
+              {selectionMode && (
+                <View
+                  style={{
+                    position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11,
+                    alignItems: "center", justifyContent: "center",
+                    backgroundColor: selected ? colors.primary : "rgba(255,255,255,0.85)",
+                    borderWidth: selected ? 0 : 1.5, borderColor: "#CBD5E1",
+                  }}
+                >
+                  {selected && <Ionicons name="checkmark" size={14} color="white" />}
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
 
-        <TouchableOpacity
-          onPress={onAdd}
-          disabled={uploading}
-          style={{
-            width: "32.3%", aspectRatio: 1, borderRadius: 12, marginBottom: 8,
-            borderWidth: 1.5, borderColor: "#DBEAFE", borderStyle: "dashed",
-            alignItems: "center", justifyContent: "center", backgroundColor: "#F8FAFC", opacity: uploading ? 0.6 : 1,
-          }}
-        >
-          {uploading ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="add" size={26} color={colors.primary} />}
-        </TouchableOpacity>
+        {!selectionMode && (
+          <TouchableOpacity
+            onPress={onAdd}
+            disabled={uploading}
+            style={{
+              width: "32.3%", aspectRatio: 1, borderRadius: 12, marginBottom: 8,
+              borderWidth: 1.5, borderColor: "#DBEAFE", borderStyle: "dashed",
+              alignItems: "center", justifyContent: "center", backgroundColor: "#F8FAFC", opacity: uploading ? 0.6 : 1,
+            }}
+          >
+            {uploading ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="add" size={26} color={colors.primary} />}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
