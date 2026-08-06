@@ -2,7 +2,7 @@ import api from "../api/api";
 
 const SESSION_KEY = 'finexa_quick_add';
 
-export type QuickAddParams = { amount: number; merchant: string; cardName?: string; qid: string; rawQuery?: string };
+export type QuickAddParams = { amount: number; merchant: string; cardName?: string; qid: string; rawQuery?: string; token?: string };
 
 function generateQid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -52,23 +52,35 @@ export function readQuickAddFromUrl(): { params: QuickAddParams; fromNotificatio
   const cardName = params.get('card') ?? undefined;
   const nid = params.get('nid');
   const qid = nid || generateQid();
+  // Token opcional del enlace de Shortcuts (ver Ajustes > Automatización) —
+  // permite identificar al usuario sin sesión activa en el navegador/webview
+  // que abre el link.
+  const token = params.get('token') ?? undefined;
   // Guardamos la query string tal cual la manda el Shortcut (sin parsear) —
   // sirve para diagnosticar por qué a veces el comercio llega vacío: así
   // vemos exactamente qué mandó Apple, no lo que nosotros interpretamos.
   const rawQuery = window.location.search;
-  return { params: { amount, merchant, cardName, qid, rawQuery }, fromNotification: !!nid };
+  return { params: { amount, merchant, cardName, qid, rawQuery, token }, fromNotification: !!nid };
 }
 
 // Crea (fire-and-forget) la notificación de "nuevo gasto" pendiente en el
 // backend. Se llama solo la primera vez que se abre el link (no cuando se
 // vuelve a abrir tocando la propia notificación, porque ya existe).
+//
+// Si el link trae un token (ver useQuickAddToken), usamos el endpoint público
+// que identifica al usuario por ese token — así funciona aunque el
+// navegador/webview que abre Shortcuts no tenga sesión iniciada. Si no hay
+// token (enlaces antiguos, sin actualizar en la automatización), seguimos
+// usando el endpoint autenticado de siempre.
 export function sendQuickAddNotification(params: QuickAddParams): void {
-  api.post('/notifications/quick-transaction', {
+  const path = params.token ? '/notifications/quick-transaction/via-token' : '/notifications/quick-transaction';
+  api.post(path, {
     amount: params.amount,
     merchant: params.merchant,
     cardName: params.cardName,
     qid: params.qid,
     rawQuery: params.rawQuery,
+    ...(params.token ? { token: params.token } : {}),
   }).catch(() => null);
 }
 

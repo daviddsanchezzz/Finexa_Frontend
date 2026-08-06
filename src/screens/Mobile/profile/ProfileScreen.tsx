@@ -25,6 +25,7 @@ export default function ProfileScreen({ navigation }: any) {
       items: [
         { label: "Cuenta", icon: "person-outline", navigate: "Account" },
         { label: "Mis documentos", icon: "id-card-outline", navigate: "MyDocuments" },
+        { label: "Gasto rápido (NFC/Shortcuts)", icon: "flash-outline", navigate: "QuickAddSettings" },
       ],
     },
     {

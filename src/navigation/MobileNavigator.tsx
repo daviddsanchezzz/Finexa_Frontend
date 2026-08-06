@@ -50,6 +50,7 @@ export type RootStackParamList = {
   NetWorth: undefined;
   FinancesSettings: undefined;
   MyDocuments: undefined;
+  QuickAddSettings: undefined;
   TripDocuments: {
     tripId: number;
     destination?: string | null;
@@ -374,6 +375,13 @@ export default function MobileNavigator() {
             name="MyDocuments"
             getComponent={() =>
               require("../screens/Mobile/profile/MyDocumentsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="QuickAddSettings"
+            getComponent={() =>
+              require("../screens/Mobile/profile/QuickAddSettingsScreen").default
             }
           />
 
