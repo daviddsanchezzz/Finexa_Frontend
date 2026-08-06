@@ -7,7 +7,6 @@ import { colors } from "../../../../../theme/theme";
 import { useUserDocuments } from "../../../../../hooks/useUserDocuments";
 import { useTripContacts } from "../../../../../hooks/useTripContacts";
 import { getEmergencyNumber } from "../../../../../utils/emergencyNumbers";
-import { appAlert } from "../../../../../utils/appAlert";
 
 interface FlightDetails {
   flightNumberIata?: string | null;
@@ -53,6 +52,7 @@ interface TripLite {
   id: number;
   name?: string | null;
   destination?: string | null;
+  startDate?: string | null;
   endDate?: string | null;
   countryStays?: { country: string; startDate?: string | null; endDate?: string | null }[] | null;
 }
@@ -123,7 +123,13 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
     });
 
   const openGallery = () =>
-    appAlert("Galería del viaje", "Muy pronto podrás ver esto aquí.");
+    navigation.navigate("TripGallery", {
+      tripId,
+      tripName: trip?.name ?? null,
+      destination: trip?.destination ?? null,
+      startDate: trip?.startDate ?? null,
+      endDate: trip?.endDate ?? null,
+    });
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}>

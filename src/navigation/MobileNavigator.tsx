@@ -59,6 +59,7 @@ export type RootStackParamList = {
   };
   DestinationInfo: { tripId: number; destination?: string | null; countryStays?: { country: string }[]; tripName?: string | null };
   PhraseBook: { phraseLanguage: string; destinationName?: string };
+  TripGallery: { tripId: number; tripName?: string | null; destination?: string | null; startDate?: string | null; endDate?: string | null };
   Reservas: undefined;
   Contactos: undefined;
   Maleta: undefined;
@@ -387,6 +388,13 @@ export default function MobileNavigator() {
             name="DestinationInfo"
             getComponent={() =>
               require("../screens/Mobile/finances/travels/DestinationInfoScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="TripGallery"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/TripGalleryScreen").default
             }
           />
 

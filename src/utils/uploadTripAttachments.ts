@@ -3,6 +3,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { supabase } from "../lib/supabase";
 
 const BUCKET = "documents";
+const DEFAULT_FOLDER = "plan-item-attachments";
 
 export type UploadedTripAttachment = {
   kind: string;
@@ -12,6 +13,13 @@ export type UploadedTripAttachment = {
   sizeBytes: number | null;
   metadata?: any;
 };
+
+export interface UploadOptions {
+  /** Carpeta dentro del bucket "documents" (por defecto "plan-item-attachments") */
+  folder?: string;
+  /** Filtro de tipo para el selector, ej. imágenes únicamente (por defecto: cualquier archivo) */
+  accept?: string;
+}
 
 function safeExt(name?: string | null) {
   const ext = (name || "").split(".").pop()?.trim();
@@ -31,9 +39,9 @@ function attachmentKind(mimeType?: string | null, filename?: string | null) {
   return "file";
 }
 
-async function uploadFileBlob(file: Blob, filename: string, mimeType?: string | null): Promise<UploadedTripAttachment | null> {
+async function uploadFileBlob(file: Blob, filename: string, mimeType: string | null | undefined, folder: string): Promise<UploadedTripAttachment | null> {
   const ext = safeExt(filename);
-  const path = `plan-item-attachments/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     cacheControl: "3600",
@@ -56,12 +64,12 @@ async function uploadFileBlob(file: Blob, filename: string, mimeType?: string | 
   };
 }
 
-async function pickWebFiles(): Promise<UploadedTripAttachment[]> {
+async function pickWebFiles(folder: string, accept: string): Promise<UploadedTripAttachment[]> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = true;
-    input.accept = "*/*";
+    input.accept = accept;
     input.style.position = "fixed";
     input.style.top = "-1000px";
     input.style.left = "-1000px";
@@ -94,7 +102,7 @@ async function pickWebFiles(): Promise<UploadedTripAttachment[]> {
       }
 
       const uploaded = await Promise.all(
-        files.map((file) => uploadFileBlob(file, safeFilename(file.name), file.type || null))
+        files.map((file) => uploadFileBlob(file, safeFilename(file.name), file.type || null, folder))
       );
       finish(uploaded.filter((file): file is UploadedTripAttachment => !!file));
     };
@@ -103,11 +111,11 @@ async function pickWebFiles(): Promise<UploadedTripAttachment[]> {
   });
 }
 
-async function pickNativeFiles(): Promise<UploadedTripAttachment[]> {
+async function pickNativeFiles(folder: string, accept: string): Promise<UploadedTripAttachment[]> {
   const result = await DocumentPicker.getDocumentAsync({
     multiple: true,
     copyToCacheDirectory: true,
-    type: "*/*",
+    type: accept,
   });
 
   if (result.canceled) return [];
@@ -116,22 +124,24 @@ async function pickNativeFiles(): Promise<UploadedTripAttachment[]> {
     result.assets.map(async (asset) => {
       const response = await fetch(asset.uri);
       const blob = await response.blob();
-      return uploadFileBlob(blob, safeFilename(asset.name), asset.mimeType || null);
+      return uploadFileBlob(blob, safeFilename(asset.name), asset.mimeType || null, folder);
     })
   );
 
   return uploaded.filter((file): file is UploadedTripAttachment => !!file);
 }
 
-export async function pickAndUploadTripAttachments(): Promise<UploadedTripAttachment[]> {
+export async function pickAndUploadTripAttachments(options?: UploadOptions): Promise<UploadedTripAttachment[]> {
+  const folder = options?.folder ?? DEFAULT_FOLDER;
+  const accept = options?.accept ?? "*/*";
   if (Platform.OS === "web") {
-    return pickWebFiles();
+    return pickWebFiles(folder, accept);
   }
-  return pickNativeFiles();
+  return pickNativeFiles(folder, accept);
 }
 
 /** Igual que pickAndUploadTripAttachments pero para flujos de un único archivo (escaneo de documento). */
-export async function pickAndUploadSingleTripAttachment(): Promise<UploadedTripAttachment | null> {
-  const files = await pickAndUploadTripAttachments();
+export async function pickAndUploadSingleTripAttachment(options?: UploadOptions): Promise<UploadedTripAttachment | null> {
+  const files = await pickAndUploadTripAttachments(options);
   return files[0] ?? null;
 }
