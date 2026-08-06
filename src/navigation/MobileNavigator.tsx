@@ -51,6 +51,8 @@ export type RootStackParamList = {
   FinancesSettings: undefined;
   MyDocuments: undefined;
   TripDocuments: undefined;
+  DestinationInfo: { tripId: number; destination?: string | null; countryStays?: { country: string }[]; tripName?: string | null };
+  PhraseBook: { phraseLanguage: string; destinationName?: string };
   Reservas: undefined;
   Contactos: undefined;
   Maleta: undefined;
@@ -372,6 +374,20 @@ export default function MobileNavigator() {
             name="TripDocuments"
             getComponent={() =>
               require("../screens/Mobile/finances/travels/TripDocumentsScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="DestinationInfo"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/DestinationInfoScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="PhraseBook"
+            getComponent={() =>
+              require("../screens/Mobile/finances/travels/PhraseBookScreen").default
             }
           />
 

@@ -8,6 +8,7 @@ import { useUserDocuments } from "../../../../../hooks/useUserDocuments";
 import { useTripDocuments } from "../../../../../hooks/useTripDocuments";
 import { useTripContacts } from "../../../../../hooks/useTripContacts";
 import { getEmergencyNumber } from "../../../../../utils/emergencyNumbers";
+import { appAlert } from "../../../../../utils/appAlert";
 
 interface FlightDetails {
   flightNumberIata?: string | null;
@@ -17,6 +18,7 @@ interface FlightDetails {
   toIata?: string | null;
   gate?: string | null;
   seat?: string | null;
+  bookingRef?: string | null;
 }
 
 interface AccommodationDetails {
@@ -28,9 +30,24 @@ interface TripPlanItem {
   type: string;
   title: string;
   startAt?: string | null;
+  endAt?: string | null;
   isReservation?: boolean | null;
   flightDetails?: FlightDetails | null;
   accommodationDetails?: AccommodationDetails | null;
+}
+
+function fmtDayTime(iso?: string | null) {
+  if (!iso) return { day: null as string | null, time: null as string | null };
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return { day: null, time: null };
+  return {
+    day: d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }),
+    time: d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
+function joinText(parts: Array<string | null | undefined>) {
+  return parts.map((p) => p?.trim()).filter(Boolean).join(" · ");
 }
 
 interface TripLite {
@@ -38,6 +55,7 @@ interface TripLite {
   name?: string | null;
   destination?: string | null;
   endDate?: string | null;
+  countryStays?: { country: string }[] | null;
 }
 
 interface Props {
@@ -45,19 +63,6 @@ interface Props {
   trip: TripLite;
   planItems: TripPlanItem[];
   onRefresh: () => void;
-}
-
-function fmtTime(iso?: string | null) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-}
-
-function isToday(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
 }
 
 export default function TripLogisticsSection({ tripId, trip, planItems }: Props) {
@@ -109,6 +114,17 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
   const openMaleta = () =>
     navigation.navigate("Maleta", { tripId, destination: trip?.destination ?? null, tripName: trip?.name ?? null });
 
+  const openDestinationInfo = () =>
+    navigation.navigate("DestinationInfo", {
+      tripId,
+      destination: trip?.destination ?? null,
+      countryStays: trip?.countryStays ?? undefined,
+      tripName: trip?.name ?? null,
+    });
+
+  const openGallery = () =>
+    appAlert("Galería del viaje", "Muy pronto podrás ver esto aquí.");
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}>
       {!docsLoading && !hasInsurance && (
@@ -148,6 +164,8 @@ export default function TripLogisticsSection({ tripId, trip, planItems }: Props)
 
       <SectionTitle>Accesos rápidos</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        <QuickAccessTile icon="globe-outline" label="Información del destino" onPress={openDestinationInfo} />
+        <QuickAccessTile icon="images-outline" label="Galería del viaje" onPress={openGallery} />
         <QuickAccessTile icon="document-text-outline" label="Documentos" onPress={openDocuments} />
         <QuickAccessTile icon="briefcase-outline" label="Reservas" onPress={openReservas} />
         <QuickAccessTile icon="call-outline" label="Contactos" onPress={openContactos} />
@@ -198,83 +216,104 @@ function StatCard({
 }
 
 function NextFlightCard({ item }: { item: TripPlanItem }) {
-  const fd = item.flightDetails!;
+  const fd = item.flightDetails || {};
   const flightNum = fd.flightNumberIata || fd.flightNumberRaw || null;
-  const subtitle = [fd.airlineName, flightNum].filter(Boolean).join(" · ");
+  const subtitle = joinText([fd.airlineName, flightNum]);
   const fromCode = fd.fromIata?.trim() || "—";
   const toCode = fd.toIata?.trim() || "—";
-  const depTime = fmtTime(item.startAt);
-  const arrTime = fmtTime((item as any).endAt);
-  const today = item.startAt ? isToday(item.startAt) : false;
+  const dep = fmtDayTime(item.startAt);
+  const arr = fmtDayTime(item.endAt);
+
+  const hasFooter = !!(fd.gate || fd.seat || fd.bookingRef);
 
   return (
-    <View style={{ backgroundColor: "#0B1220", borderRadius: 22, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18, marginBottom: 20 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          {!!subtitle && (
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.6)", marginBottom: 3 }}>{subtitle}</Text>
-          )}
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.42)", letterSpacing: 0.8 }}>VUELO</Text>
-        </View>
-        {today && (
-          <View style={{ backgroundColor: "#16A34A", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-            <Text style={{ fontSize: 10, fontWeight: "800", color: "white" }}>Hoy</Text>
+    <View style={{ borderRadius: 14, overflow: "hidden", backgroundColor: "#0B1220", marginBottom: 20 }}>
+      <View style={{ backgroundColor: "#0F172A", paddingHorizontal: 13, paddingTop: 10, paddingBottom: 10 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 12 }}>
+            <Ionicons name="airplane" size={12} color="rgba(255,255,255,0.55)" />
+            {!!subtitle && (
+              <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)" }} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
           </View>
-        )}
-      </View>
-
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 31, fontWeight: "900", color: "white", letterSpacing: 0.4 }}>{fromCode}</Text>
         </View>
 
-        <View style={{ width: 96, alignItems: "center" }}>
-          <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
-            <Ionicons name="airplane" size={14} color="#60A5FA" style={{ marginHorizontal: 8, transform: [{ rotate: "90deg" }] }} />
-            <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 21, fontWeight: "900", color: "white", letterSpacing: 0.2 }}>{fromCode}</Text>
           </View>
-          <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)", marginTop: 6 }}>
-            {flightNum || "Reserva"}
-          </Text>
-        </View>
 
-        <View style={{ flex: 1, alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 31, fontWeight: "900", color: "white", letterSpacing: 0.4 }}>{toCode}</Text>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-        {!!depTime && (
-          <View>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 3 }}>SALIDA</Text>
-            <Text style={{ fontSize: 20, fontWeight: "900", color: "white" }}>{depTime}</Text>
-          </View>
-        )}
-        {!!arrTime && (
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 3 }}>LLEGADA</Text>
-            <Text style={{ fontSize: 20, fontWeight: "900", color: "white" }}>{arrTime}</Text>
-          </View>
-        )}
-      </View>
-
-      {(fd.gate || fd.seat) && (
-        <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.10)", flexDirection: "row", justifyContent: "center", gap: 22 }}>
-          {!!fd.gate && (
-            <View style={{ alignItems: "center", minWidth: 78 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>PUERTA</Text>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>{fd.gate}</Text>
+          <View style={{ width: 64, alignItems: "center" }}>
+            <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
+              <Ionicons name="airplane" size={11} color="#60A5FA" style={{ marginHorizontal: 5, transform: [{ rotate: "90deg" }] }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.22)" }} />
             </View>
-          )}
-          {!!fd.seat && (
-            <View style={{ alignItems: "center", minWidth: 78 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>ASIENTO</Text>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>{fd.seat}</Text>
-            </View>
-          )}
+          </View>
+
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 21, fontWeight: "900", color: "white", letterSpacing: 0.2 }}>{toCode}</Text>
+          </View>
         </View>
-      )}
+
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <FlightTimeBlock align="left" label="SALIDA" day={dep.day} time={dep.time} />
+          <FlightTimeBlock align="right" label="LLEGADA" day={arr.day} time={arr.time} />
+        </View>
+
+        {hasFooter && (
+          <View
+            style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: "rgba(255,255,255,0.10)",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <View style={{ flexDirection: "row", gap: 14 }}>
+              {!!fd.gate && <FlightBadge label="PUERTA" value={fd.gate} />}
+              {!!fd.seat && <FlightBadge label="ASIENTO" value={fd.seat} />}
+            </View>
+            {!!fd.bookingRef && <Text style={{ fontSize: 11, fontWeight: "800", color: "white" }}>{fd.bookingRef}</Text>}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function FlightTimeBlock({
+  label,
+  day,
+  time,
+  align,
+}: {
+  label: string;
+  day: string | null;
+  time: string | null;
+  align: "left" | "right";
+}) {
+  return (
+    <View style={{ alignItems: align === "left" ? "flex-start" : "flex-end" }}>
+      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.48)", marginBottom: 2 }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 5 }}>
+        <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>{time || "—"}</Text>
+        <Text style={{ fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.55)" }}>{day || "—"}</Text>
+      </View>
+    </View>
+  );
+}
+
+function FlightBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
+      <Text style={{ fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.48)" }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "900", color: "white" }}>{value}</Text>
     </View>
   );
 }

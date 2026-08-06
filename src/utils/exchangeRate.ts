@@ -48,6 +48,22 @@ export async function toEur(amount: number, sourceCurrency: string): Promise<num
   }
 }
 
+/**
+ * Convert amount from EUR to targetCurrency (inverse of toEur).
+ * Returns null if conversion is not possible (unknown currency, network error).
+ */
+export async function fromEur(amount: number, targetCurrency: string): Promise<number | null> {
+  if (!targetCurrency || targetCurrency.toUpperCase() === "EUR") return amount;
+  try {
+    const rates = await getRates();
+    const rate = rates[targetCurrency.toUpperCase()];
+    if (!rate) return null;
+    return amount * rate;
+  } catch {
+    return null;
+  }
+}
+
 /** Synchronously convert using cached rates — returns null if no cache available */
 let _cachedRates: Record<string, number> | null = null;
 

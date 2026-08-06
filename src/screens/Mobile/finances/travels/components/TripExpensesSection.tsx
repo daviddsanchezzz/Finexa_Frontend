@@ -407,8 +407,33 @@ export default function TripExpensesSection({
     if (!linkingItem || savingItemId !== null) return;
     const target = linkableItems.find((i) => i.id === planItemId);
     if (!target) return;
+
+    const existingCost = safeNumber(target.cost);
+    const addCost = safeNumber(linkingItem.cost);
+
+    // Si el plan destino ya tiene coste (p.ej. un primer pago del coche de
+    // alquiler), no podemos simplemente sustituirlo sin preguntar: puede que
+    // este sea un segundo pago que haya que sumar, no reemplazar.
+    if (existingCost > 0) {
+      appAlert(
+        target.title || "Este plan ya tiene coste",
+        `Ya tiene ${formatEuro(existingCost)}. ¿Sumas este gasto (${formatEuro(addCost)}) o lo sustituyes?`,
+        [
+          { text: "Acumular", onPress: () => performLinkToPlan(target, existingCost + addCost, false) },
+          { text: "Sustituir", onPress: () => performLinkToPlan(target, addCost, true) },
+          { text: "Cancelar", style: "cancel" },
+        ]
+      );
+      return;
+    }
+
+    await performLinkToPlan(target, addCost, true);
+  };
+
+  const performLinkToPlan = async (target: TripPlanItem, finalCost: number, linkTransaction: boolean) => {
+    if (!linkingItem) return;
     try {
-      setSavingItemId(planItemId);
+      setSavingItemId(target.id);
       // El DTO exige type/title aunque no cambien: reenviamos los del item
       // destino tal cual (a diferencia de "crear gasto", aquí el item ya
       // tiene su propio nombre). La nota de la transacción (guardada como
@@ -421,7 +446,7 @@ export default function TripExpensesSection({
       // El PATCH del backend reemplaza el item entero (no es un update parcial:
       // cualquier campo ausente se guarda como null) — hay que reenviar la
       // fecha/hora/ubicación tal cual las tenía o se perderían al vincular.
-      await api.patch(`/trips/${tripId}/plan-items/${planItemId}`, {
+      await api.patch(`/trips/${tripId}/plan-items/${target.id}`, {
         type: target.type,
         title: target.title,
         date: t.date ?? undefined,
@@ -433,8 +458,13 @@ export default function TripExpensesSection({
         timezone: t.timezone ?? undefined,
         location: target.location ?? undefined,
         currency: target.currency ?? undefined,
-        cost: safeNumber(linkingItem.cost),
-        transactionId: linkingItem.transactionId,
+        cost: finalCost,
+        // Al acumular, el coste deja de corresponder a una única transacción
+        // — desvinculamos (null) para que editar el plan item o cualquiera
+        // de las transacciones ya no se sincronicen solos entre sí con un
+        // valor que ya no es el mismo. Al sustituir, sí se vincula 1:1 como
+        // hasta ahora.
+        transactionId: linkTransaction ? linkingItem.transactionId : null,
         notes: notes ?? undefined,
       });
       await api.delete(`/trips/${tripId}/plan-items/${linkingItem.id}`);
