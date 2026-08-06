@@ -99,9 +99,9 @@ export default function TripGalleryScreen() {
   const [filter, setFilter] = useState<string>("all"); // "all" | "general" | dateKey
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<{ images: TripGalleryPhoto[]; index: number } | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  const selectionMode = selectedIds.size > 0;
 
   const tripDays = useMemo(() => computeTripDays(startDate, endDate), [startDate, endDate]);
 
@@ -174,10 +174,6 @@ export default function TripGalleryScreen() {
     }
   };
 
-  const handlePhotoLongPress = (photo: TripGalleryPhoto) => {
-    toggleSelected(photo.id);
-  };
-
   const selectedPhotos = useMemo(
     () => photos.filter((p) => selectedIds.has(p.id)),
     [photos, selectedIds]
@@ -215,13 +211,29 @@ export default function TripGalleryScreen() {
   const visibleDayKeys = filter === "all" ? populatedDayKeys : filter === "general" ? [] : [filter];
   const showGeneral = filter === "all" || filter === "general";
 
+  const visiblePhotos = useMemo(
+    () => [...visibleDayKeys.flatMap((key) => dayGroups.get(key) ?? []), ...(showGeneral ? generalPhotos : [])],
+    [visibleDayKeys, dayGroups, showGeneral, generalPhotos]
+  );
+
+  const enterSelectionMode = () => setSelectionMode(true);
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const selectAllVisible = () => {
+    setSelectedIds(new Set(visiblePhotos.map((p) => p.id)));
+  };
+
   const subtitleLocation = tripName || destination || "";
 
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 8 }}>
         <TouchableOpacity
-          onPress={() => (selectionMode ? setSelectedIds(new Set()) : navigation.goBack())}
+          onPress={() => (selectionMode ? exitSelectionMode() : navigation.goBack())}
           style={{ padding: 4 }}
         >
           <Ionicons name={selectionMode ? "close" : "chevron-back"} size={24} color={colors.primary} />
@@ -240,6 +252,13 @@ export default function TripGalleryScreen() {
             </>
           )}
         </View>
+        {photos.length > 0 && (
+          <TouchableOpacity onPress={selectionMode ? selectAllVisible : enterSelectionMode} style={{ padding: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>
+              {selectionMode ? "Seleccionar todas" : "Seleccionar"}
+            </Text>
+          </TouchableOpacity>
+        )}
         {!selectionMode && (
           <TouchableOpacity onPress={openDayPicker} style={{ padding: 4 }}>
             <Ionicons name="add" size={26} color={colors.primary} />
@@ -286,7 +305,6 @@ export default function TripGalleryScreen() {
                   selectedIds={selectedIds}
                   onAdd={() => uploadTo(key, key)}
                   onPressPhoto={(idx) => handlePhotoPress(dayPhotos, idx)}
-                  onLongPressPhoto={handlePhotoLongPress}
                 />
               );
             })}
@@ -300,7 +318,6 @@ export default function TripGalleryScreen() {
                 selectedIds={selectedIds}
                 onAdd={() => uploadTo(null, "general")}
                 onPressPhoto={(idx) => handlePhotoPress(generalPhotos, idx)}
-                onLongPressPhoto={handlePhotoLongPress}
               />
             )}
           </>
@@ -373,7 +390,6 @@ function GallerySection({
   selectedIds,
   onAdd,
   onPressPhoto,
-  onLongPressPhoto,
 }: {
   title: string;
   photos: TripGalleryPhoto[];
@@ -382,7 +398,6 @@ function GallerySection({
   selectedIds: Set<number>;
   onAdd: () => void;
   onPressPhoto: (index: number) => void;
-  onLongPressPhoto: (photo: TripGalleryPhoto) => void;
 }) {
   return (
     <View style={{ marginBottom: 24 }}>
@@ -397,7 +412,6 @@ function GallerySection({
             <TouchableOpacity
               key={photo.id}
               onPress={() => onPressPhoto(idx)}
-              onLongPress={() => onLongPressPhoto(photo)}
               style={{ width: "32.3%", aspectRatio: 1, borderRadius: 12, overflow: "hidden", marginBottom: 8, backgroundColor: "#F1F5F9" }}
             >
               <Image source={{ uri: photo.url }} style={{ width: "100%", height: "100%", opacity: selectionMode && !selected ? 0.55 : 1 }} resizeMode="cover" />
