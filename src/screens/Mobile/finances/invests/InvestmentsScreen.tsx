@@ -252,6 +252,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [legendOpen, setLegendOpen] = useState(true);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  // Rentabilidad del mes en curso, calculada en vivo (no un snapshot cerrado
+  // todavía) — se funde con `snapshots` en `snapshotsForRent` para que tabla,
+  // gráfica y totales anuales la incluyan como "hasta hoy".
+  const [currentMonthReturn, setCurrentMonthReturn] = useState<PortfolioSnapshotRow | null>(null);
   const [archivedAssets, setArchivedAssets] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [donutMode, setDonutMode] = useState<"asset" | "type" | "country" | "sector" | "holding">("asset");
@@ -268,7 +272,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   } | null>(null);
   const [rentRange, setRentRange] = useState<"3m" | "6m" | "1a">("1a");
   const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number }>(null);
-  const [barTooltip, setBarTooltip] = useState<null | { label: string; profit: number }>(null);
+  const [barTooltip, setBarTooltip] = useState<null | { label: string; profit: number; isCurrent?: boolean }>(null);
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getInvestmentsDataVersion());
   const [planLoading, setPlanLoading] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
@@ -332,6 +336,24 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       setSnapshots([]);
     } finally {
       setSnapshotsLoading(false);
+    }
+  };
+
+  const fetchCurrentMonthReturn = async () => {
+    try {
+      const res = await api.get("/investments/snapshots/current");
+      const r = res.data || {};
+      setCurrentMonthReturn({
+        monthStart: String(r.monthStart),
+        currency: String(r.currency || "EUR"),
+        startValue: r.startValue == null ? null : Number(r.startValue),
+        endValue: Number(r.endValue ?? 0),
+        cashflowNet: Number(r.cashflowNet ?? 0),
+        profit: Number(r.profit ?? 0),
+        returnPct: r.returnPct == null ? null : Number(r.returnPct),
+      });
+    } catch {
+      setCurrentMonthReturn(null);
     }
   };
 
@@ -489,6 +511,7 @@ const submitContribution = useCallback(() => {
           .finally(() => {
             // Fase 2 (background): datos secundarios
             fetchSnapshots();
+            fetchCurrentMonthReturn();
             fetchArchived();
             fetchExposure();
             fetchTargets();
@@ -768,17 +791,27 @@ const submitContribution = useCallback(() => {
     if (!exists) setSelectedSliceId(null);
   }, [activeAllocation.slices, selectedSliceId]);
 
+  // snapshots (meses cerrados) + el mes en curso calculado en vivo, para que
+  // tabla/gráfica/totales anuales reflejen "cómo va" el mes actual sin
+  // esperar a que cierre. Si por lo que sea ya existiera un snapshot cerrado
+  // para ese mismo mes (p.ej. reconstruido a mano), ese gana y no se duplica.
+  const snapshotsForRent = useMemo(() => {
+    if (!currentMonthReturn) return snapshots;
+    const alreadyClosed = snapshots.some((s) => s.monthStart === currentMonthReturn.monthStart);
+    return alreadyClosed ? snapshots : [...snapshots, currentMonthReturn];
+  }, [snapshots, currentMonthReturn]);
+
   // Años únicos de los snapshots (orden asc)
   const rentYears = useMemo(() => {
     const set = new Set<number>();
-    snapshots.forEach((s) => set.add(new Date(s.monthStart).getUTCFullYear()));
+    snapshotsForRent.forEach((s) => set.add(new Date(s.monthStart).getUTCFullYear()));
     return Array.from(set).sort();
-  }, [snapshots]);
+  }, [snapshotsForRent]);
 
   // Agregado anual
   const rentYearRows = useMemo(() => {
     return rentYears.map((y) => {
-      const months = [...snapshots]
+      const months = [...snapshotsForRent]
         .filter((s) => new Date(s.monthStart).getUTCFullYear() === y)
         .sort((a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime());
       const first = months[0];
@@ -798,7 +831,7 @@ const submitContribution = useCallback(() => {
         returnPct,
       };
     });
-  }, [snapshots, rentYears]);
+  }, [snapshotsForRent, rentYears]);
 
   const rebuildMonthOptions = useMemo(() => {
     const years = new Set<number>();
@@ -905,7 +938,7 @@ const submitContribution = useCallback(() => {
   }, [timeline, rentRange, SCREEN_W]);
 
   const monthlyProfitBars = useMemo(() => {
-    const months = [...snapshots].sort(
+    const months = [...snapshotsForRent].sort(
       (a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime()
     );
     if (!months.length) return [];
@@ -914,8 +947,9 @@ const submitContribution = useCallback(() => {
       key: m.monthStart,
       label: new Date(m.monthStart).toLocaleDateString("es-ES", { month: "short" }),
       profit: Number(m.profit || 0),
+      isCurrent: currentMonthReturn != null && m.monthStart === currentMonthReturn.monthStart,
     }));
-  }, [snapshots, rentRange]);
+  }, [snapshotsForRent, rentRange, currentMonthReturn]);
 
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
@@ -964,7 +998,7 @@ const submitContribution = useCallback(() => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     allOperationsFetchedRef.current = false;
-    await Promise.all([fetchSummary(), fetchSnapshots(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline(), fetchAllOperations(true)]);
+    await Promise.all([fetchSummary(), fetchSnapshots(), fetchCurrentMonthReturn(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline(), fetchAllOperations(true)]);
     setRefreshing(false);
   }, [fetchAllOperations]);
 
@@ -1063,7 +1097,7 @@ const submitContribution = useCallback(() => {
             No se pudieron cargar las inversiones. Comprueba tu conexión.
           </Text>
           <TouchableOpacity
-            onPress={() => { fetchSummary(); fetchSnapshots(); fetchArchived(); fetchExposure(); fetchTargets(); }}
+            onPress={() => { fetchSummary(); fetchSnapshots(); fetchCurrentMonthReturn(); fetchArchived(); fetchExposure(); fetchTargets(); }}
             activeOpacity={0.8}
             style={{ marginTop: 4, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 24 }}
           >
@@ -1921,7 +1955,7 @@ const submitContribution = useCallback(() => {
                           <TouchableOpacity
                             key={b.key}
                             activeOpacity={0.8}
-                            onPress={() => setBarTooltip(isSelected ? null : { label: b.label.replace(".", ""), profit: b.profit })}
+                            onPress={() => setBarTooltip(isSelected ? null : { label: b.label.replace(".", ""), profit: b.profit, isCurrent: b.isCurrent })}
                             style={{ flex: 1, height: BAR_AREA * 2 + 1, alignItems: "center", justifyContent: "center" }}
                           >
                             <View style={{
@@ -1931,6 +1965,10 @@ const submitContribution = useCallback(() => {
                               borderRadius: 6,
                               backgroundColor: isSelected ? color : (positive ? "#86EFAC" : "#FCA5A5"),
                               top: positive ? BAR_AREA - barH : BAR_AREA + 1,
+                              opacity: b.isCurrent ? 0.6 : 1,
+                              borderWidth: b.isCurrent ? 1.5 : 0,
+                              borderColor: color,
+                              borderStyle: "dashed",
                             }} />
                           </TouchableOpacity>
                         );
@@ -1943,16 +1981,24 @@ const submitContribution = useCallback(() => {
                         const isSelected = barTooltip?.label === b.label.replace(".", "");
                         return (
                           <Text key={b.key} style={{ flex: 1, textAlign: "center", fontSize: 10, fontWeight: "700", color: isSelected ? "#0F172A" : "#94A3B8" }}>
-                            {b.label.replace(".", "")}
+                            {b.label.replace(".", "")}{b.isCurrent ? "*" : ""}
                           </Text>
                         );
                       })}
                     </View>
 
+                    {monthlyProfitBars.some((b) => b.isCurrent) && (
+                      <Text style={{ fontSize: 10, fontWeight: "600", color: "#94A3B8", marginTop: 4 }}>
+                        * mes en curso, hasta hoy
+                      </Text>
+                    )}
+
                     {/* Tooltip */}
                     {barTooltip && (
                       <View style={{ marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#475569" }}>{barTooltip.label}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#475569" }}>
+                          {barTooltip.label}{barTooltip.isCurrent ? " (en curso)" : ""}
+                        </Text>
                         <Text style={{ fontSize: 13, fontWeight: "900", color: barTooltip.profit >= 0 ? "#16A34A" : "#DC2626" }}>
                           {barTooltip.profit >= 0 ? "+" : ""}{formatMoney(barTooltip.profit, currency)}
                         </Text>
@@ -1965,7 +2011,7 @@ const submitContribution = useCallback(() => {
           </Animated.View>
         )}
 
-        {rentView === "tabla" && snapshots.length > 0 && (() => {
+        {rentView === "tabla" && snapshotsForRent.length > 0 && (() => {
           const years = [...rentYearRows].map((r) => r.year).sort((a, b) => b - a).slice(0, 4);
           const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
           const isSingleYear = years.length === 1;
@@ -1975,11 +2021,14 @@ const submitContribution = useCallback(() => {
           const monthCellByYear = new Map<number, Map<number, MonthlyRentRow>>();
           years.forEach((y) => {
             const mm = new Map<number, MonthlyRentRow>();
-            snapshots
+            snapshotsForRent
               .filter((s) => new Date(s.monthStart).getUTCFullYear() === y)
               .forEach((s) => mm.set(new Date(s.monthStart).getUTCMonth(), s));
             monthCellByYear.set(y, mm);
           });
+
+          const isCurrentMonthCell = (row: MonthlyRentRow | null) =>
+            !!row && !!currentMonthReturn && row.monthStart === currentMonthReturn.monthStart;
 
           const formatCell = (value: number | null | undefined, mode: "pct" | "eur", ccy: string) => {
             if (value == null || !Number.isFinite(value)) return "—";
@@ -2086,10 +2135,11 @@ const submitContribution = useCallback(() => {
                             const ccy = row?.currency ?? currency;
                             const { color } = pillColors(value);
                             const hasData = value != null && Number.isFinite(value);
+                            const isCurrent = isCurrentMonthCell(row);
                             return (
                               <View key={`cell-${y}-${mIdx}`} style={{ width: isSingleYear ? undefined : colW, flex: isSingleYear ? 1 : undefined, alignItems: "flex-end" }}>
-                                <Text style={{ fontSize: 12, fontWeight: "800", color: hasData ? color : "#CBD5E1" }}>
-                                  {formatCell(value, rentTableMetric, ccy)}
+                                <Text style={{ fontSize: 12, fontWeight: "800", color: hasData ? color : "#CBD5E1", opacity: isCurrent ? 0.65 : 1 }}>
+                                  {formatCell(value, rentTableMetric, ccy)}{isCurrent ? " •" : ""}
                                 </Text>
                               </View>
                             );
@@ -2302,6 +2352,8 @@ const submitContribution = useCallback(() => {
                 <Text style={{ fontSize: 17, fontWeight: "900", color: "#0F172A" }}>
                   {monthPopup?.label}
                   {monthPopup?.entries.length === 1 ? ` · ${monthPopup.entries[0].year}` : ""}
+                  {monthPopup?.entries.length === 1 && currentMonthReturn && monthPopup.entries[0].row.monthStart === currentMonthReturn.monthStart
+                    ? " (en curso)" : ""}
                 </Text>
                 <TouchableOpacity
                   onPress={() => setMonthPopup(null)}
@@ -2330,6 +2382,7 @@ const submitContribution = useCallback(() => {
                     {(monthPopup?.entries.length ?? 0) > 1 && (
                       <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B", marginBottom: 8, marginTop: idx > 0 ? 14 : 0 }}>
                         {year}
+                        {currentMonthReturn && row.monthStart === currentMonthReturn.monthStart ? " (en curso)" : ""}
                       </Text>
                     )}
 

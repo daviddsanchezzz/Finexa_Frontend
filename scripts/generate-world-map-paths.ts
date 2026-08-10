@@ -44,69 +44,43 @@ for (const c of worldCountries as any[]) {
 // Guadeloupe (Caribbean) and Réunion/Mayotte (Indian Ocean). On a small
 // world map those render as stray disconnected blobs far from the country's
 // actual landmass, which reads as a rendering bug rather than a real place.
-// Heuristic: keep the largest polygon (by bbox area) plus anything close to
-// it (legitimate nearby islands); drop polygons that are BOTH far away AND
-// small relative to the main landmass — that combination is what separates
-// "remote overseas territory" from "this country is a large archipelago"
-// (Indonesia/Philippines/Japan have several comparably-large islands, none
-// of which is a tiny distant outlier, so they're untouched by this).
-const REMOTE_DISTANCE_DEG = 25;
-const REMOTE_MAX_AREA_RATIO = 0.05;
+//
+// A generic "far + small" geometric heuristic was tried here first and
+// failed on the very case it targeted: French Guiana's bounding box is ~9%
+// of mainland France's area, above any threshold that wouldn't also risk
+// chopping legitimate territory off other countries (Hawaii vs. the US
+// mainland is a similarly "far + small" ratio, and must NOT be dropped).
+// So instead this is an explicit, manually-verified allowlist per country —
+// slower to extend to new countries, but each entry is a checked fact, not
+// a guess.
+const TERRITORY_MIN_LAT: Record<string, number> = {
+  // Mainland France/Corsica/nearby islands are all lat > 41; French Guiana,
+  // Martinique, Guadeloupe, Réunion and Mayotte are all lat < 17.
+  FR: 30,
+  // Mainland Netherlands is lat ~50-54; the Caribbean BES islands
+  // (Bonaire/Sint Eustatius/Saba) bundled into the same shape are lat ~12-18.
+  NL: 30,
+};
 
-function ringBBox(ring: [number, number][]) {
-  let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
-  for (const [lon, lat] of ring) {
-    if (lon < minLon) minLon = lon;
-    if (lon > maxLon) maxLon = lon;
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-  }
-  return { minLon, maxLon, minLat, maxLat };
-}
-function bboxArea(b: ReturnType<typeof ringBBox>) {
-  return Math.max(0, b.maxLon - b.minLon) * Math.max(0, b.maxLat - b.minLat);
-}
-function bboxCenter(b: ReturnType<typeof ringBBox>): [number, number] {
-  return [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2];
-}
-function dist(a: [number, number], b: [number, number]) {
-  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+function ringCentroidLat(ring: [number, number][]) {
+  let sum = 0;
+  for (const [, lat] of ring) sum += lat;
+  return sum / ring.length;
 }
 
-function stripRemoteTerritories(f: any) {
+function stripRemoteTerritories(f: any, minLat: number) {
   if (f.geometry?.type !== "MultiPolygon") return f;
   const polys: any[] = f.geometry.coordinates;
-  if (polys.length <= 1) return f;
-
-  const boxed = polys.map((poly) => ({ poly, bbox: ringBBox(poly[0]) }));
-  let main = boxed[0];
-  for (const b of boxed) if (bboxArea(b.bbox) > bboxArea(main.bbox)) main = b;
-  const mainCenter = bboxCenter(main.bbox);
-  const mainArea = bboxArea(main.bbox) || 1;
-
-  const kept = boxed.filter((b) => {
-    if (b === main) return true;
-    const isRemote = dist(mainCenter, bboxCenter(b.bbox)) > REMOTE_DISTANCE_DEG
-      && bboxArea(b.bbox) / mainArea < REMOTE_MAX_AREA_RATIO;
-    return !isRemote;
-  });
-
-  if (kept.length === boxed.length) return f;
-  return { ...f, geometry: { ...f.geometry, coordinates: kept.map((b) => b.poly) } };
+  const kept = polys.filter((poly) => ringCentroidLat(poly[0]) >= minLat);
+  if (!kept.length || kept.length === polys.length) return f;
+  return { ...f, geometry: { ...f.geometry, coordinates: kept } };
 }
-
-// Deliberately NOT applied blanket to every country: the distance+area
-// heuristic can't tell "remote overseas department" (French Guiana) apart
-// from "this large, spread-out country legitimately includes this" (Hawaii
-// is just as far/small relative to the US mainland and would get stripped
-// too, which would be wrong). So it only runs for countries manually
-// checked to have genuine remote-territory blobs bundled into their shape.
-const APPLY_TERRITORY_STRIP = new Set(["FR", "NL"]);
 
 const fc: any = feature(topology as any, (topology as any).objects.countries);
 fc.features = fc.features.map((f: any) => {
   const iso2 = numericToIso2.get(String(f.id));
-  return iso2 && APPLY_TERRITORY_STRIP.has(iso2) ? stripRemoteTerritories(f) : f;
+  const minLat = iso2 ? TERRITORY_MIN_LAT[iso2] : undefined;
+  return minLat != null ? stripRemoteTerritories(f, minLat) : f;
 });
 
 const projection = geoNaturalEarth1().fitSize([VIEWBOX_WIDTH, VIEWBOX_HEIGHT], fc);
