@@ -22,6 +22,28 @@ interface Props {
   swipeActionsEnabled?: boolean;
 }
 
+const TRIP_EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+  accommodation: "🏨 Alojamiento",
+  transport_local: "🚗 Transporte",
+  food: "🍽️ Comida",
+  activities: "🎟️ Actividades",
+  shopping: "🛒 Compras",
+  leisure: "🎉 Ocio",
+  other: "··· Otro",
+};
+
+const getTripExpenseCategoryLabel = (tx: any): string | null => {
+  const linkedPlanItem = tx?.planItems?.find(
+    (item: any) => item?.transactionId === tx?.id
+  ) ?? tx?.planItems?.[0];
+  const metadata = linkedPlanItem?.metadata;
+
+  if (metadata?.pending) return null;
+
+  const value = tx?.tripExpenseCategory ?? metadata?.expenseCategory;
+  return value ? TRIP_EXPENSE_CATEGORY_LABELS[value] ?? value : null;
+};
+
 export default function TransactionsList({
   transactions,
   onDeleted,
@@ -125,13 +147,14 @@ export default function TransactionsList({
 
   // DESCRIPCIÓN SECUNDARIA
   const getSecondaryText = (tx: any) => {
-    if (tx.description?.trim()) {
-      const max = 30;
-      return tx.description.length > max
-        ? tx.description.substring(0, max) + "..."
-        : tx.description;
+    const subcategory = tx.subcategory?.name?.trim();
+    const description = tx.description?.trim();
+    const detail = [subcategory, description].filter(Boolean).join(" · ");
+
+    if (detail) {
+      const max = 38;
+      return detail.length > max ? detail.substring(0, max) + "..." : detail;
     }
-    if (tx.subcategory?.name) return tx.subcategory.name;
 
     const d = new Date(tx.date);
     return `${String(d.getHours()).padStart(2, "0")}:${String(
@@ -259,6 +282,10 @@ export default function TransactionsList({
       </Text>
     );
   };
+
+  const selectedTripExpenseCategory = selectedTx
+    ? getTripExpenseCategoryLabel(selectedTx)
+    : null;
 
   return (
     <View className="mt-3">
@@ -452,6 +479,15 @@ export default function TransactionsList({
                     <Text className="text-gray-500">Subcategoría</Text>
                     <Text className="font-medium text-text">
                       {selectedTx.subcategory.name}
+                    </Text>
+                  </View>
+                )}
+
+                {selectedTx.type !== "transfer" && selectedTripExpenseCategory && (
+                  <View className="flex-row justify-between">
+                    <Text className="text-gray-500">Categoría del viaje</Text>
+                    <Text className="font-medium text-text">
+                      {selectedTripExpenseCategory}
                     </Text>
                   </View>
                 )}
