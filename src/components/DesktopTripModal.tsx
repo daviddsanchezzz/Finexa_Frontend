@@ -36,6 +36,7 @@ export type TripFromApi = {
 
   // opcionales
   status?: TripStatus | null;
+  statusManuallySet?: boolean;
   cost?: number | null;
 };
 
@@ -371,6 +372,7 @@ export function DesktopTripModal({
 
   // ✅ estado opcional
   const [status, setStatus] = useState<TripStatus | null>((editTrip?.status as TripStatus) ?? null);
+  const [statusManuallyChanged, setStatusManuallyChanged] = useState(false);
 
   const [costText, setCostText] = useState(String(editTrip?.cost ?? ""));
 
@@ -403,6 +405,7 @@ export function DesktopTripModal({
 
     setContinent(editTrip?.continent ?? null);
     setStatus(((editTrip?.status as TripStatus) ?? null) as any);
+    setStatusManuallyChanged(false);
     setCostText(editTrip?.cost == null ? "" : String(editTrip.cost));
 
     setStartDate(editTrip?.startDate ? new Date(editTrip.startDate) : null);
@@ -479,13 +482,12 @@ export function DesktopTripModal({
       continent: continent || null,
       companions,
 
-      // ✅ opcional
-      status: status ?? null,
+      ...(statusManuallyChanged && status ? { status } : {}),
 
       cost,
       budget: null as any,
     };
-  }, [destinationCity, countryCode, startDate, endDate, continent, companionsText, status, costText]);
+  }, [destinationCity, countryCode, startDate, endDate, continent, companionsText, status, statusManuallyChanged, costText]);
 
   const CONTINENTS: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: "europe", label: "Europa", icon: "globe-outline" },
@@ -750,7 +752,13 @@ export function DesktopTripModal({
 
                 {/* Status (bonito + ES + opcional) */}
                 <Field label="Estado" hint="opcional">
-                  <StatusPills value={status} onChange={setStatus} />
+                  <StatusPills
+                    value={status}
+                    onChange={(nextStatus) => {
+                      setStatus(nextStatus);
+                      setStatusManuallyChanged(true);
+                    }}
+                  />
                 </Field>
 
                 {/* Cost */}

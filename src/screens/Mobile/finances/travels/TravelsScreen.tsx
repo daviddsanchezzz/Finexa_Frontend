@@ -815,7 +815,9 @@ export default function TripsHomeScreen({ navigation }: any) {
                     onPress={() => setBoardMode(opt.id)}
                     activeOpacity={0.8}
                     style={{
-                      paddingVertical: 8, paddingHorizontal: 4, marginRight: 20,
+                      width: "33.333333%",
+                      paddingVertical: 8,
+                      alignItems: "center",
                       borderBottomWidth: 2,
                       borderBottomColor: active ? colors.primary : "transparent",
                       marginBottom: -1,

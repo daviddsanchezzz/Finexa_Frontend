@@ -60,6 +60,7 @@ export interface TripPlanItem {
   day?: string | null;
   startAt?: string | null;
   startTime?: string | null;
+  createdAt?: string | null;
 
   location?: string | null;
   notes?: string | null;
@@ -70,6 +71,7 @@ export interface TripPlanItem {
   paymentStatus?: PaymentStatus | null;
   expenseDetails?: { category?: BudgetCategoryType | null } | null;
   transactionId?: number | null;
+  transaction?: { date?: string | null; createdAt?: string | null } | null;
   metadata?: { expenseCategory?: BudgetCategoryType | null; pending?: boolean } | null;
   destinationTransport?: { mode?: "train" | "bus" | "car" | "ferry" | "other" | null } | null;
 }
@@ -566,7 +568,17 @@ const entries = useMemo(() => {
         id: `plan-${item.id}`,
         type: "expense",
         amount: safeNumber(item.cost),
-        date: item.startAt || item.startTime || item.day || item.date || null,
+        // En Gastos importa cuándo se pagó/registró, no el día en que
+        // ocurre el alojamiento, vuelo o actividad dentro del itinerario.
+        date:
+          item.transaction?.date ||
+          item.transaction?.createdAt ||
+          item.createdAt ||
+          item.startAt ||
+          item.startTime ||
+          item.day ||
+          item.date ||
+          null,
         description: item.title || "Gasto",
         category: {
           name: categoryDef.label,

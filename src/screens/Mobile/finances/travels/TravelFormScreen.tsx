@@ -41,6 +41,7 @@ interface TripFromApi {
   emoji?: string | null;
   budget?: number | null;
   status?: TripStatus | null;
+  statusManuallySet?: boolean;
   continent?: string | null;
   year?: number | null;
   cost?: number | null;
@@ -648,6 +649,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   const [dateMode]                = useState<TripDateMode>(() => detectTripDateMode(initialStays));
   const [budgetText, setBudgetText] = useState(editTrip.budget != null ? String(editTrip.budget) : "");
   const [status, setStatus] = useState<TripStatus | null>((editTrip.status as TripStatus) ?? null);
+  const [statusManuallyChanged, setStatusManuallyChanged] = useState(false);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(editTrip.coverImageUrl ?? null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving]   = useState(false);
@@ -683,7 +685,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
           endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
-        status: status ?? undefined,
+        ...(statusManuallyChanged && status ? { status } : {}),
         coverImageUrl: coverImageUrl ?? null,
       });
       navigation.goBack();
@@ -813,7 +815,10 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
               return (
                 <TouchableOpacity
                   key={o.value}
-                  onPress={() => setStatus(active ? null : o.value)}
+                  onPress={() => {
+                    setStatus(o.value);
+                    setStatusManuallyChanged(true);
+                  }}
                   style={{
                     flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: "center",
                     backgroundColor: active ? colors.primary : "#F8FAFC",
@@ -934,7 +939,6 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
-        status: "planning",
         coverImageUrl: coverImageUrl ?? undefined,
       });
       setCreatedTrip({ id: res.data.id, name: res.data.name });
