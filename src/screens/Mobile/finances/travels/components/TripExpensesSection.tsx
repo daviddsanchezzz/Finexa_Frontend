@@ -106,6 +106,7 @@ const UI = {
   muted2: "#94A3B8",
   border: "rgba(148,163,184,0.26)",
   card: "#FFFFFF",
+  background: "#F6F8FC",
 };
 
 function formatEuro(n: number) {
@@ -601,9 +602,9 @@ const entries = useMemo(() => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}>
         {/* TOTAL GASTADO — inline sin fondo */}
         {visibleKpis.length > 0 && (
-          <View style={{ marginBottom: 16 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 13, fontWeight: "700", color: UI.muted }}>Total gastado</Text>
+          <View style={{ marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#D1D5DB" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6 }}>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: UI.muted }}>Total gastado</Text>
               <Text style={{ fontSize: 26, fontWeight: "900", color: UI.text, letterSpacing: -0.5 }}>{formatEuro(totalSpent)}</Text>
             </View>
             {!!budget && budget > 0 && (() => {
@@ -629,9 +630,11 @@ const entries = useMemo(() => {
         {/* CATEGORÍAS — clicables para filtrar */}
         {visibleKpis.length > 0 && (
           <View style={{ marginBottom: 18 }}>
-            <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text, marginBottom: 8 }}>Gastos por categoría</Text>
+            <Text style={{ fontSize: 15, fontWeight: "600", color: UI.muted, marginBottom: 8, paddingHorizontal: 6 }}>
+              Gastos por categoría
+            </Text>
 
-            <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: UI.border, overflow: "hidden" }}>
+            <View>
               {[...visibleKpis]
                 .sort((a, b) => (totalsByCategory[b.key] || 0) - (totalsByCategory[a.key] || 0))
                 .map((def, idx, arr) => {
@@ -644,23 +647,28 @@ const entries = useMemo(() => {
                       key={def.key}
                       onPress={() => setCat((prev) => prev === def.key ? null : def.key)}
                       style={({ pressed }) => ({
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
+                        paddingHorizontal: 6,
+                        paddingVertical: 8,
                         borderBottomWidth: isLast ? 0 : 1,
-                        borderBottomColor: UI.border,
-                        backgroundColor: isActive ? def.badgeBg : pressed ? "rgba(15,23,42,0.02)" : "white",
+                        borderBottomColor: "#D1D5DB",
+                        backgroundColor: isActive
+                          ? def.badgeBg
+                          : pressed
+                            ? "rgba(148,163,184,0.10)"
+                            : UI.background,
+                        borderRadius: isActive ? 12 : 0,
                       })}
                     >
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
-                        <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: isActive ? def.accent + "25" : def.badgeBg, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
-                          <Text style={{ fontSize: 16, lineHeight: 19 }}>{def.emoji}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                        <View style={{ width: 36, height: 36, borderRadius: 9, backgroundColor: isActive ? def.accent + "25" : def.badgeBg, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                          <Text style={{ fontSize: 18, lineHeight: 21 }}>{def.emoji}</Text>
                         </View>
-                        <Text style={{ flex: 1, fontSize: 13, fontWeight: isActive ? "900" : "800", color: UI.text }}>{def.label}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>{formatEuro(amount)}</Text>
-                        <Text style={{ fontSize: 11, fontWeight: "700", color: UI.muted, marginLeft: 8, minWidth: 32, textAlign: "right" }}>{Math.round(pct)}%</Text>
+                        <Text style={{ flex: 1, fontSize: 16, fontWeight: "600", color: UI.text }}>{def.label}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: "600", color: UI.text }}>{formatEuro(amount)}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "500", color: UI.muted, marginLeft: 8, minWidth: 32, textAlign: "right" }}>{Math.round(pct)}%</Text>
                       </View>
-                      <View style={{ height: 4, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)" }}>
-                        <View style={{ height: 4, borderRadius: 99, backgroundColor: def.accent, width: `${Math.round(pct)}%` }} />
+                      <View style={{ height: 3, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.18)", marginLeft: 48 }}>
+                        <View style={{ height: 3, borderRadius: 99, backgroundColor: def.accent, width: `${Math.round(pct)}%` }} />
                       </View>
                     </Pressable>
                   );
@@ -713,7 +721,7 @@ const entries = useMemo(() => {
           <TransactionsList
             transactions={transactionListRows}
             navigation={navigation}
-            backgroundColor={UI.card}
+            backgroundColor={UI.background}
             swipeActionsEnabled={false}
             onPressTransaction={(row) => {
               if (row._tripPlanItem) {
