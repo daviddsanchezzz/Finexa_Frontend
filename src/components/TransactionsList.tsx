@@ -16,15 +16,19 @@ import RecurringScopeModal, {
 interface Props {
   transactions: any[];
   onDeleted?: () => void;
+  onPressTransaction?: (transaction: any) => void;
   navigation: any;
   backgroundColor?: string;
+  swipeActionsEnabled?: boolean;
 }
 
 export default function TransactionsList({
   transactions,
   onDeleted,
+  onPressTransaction,
   navigation,
   backgroundColor,
+  swipeActionsEnabled = true,
 }: Props) {
   const { isDark, colors: t } = useTheme();
   const bg = backgroundColor ?? (isDark ? t.surface : t.background);
@@ -37,6 +41,8 @@ export default function TransactionsList({
     visible: boolean;
     tx: any | null;
   }>({ visible: false, tx: null });
+  const swipeableRefs = React.useRef<Record<string | number, any>>({});
+  const [openId, setOpenId] = React.useState<string | number | null>(null);
 
   const openTxModal = (tx: any) => {
     setSelectedTx(tx);
@@ -58,11 +64,8 @@ export default function TransactionsList({
     );
   }
 
-  const swipeableRefs = React.useRef<Record<number, any>>({});
-  const [openId, setOpenId] = React.useState<number | null>(null);
-
-  const handleSwipeOpen = (id: number) => {
-    if (openId && openId !== id) {
+  const handleSwipeOpen = (id: string | number) => {
+    if (openId !== null && openId !== id) {
       swipeableRefs.current[openId]?.close();
     }
     setOpenId(id);
@@ -81,8 +84,10 @@ export default function TransactionsList({
     return sum;
   };
 
-  const getDayKey = (dateStr: string) => {
+  const getDayKey = (dateStr?: string | null) => {
+    if (!dateStr) return "__undated__";
     const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return "__undated__";
     const y = d.getUTCFullYear();
     const m = String(d.getUTCMonth() + 1).padStart(2, "0");
     const day = String(d.getUTCDate()).padStart(2, "0");
@@ -100,6 +105,7 @@ export default function TransactionsList({
   }, {});
 
   const formatDateLabel = (iso: string) => {
+    if (iso === "__undated__") return "Sin fecha";
     const today = new Date();
     const [y, m, d] = iso.split("-").map(Number);
 
@@ -257,7 +263,11 @@ export default function TransactionsList({
   return (
     <View className="mt-3">
       {Object.keys(grouped)
-        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+        .sort((a, b) => {
+          if (a === "__undated__") return 1;
+          if (b === "__undated__") return -1;
+          return new Date(b).getTime() - new Date(a).getTime();
+        })
         .map((isoDay) => {
           const items = grouped[isoDay];
           const dayTotal = getDayTotal(items);
@@ -283,25 +293,13 @@ export default function TransactionsList({
               <View className="h-[1px] bg-gray-300 mb-2" />
 
               {/* TRANSACCIONES */}
-              {items.map((tx) => (
-                <View key={tx.id} style={{ marginBottom: 6 }}>
-                  <Swipeable
-                    ref={(ref) => {
-                      if (ref) swipeableRefs.current[tx.id] = ref;
-                    }}
-                    onSwipeableOpen={() => handleSwipeOpen(tx.id)}
-                    renderRightActions={() => renderRightActions(tx)}
-                    renderLeftActions={() => renderLeftActions(tx)}
-                    overshootRight={false}
-                    overshootLeft={false}
-                    containerStyle={{ backgroundColor: bg }}
-                    childrenContainerStyle={{
-                      backgroundColor: bg,
-                    }}
-                  >
-                    <TouchableOpacity
+              {items.map((tx) => {
+                const row = (
+                  <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() => openTxModal(tx)}
+                      onPress={() =>
+                        onPressTransaction ? onPressTransaction(tx) : openTxModal(tx)
+                      }
                       style={{ backgroundColor: bg }}
                       className="flex-row justify-between items-center py-1.5 px-1.5 rounded-xl"
                     >
@@ -336,10 +334,32 @@ export default function TransactionsList({
 
                       {/* DERECHA – IMPORTE */}
                       {renderAmount(tx)}
-                    </TouchableOpacity>
-                  </Swipeable>
-                </View>
-              ))}
+                  </TouchableOpacity>
+                );
+
+                return (
+                  <View key={tx.id} style={{ marginBottom: 6 }}>
+                    {swipeActionsEnabled ? (
+                      <Swipeable
+                        ref={(ref) => {
+                          if (ref) swipeableRefs.current[tx.id] = ref;
+                        }}
+                        onSwipeableOpen={() => handleSwipeOpen(tx.id)}
+                        renderRightActions={() => renderRightActions(tx)}
+                        renderLeftActions={() => renderLeftActions(tx)}
+                        overshootRight={false}
+                        overshootLeft={false}
+                        containerStyle={{ backgroundColor: bg }}
+                        childrenContainerStyle={{ backgroundColor: bg }}
+                      >
+                        {row}
+                      </Swipeable>
+                    ) : (
+                      row
+                    )}
+                  </View>
+                );
+              })}
             </View>
           );
         })}

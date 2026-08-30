@@ -6,6 +6,7 @@ import { colors } from "../../../../../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 import api from "../../../../../api/api";
 import { appAlert } from "../../../../../utils/appAlert";
+import TransactionsList from "../../../../../components/TransactionsList";
 import PlanItemDetailModal from "./PlanItemDetailModal";
 
 // ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
@@ -70,7 +71,7 @@ export interface TripPlanItem {
   expenseDetails?: { category?: BudgetCategoryType | null } | null;
   transactionId?: number | null;
   metadata?: { expenseCategory?: BudgetCategoryType | null; pending?: boolean } | null;
-  destinationTransport?: { mode?: "train" | "bus" | "car" | "other" | null } | null;
+  destinationTransport?: { mode?: "train" | "bus" | "car" | "ferry" | "other" | null } | null;
 }
 
 export interface TripTx {
@@ -82,7 +83,7 @@ export interface TripTx {
   walletId?: number | null;
   categoryId?: number | null;
   subcategoryId?: number | null;
-  category?: { id: number; name: string; emoji?: string | null } | null;
+  category?: { id: number; name: string; emoji?: string | null; color?: string | null } | null;
   subcategory?: { id: number; name: string; emoji?: string | null } | null;
   wallet?: { id: number; name: string; emoji?: string | null } | null;
 }
@@ -553,6 +554,37 @@ const entries = useMemo(() => {
     [transactions, cat]
   );
 
+  const transactionListRows = useMemo(() => {
+    const planRows = filtered.map((item) => {
+      const itemCategory = categoryForItem(item);
+      const categoryDef =
+        BUDGET_DEFS.find((definition) => definition.key === itemCategory) ??
+        BUDGET_DEFS[BUDGET_DEFS.length - 1];
+
+      return {
+        id: `plan-${item.id}`,
+        type: "expense",
+        amount: safeNumber(item.cost),
+        date: item.startAt || item.startTime || item.day || item.date || null,
+        description: item.title || "Gasto",
+        category: {
+          name: categoryDef.label,
+          emoji: emojiForPlanItem(item, categoryDef.emoji),
+          color: categoryDef.badgeBg,
+        },
+        _tripPlanItem: item,
+      };
+    });
+
+    const registeredRows = visibleTxs.map((transaction) => ({
+      ...transaction,
+      id: `transaction-${transaction.id}`,
+      _tripTransaction: transaction,
+    }));
+
+    return [...planRows, ...registeredRows];
+  }, [filtered, visibleTxs]);
+
   if (entries.length === 0 && transactions.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-6">
@@ -677,92 +709,21 @@ const entries = useMemo(() => {
           </Pressable>
         </View>
 
-        {/* ITEMS filtrados */}
-        {subTab === "all" && filtered.length > 0 && (
-          <View style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>
-                {cat ? (BUDGET_DEFS.find(d => d.key === cat)?.label ?? "Gastos") : "Todos los gastos"}
-              </Text>
-              {cat && (
-                <Pressable onPress={() => setCat(null)}
-                  style={({ pressed }) => ({ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.14)", opacity: pressed ? 0.8 : 1 })}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: UI.muted }}>Ver todos</Text>
-                </Pressable>
-              )}
-            </View>
-            <View style={{ backgroundColor: UI.card, borderRadius: 18, borderWidth: 1, borderColor: UI.border, paddingVertical: 6 }}>
-              {filtered.map((it, idx) => (
-                <View key={it.id ?? idx}>
-                  <ExpenseRow
-                    item={it}
-                    onSetPaymentStatus={onSetPaymentStatus}
-                    onPress={() => {
-                      onPressItem?.(it);
-                      setDetailItem(it);
-                    }}
-                  />
-                  {idx < filtered.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 56 }} />
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {subTab === "all" && filtered.length === 0 && visibleTxs.length === 0 && (
-          <View style={{ alignItems: "center", paddingVertical: 40 }}>
-            <Ionicons name="receipt-outline" size={22} color="#94A3B8" />
-            <Text style={{ marginTop: 8, fontSize: 13, color: UI.muted, textAlign: "center" }}>
-              No hay gastos en esta categoría
-            </Text>
-          </View>
-        )}
-
-        {/* TRANSACCIONES registradas */}
-        {subTab === "all" && visibleTxs.length > 0 && (
-          <View style={{ marginBottom: 12 }}>
-            <Text style={{ fontSize: 11, fontWeight: "800", color: UI.muted, letterSpacing: 0.5, marginBottom: 6, marginLeft: 2 }}>
-              REGISTRADAS
-            </Text>
-            <View style={{ backgroundColor: UI.card, borderRadius: 18, borderWidth: 1, borderColor: UI.border, paddingVertical: 6 }}>
-              {visibleTxs.map((tx, idx) => (
-                <View key={tx.id}>
-                  <Pressable
-                    onPress={() => onPressTransaction?.(tx)}
-                    style={({ pressed }) => ({
-                      paddingVertical: 10,
-                      paddingHorizontal: 10,
-                      borderRadius: 14,
-                      backgroundColor: pressed ? "rgba(148,163,184,0.10)" : "transparent",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                    })}
-                  >
-                    <View style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: tx.category?.color || "#94A3B8" }} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }} numberOfLines={1}>
-                        {tx.description || tx.subcategory?.name || "Gasto"}
-                      </Text>
-                      <Text style={{ marginTop: 2, fontSize: 11, fontWeight: "700", color: UI.muted2 }} numberOfLines={1}>
-                        {tx.category?.name ?? ""}
-                        {tx.subcategory?.name ? ` · ${tx.subcategory.name}` : ""}
-                        {tx.date ? ` · ${formatDateShort(tx.date)}` : ""}
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: "900", color: UI.text }}>
-                      {formatEuro(safeNumber(tx.amount))}
-                    </Text>
-                  </Pressable>
-                  {idx < visibleTxs.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: "rgba(226,232,240,0.75)", marginLeft: 56 }} />
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          </View>
+        {subTab === "all" && (
+          <TransactionsList
+            transactions={transactionListRows}
+            navigation={navigation}
+            backgroundColor={UI.card}
+            swipeActionsEnabled={false}
+            onPressTransaction={(row) => {
+              if (row._tripPlanItem) {
+                onPressItem?.(row._tripPlanItem);
+                setDetailItem(row._tripPlanItem);
+                return;
+              }
+              if (row._tripTransaction) onPressTransaction?.(row._tripTransaction);
+            }}
+          />
         )}
 
         {/* ===== NUEVOS GASTOS ===== */}
