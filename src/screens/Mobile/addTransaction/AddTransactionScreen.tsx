@@ -221,13 +221,6 @@ export default function AddScreen({ navigation }: any) {
   ]);
 
   //---------------------------------------
-  // Limpiar categoría de viaje si cambia la subcategoría
-  //---------------------------------------
-  useEffect(() => {
-    setTripExpenseCategory(null);
-  }, [selectedSub?.id]);
-
-  //---------------------------------------
   // Resetear pantalla al entrar
   //---------------------------------------
   useFocusEffect(
@@ -292,15 +285,27 @@ export default function AddScreen({ navigation }: any) {
     if (cat && Array.isArray(cat.subcategories)) {
       const sub = cat.subcategories.find((s: any) => s.id === sourceData.subcategoryId) || null;
       setSelectedSub(sub);
+
+      const linkedPlanItem =
+        sourceData.planItems?.find((item: any) => item?.transactionId === sourceData.id) ??
+        sourceData.planItems?.[0];
+      const savedTripExpenseCategory =
+        sourceData.tripExpenseCategory !== undefined
+          ? sourceData.tripExpenseCategory
+          : linkedPlanItem?.metadata?.pending
+            ? null
+            : linkedPlanItem?.metadata?.expenseCategory ?? null;
+      setTripExpenseCategory(sub?.tripId ? savedTripExpenseCategory : null);
     } else {
       setSelectedSub(null);
+      setTripExpenseCategory(null);
     }
 
     // --------- CAMPOS BÁSICOS ----------
     setAmount(
       typeof sourceData.amount === "number"
         ? toAmountText(sourceData.amount)
-        : "0,00"
+        : ""
     );
 
     setDescription(sourceData.description || "");
@@ -376,7 +381,7 @@ export default function AddScreen({ navigation }: any) {
       payload.categoryId = selectedCategory?.id || null;
       payload.subcategoryId = selectedSub?.id || null;
 
-      if (!isEditing && selectedSub?.tripId && tripExpenseCategory) {
+      if (selectedSub?.tripId) {
         payload.tripExpenseCategory = tripExpenseCategory;
       }
     }
@@ -550,7 +555,7 @@ export default function AddScreen({ navigation }: any) {
                     letterSpacing: -1,
                   }}
                 >
-                  {amount || "0"}
+                  {amount}
                 </Text>
                 <Text style={{ fontSize: 36, fontWeight: "600", color: "#94A3B8", marginLeft: 6 }}>
                   €
@@ -721,6 +726,7 @@ export default function AddScreen({ navigation }: any) {
                         onPress={() => {
                           setSelectedCategory(cat);
                           setSelectedSub(null);
+                          setTripExpenseCategory(null);
                         }}
                         style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                       >
@@ -756,7 +762,10 @@ export default function AddScreen({ navigation }: any) {
                       return (
                         <TouchableOpacity
                           key={sub.id}
-                          onPress={() => setSelectedSub(sub)}
+                          onPress={() => {
+                            if (selectedSub?.id !== sub.id) setTripExpenseCategory(null);
+                            setSelectedSub(sub);
+                          }}
                           style={[chipBase, isSelected ? blueSelected : { borderColor: "#d1d5db" }]}
                         >
                           <Text style={chipText}>
@@ -779,7 +788,7 @@ export default function AddScreen({ navigation }: any) {
             )}
 
             {/* CATEGORÍA DE VIAJE — solo si la subcategoría pertenece a un viaje */}
-            {type !== "transfer" && !isEditing && selectedSub?.tripId && (
+            {type !== "transfer" && selectedSub?.tripId && (
               <>
                 <Text className="text-[13px] text-gray-400 mb-2">
                   ¿En qué se fue este gasto del viaje?

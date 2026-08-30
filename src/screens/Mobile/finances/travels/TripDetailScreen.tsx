@@ -1022,6 +1022,14 @@ export default function TripDetailScreen({ route, navigation }: any) {
                     categoryId: tx.categoryId ?? tx.category?.id,
                     subcategoryId: tx.subcategoryId ?? tx.subcategory?.id,
                     tripId: trip.id,
+                    tripExpenseCategory: (() => {
+                      const linkedPlanItem = planItems.find(
+                        (item) => item.transactionId === tx.id
+                      );
+                      return linkedPlanItem?.metadata?.pending
+                        ? null
+                        : linkedPlanItem?.metadata?.expenseCategory ?? null;
+                    })(),
                   },
                 })
               }
