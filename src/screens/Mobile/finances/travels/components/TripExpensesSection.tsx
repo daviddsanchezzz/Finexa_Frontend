@@ -359,7 +359,13 @@ export default function TripExpensesSection({
   const [subTab, setSubTab] = useState<"all" | "pending">("all");
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
   const [savingItemId, setSavingItemId] = useState<number | null>(null);
+  const [savingLinkMode, setSavingLinkMode] = useState<"accumulate" | "replace" | null>(null);
   const [linkSearch, setLinkSearch] = useState("");
+  const [linkCostChoice, setLinkCostChoice] = useState<{
+    target: TripPlanItem;
+    existingCost: number;
+    addCost: number;
+  } | null>(null);
   const [detailItem, setDetailItem] = useState<TripPlanItem | null>(null);
 
   const pendingItems = useMemo(
@@ -401,6 +407,8 @@ export default function TripExpensesSection({
     setLinkingItem(null);
     setLinkSearch("");
     setSavingItemId(null);
+    setSavingLinkMode(null);
+    setLinkCostChoice(null);
   };
 
   const handleLinkToPlan = async (planItemId: number) => {
@@ -415,15 +423,7 @@ export default function TripExpensesSection({
     // alquiler), no podemos simplemente sustituirlo sin preguntar: puede que
     // este sea un segundo pago que haya que sumar, no reemplazar.
     if (existingCost > 0) {
-      appAlert(
-        target.title || "Este plan ya tiene coste",
-        `Ya tiene ${formatEuro(existingCost)}. ¿Sumas este gasto (${formatEuro(addCost)}) o lo sustituyes?`,
-        [
-          { text: "Acumular", onPress: () => performLinkToPlan(target, existingCost + addCost, false) },
-          { text: "Sustituir", onPress: () => performLinkToPlan(target, addCost, true) },
-          { text: "Cancelar", style: "cancel" },
-        ]
-      );
+      setLinkCostChoice({ target, existingCost, addCost });
       return;
     }
 
@@ -434,6 +434,7 @@ export default function TripExpensesSection({
     if (!linkingItem) return;
     try {
       setSavingItemId(target.id);
+      setSavingLinkMode(linkTransaction ? "replace" : "accumulate");
       // El DTO exige type/title aunque no cambien: reenviamos los del item
       // destino tal cual (a diferencia de "crear gasto", aquí el item ya
       // tiene su propio nombre). La nota de la transacción (guardada como
@@ -472,6 +473,7 @@ export default function TripExpensesSection({
       onRefresh?.();
     } catch {
       setSavingItemId(null);
+      setSavingLinkMode(null);
     }
   };
 
@@ -846,7 +848,9 @@ const entries = useMemo(() => {
 
             {/* Header */}
             <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: UI.border }}>
-              <Text style={{ flex: 1, fontSize: 16, fontWeight: "900", color: UI.text }}>Vincular al plan</Text>
+              <Text style={{ flex: 1, fontSize: 16, fontWeight: "900", color: UI.text }}>
+                {linkCostChoice ? "Elegir importe" : "Vincular al plan"}
+              </Text>
               {savingItemId === null && (
                 <TouchableOpacity onPress={closeLinkModal}>
                   <Ionicons name="close" size={22} color={UI.muted} />
@@ -854,6 +858,81 @@ const entries = useMemo(() => {
               )}
             </View>
 
+            {linkCostChoice ? (
+              <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+                <Text style={{ fontSize: 15, fontWeight: "900", color: UI.text }} numberOfLines={2}>
+                  {linkCostChoice.target.title || "Este plan ya tiene coste"}
+                </Text>
+                <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 19, color: UI.muted }}>
+                  Ya tiene {formatEuro(linkCostChoice.existingCost)}. El nuevo gasto es de{" "}
+                  {formatEuro(linkCostChoice.addCost)}.
+                </Text>
+
+                <TouchableOpacity
+                  disabled={savingItemId !== null}
+                  onPress={() =>
+                    performLinkToPlan(
+                      linkCostChoice.target,
+                      linkCostChoice.existingCost + linkCostChoice.addCost,
+                      false
+                    )
+                  }
+                  style={{
+                    marginTop: 18,
+                    minHeight: 50,
+                    borderRadius: 14,
+                    backgroundColor: colors.primary,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: savingItemId !== null ? 0.65 : 1,
+                  }}
+                >
+                  {savingLinkMode === "accumulate" ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={{ fontSize: 14, fontWeight: "900", color: "white" }}>
+                      Acumular · {formatEuro(linkCostChoice.existingCost + linkCostChoice.addCost)}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  disabled={savingItemId !== null}
+                  onPress={() =>
+                    performLinkToPlan(linkCostChoice.target, linkCostChoice.addCost, true)
+                  }
+                  style={{
+                    marginTop: 10,
+                    minHeight: 50,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: UI.border,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: savingItemId !== null ? 0.65 : 1,
+                  }}
+                >
+                  {savingLinkMode === "replace" ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>
+                      Sustituir · {formatEuro(linkCostChoice.addCost)}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  disabled={savingItemId !== null}
+                  onPress={() => setLinkCostChoice(null)}
+                  style={{ minHeight: 46, alignItems: "center", justifyContent: "center", marginTop: 4 }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: UI.muted }}>
+                    Volver a elegir un ítem
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
             {/* Gasto origen */}
             {linkingItem && (
               <View style={{ marginHorizontal: 20, marginTop: 14, backgroundColor: "rgba(245,158,11,0.08)", borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -936,6 +1015,8 @@ const entries = useMemo(() => {
                 })
               )}
             </ScrollView>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
