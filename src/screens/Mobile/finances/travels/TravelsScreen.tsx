@@ -171,6 +171,23 @@ function tripCountriesLabel(trip: { destination?: string | null; countryStays?: 
   return codes.length > 0 ? codes.map((c) => countryNameEsFromISO2(c)).join(", ") : "—";
 }
 
+function compareWishlistTrips(a: TripUI, b: TripUI) {
+  const countryA = tripCountryCodes(a)[0];
+  const countryB = tripCountryCodes(b)[0];
+
+  if (countryA && !countryB) return -1;
+  if (!countryA && countryB) return 1;
+
+  const byCountry = countryNameEsFromISO2(countryA).localeCompare(
+    countryNameEsFromISO2(countryB),
+    "es",
+    { sensitivity: "base" }
+  );
+  if (byCountry !== 0) return byCountry;
+
+  return (a.name || "").localeCompare(b.name || "", "es", { sensitivity: "base" });
+}
+
 /** Row of flag badges, one per country a trip touches (falls back to a single "—" placeholder). */
 function CountryBadgesRow({ codes, size = 14, gap = 3 }: { codes: string[]; size?: number; gap?: number }) {
   if (codes.length === 0) return null;
@@ -324,7 +341,7 @@ export default function TripsHomeScreen({ navigation }: any) {
     return {
       seen:     [...filteredTrips.filter(t => t.status === "seen")].sort((a, b) => byDate(a, b, false)),
       planning: [...filteredTrips.filter(t => t.status === "planning")].sort((a, b) => byDate(a, b, true)),
-      wishlist: [...filteredTrips.filter(t => t.status === "wishlist")].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es")),
+      wishlist: [...filteredTrips.filter(t => t.status === "wishlist")].sort(compareWishlistTrips),
     };
   }, [filteredTrips]);
 

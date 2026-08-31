@@ -139,6 +139,29 @@ function norm(s: string) {
     .trim();
 }
 
+function countryNameEsFromISO2(code?: string | null) {
+  const countryCode = (code || "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(countryCode)) return "";
+  try {
+    return new Intl.DisplayNames(["es-ES"], { type: "region" }).of(countryCode) || countryCode;
+  } catch {
+    return countryCode;
+  }
+}
+
+function compareWishlistTrips(a: TripUI, b: TripUI) {
+  const countryA = countryNameEsFromISO2(a.destination);
+  const countryB = countryNameEsFromISO2(b.destination);
+
+  if (countryA && !countryB) return -1;
+  if (!countryA && countryB) return 1;
+
+  const byCountry = countryA.localeCompare(countryB, "es", { sensitivity: "base" });
+  if (byCountry !== 0) return byCountry;
+
+  return (a.name || "").localeCompare(b.name || "", "es", { sensitivity: "base" });
+}
+
 function isValidISODate(iso?: string | null) {
   if (!iso) return false;
   const d = new Date(iso);
@@ -1244,7 +1267,7 @@ const uniqueCount = uniqueCountries.size;
       return B - A;
     });
 
-    const wishlistSorted = [...wishlist].sort((a, b) => (a.name || "").localeCompare(b.name || "", "es"));
+    const wishlistSorted = [...wishlist].sort(compareWishlistTrips);
 
     return { seen: seenSorted, planning: planningSorted, wishlist: wishlistSorted };
   }, [filteredTrips]);
