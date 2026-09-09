@@ -117,7 +117,7 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
         style={[
           {
             height: 58,
-            borderRadius: 16,
+            borderRadius: 10,
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "white",
@@ -141,7 +141,7 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
             left: 1,
             right: 1,
             bottom: 1,
-            borderRadius: 15,
+            borderRadius: 9,
             backgroundColor: "#FFFFFF",
             opacity: flashOpacity,
           }}
@@ -154,7 +154,7 @@ function KeyButton({ onPress, children, style, textStyle }: KeyButtonProps) {
             left: 1,
             right: 1,
             bottom: 1,
-            borderRadius: 15,
+            borderRadius: 9,
             borderWidth: 1,
             borderColor: "#FFFFFF",
             opacity: glowOpacity,
@@ -294,7 +294,7 @@ export default function NumericCalculatorKeyboard({
         <View
           style={{
             height: isCompactHeader ? 44 : 52,
-            borderRadius: 16,
+            borderRadius: 12,
             paddingHorizontal: isCompactHeader ? 4 : 6,
             marginBottom: isCompactHeader ? 8 : 10,
             backgroundColor: "rgba(255,255,255,0.84)",
@@ -312,7 +312,7 @@ export default function NumericCalculatorKeyboard({
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 12,
+                  borderRadius: 8,
                   alignItems: "center",
                   justifyContent: "center",
                   backgroundColor: "white",
@@ -329,7 +329,7 @@ export default function NumericCalculatorKeyboard({
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 12,
+                  borderRadius: 8,
                   alignItems: "center",
                   justifyContent: "center",
                   backgroundColor: "white",
@@ -354,7 +354,7 @@ export default function NumericCalculatorKeyboard({
               style={{
                 minWidth: isCompactHeader ? 40 : 44,
                 height: isCompactHeader ? 36 : 40,
-                borderRadius: 12,
+                borderRadius: 8,
                 paddingHorizontal: isCompactHeader ? 10 : 12,
                 alignItems: "center",
                 justifyContent: "center",

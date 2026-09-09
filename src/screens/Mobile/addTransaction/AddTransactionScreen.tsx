@@ -193,6 +193,9 @@ export default function AddScreen({ navigation }: any) {
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // Solo en web: activo el input real de fecha, para oscurecer el fondo
+  // mientras el picker nativo del navegador está abierto.
+  const [dateFieldFocused, setDateFieldFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -991,7 +994,10 @@ export default function AddScreen({ navigation }: any) {
                 value={description}
                 onChangeText={setDescription}
                 placeholderTextColor="#94A3B8"
-                style={{ flex: 1, fontSize: 14, color: "#0F172A", padding: 0 }}
+                style={[
+                  { flex: 1, fontSize: 14, color: "#0F172A", padding: 0 },
+                  Platform.OS === "web" && ({ outlineStyle: "none" } as any),
+                ]}
                 onFocus={closeCalc}
               />
             </View>
@@ -1040,6 +1046,8 @@ export default function AddScreen({ navigation }: any) {
                     if (!e.target.value) return;
                     setDate(new Date(e.target.value));
                   }}
+                  onFocus={() => setDateFieldFocused(true)}
+                  onBlur={() => setDateFieldFocused(false)}
                   style={{
                     position: "absolute",
                     top: 0,
@@ -1055,6 +1063,20 @@ export default function AddScreen({ navigation }: any) {
                 />
               )}
             </View>
+
+            {/* Fondo oscurecido mientras el picker nativo de fecha está abierto (web) */}
+            {Platform.OS === "web" && dateFieldFocused && (
+              // @ts-ignore
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.35)",
+                  zIndex: 40,
+                  pointerEvents: "none",
+                }}
+              />
+            )}
 
             {Platform.OS !== "web" && (
               <CrossPlatformDateTimePicker
