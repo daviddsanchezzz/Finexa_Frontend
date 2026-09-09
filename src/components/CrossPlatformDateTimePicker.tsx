@@ -1,6 +1,6 @@
 // src/components/CrossPlatformDateTimePicker.tsx
 import React, { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 interface Props {
@@ -31,27 +31,11 @@ export default function CrossPlatformDateTimePicker({
   const toLocalDateTime = (d: Date) =>
     new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-  // WEB: en cuanto se abre, disparamos directamente el selector nativo del
-  // navegador con showPicker() — sin hoja intermedia propia con botón
-  // "Confirmar". Si el navegador no soporta showPicker(), caemos a un click
-  // programático (abre el mismo picker nativo al enfocar el input).
-  useEffect(() => {
-    if (Platform.OS !== "web" || !isVisible) return;
-    const id = requestAnimationFrame(() => {
-      const el = webInputRef.current;
-      if (!el) return;
-      if (typeof el.showPicker === "function") {
-        try {
-          el.showPicker();
-          return;
-        } catch {
-          // sigue al fallback de abajo
-        }
-      }
-      el.click?.();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [isVisible]);
+  const getTitle = () => {
+    if (mode === "time") return "Selecciona la hora";
+    if (mode === "date") return "Selecciona la fecha";
+    return "Selecciona fecha y hora";
+  };
 
   const parseValueToDate = (v: string): Date => {
     let newDate: Date;
@@ -69,8 +53,23 @@ export default function CrossPlatformDateTimePicker({
     return newDate;
   };
 
-  // WEB VERSION — input nativo invisible: el propio navegador dibuja el
-  // calendario/reloj, seleccionar un valor confirma al instante.
+  // WEB: en cuanto se abre la hoja, intentamos abrir de una vez el selector
+  // nativo del navegador sobre el input visible (nos ahorramos un tap). Si el
+  // navegador bloquea showPicker() por no venir de un gesto directo, el
+  // input sigue ahí, visible y pulsable — siempre hay forma de abrirlo.
+  useEffect(() => {
+    if (Platform.OS !== "web" || !isVisible) return;
+    const id = requestAnimationFrame(() => {
+      try {
+        webInputRef.current?.showPicker?.();
+      } catch {
+        // el usuario puede tocar el input directamente
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isVisible]);
+
+  // WEB VERSION
   if (Platform.OS === "web") {
     if (!isVisible) return null;
 
@@ -85,27 +84,49 @@ export default function CrossPlatformDateTimePicker({
         : toLocalDateTime(safeDate);
 
     return (
-      // @ts-ignore
-      <input
-        ref={webInputRef}
-        type={inputType}
-        defaultValue={defaultValue}
-        onChange={(e: any) => {
-          if (!e.target.value) return;
-          onConfirm(parseValueToDate(e.target.value));
-        }}
-        onBlur={onCancel}
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: 1,
-          height: 1,
-          opacity: 0,
-          border: "none",
-          pointerEvents: "none",
-        }}
-      />
+      <Modal
+        visible={isVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={onCancel}
+        statusBarTranslucent
+      >
+        <View style={s.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+          <View style={s.sheet}>
+            {/* Handle */}
+            <View style={s.handle} />
+
+            {/* Title */}
+            <Text style={s.title}>{getTitle()}</Text>
+
+            {/* Input nativo — al elegir un valor se confirma al instante,
+                sin botón "Confirmar" adicional */}
+            {/* @ts-ignore */}
+            <input
+              ref={webInputRef}
+              type={inputType}
+              defaultValue={defaultValue}
+              onChange={(e: any) => {
+                if (!e.target.value) return;
+                onConfirm(parseValueToDate(e.target.value));
+              }}
+              style={{
+                width: "100%",
+                height: 44,
+                borderRadius: 12,
+                border: "1px solid #D1D5DB",
+                backgroundColor: "#F9FAFB",
+                textAlign: "center",
+                fontSize: 16,
+                color: "#111827",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     );
   }
 
@@ -123,3 +144,40 @@ export default function CrossPlatformDateTimePicker({
     />
   );
 }
+
+const s = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -4 },
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6B7280",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+});

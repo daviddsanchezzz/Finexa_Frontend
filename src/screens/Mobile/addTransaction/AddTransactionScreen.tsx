@@ -78,12 +78,12 @@ function SelectCard({
       disabled={disabled}
       activeOpacity={0.85}
       style={{
-        width: 78,
-        paddingVertical: 10,
-        paddingHorizontal: 6,
-        borderRadius: 14,
+        width: 72,
+        paddingVertical: 6,
+        paddingHorizontal: 5,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: selected ? "#3B82F6" : "#E5E7EB",
+        borderColor: selected ? "#93C5FD" : "#E5E7EB",
         backgroundColor: selected ? "#EFF6FF" : "#FFFFFF",
         alignItems: "center",
         justifyContent: "center",
@@ -93,25 +93,27 @@ function SelectCard({
     >
       <View
         style={{
-          width: 30,
-          height: 30,
-          borderRadius: 10,
+          width: 22,
+          height: 22,
+          borderRadius: 8,
           backgroundColor: selected ? "#DBEAFE" : "#F3F4F6",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 5,
+          marginBottom: 3,
         }}
       >
-        <Text style={{ fontSize: 14 }}>{emoji}</Text>
+        <Text style={{ fontSize: 12 }}>{emoji}</Text>
       </View>
       <Text
-        numberOfLines={2}
-        style={{ fontSize: 11, fontWeight: "700", color: "#0F172A", textAlign: "center", lineHeight: 13 }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ fontSize: 11, fontWeight: "700", color: "#0F172A", textAlign: "center" }}
       >
         {label}
       </Text>
       {subLabel != null && (
-        <Text numberOfLines={1} style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
+        <Text numberOfLines={1} style={{ fontSize: 9, color: "#94A3B8", marginTop: 1 }}>
           {subLabel}
         </Text>
       )}
@@ -128,22 +130,24 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
       onPress={onPress}
       activeOpacity={0.85}
       style={{
-        width: 78,
-        minHeight: 74,
-        borderRadius: 14,
+        width: 72,
+        minHeight: 58,
+        borderRadius: 12,
         borderWidth: 1.5,
         borderStyle: "dashed",
         borderColor: colors.primary,
         alignItems: "center",
         justifyContent: "center",
         marginRight: 8,
-        paddingHorizontal: 6,
+        paddingHorizontal: 4,
       }}
     >
-      <Ionicons name="add" size={16} color={colors.primary} />
+      <Ionicons name="add" size={14} color={colors.primary} />
       <Text
-        numberOfLines={2}
-        style={{ fontSize: 10.5, fontWeight: "700", color: colors.primary, marginTop: 4, textAlign: "center", lineHeight: 13 }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ fontSize: 10, fontWeight: "700", color: colors.primary, marginTop: 2, textAlign: "center" }}
       >
         {label}
       </Text>
@@ -163,7 +167,7 @@ export default function AddScreen({ navigation }: any) {
   // SafeAreaView already pads by insets.bottom, so we only need the remaining overlap
   const tabBarHeight = Math.max(0, 95 - insets.bottom);
   // Alto aproximado de la barra de "Guardar" fija al fondo (botón + paddings)
-  const saveBarHeight = 74;
+  const saveBarHeight = 66;
 
   // ✅ si vienes desde InvestmentDetail para añadir aportación
   const prefillInvestmentAssetId = (route.params as any)?.prefillInvestmentAssetId ?? null;
@@ -203,36 +207,35 @@ export default function AddScreen({ navigation }: any) {
   // Estilos de chips
   //---------------------------------------
   const chipBase: ViewStyle = {
-    minHeight: 30,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    minHeight: 26,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 9999,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    minWidth: 90,
     marginRight: 8,
   };
 
   const chipText: TextStyle = {
-    fontSize: 15,
+    fontSize: 13,
   };
 
   const sectionLabelStyle: TextStyle = {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
     color: "#94A3B8",
     letterSpacing: 0.4,
     textTransform: "uppercase",
-    marginBottom: 8,
+    marginBottom: 5,
   };
 
   const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const toAmountText = (n: number) => round2(n).toFixed(2).replace(".", ",");
 
   const blueSelected = {
-    backgroundColor: "#e0f2fe",
-    borderColor: "#3b82f6",
+    backgroundColor: "#EFF6FF",
+    borderColor: "#93C5FD",
   };
 
   //---------------------------------------
@@ -635,10 +638,10 @@ export default function AddScreen({ navigation }: any) {
               style={{
                 flexDirection: "row",
                 backgroundColor: "#F3F4F6",
-                borderRadius: 16,
-                padding: 4,
-                marginTop: 24,
-                marginBottom: 24,
+                borderRadius: 14,
+                padding: 3,
+                marginTop: 14,
+                marginBottom: 14,
               }}
             >
               {[
@@ -662,8 +665,8 @@ export default function AddScreen({ navigation }: any) {
                     }}
                     style={{
                       flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 12,
+                      paddingVertical: 8,
+                      borderRadius: 10,
                       backgroundColor: active ? "#FFFFFF" : "transparent",
                       alignItems: "center",
                       justifyContent: "center",
@@ -692,7 +695,7 @@ export default function AddScreen({ navigation }: any) {
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={openCalc}
-              className="items-center mb-8 mt-2"
+              style={{ alignItems: "center", marginBottom: 14, marginTop: 2 }}
             >
               {!!calcExpression && (
                 <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", marginBottom: 2 }}>
@@ -723,7 +726,12 @@ export default function AddScreen({ navigation }: any) {
             {type === "transfer" ? (
               <>
                 <Text style={sectionLabelStyle}>Desde</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                   {wallets.map((wallet) => (
                     <SelectCard
                       key={`from-${wallet.id}`}
@@ -746,7 +754,12 @@ export default function AddScreen({ navigation }: any) {
                 </ScrollView>
 
                 <Text style={sectionLabelStyle}>Hacia</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                   {wallets.map((wallet) => {
                     const isDisabled = selectedWalletFrom?.id === wallet.id;
 
@@ -780,7 +793,7 @@ export default function AddScreen({ navigation }: any) {
                     {investmentAssets.length === 0 ? (
                       <TouchableOpacity
                         onPress={() => navigation.navigate("InvestmentForm")}
-                        className="py-3 px-4 rounded-2xl mb-6"
+                        className="py-3 px-4 rounded-2xl mb-3"
                         style={{
                           backgroundColor: "#F3F4F6",
                           borderWidth: 1,
@@ -793,7 +806,12 @@ export default function AddScreen({ navigation }: any) {
                         </Text>
                       </TouchableOpacity>
                     ) : (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                      <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                         {investmentAssets.map((inv) => {
                           const isSelected = selectedInvestmentAsset?.id === inv.id;
                           return (
@@ -830,7 +848,12 @@ export default function AddScreen({ navigation }: any) {
             ) : (
               <>
                 <Text style={sectionLabelStyle}>Cartera</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                   {wallets.map((wallet) => (
                     <SelectCard
                       key={wallet.id}
@@ -850,7 +873,12 @@ export default function AddScreen({ navigation }: any) {
               <>
                 <Text style={sectionLabelStyle}>Categoría</Text>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                   {filteredCategories.map((cat) => (
                     <SelectCard
                       key={cat.id}
@@ -876,7 +904,12 @@ export default function AddScreen({ navigation }: any) {
               <>
                 <Text style={sectionLabelStyle}>Subcategoría</Text>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                   {subcategories.length > 0 &&
                     subcategories.map((sub: any) => {
                       const isSelected = selectedSub?.id === sub.id;
@@ -915,7 +948,12 @@ export default function AddScreen({ navigation }: any) {
                   ¿En qué se fue este gasto del viaje?
                 </Text>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-3"
+                  contentContainerStyle={{ paddingRight: 12 }}
+                >
                   {TRIP_EXPENSE_CATEGORIES.map((opt) => {
                     const isSelected = tripExpenseCategory === opt.value;
                     return (
@@ -934,8 +972,42 @@ export default function AddScreen({ navigation }: any) {
               </>
             )}
 
-            {/* FECHA */}
-            <Text style={sectionLabelStyle}>Fecha y hora</Text>
+            {/* DESCRIPCIÓN */}
+            <Text style={sectionLabelStyle}>Descripción</Text>
+            <View
+              onLayout={(e) => {
+                setDescriptionY(e.nativeEvent.layout.y);
+              }}
+              style={{
+                backgroundColor: "#FFFFFF",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 14,
+                paddingVertical: 8,
+                paddingHorizontal: 14,
+                marginBottom: 10,
+              }}
+            >
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Añadir nota"
+                placeholderTextColor="#CBD5E1"
+                multiline
+                style={{ fontSize: 14, color: "#0F172A", padding: 0 }}
+                onFocus={() => {
+                  closeCalc();
+                  setTimeout(() => {
+                    scrollRef.current?.scrollTo({
+                      y: descriptionY - 80,
+                      animated: true,
+                    });
+                  }, 250);
+                }}
+              />
+            </View>
+
+            {/* FECHA — fila compacta estilo "settings" de iOS */}
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.85}
@@ -946,25 +1018,25 @@ export default function AddScreen({ navigation }: any) {
                 backgroundColor: "#FFFFFF",
                 borderWidth: 1,
                 borderColor: "#E5E7EB",
-                borderRadius: 16,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
-                marginBottom: 20,
+                borderRadius: 14,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                marginBottom: 14,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Ionicons name="calendar-outline" size={18} color="#64748B" />
-                <Text style={{ fontSize: 15, color: "#0F172A", fontWeight: "500" }}>Fecha y hora</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "500" }}>Fecha y hora</Text>
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={{ fontSize: 14, color: "#64748B" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={{ fontSize: 13, color: "#64748B" }}>
                   {date.toLocaleDateString("es-ES", {
                     day: "numeric",
                     month: "short",
                   })}
                   , {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
               </View>
             </TouchableOpacity>
 
@@ -979,51 +1051,16 @@ export default function AddScreen({ navigation }: any) {
               onCancel={() => setShowDatePicker(false)}
             />
 
-            {/* DESCRIPCIÓN */}
-            <Text style={sectionLabelStyle}>Descripción</Text>
-            <View
-              onLayout={(e) => {
-                setDescriptionY(e.nativeEvent.layout.y);
-              }}
-              style={{
-                backgroundColor: "#FFFFFF",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                borderRadius: 16,
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                marginBottom: 20,
-              }}
-            >
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Añadir nota"
-                placeholderTextColor="#CBD5E1"
-                multiline
-                style={{ fontSize: 15, color: "#0F172A", padding: 0 }}
-                onFocus={() => {
-                  closeCalc();
-                  setTimeout(() => {
-                    scrollRef.current?.scrollTo({
-                      y: descriptionY - 80,
-                      animated: true,
-                    });
-                  }, 250);
-                }}
-              />
-            </View>
-
             {/* PERIODICIDAD */}
-            <View className="mt-2">
+            <View>
               <Text style={sectionLabelStyle}>Periodicidad</Text>
 
               <View
                 style={{
                   flexDirection: "row",
                   backgroundColor: "#F3F4F6",
-                  borderRadius: 14,
-                  padding: 4,
+                  borderRadius: 12,
+                  padding: 3,
                 }}
               >
                 {[
@@ -1044,8 +1081,8 @@ export default function AddScreen({ navigation }: any) {
                       }}
                       style={{
                         flex: 1,
-                        paddingVertical: 8,
-                        borderRadius: 10,
+                        paddingVertical: 6,
+                        borderRadius: 9,
                         alignItems: "center",
                         justifyContent: "center",
                         backgroundColor: isSelected ? "#FFFFFF" : "transparent",
@@ -1058,8 +1095,10 @@ export default function AddScreen({ navigation }: any) {
                     >
                       <Text
                         numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
                         style={{
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: "700",
                           color: isSelected ? "#0F172A" : "#9CA3AF",
                         }}
@@ -1080,13 +1119,17 @@ export default function AddScreen({ navigation }: any) {
             onSave={handleCategoryModalSave}
           />
 
-          {/* BOTÓN GUARDAR — fijo al fondo, encima del teclado calculadora si está abierto */}
+          {/* BOTÓN GUARDAR — fijo al fondo, encima del teclado calculadora si está abierto.
+              Borde superior para separarlo visualmente de la bottom nav (evita que
+              compita con el botón "+" central). */}
           <View
             style={{
               paddingHorizontal: 20,
-              paddingTop: 10,
-              paddingBottom: calcVisible ? 10 : 10 + tabBarHeight,
+              paddingTop: 8,
+              paddingBottom: calcVisible ? 8 : 8 + tabBarHeight,
               backgroundColor: "#FFFFFF",
+              borderTopWidth: 1,
+              borderTopColor: "#F1F5F9",
             }}
           >
             <TouchableOpacity
@@ -1094,8 +1137,8 @@ export default function AddScreen({ navigation }: any) {
               disabled={!canSave || saving}
               activeOpacity={0.85}
               style={{
-                height: 54,
-                borderRadius: 16,
+                height: 52,
+                borderRadius: 14,
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: canSave ? colors.primary : "#E5E7EB",
