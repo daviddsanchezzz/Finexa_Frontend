@@ -11,7 +11,7 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -78,11 +78,10 @@ function SelectCard({
       disabled={disabled}
       activeOpacity={0.85}
       style={{
-        width: 92,
-        minHeight: 86,
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        borderRadius: 16,
+        width: 78,
+        paddingVertical: 10,
+        paddingHorizontal: 6,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: selected ? "#3B82F6" : "#E5E7EB",
         backgroundColor: selected ? "#EFF6FF" : "#FFFFFF",
@@ -94,22 +93,25 @@ function SelectCard({
     >
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 12,
+          width: 30,
+          height: 30,
+          borderRadius: 10,
           backgroundColor: selected ? "#DBEAFE" : "#F3F4F6",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 6,
+          marginBottom: 5,
         }}
       >
-        <Text style={{ fontSize: 17 }}>{emoji}</Text>
+        <Text style={{ fontSize: 14 }}>{emoji}</Text>
       </View>
-      <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
+      <Text
+        numberOfLines={2}
+        style={{ fontSize: 11, fontWeight: "700", color: "#0F172A", textAlign: "center", lineHeight: 13 }}
+      >
         {label}
       </Text>
       {subLabel != null && (
-        <Text numberOfLines={1} style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
+        <Text numberOfLines={1} style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
           {subLabel}
         </Text>
       )}
@@ -126,9 +128,9 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
       onPress={onPress}
       activeOpacity={0.85}
       style={{
-        width: 92,
-        minHeight: 86,
-        borderRadius: 16,
+        width: 78,
+        minHeight: 74,
+        borderRadius: 14,
         borderWidth: 1.5,
         borderStyle: "dashed",
         borderColor: colors.primary,
@@ -138,10 +140,10 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
         paddingHorizontal: 6,
       }}
     >
-      <Ionicons name="add" size={18} color={colors.primary} />
+      <Ionicons name="add" size={16} color={colors.primary} />
       <Text
         numberOfLines={2}
-        style={{ fontSize: 11, fontWeight: "700", color: colors.primary, marginTop: 4, textAlign: "center" }}
+        style={{ fontSize: 10.5, fontWeight: "700", color: colors.primary, marginTop: 4, textAlign: "center", lineHeight: 13 }}
       >
         {label}
       </Text>
@@ -706,18 +708,15 @@ export default function AddScreen({ navigation }: any) {
                     letterSpacing: -1,
                   }}
                 >
-                  {amount}
+                  {amount || "0,00"}
                 </Text>
-                <Text style={{ fontSize: 36, fontWeight: "600", color: "#94A3B8", marginLeft: 6 }}>
-                  €
-                </Text>
+                <MaterialCommunityIcons
+                  name="currency-eur"
+                  size={28}
+                  color="#94A3B8"
+                  style={{ marginLeft: 4, marginBottom: 4 }}
+                />
               </View>
-              {!calcVisible && (
-                <View style={{ marginTop: 6, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Ionicons name="calculator-outline" size={13} color="#CBD5E1" />
-                  <Text style={{ fontSize: 11, color: "#CBD5E1", fontWeight: "600" }}>toca para editar</Text>
-                </View>
-              )}
             </TouchableOpacity>
 
             {/* CARTERAS */}
