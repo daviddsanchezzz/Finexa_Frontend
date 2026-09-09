@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { ViewStyle, TextStyle } from "react-native";
@@ -38,6 +39,7 @@ const TRIP_EXPENSE_CATEGORIES = [
 
 export default function AddScreen({ navigation }: any) {
   const route = useRoute();
+  const queryClient = useQueryClient();
   const editData = (route.params as any)?.editData || null;
   const prefillData = (route.params as any)?.prefillData || null;
   const isEditing = !!(editData && editData.id != null);
@@ -386,7 +388,8 @@ export default function AddScreen({ navigation }: any) {
       }
     }
 
-    if (!isEditing && prefillData?.quickAddId) {
+    const resolvesQuickAdd = !isEditing && !!prefillData?.quickAddId;
+    if (resolvesQuickAdd) {
       payload.quickAddId = prefillData.quickAddId;
     }
 
@@ -409,6 +412,9 @@ export default function AddScreen({ navigation }: any) {
         await api.post("/transactions", payload);
       }
       markTransactionsDirty();
+      if (resolvesQuickAdd) {
+        queryClient.invalidateQueries({ queryKey: ["notificationsFeed"] });
+      }
       navigation.goBack();
     } catch (error) {
       appAlert("Error", "No se pudo guardar");

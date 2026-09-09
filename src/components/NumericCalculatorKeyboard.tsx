@@ -240,32 +240,39 @@ export default function NumericCalculatorKeyboard({
     onChangeValue(value.length <= 1 ? "" : value.slice(0, -1));
   };
 
+  const applyOp = (op: string, a: number, b: number) => {
+    switch (op) {
+      case "+":
+        return a + b;
+      case "-":
+        return a - b;
+      case "*":
+        return a * b;
+      case "/":
+        return b !== 0 ? a / b : 0;
+      default:
+        return b;
+    }
+  };
+
   const onOperator = (op: string) => {
-    setCalcPrev(parseDisplay(value));
+    // Si ya había una operación pendiente y el usuario tecleó un nuevo
+    // número (no está justo tras otro operador), la resolvemos antes de
+    // encadenar la siguiente: "3 + 4 +" debe dar "7 +", no perder el 3.
+    if (calcOp && calcPrev !== null && !calcFresh) {
+      const result = applyOp(calcOp, calcPrev, parseDisplay(value));
+      onChangeValue(formatDisplay(result));
+      setCalcPrev(result);
+    } else if (calcPrev === null) {
+      setCalcPrev(parseDisplay(value));
+    }
     setCalcOp(op);
     setCalcFresh(true);
   };
 
   const onEquals = () => {
     if (!calcOp || calcPrev === null) return;
-    const curr = parseDisplay(value);
-    let result = curr;
-    switch (calcOp) {
-      case "+":
-        result = calcPrev + curr;
-        break;
-      case "-":
-        result = calcPrev - curr;
-        break;
-      case "*":
-        result = calcPrev * curr;
-        break;
-      case "/":
-        result = curr !== 0 ? calcPrev / curr : 0;
-        break;
-      default:
-        break;
-    }
+    const result = applyOp(calcOp, calcPrev, parseDisplay(value));
     onChangeValue(formatDisplay(result));
     setCalcOp(null);
     setCalcPrev(null);

@@ -12,6 +12,7 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "../theme/theme";
 import api from "../api/api";
 import { markTransactionsDirty } from "../utils/transactionsInvalidation";
@@ -176,6 +177,7 @@ const parseDateTimeLocal = (v: string) => {
 };
 
 export default function CreateTransactionModal({ visible, onClose, onSaved, prefill, editData }: Props) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -439,7 +441,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
       payload.recurrence = null;
     }
 
-    if (prefill?.quickAddId) {
+    const resolvesQuickAdd = !!prefill?.quickAddId;
+    if (resolvesQuickAdd) {
       payload.quickAddId = prefill.quickAddId;
     }
 
@@ -447,6 +450,9 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
       setSaving(true);
       await api.post("/transactions", payload);
       markTransactionsDirty();
+      if (resolvesQuickAdd) {
+        queryClient.invalidateQueries({ queryKey: ["notificationsFeed"] });
+      }
       onSaved?.();
       onClose();
     } catch (e) {
@@ -460,6 +466,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     description,
     onClose,
     onSaved,
+    prefill,
+    queryClient,
     recurrenceInterval,
     selectedCategory,
     selectedInvestmentAsset,
