@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/api";
+import { isTripOngoing } from "../utils/tripDates";
 
 interface OngoingTripSummary {
   id: number;
@@ -17,10 +18,7 @@ function useOngoingTripId() {
 
   return useMemo(() => {
     const now = new Date();
-    const trip = (data ?? []).find((t) => {
-      if (!t.startDate || !t.endDate) return false;
-      return new Date(t.startDate) <= now && now <= new Date(t.endDate);
-    });
+    const trip = (data ?? []).find((t) => isTripOngoing(t.startDate, t.endDate, now));
     return trip?.id ?? null;
   }, [data]);
 }

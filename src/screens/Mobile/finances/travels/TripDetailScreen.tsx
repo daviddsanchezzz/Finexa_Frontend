@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
+import { tripDateKey } from "../../../../utils/tripDates";
 import { appAlert } from "../../../../utils/appAlert";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { TripDetailScreenSkeleton } from "../../../../components/skeletons/TripDetailScreenSkeleton";
@@ -127,10 +128,11 @@ type TripTab = "summary" | "expenses" | "planning" | "info";
 const TRIP_DETAIL_CACHE = new Map<number, TripFromApi>();
 
 const getTripStatus = (trip: { startDate: string; endDate: string }): TripStatus => {
-  const today = new Date();
-  const start = new Date(trip.startDate);
-  const end = new Date(trip.endDate);
+  const today = tripDateKey(new Date());
+  const start = tripDateKey(trip.startDate);
+  const end = tripDateKey(trip.endDate);
 
+  if (today == null || start == null || end == null) return "past";
   if (end < today) return "past";
   if (start > today) return "upcoming";
   return "ongoing";

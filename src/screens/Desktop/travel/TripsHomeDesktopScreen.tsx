@@ -19,6 +19,7 @@ import { colors } from "../../../theme/theme";
 import { textStyles, typography } from "../../../theme/typography";
 import { DesktopTripModal, TripFromApi as TripEdit } from "../../../components/DesktopTripModal";
 import { KpiCard } from "../../../components/KpiCard";
+import { tripDateKey } from "../../../utils/tripDates";
 
 type BoardMode = "status" | "continent" | "year";
 type KanbanTone =
@@ -166,6 +167,12 @@ function isValidISODate(iso?: string | null) {
   if (!iso) return false;
   const d = new Date(iso);
   return !Number.isNaN(d.getTime());
+}
+
+function tripYearLabel(trip: TripUI) {
+  const dateKey = tripDateKey(trip.startDate ?? trip.endDate);
+  if (dateKey != null) return String(Math.floor(dateKey / 10000));
+  return typeof trip.year === "number" ? String(trip.year) : "Sin fecha";
 }
 
 function formatDateRange(startISO?: string | null, endISO?: string | null) {
@@ -1632,18 +1639,33 @@ useEffect(() => {
         <Text style={{ fontSize: fs(12), fontWeight: "700", color: "#94A3B8" }}>No hay viajes aquí.</Text>
       </View>
     ) : (
-      col.trips.map((trip) => (
-        <TripKanbanCard
-          key={trip.id}
-          trip={trip}
-          px={px}
-          fs={fs}
-          onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
-          onEdit={() => openEditTrip(trip.id)}
-          onDelete={() => deleteTrip(trip.id)}
-          onDragStartTrip={boardMode === "status" ? handleDragStartTrip : undefined}
-        />
-      ))
+      col.trips.map((trip, index) => {
+        const showYearDivider = boardMode === "status"
+          && col.id === "seen"
+          && (index === 0 || tripYearLabel(col.trips[index - 1]) !== tripYearLabel(trip));
+
+        return (
+          <View key={trip.id} style={{ gap: px(7), marginTop: showYearDivider && index > 0 ? px(5) : 0 }}>
+            {showYearDivider && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: px(8), paddingHorizontal: px(2) }}>
+                <Text style={{ fontSize: fs(10), fontWeight: "800", color: "#94A3B8" }}>
+                  {tripYearLabel(trip)}
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: "rgba(148,163,184,0.22)" }} />
+              </View>
+            )}
+            <TripKanbanCard
+              trip={trip}
+              px={px}
+              fs={fs}
+              onOpenDetail={() => navigation.navigate("TripDetailDesktop", { tripId: trip.id })}
+              onEdit={() => openEditTrip(trip.id)}
+              onDelete={() => deleteTrip(trip.id)}
+              onDragStartTrip={boardMode === "status" ? handleDragStartTrip : undefined}
+            />
+          </View>
+        );
+      })
     )}
   </KanbanColumnLikeShot>
 ))}

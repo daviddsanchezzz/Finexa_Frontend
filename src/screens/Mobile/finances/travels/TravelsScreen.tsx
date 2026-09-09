@@ -18,6 +18,7 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
+import { tripDateKey } from "../../../../utils/tripDates";
 
 type TripStatus = "wishlist" | "planning" | "seen";
 type BoardMode = "status" | "continent" | "year";
@@ -238,6 +239,11 @@ function isValidISODate(iso?: string | null) {
   if (!iso) return false;
   return !Number.isNaN(new Date(iso).getTime());
 }
+function tripYearLabel(trip: TripUI) {
+  const dateKey = tripDateKey(trip.startDate ?? trip.endDate);
+  if (dateKey != null) return String(Math.floor(dateKey / 10000));
+  return typeof trip.year === "number" ? String(trip.year) : "Sin fecha";
+}
 function formatDateRange(startISO?: string | null, endISO?: string | null) {
   if (!isValidISODate(startISO) && !isValidISODate(endISO)) return null;
   const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
@@ -411,24 +417,23 @@ export default function TripsHomeScreen({ navigation }: any) {
     const map: Record<number, Array<{ id: number; color: string; trip: TripUI }>> = {};
     const numDays = new Date(calYear, calMonth + 1, 0).getDate();
     for (let day = 1; day <= numDays; day++) {
-      const dayStart = new Date(calYear, calMonth, day);
-      const dayEnd   = new Date(calYear, calMonth, day, 23, 59, 59);
+      const dayKey = calYear * 10000 + (calMonth + 1) * 100 + day;
       const hits = calTrips.filter(t => {
-        const start = new Date(t.startDate!);
-        const end   = t.endDate && isValidISODate(t.endDate) ? new Date(t.endDate) : start;
-        return start <= dayEnd && end >= dayStart;
+        const start = tripDateKey(t.startDate);
+        const end = tripDateKey(t.endDate) ?? start;
+        return start != null && end != null && start <= dayKey && end >= dayKey;
       });
       if (hits.length > 0) map[day] = hits.map(t => ({ id: t.id, color: CAL_STATUS_COLORS[t.status], trip: t }));
     }
     return map;
   }, [calYear, calMonth, calTrips]);
   const tripsInCalMonth = useMemo(() => {
-    const monthStart = new Date(calYear, calMonth, 1);
-    const monthEnd   = new Date(calYear, calMonth + 1, 0, 23, 59, 59);
+    const monthStart = calYear * 10000 + (calMonth + 1) * 100 + 1;
+    const monthEnd = calYear * 10000 + (calMonth + 1) * 100 + new Date(calYear, calMonth + 1, 0).getDate();
     return calTrips.filter(t => {
-      const start = new Date(t.startDate!);
-      const end   = t.endDate && isValidISODate(t.endDate) ? new Date(t.endDate) : start;
-      return start <= monthEnd && end >= monthStart;
+      const start = tripDateKey(t.startDate);
+      const end = tripDateKey(t.endDate) ?? start;
+      return start != null && end != null && start <= monthEnd && end >= monthStart;
     }).sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
   }, [calYear, calMonth, calTrips]);
   const displayedCalTrips = useMemo(() => {
@@ -653,15 +658,14 @@ export default function TripsHomeScreen({ navigation }: any) {
                   const laneEnds: number[] = [];
                   const bars: Bar[] = [];
                   for (const trip of calTrips) {
-                    const tripStart = new Date(trip.startDate!);
-                    const tripEnd = trip.endDate && isValidISODate(trip.endDate) ? new Date(trip.endDate) : new Date(trip.startDate!);
+                    const tripStart = tripDateKey(trip.startDate);
+                    const tripEnd = tripDateKey(trip.endDate) ?? tripStart;
                     let startCol = -1, endCol = -1;
                     for (let col = 0; col < 7; col++) {
                       const day = week[col];
                       if (day == null) continue;
-                      const cellDate = new Date(calYear, calMonth, day);
-                      const cellEnd  = new Date(calYear, calMonth, day, 23, 59, 59);
-                      if (tripStart <= cellEnd && tripEnd >= cellDate) {
+                      const cellDate = calYear * 10000 + (calMonth + 1) * 100 + day;
+                      if (tripStart != null && tripEnd != null && tripStart <= cellDate && tripEnd >= cellDate) {
                         if (startCol === -1) startCol = col;
                         endCol = col;
                       }
@@ -911,28 +915,39 @@ export default function TripsHomeScreen({ navigation }: any) {
                 </View>
               ) : (
                 <View style={{ gap: 10 }}>
-                  {activeColumn.trips.map((t) => {
+                  {activeColumn.trips.map((t, index) => {
                     const dateLabel = formatDateRange(t.startDate, t.endDate);
                     const days      = tripDurationDays(t);
                     const showCost  = t.status === "seen" && (t.cost || 0) > 0;
                     const countryCodes = tripCountryCodes(t);
                     const isMultiCountry = countryCodes.length > 1;
                     const showSingleCountryFlagNearTitle = !isMultiCountry && !!t.coverImageUrl && !!countryCodes[0];
+                    const showYearDivider = boardMode === "status"
+                      && statusSelected === "seen"
+                      && (index === 0 || tripYearLabel(activeColumn.trips[index - 1]) !== tripYearLabel(t));
 
                     return (
-                      <TouchableOpacity
-                        key={t.id}
-                        activeOpacity={0.85}
-                        onPress={() => navigation.navigate("TripDetail", { tripId: t.id })}
-                        style={{
-                          backgroundColor: "white", borderRadius: 20,
-                          paddingVertical: 12, paddingHorizontal: 14,
-                          borderWidth: 1, borderColor: "#F0F4F8",
-                          flexDirection: "row", alignItems: "center", gap: 12,
-                          shadowColor: "#000", shadowOpacity: 0.04,
-                          shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-                        }}
-                      >
+                      <View key={t.id} style={{ gap: 8, marginTop: showYearDivider && index > 0 ? 6 : 0 }}>
+                        {showYearDivider && (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 2 }}>
+                            <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>
+                              {tripYearLabel(t)}
+                            </Text>
+                            <View style={{ flex: 1, height: 1, backgroundColor: "#E9EEF5" }} />
+                          </View>
+                        )}
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          onPress={() => navigation.navigate("TripDetail", { tripId: t.id })}
+                          style={{
+                            backgroundColor: "white", borderRadius: 20,
+                            paddingVertical: 12, paddingHorizontal: 14,
+                            borderWidth: 1, borderColor: "#F0F4F8",
+                            flexDirection: "row", alignItems: "center", gap: 12,
+                            shadowColor: "#000", shadowOpacity: 0.04,
+                            shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+                          }}
+                        >
                         {/* Thumbnail */}
                         <TripThumbnail trip={t} size={56} />
 
@@ -970,7 +985,8 @@ export default function TripsHomeScreen({ navigation }: any) {
                           )}
                           <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
                         </View>
-                      </TouchableOpacity>
+                        </TouchableOpacity>
+                      </View>
                     );
                   })}
                 </View>
