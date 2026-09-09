@@ -11,12 +11,6 @@ interface Props {
   onCancel: () => void;
 }
 
-const supportsShowPicker =
-  Platform.OS === "web" &&
-  typeof window !== "undefined" &&
-  typeof (window as any).HTMLInputElement !== "undefined" &&
-  typeof (window as any).HTMLInputElement.prototype.showPicker === "function";
-
 export default function CrossPlatformDateTimePicker({
   isVisible,
   date,
@@ -59,18 +53,20 @@ export default function CrossPlatformDateTimePicker({
     return newDate;
   };
 
-  // WEB con showPicker() soportado: abrimos el selector nativo del
-  // navegador de forma SÍNCRONA en cuanto el input se monta (useLayoutEffect,
-  // sin requestAnimationFrame de por medio) para que siga contando como
-  // parte del mismo gesto del usuario que abrió la pantalla — si se difiere
-  // al siguiente frame, algunos navegadores lo bloquean silenciosamente y no
-  // pasa nada al tocar "Fecha y hora".
+  // WEB: intentamos abrir el selector nativo del navegador de forma
+  // SÍNCRONA en cuanto el input se monta (useLayoutEffect, sin
+  // requestAnimationFrame de por medio) para que siga contando como parte
+  // del mismo gesto del usuario. Esto es solo una mejora (Chrome/Edge/Safari
+  // recientes lo abren al instante) — el input SIEMPRE queda visible y
+  // pulsable en la hoja de abajo, así que aunque showPicker() no exista o
+  // el navegador lo bloquee (algunas versiones de Safari en iPhone), el
+  // usuario siempre tiene una forma directa de abrirlo.
   useLayoutEffect(() => {
-    if (!supportsShowPicker || !isVisible) return;
+    if (Platform.OS !== "web" || !isVisible) return;
     try {
       webInputRef.current?.showPicker?.();
     } catch {
-      // el input sigue montado y se puede tocar directamente como respaldo
+      // el input sigue montado y visible, se puede tocar directamente
     }
   }, [isVisible]);
 
@@ -92,34 +88,6 @@ export default function CrossPlatformDateTimePicker({
       onConfirm(parseValueToDate(e.target.value));
     };
 
-    // Navegador con showPicker(): el input no necesita ser visible, se abre
-    // directamente el calendario/reloj nativo del sistema — nada de hoja
-    // intermedia propia.
-    if (supportsShowPicker) {
-      return (
-        // @ts-ignore
-        <input
-          ref={webInputRef}
-          type={inputType}
-          defaultValue={defaultValue}
-          onChange={handleChange}
-          onBlur={onCancel}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: 1,
-            height: 1,
-            opacity: 0,
-            border: "none",
-            pointerEvents: "none",
-          }}
-        />
-      );
-    }
-
-    // Fallback (navegador sin showPicker()): hoja con el input visible,
-    // que el usuario toca directamente para abrir el picker nativo.
     return (
       <Modal
         visible={isVisible}
@@ -135,6 +103,7 @@ export default function CrossPlatformDateTimePicker({
             <Text style={s.title}>{getTitle()}</Text>
             {/* @ts-ignore */}
             <input
+              ref={webInputRef}
               type={inputType}
               defaultValue={defaultValue}
               onChange={handleChange}

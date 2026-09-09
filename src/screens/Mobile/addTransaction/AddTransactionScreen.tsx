@@ -11,7 +11,7 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -79,7 +79,7 @@ function SelectCard({
       activeOpacity={0.85}
       style={{
         width: 104,
-        paddingVertical: 6,
+        paddingVertical: 8,
         paddingHorizontal: 4,
         borderRadius: 12,
         borderWidth: 1,
@@ -93,13 +93,13 @@ function SelectCard({
     >
       <View
         style={{
-          width: 22,
-          height: 22,
+          width: 24,
+          height: 24,
           borderRadius: 8,
           backgroundColor: selected ? "#DBEAFE" : "#F3F4F6",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 3,
+          marginBottom: 4,
         }}
       >
         <Text style={{ fontSize: 12 }}>{emoji}</Text>
@@ -113,7 +113,7 @@ function SelectCard({
         {label}
       </Text>
       {subLabel != null && (
-        <Text numberOfLines={1} style={{ fontSize: 9, color: "#94A3B8", marginTop: 1 }}>
+        <Text numberOfLines={1} style={{ fontSize: 9.5, color: "#94A3B8", marginTop: 2 }}>
           {subLabel}
         </Text>
       )}
@@ -131,7 +131,7 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
       activeOpacity={0.85}
       style={{
         width: 104,
-        minHeight: 58,
+        minHeight: 64,
         borderRadius: 12,
         borderWidth: 1.5,
         borderStyle: "dashed",
@@ -225,7 +225,7 @@ export default function AddScreen({ navigation }: any) {
     color: "#94A3B8",
     letterSpacing: 0.4,
     textTransform: "uppercase",
-    marginBottom: 5,
+    marginBottom: 6,
   };
 
   const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -693,7 +693,7 @@ export default function AddScreen({ navigation }: any) {
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={openCalc}
-              style={{ alignItems: "center", marginBottom: 14, marginTop: 2 }}
+              style={{ alignItems: "center", marginBottom: 26, marginTop: 6 }}
             >
               {!!calcExpression && (
                 <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", marginBottom: 2 }}>
@@ -703,7 +703,7 @@ export default function AddScreen({ navigation }: any) {
               <View className="flex-row items-end justify-center">
                 <Text
                   style={{
-                    fontSize: 36,
+                    fontSize: 46,
                     fontWeight: "700",
                     color: amount ? "#0F172A" : "#D1D5DB",
                     letterSpacing: -1,
@@ -711,11 +711,11 @@ export default function AddScreen({ navigation }: any) {
                 >
                   {amount || "0,00"}
                 </Text>
-                <MaterialCommunityIcons
-                  name="currency-eur"
-                  size={28}
+                <FontAwesome5
+                  name="euro-sign"
+                  size={22}
                   color="#94A3B8"
-                  style={{ marginLeft: 4, marginBottom: 4 }}
+                  style={{ marginLeft: 6, marginBottom: 7 }}
                 />
               </View>
             </TouchableOpacity>
@@ -727,7 +727,7 @@ export default function AddScreen({ navigation }: any) {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                   {wallets.map((wallet) => (
@@ -755,7 +755,7 @@ export default function AddScreen({ navigation }: any) {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                   {wallets.map((wallet) => {
@@ -807,7 +807,7 @@ export default function AddScreen({ navigation }: any) {
                       <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                         {investmentAssets.map((inv) => {
@@ -849,7 +849,7 @@ export default function AddScreen({ navigation }: any) {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                   {wallets.map((wallet) => (
@@ -874,7 +874,7 @@ export default function AddScreen({ navigation }: any) {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                   {filteredCategories.map((cat) => (
@@ -892,7 +892,7 @@ export default function AddScreen({ navigation }: any) {
                   ))}
 
                   {/* BOTÓN CREAR CATEGORÍA */}
-                  <CreateCard label="Crear categoría" onPress={() => openCategoryModal(false)} />
+                  <CreateCard label="Añadir" onPress={() => openCategoryModal(false)} />
                 </ScrollView>
               </>
             )}
@@ -905,7 +905,7 @@ export default function AddScreen({ navigation }: any) {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                   {subcategories.length > 0 &&
@@ -942,14 +942,12 @@ export default function AddScreen({ navigation }: any) {
             {/* CATEGORÍA DE VIAJE — solo si la subcategoría pertenece a un viaje */}
             {type !== "transfer" && selectedSub?.tripId && (
               <>
-                <Text className="text-[13px] text-gray-400 mb-2">
-                  ¿En qué se fue este gasto del viaje?
-                </Text>
+                <Text style={sectionLabelStyle}>Categoría de viaje</Text>
 
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  className="mb-3"
+                  className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
                   {TRIP_EXPENSE_CATEGORIES.map((opt) => {
@@ -971,6 +969,7 @@ export default function AddScreen({ navigation }: any) {
             )}
 
             {/* DESCRIPCIÓN — fila compacta de una sola línea, tocarla edita directamente */}
+            <Text style={sectionLabelStyle}>Descripción</Text>
             <View
               style={{
                 flexDirection: "row",
@@ -984,19 +983,17 @@ export default function AddScreen({ navigation }: any) {
                 marginBottom: 10,
               }}
             >
-              <Text style={{ fontSize: 16, marginRight: 8 }}>✏️</Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Añadir descripción"
                 placeholderTextColor="#94A3B8"
                 style={{ flex: 1, fontSize: 14, color: "#0F172A", padding: 0 }}
                 onFocus={closeCalc}
               />
-              <Text style={{ fontSize: 16, marginLeft: 8 }}>📷</Text>
             </View>
 
             {/* FECHA — fila compacta estilo "settings" de iOS */}
+            <Text style={sectionLabelStyle}>Fecha y hora</Text>
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.85}
@@ -1015,18 +1012,15 @@ export default function AddScreen({ navigation }: any) {
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Ionicons name="calendar-outline" size={16} color="#64748B" />
-                <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "500" }}>Fecha y hora</Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Text style={{ fontSize: 13, color: "#64748B" }}>
+                <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "500" }}>
                   {date.toLocaleDateString("es-ES", {
                     day: "numeric",
                     month: "short",
                   })}
                   , {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </Text>
-                <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
               </View>
+              <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
             </TouchableOpacity>
 
             <CrossPlatformDateTimePicker
