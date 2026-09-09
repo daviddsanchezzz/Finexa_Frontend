@@ -1,5 +1,5 @@
 // src/components/CrossPlatformDateTimePicker.tsx
-import React, { useEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
@@ -10,6 +10,12 @@ interface Props {
   onConfirm: (d: Date) => void;
   onCancel: () => void;
 }
+
+const supportsShowPicker =
+  Platform.OS === "web" &&
+  typeof window !== "undefined" &&
+  typeof (window as any).HTMLInputElement !== "undefined" &&
+  typeof (window as any).HTMLInputElement.prototype.showPicker === "function";
 
 export default function CrossPlatformDateTimePicker({
   isVisible,
@@ -53,23 +59,21 @@ export default function CrossPlatformDateTimePicker({
     return newDate;
   };
 
-  // WEB: en cuanto se abre la hoja, intentamos abrir de una vez el selector
-  // nativo del navegador sobre el input visible (nos ahorramos un tap). Si el
-  // navegador bloquea showPicker() por no venir de un gesto directo, el
-  // input sigue ahí, visible y pulsable — siempre hay forma de abrirlo.
-  useEffect(() => {
-    if (Platform.OS !== "web" || !isVisible) return;
-    const id = requestAnimationFrame(() => {
-      try {
-        webInputRef.current?.showPicker?.();
-      } catch {
-        // el usuario puede tocar el input directamente
-      }
-    });
-    return () => cancelAnimationFrame(id);
+  // WEB con showPicker() soportado: abrimos el selector nativo del
+  // navegador de forma SÍNCRONA en cuanto el input se monta (useLayoutEffect,
+  // sin requestAnimationFrame de por medio) para que siga contando como
+  // parte del mismo gesto del usuario que abrió la pantalla — si se difiere
+  // al siguiente frame, algunos navegadores lo bloquean silenciosamente y no
+  // pasa nada al tocar "Fecha y hora".
+  useLayoutEffect(() => {
+    if (!supportsShowPicker || !isVisible) return;
+    try {
+      webInputRef.current?.showPicker?.();
+    } catch {
+      // el input sigue montado y se puede tocar directamente como respaldo
+    }
   }, [isVisible]);
 
-  // WEB VERSION
   if (Platform.OS === "web") {
     if (!isVisible) return null;
 
@@ -83,6 +87,39 @@ export default function CrossPlatformDateTimePicker({
         ? toLocalDate(safeDate)
         : toLocalDateTime(safeDate);
 
+    const handleChange = (e: any) => {
+      if (!e.target.value) return;
+      onConfirm(parseValueToDate(e.target.value));
+    };
+
+    // Navegador con showPicker(): el input no necesita ser visible, se abre
+    // directamente el calendario/reloj nativo del sistema — nada de hoja
+    // intermedia propia.
+    if (supportsShowPicker) {
+      return (
+        // @ts-ignore
+        <input
+          ref={webInputRef}
+          type={inputType}
+          defaultValue={defaultValue}
+          onChange={handleChange}
+          onBlur={onCancel}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: 1,
+            height: 1,
+            opacity: 0,
+            border: "none",
+            pointerEvents: "none",
+          }}
+        />
+      );
+    }
+
+    // Fallback (navegador sin showPicker()): hoja con el input visible,
+    // que el usuario toca directamente para abrir el picker nativo.
     return (
       <Modal
         visible={isVisible}
@@ -94,23 +131,13 @@ export default function CrossPlatformDateTimePicker({
         <View style={s.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
           <View style={s.sheet}>
-            {/* Handle */}
             <View style={s.handle} />
-
-            {/* Title */}
             <Text style={s.title}>{getTitle()}</Text>
-
-            {/* Input nativo — al elegir un valor se confirma al instante,
-                sin botón "Confirmar" adicional */}
             {/* @ts-ignore */}
             <input
-              ref={webInputRef}
               type={inputType}
               defaultValue={defaultValue}
-              onChange={(e: any) => {
-                if (!e.target.value) return;
-                onConfirm(parseValueToDate(e.target.value));
-              }}
+              onChange={handleChange}
               style={{
                 width: "100%",
                 height: 44,

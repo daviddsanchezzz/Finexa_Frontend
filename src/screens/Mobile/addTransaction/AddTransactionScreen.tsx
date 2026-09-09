@@ -12,7 +12,7 @@ import {
   Keyboard,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "../../../theme/theme";
@@ -78,9 +78,9 @@ function SelectCard({
       disabled={disabled}
       activeOpacity={0.85}
       style={{
-        width: 72,
+        width: 104,
         paddingVertical: 6,
-        paddingHorizontal: 5,
+        paddingHorizontal: 4,
         borderRadius: 12,
         borderWidth: 1,
         borderColor: selected ? "#93C5FD" : "#E5E7EB",
@@ -108,7 +108,7 @@ function SelectCard({
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
-        style={{ fontSize: 11, fontWeight: "700", color: "#0F172A", textAlign: "center" }}
+        style={{ fontSize: 10.5, fontWeight: "700", color: "#0F172A", textAlign: "center" }}
       >
         {label}
       </Text>
@@ -130,7 +130,7 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
       onPress={onPress}
       activeOpacity={0.85}
       style={{
-        width: 72,
+        width: 104,
         minHeight: 58,
         borderRadius: 12,
         borderWidth: 1.5,
@@ -147,7 +147,7 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
-        style={{ fontSize: 10, fontWeight: "700", color: colors.primary, marginTop: 2, textAlign: "center" }}
+        style={{ fontSize: 10.5, fontWeight: "700", color: colors.primary, marginTop: 2, textAlign: "center" }}
       >
         {label}
       </Text>
@@ -162,12 +162,11 @@ export default function AddScreen({ navigation }: any) {
   const prefillData = (route.params as any)?.prefillData || null;
   const isEditing = !!(editData && editData.id != null);
   const sourceData = editData ?? prefillData;
-  const insets = useSafeAreaInsets();
-  // BottomNav is position:absolute, height = paddingTop(14) + content(56) + paddingBottom(25) = 95px
-  // SafeAreaView already pads by insets.bottom, so we only need the remaining overlap
-  const tabBarHeight = Math.max(0, 95 - insets.bottom);
+  // La bottom tab bar se oculta mientras esta pantalla está abierta (ver
+  // BottomTab.tsx), así que no hay que reservarle espacio: el SafeAreaView
+  // ya cubre el safe-area inferior por su cuenta.
   // Alto aproximado de la barra de "Guardar" fija al fondo (botón + paddings)
-  const saveBarHeight = 66;
+  const saveBarHeight = 74;
 
   // ✅ si vienes desde InvestmentDetail para añadir aportación
   const prefillInvestmentAssetId = (route.params as any)?.prefillInvestmentAssetId ?? null;
@@ -198,7 +197,6 @@ export default function AddScreen({ navigation }: any) {
   const [saving, setSaving] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceInterval, setRecurrenceInterval] = useState("never");
-  const [descriptionY, setDescriptionY] = useState(0);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [modalEditingItem, setModalEditingItem] = useState<any>(null);
   const [updateScopeModalVisible, setUpdateScopeModalVisible] = useState(false);
@@ -629,7 +627,7 @@ export default function AddScreen({ navigation }: any) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
-              paddingBottom: (calcVisible ? 310 + tabBarHeight : 20) + saveBarHeight,
+              paddingBottom: (calcVisible ? 310 : 20) + saveBarHeight,
               paddingHorizontal: 20,
             }}
           >
@@ -934,7 +932,7 @@ export default function AddScreen({ navigation }: any) {
                     style={[chipBase, { borderColor: colors.primary }]}
                   >
                     <Text style={[chipText, { color: colors.primary, fontWeight: "600" }]}>
-                      + Crear subcategoría
+                      + Añadir
                     </Text>
                   </TouchableOpacity>
                 </ScrollView>
@@ -972,39 +970,30 @@ export default function AddScreen({ navigation }: any) {
               </>
             )}
 
-            {/* DESCRIPCIÓN */}
-            <Text style={sectionLabelStyle}>Descripción</Text>
+            {/* DESCRIPCIÓN — fila compacta de una sola línea, tocarla edita directamente */}
             <View
-              onLayout={(e) => {
-                setDescriptionY(e.nativeEvent.layout.y);
-              }}
               style={{
+                flexDirection: "row",
+                alignItems: "center",
                 backgroundColor: "#FFFFFF",
                 borderWidth: 1,
                 borderColor: "#E5E7EB",
                 borderRadius: 14,
-                paddingVertical: 8,
+                height: 54,
                 paddingHorizontal: 14,
                 marginBottom: 10,
               }}
             >
+              <Text style={{ fontSize: 16, marginRight: 8 }}>✏️</Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Añadir nota"
-                placeholderTextColor="#CBD5E1"
-                multiline
-                style={{ fontSize: 14, color: "#0F172A", padding: 0 }}
-                onFocus={() => {
-                  closeCalc();
-                  setTimeout(() => {
-                    scrollRef.current?.scrollTo({
-                      y: descriptionY - 80,
-                      animated: true,
-                    });
-                  }, 250);
-                }}
+                placeholder="Añadir descripción"
+                placeholderTextColor="#94A3B8"
+                style={{ flex: 1, fontSize: 14, color: "#0F172A", padding: 0 }}
+                onFocus={closeCalc}
               />
+              <Text style={{ fontSize: 16, marginLeft: 8 }}>📷</Text>
             </View>
 
             {/* FECHA — fila compacta estilo "settings" de iOS */}
@@ -1119,14 +1108,15 @@ export default function AddScreen({ navigation }: any) {
             onSave={handleCategoryModalSave}
           />
 
-          {/* BOTÓN GUARDAR — fijo al fondo, encima del teclado calculadora si está abierto.
-              Borde superior para separarlo visualmente de la bottom nav (evita que
-              compita con el botón "+" central). */}
+          {/* BOTÓN GUARDAR — fijo al fondo (safe area), encima del teclado
+              calculadora si está abierto. La bottom tab bar está oculta
+              mientras esta pantalla está abierta, así que no compite con
+              el botón "+" central. */}
           <View
             style={{
               paddingHorizontal: 20,
               paddingTop: 8,
-              paddingBottom: calcVisible ? 8 : 8 + tabBarHeight,
+              paddingBottom: calcVisible ? 8 : 14,
               backgroundColor: "#FFFFFF",
               borderTopWidth: 1,
               borderTopColor: "#F1F5F9",
@@ -1137,7 +1127,7 @@ export default function AddScreen({ navigation }: any) {
               disabled={!canSave || saving}
               activeOpacity={0.85}
               style={{
-                height: 52,
+                height: 54,
                 borderRadius: 14,
                 alignItems: "center",
                 justifyContent: "center",
@@ -1167,7 +1157,6 @@ export default function AddScreen({ navigation }: any) {
             onExpressionChange={setCalcExpression}
             showExpressionInHeader={false}
             onDone={closeCalc}
-            bottomInset={tabBarHeight}
             variant="calculator"
           />
         </KeyboardAvoidingView>

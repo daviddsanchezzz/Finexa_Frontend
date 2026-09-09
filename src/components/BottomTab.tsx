@@ -11,6 +11,12 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
     MODULES.find((m) => m.key === pinnedKey) ??
     MODULES.find((m) => m.key === DEFAULT_PINNED_MODULE_KEY);
 
+  // "Nueva transacción" se comporta como un flujo independiente: oculta del
+  // todo la tab bar mientras esa pestaña está activa (Cancelar/Guardar
+  // vuelven a la pestaña anterior y la tab bar reaparece sola).
+  const activeRouteName = state.routes[state.index]?.name;
+  if (activeRouteName === "Add") return null;
+
   return (
     <View
       className="flex-row justify-between items-center bg-white px-6 py-3.5"
