@@ -7,13 +7,13 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
+import { appAlert } from "../utils/appAlert";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -83,6 +83,7 @@ export default function EditWalletModal({
   const [currency, setCurrency] = useState("EUR");
   const [kind, setKind] = useState<WalletKind>("cash");
   const [loading, setLoading] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
   const isEditing = !!editingWallet?.id;
 
@@ -120,11 +121,11 @@ export default function EditWalletModal({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert("Error", "El nombre de la cartera es obligatorio");
+      appAlert("Error", "El nombre de la cartera es obligatorio");
       return;
     }
     if (!balance || isNaN(Number(balance.replace(",", ".")))) {
-      Alert.alert("Error", "Introduce un saldo válido");
+      appAlert("Error", "Introduce un saldo válido");
       return;
     }
 
@@ -146,13 +147,43 @@ export default function EditWalletModal({
       onSave(res.data);
       onClose();
     } catch (error: any) {
-      Alert.alert(
+      appAlert(
         "Error",
         error.response?.data?.message || "No se pudo guardar la cartera"
       );
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeactivate = () => {
+    if (!editingWallet?.id) return;
+    appAlert(
+      "Desactivar cartera",
+      `"${editingWallet.name}" dejará de aparecer en la app, pero sus movimientos históricos se conservan.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Desactivar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeactivating(true);
+              await api.delete(`/wallets/${editingWallet.id}`);
+              onSave();
+              onClose();
+            } catch (error: any) {
+              appAlert(
+                "Error",
+                error.response?.data?.message || "No se pudo desactivar la cartera"
+              );
+            } finally {
+              setDeactivating(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const parsedBalance =
@@ -421,6 +452,36 @@ export default function EditWalletModal({
               minHeight: 80,
             }}
           />
+
+          {isEditing && (
+            <TouchableOpacity
+              onPress={handleDeactivate}
+              disabled={deactivating}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                marginTop: 28,
+                paddingVertical: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#FECACA",
+                backgroundColor: "#FEF2F2",
+              }}
+            >
+              {deactivating ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="eye-off-outline" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#DC2626" }}>
+                    Desactivar cartera
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
     </Modal>

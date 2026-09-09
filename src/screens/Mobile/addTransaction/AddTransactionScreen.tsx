@@ -230,6 +230,10 @@ export default function AddScreen({ navigation }: any) {
 
   const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const toAmountText = (n: number) => round2(n).toFixed(2).replace(".", ",");
+  // Formato "YYYY-MM-DDTHH:mm" en hora local, el que exige value= de un
+  // <input type="datetime-local">.
+  const toDateTimeLocalValue = (d: Date) =>
+    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
   const blueSelected = {
     backgroundColor: "#EFF6FF",
@@ -992,47 +996,78 @@ export default function AddScreen({ navigation }: any) {
               />
             </View>
 
-            {/* FECHA — fila compacta estilo "settings" de iOS */}
+            {/* FECHA — fila compacta estilo "settings" de iOS.
+                En web ponemos el <input type="datetime-local"> real, invisible,
+                exactamente encima de la fila: tocarla es un tap genuino sobre el
+                campo nativo, así que el navegador abre su selector propio sin
+                trucos de JS ni hojas intermedias nuestras. */}
             <Text style={sectionLabelStyle}>Fecha y hora</Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.85}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                backgroundColor: "#FFFFFF",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                borderRadius: 14,
-                paddingVertical: 10,
-                paddingHorizontal: 14,
-                marginBottom: 14,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Ionicons name="calendar-outline" size={16} color="#64748B" />
-                <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "500" }}>
-                  {date.toLocaleDateString("es-ES", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                  , {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
-            </TouchableOpacity>
+            <View style={{ position: "relative", marginBottom: 14 }}>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.85}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  borderRadius: 14,
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                  <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "500" }}>
+                    {date.toLocaleDateString("es-ES", {
+                      day: "numeric",
+                      month: "short",
+                    })}
+                    , {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+              </TouchableOpacity>
 
-            <CrossPlatformDateTimePicker
-              isVisible={showDatePicker}
-              mode="datetime"
-              date={date}
-              onConfirm={(d) => {
-                setShowDatePicker(false);
-                setDate(d);
-              }}
-              onCancel={() => setShowDatePicker(false)}
-            />
+              {Platform.OS === "web" && (
+                // @ts-ignore
+                <input
+                  type="datetime-local"
+                  value={toDateTimeLocalValue(date)}
+                  onChange={(e: any) => {
+                    if (!e.target.value) return;
+                    setDate(new Date(e.target.value));
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: "100%",
+                    height: "100%",
+                    opacity: 0,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                />
+              )}
+            </View>
+
+            {Platform.OS !== "web" && (
+              <CrossPlatformDateTimePicker
+                isVisible={showDatePicker}
+                mode="datetime"
+                date={date}
+                onConfirm={(d) => {
+                  setShowDatePicker(false);
+                  setDate(d);
+                }}
+                onCancel={() => setShowDatePicker(false)}
+              />
+            )}
 
             {/* PERIODICIDAD */}
             <View>
