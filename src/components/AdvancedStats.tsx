@@ -10,57 +10,25 @@ import {
 import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "../theme/theme";
 import api from "../api/api";
-
-type TxType = "income" | "expense" | "transfer";
-
-interface Transaction {
-  id?: number;
-  date: string;
-  amount: number;
-  type: TxType;
-  // opcionales (por si existen en tu API)
-  isRecurring?: boolean;
-  active?: boolean;
-  excludeFromStats?: boolean;
-}
+import {
+  computeWealthSeries,
+  filterTransactionsForStats,
+  mapManualMonthRows,
+  mapInvestmentSnapshotRows,
+  buildLinePath,
+  type MonthSummary,
+  type YearSummary,
+  type WealthTransaction,
+} from "../utils/wealthSeries";
 
 interface AdvancedStatsProps {
   initialBalance?: number;
 }
 
-interface MonthSummary {
-  monthIndex: number;
-  monthName: string;
-  income: number;
-  expense: number;
-  saving: number;
-  investment: number | null; // profit del PortfolioSnapshot; null = sin snapshot
-  finalAmount: number;
-}
-
-interface YearSummary {
-  year: number;
-  income: number;
-  expense: number;
-  saving: number;
-  investment: number;
-  finalAmount: number;
-}
-
 const parseISO = (d: string) => new Date(d).getTime();
 
-function buildLinePath(points: { x: number; y: number }[]) {
-  if (!points.length) return "";
-  return points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(" ");
-}
-
-const formatMonthShort = (y: number, m: number) =>
-  new Date(y, m, 1).toLocaleDateString("es-ES", { month: "short", year: "2-digit" });
-
 export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<WealthTransaction[]>([]);
   const [manualData, setManualData] = useState<
     Record<number, Record<number, { income?: number; expense?: number; finalBalance?: number }>>
   >({});
@@ -86,32 +54,6 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
       maximumFractionDigits: 2,
     });
 
-  const monthNames = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
-
-  // -----------------------------------------------------
-  // FILTRO CONSISTENTE CON STATS (sin transfers, sin recurring, sin inactivos, sin excludeFromStats)
-  // -----------------------------------------------------
-  const filterForStats = useCallback((list: any[]) => {
-    return (list || [])
-      .filter((tx: any) => tx.type !== "transfer")
-      .filter((tx: any) => tx.isRecurring === false)
-      .filter((tx: any) => tx.active !== false)
-      .filter((tx: any) => tx.excludeFromStats !== true);
-  }, []);
-
   // -----------------------------------------------------
   // CARGA TRANSACCIONES + OVERRIDES
   // -----------------------------------------------------
@@ -125,37 +67,18 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
         api.get("/investments/snapshots"),
       ]);
 
-      const filtered = filterForStats(txRes.data || [])
+      const filtered = filterTransactionsForStats(txRes.data || [])
         .filter((tx: any) => tx.type === "income" || tx.type === "expense");
 
       setTransactions(filtered);
-
-      // Mapear overrides (month 0–11)
-      const map: Record<number, Record<number, { income?: number; expense?: number; finalBalance?: number }>> = {};
-      (manualRes.data || []).forEach((row: any) => {
-        if (!map[row.year]) map[row.year] = {};
-        map[row.year][row.month] = {
-          income: row.income ?? undefined,
-          expense: row.expense ?? undefined,
-          finalBalance: row.finalBalance ?? undefined,
-        };
-      });
-      setManualData(map);
-
-      // Mapear snapshots de inversión: "YYYY-M" → profit en €
-      const snapMap: Record<string, number> = {};
-      (snapRes.data || []).forEach((s: any) => {
-        if (s.profit == null) return;
-        const d = new Date(s.monthStart);
-        snapMap[`${d.getUTCFullYear()}-${d.getUTCMonth()}`] = Number(s.profit);
-      });
-      setSnapshots(snapMap);
+      setManualData(mapManualMonthRows(manualRes.data || []));
+      setSnapshots(mapInvestmentSnapshotRows(snapRes.data || []));
     } catch (error) {
       console.log("❌ Error cargando datos:", error);
     } finally {
       setLoading(false);
     }
-  }, [filterForStats]);
+  }, []);
 
   useEffect(() => {
     loadAll();
@@ -170,161 +93,13 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
   }, [navigation, loadAll]);
 
   // -----------------------------------------------------
-  // CÁLCULOS CON OVERRIDES (TIMELINE GLOBAL)
+  // CÁLCULOS CON OVERRIDES (TIMELINE GLOBAL) — lógica compartida con el
+  // card de patrimonio de Home, ver src/utils/wealthSeries.ts
   // -----------------------------------------------------
-  const { monthsByYear, globalSummaryList } = useMemo(() => {
-    // Agregar por año/mes (solo transacciones income/expense)
-    const perYearMonth: Record<number, { income: number[]; expense: number[] }> = {};
-
-    for (const tx of transactions) {
-      if (tx.type !== "income" && tx.type !== "expense") continue;
-      const d = new Date(tx.date);
-      const y = d.getFullYear();
-      const m = d.getMonth();
-
-      if (!perYearMonth[y]) {
-        perYearMonth[y] = {
-          income: new Array(12).fill(0),
-          expense: new Array(12).fill(0),
-        };
-      }
-
-      if (tx.type === "income") perYearMonth[y].income[m] += Math.abs(tx.amount);
-      if (tx.type === "expense") perYearMonth[y].expense[m] += Math.abs(tx.amount);
-    }
-
-    // Año mínimo: primer año con cualquier dato (tx o manual)
-    let minYear = currentYear;
-
-    for (const yStr of Object.keys(perYearMonth)) minYear = Math.min(minYear, Number(yStr));
-    for (const yStr of Object.keys(manualData)) minYear = Math.min(minYear, Number(yStr));
-
-    const maxYear = currentYear;
-
-    const yearsSorted: number[] = [];
-    for (let y = minYear; y <= maxYear; y++) yearsSorted.push(y);
-
-    if (yearsSorted.length === 0) {
-      return {
-        monthsByYear: {} as Record<number, MonthSummary[]>,
-        globalSummaryList: [] as YearSummary[],
-      };
-    }
-
-    const monthsByYear: Record<number, MonthSummary[]> = {};
-    const yearAgg: Record<number, { income: number; expense: number; saving: number; investment: number; finalAmount: number }> = {};
-
-    // Saldo global propagado mes a mes
-    let globalRunningBalance = initialBalance;
-
-    yearsSorted.forEach((y) => {
-      const d = perYearMonth[y] ?? {
-        income: new Array(12).fill(0),
-        expense: new Array(12).fill(0),
-      };
-
-      let yearIncome = 0;
-      let yearExpense = 0;
-      let yearInvestment = 0;
-      let lastFinishedFinalAmount: number | null = null;
-
-      const monthsArr: MonthSummary[] = new Array(12).fill(null).map((_, m) => {
-        const isPastYear = y < currentYear;
-        const isCurrentYear = y === currentYear;
-        const isFinishedMonth = isPastYear || (isCurrentYear && m < currentMonth);
-
-        const override = manualData[y]?.[m];
-
-        const txIncome = d.income[m] ?? 0;
-        const txExpense = d.expense[m] ?? 0;
-
-        // Ingreso/gasto: override manda; si no hay override, usamos tx solo si mes terminado
-        const income =
-          override?.income !== undefined
-            ? override.income
-            : isFinishedMonth
-            ? txIncome
-            : 0;
-
-        const expense =
-          override?.expense !== undefined
-            ? override.expense
-            : isFinishedMonth
-            ? txExpense
-            : 0;
-
-        const saving = income - expense;
-
-        // Profit de inversiones del snapshot mensual (null si no existe todavía)
-        const investmentProfit: number | null =
-          isFinishedMonth ? (snapshots[`${y}-${m}`] ?? null) : null;
-
-        let finalAmount = 0;
-
-        if (isFinishedMonth) {
-          yearIncome += income;
-          yearExpense += expense;
-          if (investmentProfit !== null) yearInvestment += investmentProfit;
-
-          // Manual finalBalance manda; si no, balance previo + ahorro + inversión
-          if (override?.finalBalance !== undefined && override?.finalBalance !== null) {
-            globalRunningBalance = override.finalBalance;
-          } else {
-            globalRunningBalance = globalRunningBalance + saving + (investmentProfit ?? 0);
-          }
-
-          finalAmount = globalRunningBalance;
-          lastFinishedFinalAmount = finalAmount;
-        } else {
-          finalAmount = 0;
-        }
-
-        return {
-          monthIndex: m,
-          monthName: monthNames[m],
-          income,
-          expense,
-          saving,
-          investment: isFinishedMonth ? investmentProfit : null,
-          finalAmount,
-        };
-      });
-
-      const yearSaving = yearIncome - yearExpense;
-      const yearFinalAmount = lastFinishedFinalAmount ?? 0;
-
-      monthsByYear[y] = monthsArr;
-      yearAgg[y] = {
-        income: yearIncome,
-        expense: yearExpense,
-        saving: yearSaving,
-        investment: yearInvestment,
-        finalAmount: yearFinalAmount,
-      };
-    });
-
-    // Resumen global por año (solo años terminados)
-    const globalSummaryList: YearSummary[] = yearsSorted.map((y) => {
-      const fullYearFinished = y < currentYear;
-
-      if (!fullYearFinished) {
-        return { year: y, income: 0, expense: 0, saving: 0, investment: 0, finalAmount: 0 };
-      }
-
-      const agg = yearAgg[y] ?? { income: 0, expense: 0, saving: 0, investment: 0, finalAmount: 0 };
-
-      return {
-        year: y,
-        income: agg.income,
-        expense: agg.expense,
-        saving: agg.saving,
-        investment: agg.investment,
-        finalAmount: agg.finalAmount,
-      };
-    });
-
-    return { monthsByYear, globalSummaryList };
-  }, [transactions, manualData, snapshots, initialBalance, currentYear, currentMonth]);
+  const { monthsByYear, globalSummaryList, wealthSeries } = useMemo(
+    () => computeWealthSeries({ transactions, manualData, snapshots, initialBalance, currentYear, currentMonth }),
+    [transactions, manualData, snapshots, initialBalance, currentYear, currentMonth]
+  );
 
   useEffect(() => {
     if (!hasInitializedYear && globalSummaryList.length > 0) {
@@ -361,44 +136,6 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
   const totalGlobalInvestment = finishedYears.reduce((s, y) => s + y.investment, 0);
   const totalGlobalFinal =
     finishedYears.length > 0 ? finishedYears[finishedYears.length - 1].finalAmount : 0;
-
-  // -----------------------------------------------------
-  // SERIE PATRIMONIO (saldo final mes a mes)
-  // -----------------------------------------------------
-  const wealthSeries = useMemo(() => {
-    const rows: { year: number; month: number; label: string; finalAmount: number }[] = [];
-
-    const years = Object.keys(monthsByYear).map(Number).sort((a, b) => a - b);
-
-    for (const y of years) {
-      const arr = monthsByYear[y] || [];
-      for (const m of arr) {
-        const isPastYear = y < currentYear;
-        const isCurrentYear = y === currentYear;
-        const isFinishedMonth = isPastYear || (isCurrentYear && m.monthIndex < currentMonth);
-
-        if (!isFinishedMonth) continue;
-        if (!Number.isFinite(m.finalAmount)) continue;
-
-        rows.push({
-          year: y,
-          month: m.monthIndex,
-          label: formatMonthShort(y, m.monthIndex),
-          finalAmount: m.finalAmount,
-        });
-      }
-    }
-
-    rows.sort((a, b) => (a.year - b.year) || (a.month - b.month));
-
-    const seen = new Set<string>();
-    return rows.filter((r) => {
-      const key = `${r.year}-${r.month}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [monthsByYear, currentYear, currentMonth]);
 
   const wealthChart = useMemo(() => {
     if (!wealthSeries.length || chartWidth <= 0) return null;
