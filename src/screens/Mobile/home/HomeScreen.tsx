@@ -58,8 +58,9 @@ export default function HomeScreen({ navigation }: any) {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilterType, setDateFilterType] = useState<"day" | "week" | "month" | "year" | "all" | "custom">("month");
   const { unreadCount: unreadNotificationsCount } = useNotificationsFeed();
-  const netWorth = useNetWorthTrend();
+  const netWorth = useNetWorthTrend(dateFilterType);
 
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
   useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
@@ -315,9 +316,9 @@ export default function HomeScreen({ navigation }: any) {
                       {formatEuro(netWorth.current)}€
                     </Text>
                     <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 6 }}>
-                      <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.monthDelta >= 0 ? "#16A34A" : "#DC2626" }}>
-                        {netWorth.monthDelta >= 0 ? "+" : "−"}
-                        {formatEuro(Math.abs(netWorth.monthDelta))}€ este mes
+                      <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#16A34A" : "#DC2626" }}>
+                        {netWorth.periodDelta >= 0 ? "+" : "−"}
+                        {formatEuro(Math.abs(netWorth.periodDelta))}€ {netWorth.periodLabel}
                       </Text>
                       {Math.abs(netWorth.pctChange) > 0.05 && (
                         <View
@@ -344,7 +345,7 @@ export default function HomeScreen({ navigation }: any) {
                     </View>
                   </View>
 
-                  <NetWorthSparkline points={netWorth.sparkline} positive={netWorth.monthDelta >= 0} />
+                  <NetWorthSparkline points={netWorth.sparkline} positive={netWorth.periodDelta >= 0} />
                 </View>
               </TouchableOpacity>
             )}
@@ -486,10 +487,11 @@ export default function HomeScreen({ navigation }: any) {
       <DateFilterModal
         visible={dateModalVisible}
         onClose={() => setDateModalVisible(false)}
-        onSelect={({ from, to, label }) => {
+        onSelect={({ from, to, label, type }) => {
           setDateFrom(from);
           setDateTo(to);
           setDateLabel(label);
+          setDateFilterType(type as any);
         }}
       />
     </SafeAreaView>

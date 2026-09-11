@@ -9,14 +9,19 @@ import {
   type WealthPoint,
 } from "../utils/wealthSeries";
 
+export type NetWorthFilterType = "day" | "week" | "month" | "year" | "all" | "custom";
+
 export interface NetWorthTrend {
   isLoading: boolean;
   // Patrimonio actual real: suma en vivo del balance de todas las carteras.
   current: number;
-  // current - último saldo final cerrado (mismo número que la columna
-  // "Saldo final" de Estadísticas avanzadas).
-  monthDelta: number;
-  // monthDelta relativo al último saldo cerrado, en %.
+  // current - patrimonio al cierre del periodo anterior, según el filtro de
+  // fecha activo en Home (año -> cierre del año pasado, mes -> cierre del
+  // mes pasado, semana/día -> patrimonio al empezar esa semana/día).
+  periodDelta: number;
+  // Texto para el card: "este año" / "este mes" / "esta semana" / "hoy".
+  periodLabel: string;
+  // periodDelta relativo al patrimonio de referencia, en %.
   pctChange: number;
   // Últimos puntos mensuales cerrados + el punto "hoy" (current) al final,
   // para la mini gráfica del card.
@@ -25,7 +30,16 @@ export interface NetWorthTrend {
 
 const MAX_SPARKLINE_POINTS = 6;
 
-export function useNetWorthTrend(): NetWorthTrend {
+function getWeekStart(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetWorthTrend {
   const seriesQuery = useQuery({
     queryKey: ["netWorthTrendSeries"],
     queryFn: async () => {
@@ -53,7 +67,7 @@ export function useNetWorthTrend(): NetWorthTrend {
 
   return useMemo(() => {
     if (!seriesQuery.data || !walletsQuery.data) {
-      return { isLoading, current: 0, monthDelta: 0, pctChange: 0, sparkline: [] };
+      return { isLoading, current: 0, periodDelta: 0, periodLabel: "", pctChange: 0, sparkline: [] };
     }
 
     const now = new Date();
@@ -64,7 +78,7 @@ export function useNetWorthTrend(): NetWorthTrend {
       (tx: any) => tx.type === "income" || tx.type === "expense"
     );
 
-    const { wealthSeries } = computeWealthSeries({
+    const { wealthSeries, globalSummaryList } = computeWealthSeries({
       transactions: incomeExpense,
       manualData: mapManualMonthRows(seriesQuery.data.manual),
       snapshots: mapInvestmentSnapshotRows(seriesQuery.data.snapshots),
@@ -72,20 +86,49 @@ export function useNetWorthTrend(): NetWorthTrend {
       currentMonth,
     });
 
-    const lastClosed: WealthPoint | undefined = wealthSeries[wealthSeries.length - 1];
-    const lastClosedAmount = lastClosed?.finalAmount ?? 0;
-
     // Patrimonio actual real = suma del balance de todas las carteras ahora mismo.
     const current = walletsQuery.data.reduce((sum, w) => sum + Number(w.balance || 0), 0);
 
-    const monthDelta = current - lastClosedAmount;
-    const pctChange = lastClosedAmount !== 0 ? (monthDelta / Math.abs(lastClosedAmount)) * 100 : 0;
+    // Neto (ingresos - gastos) de las transacciones desde una fecha hasta hoy,
+    // para reconstruir hacia atrás el patrimonio cuando no hay un "cierre"
+    // contable a esa granularidad (solo existe cierre mensual/anual).
+    const netflowSince = (from: Date) => {
+      const fromTime = from.getTime();
+      return incomeExpense
+        .filter((tx: any) => new Date(tx.date).getTime() >= fromTime)
+        .reduce((s: number, tx: any) => s + (tx.type === "income" ? Math.abs(tx.amount) : -Math.abs(tx.amount)), 0);
+    };
+
+    let baseline = 0;
+    let periodLabel = "este mes";
+
+    if (filterType === "year") {
+      const finishedYears = globalSummaryList.filter((y) => y.year < currentYear);
+      const lastYear = finishedYears[finishedYears.length - 1];
+      baseline = lastYear ? lastYear.finalAmount : 0;
+      periodLabel = "este año";
+    } else if (filterType === "week") {
+      baseline = current - netflowSince(getWeekStart(now));
+      periodLabel = "esta semana";
+    } else if (filterType === "day") {
+      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      baseline = current - netflowSince(dayStart);
+      periodLabel = "hoy";
+    } else {
+      // month, all y custom -> comparar con el último mes cerrado.
+      const lastClosed: WealthPoint | undefined = wealthSeries[wealthSeries.length - 1];
+      baseline = lastClosed?.finalAmount ?? 0;
+      periodLabel = "este mes";
+    }
+
+    const periodDelta = current - baseline;
+    const pctChange = baseline !== 0 ? (periodDelta / Math.abs(baseline)) * 100 : 0;
 
     const sparkline = wealthSeries
       .slice(-MAX_SPARKLINE_POINTS)
       .map((p) => ({ label: p.label, value: p.finalAmount }));
     sparkline.push({ label: "Hoy", value: current });
 
-    return { isLoading, current, monthDelta, pctChange, sparkline };
-  }, [seriesQuery.data, walletsQuery.data, isLoading]);
+    return { isLoading, current, periodDelta, periodLabel, pctChange, sparkline };
+  }, [seriesQuery.data, walletsQuery.data, isLoading, filterType]);
 }
