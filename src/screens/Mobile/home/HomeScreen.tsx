@@ -198,6 +198,7 @@ export default function HomeScreen({ navigation }: any) {
   const effectivePeriodTo =
     dateTo ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString();
   const { profit: totalInvestment } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
+  const balancePeriodLabel = new Date(effectivePeriodFrom).toLocaleDateString("es-ES", { month: "long" });
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const visibleTransactions = trimmedQuery
@@ -241,7 +242,7 @@ export default function HomeScreen({ navigation }: any) {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Buscar transacciones, categorías, comercios..."
+              placeholder="Buscar transacciones"
               placeholderTextColor="#9CA3AF"
               style={
                 Platform.OS === "web"
@@ -370,6 +371,10 @@ export default function HomeScreen({ navigation }: any) {
                 </Text>
                 <Ionicons name="chevron-down-outline" size={15} color="#6B7280" />
               </TouchableOpacity>
+
+              <Text className="text-gray-400 text-[11px] font-medium mb-0.5">
+                Balance de {balancePeriodLabel}
+              </Text>
 
               <Text className="text-[#0F172A] text-[24px] font-extrabold">
                 {formatEuro(totalBalance)}€
