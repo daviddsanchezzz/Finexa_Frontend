@@ -3,7 +3,6 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Animated
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import Svg, { Path, Circle } from "react-native-svg";
 import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
 import WalletSelectorModal from "../../../components/WalletSelectorModal";
@@ -17,36 +16,6 @@ import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkel
 import { exportTransactionsCsv } from "../../../utils/csvExport";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
-
-function NetWorthSparkline({ points, positive }: { points: { value: number }[]; positive: boolean }) {
-  const W = 84;
-  const H = 34;
-  if (points.length < 2) return <View style={{ width: W, height: H }} />;
-
-  const values = points.map((p) => p.value);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const span = maxV - minV || 1;
-  const step = W / (points.length - 1);
-  const lineColor = positive ? "#86EFAC" : "#FCA5A5";
-
-  const mapped = points.map((p, i) => ({
-    x: i * step,
-    y: H - ((p.value - minV) / span) * (H - 6) - 3,
-  }));
-
-  const linePath = mapped.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-  const areaPath = `${linePath} L ${mapped[mapped.length - 1].x.toFixed(1)} ${H} L ${mapped[0].x.toFixed(1)} ${H} Z`;
-  const last = mapped[mapped.length - 1];
-
-  return (
-    <Svg width={W} height={H}>
-      <Path d={areaPath} fill={lineColor} opacity={0.18} />
-      <Path d={linePath} stroke={lineColor} strokeWidth={2.5} fill="none" />
-      <Circle cx={last.x} cy={last.y} r={3.5} fill={lineColor} />
-    </Svg>
-  );
-}
 
 export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -312,48 +281,42 @@ export default function HomeScreen({ navigation }: any) {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate("MainTabs", { screen: "Stats" })}
-                className="bg-primary rounded-2xl px-4 py-3 mb-3"
+                className="bg-primary rounded-2xl px-4 py-4 mb-3 items-center"
               >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>Patrimonio neto</Text>
-                      <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />
-                    </View>
-                    <Text style={{ fontSize: 21, fontWeight: "800", color: "white", marginTop: 2 }}>
-                      {formatEuro(netWorth.current)} €
-                    </Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 6 }}>
-                      <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                        {netWorth.periodDelta >= 0 ? "+" : "−"}
-                        {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>Patrimonio neto</Text>
+                  <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />
+                </View>
+                <Text style={{ fontSize: 30, fontWeight: "800", color: "white", marginTop: 4 }}>
+                  {formatEuro(netWorth.current)} €
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                    {netWorth.periodDelta >= 0 ? "+" : "−"}
+                    {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
+                  </Text>
+                  {Math.abs(netWorth.pctChange) > 0.05 && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "rgba(255,255,255,0.16)",
+                        borderRadius: 999,
+                        paddingHorizontal: 6,
+                        paddingVertical: 1.5,
+                        gap: 2,
+                      }}
+                    >
+                      <Ionicons
+                        name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                        size={9}
+                        color={netWorth.pctChange >= 0 ? "#86EFAC" : "#FCA5A5"}
+                      />
+                      <Text style={{ fontSize: 10, fontWeight: "800", color: netWorth.pctChange >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                        {Math.abs(netWorth.pctChange).toFixed(1)}%
                       </Text>
-                      {Math.abs(netWorth.pctChange) > 0.05 && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            backgroundColor: "rgba(255,255,255,0.16)",
-                            borderRadius: 999,
-                            paddingHorizontal: 6,
-                            paddingVertical: 1.5,
-                            gap: 2,
-                          }}
-                        >
-                          <Ionicons
-                            name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
-                            size={9}
-                            color={netWorth.pctChange >= 0 ? "#86EFAC" : "#FCA5A5"}
-                          />
-                          <Text style={{ fontSize: 10, fontWeight: "800", color: netWorth.pctChange >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                            {Math.abs(netWorth.pctChange).toFixed(1)}%
-                          </Text>
-                        </View>
-                      )}
                     </View>
-                  </View>
-
-                  <NetWorthSparkline points={netWorth.sparkline} positive={netWorth.periodDelta >= 0} />
+                  )}
                 </View>
               </TouchableOpacity>
             )}
