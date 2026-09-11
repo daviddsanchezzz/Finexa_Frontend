@@ -1,19 +1,51 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Platform, Animated, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Animated, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import Svg, { Path, Circle } from "react-native-svg";
 import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
 import WalletSelectorModal from "../../../components/WalletSelectorModal";
 import NotificationsSheet from "../../../components/NotificationsSheet";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
+import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
 import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
 import { exportTransactionsCsv } from "../../../utils/csvExport";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
+
+function NetWorthSparkline({ points, positive }: { points: { value: number }[]; positive: boolean }) {
+  const W = 108;
+  const H = 46;
+  if (points.length < 2) return <View style={{ width: W, height: H }} />;
+
+  const values = points.map((p) => p.value);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const span = maxV - minV || 1;
+  const step = W / (points.length - 1);
+  const lineColor = positive ? "#16A34A" : "#DC2626";
+
+  const mapped = points.map((p, i) => ({
+    x: i * step,
+    y: H - ((p.value - minV) / span) * (H - 6) - 3,
+  }));
+
+  const linePath = mapped.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L ${mapped[mapped.length - 1].x.toFixed(1)} ${H} L ${mapped[0].x.toFixed(1)} ${H} Z`;
+  const last = mapped[mapped.length - 1];
+
+  return (
+    <Svg width={W} height={H}>
+      <Path d={areaPath} fill={lineColor} opacity={0.12} />
+      <Path d={linePath} stroke={lineColor} strokeWidth={2.5} fill="none" />
+      <Circle cx={last.x} cy={last.y} r={3.5} fill={lineColor} />
+    </Svg>
+  );
+}
 
 export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -25,7 +57,9 @@ export default function HomeScreen({ navigation }: any) {
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { unreadCount: unreadNotificationsCount } = useNotificationsFeed();
+  const netWorth = useNetWorthTrend();
 
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
   useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
@@ -157,6 +191,17 @@ export default function HomeScreen({ navigation }: any) {
     .filter((tx) => tx.type === "expense")
     .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
 
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const visibleTransactions = trimmedQuery
+    ? transactions.filter((tx) => {
+        const haystack = [tx.description, tx.category?.name, tx.subcategory?.name, tx.wallet?.name]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(trimmedQuery);
+      })
+    : transactions;
+
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
       {/* HEADER */}
@@ -171,6 +216,50 @@ export default function HomeScreen({ navigation }: any) {
           onOpenNotifications={() => setNotificationsVisible(true)}
           unreadNotificationsCount={unreadNotificationsCount}
         />
+
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 10 }}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#F3F4F6",
+              borderRadius: 16,
+              paddingHorizontal: 14,
+              height: 46,
+            }}
+          >
+            <Ionicons name="search-outline" size={18} color="#9CA3AF" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Buscar transacciones, categorías, comercios..."
+              placeholderTextColor="#9CA3AF"
+              style={{ flex: 1, marginLeft: 8, fontSize: 14, color: "#111827" }}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setDateModalVisible(true)}
+            activeOpacity={0.8}
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 16,
+              backgroundColor: "#F3F4F6",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="options-outline" size={20} color="#4B5563" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <NotificationsSheet visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
@@ -204,6 +293,59 @@ export default function HomeScreen({ navigation }: any) {
           onTouchEnd={handleWebTouchEnd}
         >
           <View className="px-5 pb-2">
+            {/* PATRIMONIO NETO */}
+            {!netWorth.isLoading && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate("MainTabs", { screen: "Stats" })}
+                className="bg-white rounded-3xl p-5 mb-4"
+                style={{ borderWidth: 1, borderColor: "#F1F5F9", shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>Patrimonio neto</Text>
+                      <Ionicons name="chevron-forward" size={15} color="#94A3B8" style={{ marginLeft: 2 }} />
+                    </View>
+                    <Text style={{ fontSize: 27, fontWeight: "800", color: "#0F172A", marginTop: 4 }}>
+                      {formatEuro(netWorth.current)}€
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: "600", marginTop: 2, color: netWorth.monthDelta >= 0 ? "#16A34A" : "#DC2626" }}>
+                      {netWorth.monthDelta >= 0 ? "+" : "−"}
+                      {formatEuro(Math.abs(netWorth.monthDelta))}€ este mes
+                    </Text>
+                  </View>
+
+                  <View style={{ alignItems: "flex-end" }}>
+                    {Math.abs(netWorth.pctChange) > 0.05 && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: netWorth.pctChange >= 0 ? "#DCFCE7" : "#FEE2E2",
+                          borderRadius: 999,
+                          paddingHorizontal: 9,
+                          paddingVertical: 4,
+                          marginBottom: 6,
+                          gap: 3,
+                        }}
+                      >
+                        <Ionicons
+                          name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                          size={11}
+                          color={netWorth.pctChange >= 0 ? "#16A34A" : "#DC2626"}
+                        />
+                        <Text style={{ fontSize: 11.5, fontWeight: "800", color: netWorth.pctChange >= 0 ? "#16A34A" : "#DC2626" }}>
+                          {Math.abs(netWorth.pctChange).toFixed(1)}%
+                        </Text>
+                      </View>
+                    )}
+                    <NetWorthSparkline points={netWorth.sparkline} positive={netWorth.monthDelta >= 0} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+
             {/* TARJETA PRINCIPAL */}
             <View className="bg-primary rounded-3xl p-6 shadow-md mb-4 items-center">
               <TouchableOpacity
@@ -289,14 +431,23 @@ export default function HomeScreen({ navigation }: any) {
             refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
             <TransactionsList
-              transactions={transactions}
+              transactions={visibleTransactions}
               navigation={navigation}
               onDeleted={fetchTransactions}
             />
 
-            {transactions.length > 0 && (
+            {trimmedQuery && visibleTransactions.length === 0 && (
+              <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                <Ionicons name="search-outline" size={26} color="#CBD5E1" />
+                <Text style={{ color: "#94A3B8", fontSize: 13, marginTop: 8 }}>
+                  Sin resultados para "{searchQuery.trim()}"
+                </Text>
+              </View>
+            )}
+
+            {visibleTransactions.length > 0 && (
               <TouchableOpacity
-                onPress={() => exportTransactionsCsv(transactions)}
+                onPress={() => exportTransactionsCsv(visibleTransactions)}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
