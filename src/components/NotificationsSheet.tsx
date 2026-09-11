@@ -55,7 +55,7 @@ interface Props {
 
 export default function NotificationsSheet({ visible, onClose }: Props) {
   const navigation = useNavigation<any>();
-  const { notifications, isLoading, markRead } = useNotificationsFeed();
+  const { notifications, isLoading, markRead, markAllRead } = useNotificationsFeed();
   const friendReq = useFriendRequestFromNotification();
   const tripInv = useTripInviteFromNotification();
 
@@ -99,6 +99,11 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-[17px] font-semibold text-text">Notificaciones</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+              {unread.length > 0 && (
+                <TouchableOpacity onPress={() => markAllRead()}>
+                  <Text style={{ fontSize: 14, fontWeight: "500", color: "#DC2626" }}>Cerrar todas</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 onPress={() => {
                   onClose();
@@ -107,8 +112,8 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
               >
                 <Text style={{ fontSize: 14, fontWeight: "500", color: colors.primary }}>Ver todas</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose}>
-                <Text className="text-[14px] text-gray-500 font-medium">Cerrar</Text>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
           </View>
