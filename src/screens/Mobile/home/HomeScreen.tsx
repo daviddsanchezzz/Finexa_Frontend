@@ -293,7 +293,7 @@ export default function HomeScreen({ navigation }: any) {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate("NetWorth")}
-                className="bg-primary rounded-2xl px-4 py-4 mb-3 items-center"
+                className="bg-primary rounded-2xl px-4 py-4 mb-2.5 items-center"
               >
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>Patrimonio neto</Text>
@@ -312,7 +312,7 @@ export default function HomeScreen({ navigation }: any) {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        backgroundColor: "rgba(255,255,255,0.16)",
+                        backgroundColor: "rgba(255,255,255,0.10)",
                         borderRadius: 999,
                         paddingHorizontal: 6,
                         paddingVertical: 1.5,
@@ -321,10 +321,10 @@ export default function HomeScreen({ navigation }: any) {
                     >
                       <Ionicons
                         name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
-                        size={9}
-                        color={netWorth.pctChange >= 0 ? "#86EFAC" : "#FCA5A5"}
+                        size={8}
+                        color={netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
                       />
-                      <Text style={{ fontSize: 10, fontWeight: "800", color: netWorth.pctChange >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
                         {Math.abs(netWorth.pctChange).toFixed(1)}%
                       </Text>
                     </View>
@@ -333,11 +333,11 @@ export default function HomeScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
 
-            <View className="items-center mb-3">
-              <Text className="text-gray-400 text-[11px] font-medium">
+            <View className="items-center mb-2">
+              <Text className="text-gray-500 text-[11px] font-semibold">
                 {balancePeriodLabel}
               </Text>
-              <Text className="text-[#0F172A] text-[24px] font-extrabold">
+              <Text className="text-[#0F172A] text-[24px] font-extrabold" style={{ marginTop: -1 }}>
                 {formatEuro(totalBalance)} €
               </Text>
             </View>
@@ -364,7 +364,7 @@ export default function HomeScreen({ navigation }: any) {
 
               <View className="flex-1 items-center ml-2.5">
                 <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
-                  INVERSIÓN
+                  RENTABILIDAD
                 </Text>
                 <Text
                   className={`text-[18px] font-semibold mt-0.5 ${totalInvestment >= 0 ? "text-green-600" : "text-red-600"}`}
