@@ -100,7 +100,8 @@ export default function HomeScreen({ navigation }: any) {
       .replace("de ", "");
   });
 
-  const formatEuro = (n: number) => n.toFixed(2).replace(".", ",");
+  const formatEuro = (n: number) =>
+    n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const fetchTransactions = async (isManual = false) => {
     try {
@@ -320,12 +321,12 @@ export default function HomeScreen({ navigation }: any) {
                       <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />
                     </View>
                     <Text style={{ fontSize: 21, fontWeight: "800", color: "white", marginTop: 2 }}>
-                      {formatEuro(netWorth.current)}€
+                      {formatEuro(netWorth.current)} €
                     </Text>
                     <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 6 }}>
                       <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
                         {netWorth.periodDelta >= 0 ? "+" : "−"}
-                        {formatEuro(Math.abs(netWorth.periodDelta))}€ {netWorth.periodLabel}
+                        {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
                       </Text>
                       {Math.abs(netWorth.pctChange) > 0.05 && (
                         <View
@@ -359,11 +360,11 @@ export default function HomeScreen({ navigation }: any) {
 
             {/* TARJETA PRINCIPAL */}
             <View
-              className="bg-white rounded-2xl px-5 py-4 mb-3 items-center"
+              className="bg-white rounded-2xl px-5 py-2.5 mb-3 items-center"
               style={{ borderWidth: 1, borderColor: "#F1F5F9", shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}
             >
               <TouchableOpacity
-                className="flex-row items-center mb-1"
+                className="flex-row items-center"
                 onPress={() => setWalletModalVisible(true)}
               >
                 <Text className="text-gray-500 text-sm font-semibold mr-2">
@@ -372,12 +373,12 @@ export default function HomeScreen({ navigation }: any) {
                 <Ionicons name="chevron-down-outline" size={15} color="#6B7280" />
               </TouchableOpacity>
 
-              <Text className="text-gray-400 text-[11px] font-medium mb-0.5">
+              <Text className="text-gray-400 text-[11px] font-medium">
                 Balance de {balancePeriodLabel}
               </Text>
 
               <Text className="text-[#0F172A] text-[24px] font-extrabold">
-                {formatEuro(totalBalance)}€
+                {formatEuro(totalBalance)} €
               </Text>
             </View>
 
@@ -388,7 +389,7 @@ export default function HomeScreen({ navigation }: any) {
                   INGRESOS
                 </Text>
                 <Text className="text-green-600 text-[18px] font-semibold mt-0.5">
-                  {formatEuro(totalIncome)}€
+                  {formatEuro(totalIncome)} €
                 </Text>
               </View>
 
@@ -397,7 +398,7 @@ export default function HomeScreen({ navigation }: any) {
                   GASTOS
                 </Text>
                 <Text className="text-red-600 text-[18px] font-semibold mt-0.5">
-                  {formatEuro(totalExpense)}€
+                  {formatEuro(totalExpense)} €
                 </Text>
               </View>
 
@@ -409,7 +410,7 @@ export default function HomeScreen({ navigation }: any) {
                   className={`text-[18px] font-semibold mt-0.5 ${totalInvestment >= 0 ? "text-green-600" : "text-red-600"}`}
                 >
                   {totalInvestment >= 0 ? "+" : "−"}
-                  {formatEuro(Math.abs(totalInvestment))}€
+                  {formatEuro(Math.abs(totalInvestment))} €
                 </Text>
               </View>
             </View>
