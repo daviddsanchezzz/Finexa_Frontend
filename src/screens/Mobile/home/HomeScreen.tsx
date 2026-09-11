@@ -6,6 +6,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
 import NotificationsSheet from "../../../components/NotificationsSheet";
+import WalletSelectorModal from "../../../components/WalletSelectorModal";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
 import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
@@ -25,6 +26,7 @@ export default function HomeScreen({ navigation }: any) {
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [walletModalVisible, setWalletModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilterType, setDateFilterType] = useState<"day" | "week" | "month" | "year" | "all" | "custom">("month");
   const { unreadCount: unreadNotificationsCount } = useNotificationsFeed();
@@ -333,14 +335,18 @@ export default function HomeScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
 
-            <View className="items-center mb-2">
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setWalletModalVisible(true)}
+              className="items-center mb-2"
+            >
               <Text className="text-gray-500 text-[11px] font-semibold">
                 {balancePeriodLabel}
               </Text>
               <Text className="text-[#0F172A] text-[24px] font-extrabold" style={{ marginTop: -1 }}>
                 {formatEuro(totalBalance)} €
               </Text>
-            </View>
+            </TouchableOpacity>
 
             {/* Indicadores */}
             <View className="flex-row justify-between mb-1">
@@ -473,6 +479,13 @@ export default function HomeScreen({ navigation }: any) {
           setDateLabel(label);
           setDateFilterType(type as any);
         }}
+      />
+
+      <WalletSelectorModal
+        visible={walletModalVisible}
+        onClose={() => setWalletModalVisible(false)}
+        onSelect={() => {}}
+        selectedWallet={null}
       />
     </SafeAreaView>
   );
