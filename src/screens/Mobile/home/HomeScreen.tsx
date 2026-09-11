@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
-import WalletSelectorModal from "../../../components/WalletSelectorModal";
 import NotificationsSheet from "../../../components/NotificationsSheet";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
@@ -21,8 +20,6 @@ export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [walletModalVisible, setWalletModalVisible] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState<any | null>(null);
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
@@ -69,8 +66,14 @@ export default function HomeScreen({ navigation }: any) {
       .replace("de ", "");
   });
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // No usamos toLocaleString: en Hermes/RN el soporte de Intl suele ser
+  // parcial y el separador de miles no siempre se aplica en dispositivo.
+  const formatEuro = (n: number) => {
+    const sign = n < 0 ? "-" : "";
+    const [intPart, decPart] = Math.abs(n).toFixed(2).split(".");
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `${sign}${grouped},${decPart}`;
+  };
 
   const fetchTransactions = async (isManual = false) => {
     try {
@@ -85,7 +88,6 @@ export default function HomeScreen({ navigation }: any) {
         dateTo: lastDay.toISOString(),
       };
 
-      if (selectedWallet?.id) params.walletId = selectedWallet.id;
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
 
@@ -111,17 +113,17 @@ export default function HomeScreen({ navigation }: any) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchTransactions(true);
-  }, [selectedWallet, dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFocusEffect(
     useCallback(() => {
-      const key = `${selectedWallet?.id ?? "all"}|${dateFrom ?? ""}|${dateTo ?? ""}`;
+      const key = `${dateFrom ?? ""}|${dateTo ?? ""}`;
       if (hasFetched.current && lastFetchKey.current === key && lastFetchedVersion.current === invalidationVersion) return;
       lastFetchKey.current = key;
       hasFetched.current = true;
       lastFetchedVersion.current = invalidationVersion;
       fetchTransactions();
-    }, [selectedWallet, dateFrom, dateTo, invalidationVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dateFrom, dateTo, invalidationVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleWebTouchStart = useCallback((e: any) => {
@@ -152,10 +154,6 @@ export default function HomeScreen({ navigation }: any) {
     Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
   }, [pullAnim, onRefresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toSigned = (tx: any) =>
-    tx.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
-
-  const totalBalance = transactions.reduce((acc, tx) => acc + toSigned(tx), 0);
   const totalIncome = transactions
     .filter((tx) => tx.type === "income")
     .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
@@ -168,7 +166,6 @@ export default function HomeScreen({ navigation }: any) {
   const effectivePeriodTo =
     dateTo ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString();
   const { profit: totalInvestment } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
-  const balancePeriodLabel = new Date(effectivePeriodFrom).toLocaleDateString("es-ES", { month: "long" });
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const visibleTransactions = trimmedQuery
@@ -280,7 +277,7 @@ export default function HomeScreen({ navigation }: any) {
             {!netWorth.isLoading && (
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate("MainTabs", { screen: "Stats" })}
+                onPress={() => navigation.navigate("NetWorth")}
                 className="bg-primary rounded-2xl px-4 py-4 mb-3 items-center"
               >
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -320,30 +317,6 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </TouchableOpacity>
             )}
-
-            {/* TARJETA PRINCIPAL */}
-            <View
-              className="bg-white rounded-2xl px-5 py-2.5 mb-3 items-center"
-              style={{ borderWidth: 1, borderColor: "#F1F5F9", shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}
-            >
-              <TouchableOpacity
-                className="flex-row items-center"
-                onPress={() => setWalletModalVisible(true)}
-              >
-                <Text className="text-gray-500 text-sm font-semibold mr-2">
-                  {selectedWallet ? selectedWallet.name : "Todas las carteras"}
-                </Text>
-                <Ionicons name="chevron-down-outline" size={15} color="#6B7280" />
-              </TouchableOpacity>
-
-              <Text className="text-gray-400 text-[11px] font-medium">
-                Balance de {balancePeriodLabel}
-              </Text>
-
-              <Text className="text-[#0F172A] text-[24px] font-extrabold">
-                {formatEuro(totalBalance)} €
-              </Text>
-            </View>
 
             {/* Indicadores */}
             <View className="flex-row justify-between mb-1">
@@ -467,13 +440,6 @@ export default function HomeScreen({ navigation }: any) {
       )}
 
       {/* MODALES */}
-      <WalletSelectorModal
-        visible={walletModalVisible}
-        onClose={() => setWalletModalVisible(false)}
-        onSelect={(wallet) => setSelectedWallet(wallet)}
-        selectedWallet={selectedWallet}
-      />
-
       <DateFilterModal
         visible={dateModalVisible}
         onClose={() => setDateModalVisible(false)}
