@@ -5,6 +5,7 @@ import { isTripOngoing } from "../utils/tripDates";
 
 interface OngoingTripSummary {
   id: number;
+  status: string;
   startDate: string | null;
   endDate: string | null;
 }
@@ -18,7 +19,12 @@ function useOngoingTripId() {
 
   return useMemo(() => {
     const now = new Date();
-    const trip = (data ?? []).find((t) => isTripOngoing(t.startDate, t.endDate, now));
+    // Solo cuenta como "viaje activo" si sigue en organización (estado
+    // "planning"): un viaje ya visitado o aún en wishlist no debe disparar
+    // la tarjeta aunque sus fechas coincidan con hoy.
+    const trip = (data ?? []).find(
+      (t) => t.status === "planning" && isTripOngoing(t.startDate, t.endDate, now)
+    );
     return trip?.id ?? null;
   }, [data]);
 }
