@@ -10,6 +10,7 @@ import WalletSelectorModal from "../../../components/WalletSelectorModal";
 import NotificationsSheet from "../../../components/NotificationsSheet";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
+import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
 import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
@@ -191,6 +192,12 @@ export default function HomeScreen({ navigation }: any) {
   const totalExpense = transactions
     .filter((tx) => tx.type === "expense")
     .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
+
+  const effectivePeriodFrom =
+    dateFrom ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const effectivePeriodTo =
+    dateTo ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString();
+  const { profit: totalInvestment } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const visibleTransactions = trimmedQuery
@@ -378,12 +385,24 @@ export default function HomeScreen({ navigation }: any) {
                 </Text>
               </View>
 
-              <View className="flex-1 items-center ml-2.5">
+              <View className="flex-1 items-center mx-1.5">
                 <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
                   GASTOS
                 </Text>
                 <Text className="text-red-600 text-[18px] font-semibold mt-0.5">
                   {formatEuro(totalExpense)}€
+                </Text>
+              </View>
+
+              <View className="flex-1 items-center ml-2.5">
+                <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
+                  INVERSIÓN
+                </Text>
+                <Text
+                  className={`text-[18px] font-semibold mt-0.5 ${totalInvestment >= 0 ? "text-green-600" : "text-red-600"}`}
+                >
+                  {totalInvestment >= 0 ? "+" : "−"}
+                  {formatEuro(Math.abs(totalInvestment))}€
                 </Text>
               </View>
             </View>
