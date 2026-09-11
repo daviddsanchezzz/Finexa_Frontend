@@ -18,8 +18,8 @@ import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 
 function NetWorthSparkline({ points, positive }: { points: { value: number }[]; positive: boolean }) {
-  const W = 108;
-  const H = 46;
+  const W = 84;
+  const H = 34;
   if (points.length < 2) return <View style={{ width: W, height: H }} />;
 
   const values = points.map((p) => p.value);
@@ -298,67 +298,66 @@ export default function HomeScreen({ navigation }: any) {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate("MainTabs", { screen: "Stats" })}
-                className="bg-white rounded-3xl p-5 mb-4"
+                className="bg-white rounded-2xl px-4 py-3 mb-3"
                 style={{ borderWidth: 1, borderColor: "#F1F5F9", shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}
               >
-                <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>Patrimonio neto</Text>
-                      <Ionicons name="chevron-forward" size={15} color="#94A3B8" style={{ marginLeft: 2 }} />
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#0F172A" }}>Patrimonio neto</Text>
+                      <Ionicons name="chevron-forward" size={13} color="#94A3B8" style={{ marginLeft: 2 }} />
                     </View>
-                    <Text style={{ fontSize: 27, fontWeight: "800", color: "#0F172A", marginTop: 4 }}>
+                    <Text style={{ fontSize: 21, fontWeight: "800", color: "#0F172A", marginTop: 2 }}>
                       {formatEuro(netWorth.current)}€
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: "600", marginTop: 2, color: netWorth.monthDelta >= 0 ? "#16A34A" : "#DC2626" }}>
-                      {netWorth.monthDelta >= 0 ? "+" : "−"}
-                      {formatEuro(Math.abs(netWorth.monthDelta))}€ este mes
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2, gap: 6 }}>
+                      <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.monthDelta >= 0 ? "#16A34A" : "#DC2626" }}>
+                        {netWorth.monthDelta >= 0 ? "+" : "−"}
+                        {formatEuro(Math.abs(netWorth.monthDelta))}€ este mes
+                      </Text>
+                      {Math.abs(netWorth.pctChange) > 0.05 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor: netWorth.pctChange >= 0 ? "#DCFCE7" : "#FEE2E2",
+                            borderRadius: 999,
+                            paddingHorizontal: 6,
+                            paddingVertical: 1.5,
+                            gap: 2,
+                          }}
+                        >
+                          <Ionicons
+                            name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                            size={9}
+                            color={netWorth.pctChange >= 0 ? "#16A34A" : "#DC2626"}
+                          />
+                          <Text style={{ fontSize: 10, fontWeight: "800", color: netWorth.pctChange >= 0 ? "#16A34A" : "#DC2626" }}>
+                            {Math.abs(netWorth.pctChange).toFixed(1)}%
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
 
-                  <View style={{ alignItems: "flex-end" }}>
-                    {Math.abs(netWorth.pctChange) > 0.05 && (
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          backgroundColor: netWorth.pctChange >= 0 ? "#DCFCE7" : "#FEE2E2",
-                          borderRadius: 999,
-                          paddingHorizontal: 9,
-                          paddingVertical: 4,
-                          marginBottom: 6,
-                          gap: 3,
-                        }}
-                      >
-                        <Ionicons
-                          name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
-                          size={11}
-                          color={netWorth.pctChange >= 0 ? "#16A34A" : "#DC2626"}
-                        />
-                        <Text style={{ fontSize: 11.5, fontWeight: "800", color: netWorth.pctChange >= 0 ? "#16A34A" : "#DC2626" }}>
-                          {Math.abs(netWorth.pctChange).toFixed(1)}%
-                        </Text>
-                      </View>
-                    )}
-                    <NetWorthSparkline points={netWorth.sparkline} positive={netWorth.monthDelta >= 0} />
-                  </View>
+                  <NetWorthSparkline points={netWorth.sparkline} positive={netWorth.monthDelta >= 0} />
                 </View>
               </TouchableOpacity>
             )}
 
             {/* TARJETA PRINCIPAL */}
-            <View className="bg-primary rounded-3xl p-6 shadow-md mb-4 items-center">
+            <View className="bg-primary rounded-2xl px-5 py-4 mb-3 items-center">
               <TouchableOpacity
-                className="flex-row items-center mb-2"
+                className="flex-row items-center mb-1"
                 onPress={() => setWalletModalVisible(true)}
               >
-                <Text className="text-white/85 text-lg font-semibold mr-2.5">
+                <Text className="text-white/85 text-sm font-semibold mr-2">
                   {selectedWallet ? selectedWallet.name : "Todas las carteras"}
                 </Text>
-                <Ionicons name="chevron-down-outline" size={17} color="white" />
+                <Ionicons name="chevron-down-outline" size={15} color="white" />
               </TouchableOpacity>
 
-              <Text className="text-white text-[29px] font-extrabold mt-1">
+              <Text className="text-white text-[24px] font-extrabold">
                 {formatEuro(totalBalance)}€
               </Text>
             </View>
