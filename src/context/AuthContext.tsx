@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api, { plainApi } from "../api/api";
 import { storage } from "../utils/storage";
+import { clearNetWorthCache } from "../utils/netWorthCache";
 
 type User = {
   id: number;
@@ -106,6 +107,7 @@ useEffect(() => {
     await storage.removeItem("access_token");
     await storage.removeItem("refresh_token");
     delete api.defaults.headers.common["Authorization"];
+    clearNetWorthCache();
     setUser(null);
   };
 
