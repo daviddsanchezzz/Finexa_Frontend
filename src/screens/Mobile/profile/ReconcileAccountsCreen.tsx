@@ -11,14 +11,9 @@ import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { Ionicons } from "@expo/vector-icons";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
+import { formatEuro as formatEuroBase } from "../../../utils/currency";
 
-const formatEuro = (n: number) =>
-  n.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
 const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 

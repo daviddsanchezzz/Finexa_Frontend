@@ -12,6 +12,7 @@ import { markTransactionsDirty } from "../utils/transactionsInvalidation";
 import RecurringScopeModal, {
   RecurringScope,
 } from "./RecurringScopeModal";
+import { formatEuro as formatEuroShared } from "../utils/currency";
 
 interface Props {
   transactions: any[];
@@ -93,7 +94,7 @@ export default function TransactionsList({
     setOpenId(id);
   };
 
-  const formatEuro = (n: number) => n.toFixed(2).replace(".", ",");
+  const formatEuro = (n: number) => formatEuroShared(n);
 
   // 🔵 Total diario, soporta transferencias (no cuentan en total)
   const getDayTotal = (items: any[]) => {

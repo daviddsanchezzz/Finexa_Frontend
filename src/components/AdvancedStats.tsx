@@ -20,6 +20,7 @@ import {
   type YearSummary,
   type WealthTransaction,
 } from "../utils/wealthSeries";
+import { formatEuro as sharedFormatEuro } from "../utils/currency";
 
 interface AdvancedStatsProps {
   initialBalance?: number;
@@ -46,13 +47,7 @@ export default function AdvancedStats({ navigation, initialBalance = 0 }: any) {
   // Para la gráfica de patrimonio
   const [chartWidth, setChartWidth] = useState(0);
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const formatEuro = (n: number) => `${sharedFormatEuro(n)} €`;
 
   // -----------------------------------------------------
   // CARGA TRANSACCIONES + OVERRIDES

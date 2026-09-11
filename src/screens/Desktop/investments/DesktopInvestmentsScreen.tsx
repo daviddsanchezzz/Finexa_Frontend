@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { textStyles, typography } from "../../../theme/typography";
+import { formatEuro } from "../../../utils/currency";
 
 import PieChartComponent from "../../../components/PieChart";
 import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
@@ -181,6 +182,7 @@ function PerformanceRow({
 
 function formatMoney(n: number, currency = "EUR") {
   const v = Number.isFinite(n) ? n : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
   return v.toLocaleString("es-ES", {
     style: "currency",
     currency,

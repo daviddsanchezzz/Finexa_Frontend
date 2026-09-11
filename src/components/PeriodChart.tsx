@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, Dimensions, TouchableOpacity } from "react-native";
 import { colors } from "../theme/theme";
+import { formatEuro } from "../utils/currency";
 
 interface DataPoint {
   display: number; // valor usado para la altura de la barra (nunca negativo)
@@ -33,12 +34,7 @@ export default function PeriodChart({ data, labels }: Props) {
   const chartHeight = 120;
 
   const formatValue = (value: number) => {
-    return value.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    return `${formatEuro(value)} €`;
   };
 
   const handleBarPress = (index: number) => {

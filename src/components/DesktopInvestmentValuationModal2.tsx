@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
+import { formatEuro } from "../utils/currency";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -55,6 +56,7 @@ function formatShortDate(iso: string) {
 
 function formatMoney(n: any, currency = "EUR") {
   const v = Number.isFinite(Number(n)) ? Number(n) : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
   try {
     return v.toLocaleString("es-ES", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {
@@ -175,7 +177,7 @@ export default function DesktopInvestmentValuationModal2({
     // por defecto, precargar valor con currentValue si existe (opcional)
     if (pick?.currentValue != null && Number.isFinite(Number(pick.currentValue))) {
       const v = Number(pick.currentValue);
-      setValue(v.toFixed(2).replace(".", ","));
+      setValue(formatEuro(v));
     } else {
       setValue("");
     }
@@ -461,7 +463,7 @@ export default function DesktopInvestmentValuationModal2({
                               setSelectedAsset(a);
                               // si tiene currentValue, precarga (sin obligar)
                               if (a.currentValue != null && Number.isFinite(Number(a.currentValue))) {
-                                setValue(Number(a.currentValue).toFixed(2).replace(".", ","));
+                                setValue(formatEuro(Number(a.currentValue)));
                               }
                             }}
                             activeOpacity={0.9}

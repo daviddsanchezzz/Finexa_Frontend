@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../../../../api/api";
 import { colors } from "../../../../../theme/theme";
+import { formatEuro } from "../../../../../utils/currency";
 
 export interface TransactionForSelector {
   id: number;
@@ -135,7 +136,7 @@ export default function TripTransactionSelectorModal({
             marginLeft: 8,
           }}
         >
-          {amount.toFixed(2)} €
+          {formatEuro(amount)} €
         </Text>
       </TouchableOpacity>
     );

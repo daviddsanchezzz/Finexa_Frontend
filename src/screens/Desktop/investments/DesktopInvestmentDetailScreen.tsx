@@ -17,6 +17,7 @@ import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg"
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { textStyles } from "../../../theme/typography";
+import { formatEuro } from "../../../utils/currency";
 
 import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
 import DesktopInvestmentValuationModal from "../../../components/DesktopInvestmentValuationModal";
@@ -86,6 +87,7 @@ type ValuationFromApi = {
 
 function formatMoney(n: number, currency = "EUR") {
   const v = Number.isFinite(n) ? n : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
   return v.toLocaleString("es-ES", {
     style: "currency",
     currency,

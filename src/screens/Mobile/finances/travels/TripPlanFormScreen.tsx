@@ -23,6 +23,7 @@ import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDat
 import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
 import { pickAndUploadAccommodationCover } from "../../../../utils/uploadTripCover";
 import { pickAndUploadTripAttachments, UploadedTripAttachment } from "../../../../utils/uploadTripAttachments";
+import { formatEuro } from "../../../../utils/currency";
 import { VisitStop, VisitStopType, VISIT_STOP_TYPES } from "./components/TripPlanningSection";
 
 // ==================== TYPES ====================
@@ -1323,7 +1324,7 @@ export default function TripPlanFormScreen({
               </View>
               {expCurrency !== "EUR" && expEurPreview !== null && (
                 <Text style={{ fontSize: 13, color: UI.muted, marginTop: 6 }}>
-                  ≈ {expEurPreview.toFixed(2).replace(".", ",")} EUR
+                  ≈ {formatEuro(expEurPreview)} EUR
                 </Text>
               )}
             </View>

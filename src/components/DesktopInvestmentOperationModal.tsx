@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
+import { formatEuro } from "../utils/currency";
 
 type OperationType = "buy" | "sell" | "transfer_in" | "transfer_out" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -64,6 +65,7 @@ const decimalToNumber = (s: string) => {
 
 function formatMoney(n: any, currency = "EUR") {
   const v = Number.isFinite(Number(n)) ? Number(n) : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
   try {
     return v.toLocaleString("es-ES", {
       style: "currency",

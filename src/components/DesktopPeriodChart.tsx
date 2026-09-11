@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, LayoutChangeEvent, Platform } from "react-native";
 import { colors } from "../theme/theme";
+import { formatEuro } from "../utils/currency";
 
 interface DataPoint {
   display: number; // >= 0
@@ -26,12 +27,7 @@ function niceCeilMax(rawMax: number) {
 
 function formatCurrency(value: number) {
   const v = Number.isFinite(value) ? value : 0;
-  return v.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return `${formatEuro(v)} €`;
 }
 
 function formatAxisNumber(v: number) {

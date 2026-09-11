@@ -20,6 +20,7 @@ import { textStyles, typography } from "../../../theme/typography";
 import { DesktopTripModal, TripFromApi as TripEdit } from "../../../components/DesktopTripModal";
 import { KpiCard } from "../../../components/KpiCard";
 import { tripDateKey } from "../../../utils/tripDates";
+import { formatEuro as formatEuroCore } from "../../../utils/currency";
 
 type BoardMode = "status" | "continent" | "year";
 type KanbanTone =
@@ -114,12 +115,7 @@ type TripsSummaryDto = {
 /** ===== Utils ===== */
 function formatEuro(n: number) {
   const v = Number.isFinite(n) ? n : 0;
-  return v.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return `${formatEuroCore(v)} €`;
 }
 
 function uniqueCountryCount(trips: TripUI[]) {

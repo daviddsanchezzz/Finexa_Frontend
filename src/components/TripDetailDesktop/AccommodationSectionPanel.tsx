@@ -3,6 +3,7 @@ import { View, Text, Pressable, Platform, Image, Linking, Modal } from "react-na
 import { Ionicons } from "@expo/vector-icons";
 import { UI } from "./ui";
 import { BathroomType, RoomType } from "../../types/enums/travel";
+import { formatEuro } from "../../utils/currency";
 
 /** =====================
  * Helpers
@@ -61,12 +62,7 @@ function moneyLabel(cost: any, currency?: string | null) {
   if (cost == null || cost === "") return "";
   const n = typeof cost === "number" ? cost : Number(String(cost).replace(",", "."));
   if (!Number.isFinite(n)) return "";
-  try {
-    if (c && c.length === 3) {
-      return new Intl.NumberFormat("es-ES", { style: "currency", currency: c }).format(n);
-    }
-  } catch {}
-  return `${n.toFixed(2)} ${c || ""}`.trim();
+  return `${formatEuro(n)} ${c}`.trim();
 }
 
 const ROOM_LABEL: Record<RoomType, string> = {

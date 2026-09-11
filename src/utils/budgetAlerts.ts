@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { formatEuro } from "./currency";
 
 const SENT_ALERTS_KEY = "budget_alerts_sent_v1";
 const ALERT_THRESHOLD = 0.8; // 80%
@@ -62,8 +63,8 @@ export async function checkBudgetAlerts(budgets: Budget[]): Promise<void> {
       ? `${emoji} Presupuesto superado: ${name}`
       : `${emoji} Alerta de presupuesto: ${name}`;
     const body = isOver
-      ? `Has superado el límite (${pct}% gastado). Límite: ${b.limit.toFixed(2)} €`
-      : `Llevas un ${pct}% del presupuesto de ${name}. Quedan ${(b.limit - b.spent).toFixed(2)} €`;
+      ? `Has superado el límite (${pct}% gastado). Límite: ${formatEuro(b.limit)} €`
+      : `Llevas un ${pct}% del presupuesto de ${name}. Quedan ${formatEuro(b.limit - b.spent)} €`;
 
     await Notifications.scheduleNotificationAsync({
       content: { title, body, sound: true },

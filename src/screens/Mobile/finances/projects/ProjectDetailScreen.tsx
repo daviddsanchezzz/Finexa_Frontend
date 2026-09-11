@@ -17,6 +17,7 @@ import AppHeader from '../../../../components/AppHeader';
 import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDateTimePicker';
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
+import { formatEuro } from '../../../../utils/currency';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
 type EntryType = 'income' | 'expense';
@@ -149,12 +150,7 @@ const STATUS_COLORS: Record<ProjectStatus, { bg: string; text: string }> = {
 };
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+  return `${formatEuro(Number(value || 0))} €`;
 }
 
 function formatDate(value?: string | null) {
@@ -555,7 +551,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     if (Math.round(sum * 100) !== Math.round(total * 100)) {
       appAlert(
         'Validación',
-        `La suma de socios (${sum.toFixed(2)}) debe coincidir con el total (${total.toFixed(2)}).`,
+        `La suma de socios (${formatEuro(sum)}) debe coincidir con el total (${formatEuro(total)}).`,
       );
       return false;
     }

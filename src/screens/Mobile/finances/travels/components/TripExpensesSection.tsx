@@ -8,6 +8,7 @@ import api from "../../../../../api/api";
 import { appAlert } from "../../../../../utils/appAlert";
 import TransactionsList from "../../../../../components/TransactionsList";
 import PlanItemDetailModal from "./PlanItemDetailModal";
+import { formatEuro as formatEuroCore } from "../../../../../utils/currency";
 
 // ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
 export enum BudgetCategoryType {
@@ -112,12 +113,7 @@ const UI = {
 };
 
 function formatEuro(n: number) {
-  return n.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return `${formatEuroCore(n)} €`;
 }
 
 function safeNumber(v: any) {
@@ -340,7 +336,7 @@ function ExpenseRow({
         <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
         {!!item.currency && item.currency !== "EUR" && !!item.cost && (
           <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }}>
-            {Number(item.cost).toFixed(2)} {item.currency}
+            {formatEuroCore(Number(item.cost))} {item.currency}
           </Text>
         )}
       </View>

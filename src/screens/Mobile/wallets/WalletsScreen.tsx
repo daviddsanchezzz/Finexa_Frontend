@@ -15,18 +15,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import EditWalletModal from "../../../components/EditWalletModal";
+import { formatEuro as formatEuroBase } from "../../../utils/currency";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const formatEuro = (n: number) =>
-  n.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
 type WalletKind = "cash" | "savings" | "investment";
 

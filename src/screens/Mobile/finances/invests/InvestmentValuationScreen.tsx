@@ -17,6 +17,7 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
+import { formatEuro } from "../../../../utils/currency";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -48,7 +49,7 @@ function parseAmount(input: string): number | null {
 }
 
 function toInputAmount(n: number): string {
-  return n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return formatEuro(n);
 }
 
 export default function InvestmentValuationScreen({ navigation, route }: any) {

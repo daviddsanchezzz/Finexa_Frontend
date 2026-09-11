@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { Dimensions } from "react-native";
+import { formatEuro as formatEuroBase } from "../../utils/currency";
 
 export const UI = {
   bg: "#F8FAFC",
@@ -24,13 +25,7 @@ export function useUiScale() {
   return { width, s, px, fs };
 }
 
-export const formatEuro = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+export const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
 export function cca2ToFlagEmoji(cca2?: string | null) {
   const cc = String(cca2 || "").toUpperCase();

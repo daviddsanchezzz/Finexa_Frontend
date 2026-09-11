@@ -2,6 +2,7 @@
 import { View, Text, TouchableOpacity, Pressable, Animated, ViewStyle, TextStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
+import { formatEuro } from "../utils/currency";
 
 type Variant = "calculator" | "numeric";
 
@@ -176,6 +177,16 @@ function formatDisplay(n: number) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(".", ",");
 }
 
+// Solo para la vista previa de la expresión (operando anterior + operador),
+// que nunca vuelve a alimentar el valor editable: aquí sí aplicamos el
+// separador de miles consistente con el resto de la app.
+function formatPreview(n: number) {
+  if (!isFinite(n)) return "0";
+  const rounded = Math.round(n * 100) / 100;
+  const grouped = formatEuro(rounded);
+  return Number.isInteger(rounded) ? grouped.replace(/,00$/, "") : grouped;
+}
+
 export default function NumericCalculatorKeyboard({
   visible,
   value,
@@ -206,8 +217,8 @@ export default function NumericCalculatorKeyboard({
   const expressionText =
     isCalculator && calcOp && calcPrev !== null
       ? calcFresh
-        ? `${formatDisplay(calcPrev)} ${operatorLabel[calcOp] ?? calcOp}`
-        : `${formatDisplay(calcPrev)} ${operatorLabel[calcOp] ?? calcOp} ${value || "0"}`
+        ? `${formatPreview(calcPrev)} ${operatorLabel[calcOp] ?? calcOp}`
+        : `${formatPreview(calcPrev)} ${operatorLabel[calcOp] ?? calcOp} ${value || "0"}`
       : "";
 
   useEffect(() => {
@@ -344,7 +355,7 @@ export default function NumericCalculatorKeyboard({
 
           {isCalculator && showExpressionInHeader && (
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
-              {calcOp && calcPrev !== null ? `${formatDisplay(calcPrev)} ${operatorLabel[calcOp] ?? calcOp}` : ""}
+              {calcOp && calcPrev !== null ? `${formatPreview(calcPrev)} ${operatorLabel[calcOp] ?? calcOp}` : ""}
             </Text>
           )}
 

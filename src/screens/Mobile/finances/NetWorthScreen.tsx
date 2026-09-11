@@ -14,6 +14,7 @@ import AppHeader from "../../../components/AppHeader";
 import SkeletonBox from "../../../components/SkeletonBox";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
+import { formatEuro } from "../../../utils/currency";
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -65,7 +66,7 @@ const KIND = {
 };
 
 function fmt(n: number, showSign = false) {
-  const s = Math.abs(n).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const s = formatEuro(Math.abs(n));
   if (showSign && n !== 0) return (n >= 0 ? "+" : "−") + s + " €";
   return (n < 0 ? "−" : "") + s + " €";
 }

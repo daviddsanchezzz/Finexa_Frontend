@@ -21,6 +21,7 @@ import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation"
 
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
+import { formatEuro } from "../../../../utils/currency";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
@@ -108,13 +109,16 @@ type InvestmentOperationFromApi = {
   transaction?: { fromWalletId?: number | null; toWalletId?: number | null } | null;
 };
 
-const formatMoney = (n: number, currency = "EUR") =>
-  (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
+const formatMoney = (n: number, currency = "EUR") => {
+  const v = Number.isFinite(n) ? n : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
+  return v.toLocaleString("es-ES", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+};
 
 const formatPct = (pnl: number, invested: number) => {
   if (!invested) return "0,00%";

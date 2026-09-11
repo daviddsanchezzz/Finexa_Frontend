@@ -19,6 +19,7 @@ import { colors } from "../../../../theme/theme";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { tripDateKey } from "../../../../utils/tripDates";
+import { formatEuro as formatEuroCore } from "../../../../utils/currency";
 
 type TripStatus = "wishlist" | "planning" | "seen";
 type BoardMode = "status" | "continent" | "year";
@@ -256,10 +257,8 @@ function formatDateRange(startISO?: string | null, endISO?: string | null) {
   return null;
 }
 function formatEuro(n: number) {
-  return (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
-    style: "currency", currency: "EUR",
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  });
+  const v = Number.isFinite(n) ? n : 0;
+  return `${formatEuroCore(Math.round(v)).replace(/,00$/, "")} €`;
 }
 function continentLabel(c?: string | null) {
   const v = (c || "").toLowerCase();

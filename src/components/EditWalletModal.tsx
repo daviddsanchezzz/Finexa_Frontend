@@ -14,6 +14,7 @@ import { colors } from "../theme/theme";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 import { appAlert } from "../utils/appAlert";
+import { formatEuro as formatEuroBase } from "../utils/currency";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -87,13 +88,7 @@ export default function EditWalletModal({
 
   const isEditing = !!editingWallet?.id;
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
   useEffect(() => {
     if (editingWallet) {

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatEuro } from "../utils/currency";
 
 interface Props {
   title: string;
@@ -18,7 +19,7 @@ interface Props {
   progressColor?: string;
 }
 
-const euro = (n: number) => n.toFixed(2).replace(".", ",");
+const euro = (n: number) => formatEuro(n);
 const pct = (p: number) => `${p}%` as `${number}%`;
 const getProgress = (a: number, b: number) =>
   b > 0 ? Math.min(100, Math.max(0, (a / b) * 100)) : 0;

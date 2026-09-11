@@ -4,6 +4,7 @@ import Modal from "react-native-modal";
 import { colors } from "../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 import api from "../api/api";
+import { formatEuro as formatEuroBase } from "../utils/currency";
 
 interface WalletSelectorModalProps {
   visible: boolean;
@@ -42,13 +43,7 @@ export default function WalletSelectorModal({
 
   const total = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-  });
+  const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
 
   return (

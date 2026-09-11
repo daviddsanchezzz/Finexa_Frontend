@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/theme";
 import { UI } from "./ui";
 import { textStyles } from "../../theme/typography";
+import { formatEuro } from "../../utils/currency";
 
 /** ===== helpers ===== */
 function pad2(n: number) {
@@ -39,11 +40,7 @@ function normalizeCost(x: any): number | null {
 }
 function formatMoney(n: number, currency?: string | null) {
   const cur = currency || "EUR";
-  try {
-    return new Intl.NumberFormat("es-ES", { style: "currency", currency: cur }).format(n);
-  } catch {
-    return `${n.toFixed(2)} ${cur}`;
-  }
+  return `${formatEuro(n)} ${cur}`;
 }
 function minutesBetween(a?: string | null, b?: string | null) {
   if (!a || !b) return null;

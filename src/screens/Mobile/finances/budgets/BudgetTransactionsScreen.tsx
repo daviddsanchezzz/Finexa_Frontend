@@ -13,6 +13,7 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import TransactionsList from "../../../../components/TransactionsList";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
+import { formatEuro } from "../../../../utils/currency";
 
 export default function BudgetTransactionsScreen({ route, navigation }: any) {
   const {
@@ -84,10 +85,7 @@ export default function BudgetTransactionsScreen({ route, navigation }: any) {
 
   const formatMoney = (n: number) => {
     const value = Number(n || 0);
-    const sign = value < 0 ? "-" : "";
-    const abs = Math.abs(value);
-    // Formato simple (sin Intl por compat RN); ajusta si ya tienes util de currency
-    return `${sign}${abs.toFixed(2)}€`;
+    return `${formatEuro(value)}€`;
   };
 
   const handleEdit = () => {

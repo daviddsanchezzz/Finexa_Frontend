@@ -14,6 +14,7 @@ import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import AppHeader from "../../../../components/AppHeader";
 import SkeletonBox from "../../../../components/SkeletonBox";
+import { formatEuro } from "../../../../utils/currency";
 
 interface Category {
   id: number;
@@ -126,7 +127,6 @@ function CalendarView({
   ];
 
   const selectedTxs = selectedDay ? calendarMap.get(selectedDay) || [] : [];
-  const formatEuro = (n: number) => n.toFixed(2).replace(".", ",");
 
   return (
     <View>
@@ -279,8 +279,6 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
     month: "long",
     year: "numeric",
   });
-
-  const formatEuro = (n: number) => n.toFixed(2).replace(".", ",");
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);

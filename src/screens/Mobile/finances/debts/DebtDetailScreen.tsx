@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../theme/theme";
 import TransactionsList from "../../../../components/TransactionsList";
 import api from "../../../../api/api";
+import { formatEuro } from "../../../../utils/currency";
 
 type DebtType = "loan" | "personal";
 type DebtDirection = "i_ow" | "they_owe";
@@ -550,7 +551,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                 color: "white",
               }}
             >
-              {remaining.toLocaleString("es-ES")} €
+              {formatEuro(remaining)} €
             </Text>
 
             <Text
@@ -562,7 +563,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
             >
               De un total de{" "}
               <Text style={{ fontWeight: "600", color: "white" }}>
-                {total.toLocaleString("es-ES")} €
+                {formatEuro(total)} €
               </Text>
             </Text>
           </View>
@@ -571,7 +572,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
           <View style={{ marginBottom: 12 }}>
             <View className="flex-row justify-between mb-1">
               <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
-                Pagado: {paid.toLocaleString("es-ES")} €
+                Pagado: {formatEuro(paid)} €
               </Text>
               <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>
                 {percentage}% completado
@@ -645,7 +646,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                       marginTop: 1,
                     }}
                   >
-                    {debt.monthlyPayment.toLocaleString("es-ES")} €/mes
+                    {formatEuro(debt.monthlyPayment)} €/mes
                   </Text>
                 )}
               </View>
@@ -740,7 +741,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                   Total financiado
                 </Text>
                 <Text className="text-base font-semibold text-slate-900 mt-1">
-                  {total.toLocaleString("es-ES")} €
+                  {formatEuro(total)} €
                 </Text>
               </View>
             </View>
@@ -752,7 +753,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                     Cuota mensual
                   </Text>
                   <Text className="text-base font-semibold text-slate-900 mt-1">
-                    {debt.monthlyPayment.toLocaleString("es-ES")} €/mes
+                    {formatEuro(debt.monthlyPayment)} €/mes
                   </Text>
                 </View>
               </View>
@@ -764,7 +765,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                   Pagado hasta ahora
                 </Text>
                 <Text className="text-base font-semibold text-emerald-800 mt-1">
-                  {paid.toLocaleString("es-ES")} €
+                  {formatEuro(paid)} €
                 </Text>
               </View>
             </View>
@@ -775,7 +776,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                   Pendiente actual
                 </Text>
                 <Text className="text-base font-semibold text-rose-700 mt-1">
-                  {remaining.toLocaleString("es-ES")} €
+                  {formatEuro(remaining)} €
                 </Text>
               </View>
             </View>
@@ -798,9 +799,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                     Intereses futuros (estim.)
                   </Text>
                   <Text className="text-base font-semibold text-amber-800 mt-1">
-                    {Math.round(
-                      baseScenario.totalInterest
-                    ).toLocaleString("es-ES")}{" "}
+                    {formatEuro(Math.round(baseScenario.totalInterest))}{" "}
                     €
                   </Text>
                 </View>
@@ -905,9 +904,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                           ({baseScenario.years.toFixed(1)} años) y pagarías
                           alrededor de{" "}
                           <Text className="font-semibold">
-                            {Math.round(
-                              baseScenario.totalInterest
-                            ).toLocaleString("es-ES")}{" "}
+                            {formatEuro(Math.round(baseScenario.totalInterest))}{" "}
                             €
                           </Text>{" "}
                           en intereses (desde hoy).
@@ -925,9 +922,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                           </Text>{" "}
                           ({extraScenario.years.toFixed(1)} años) y pagarías unos{" "}
                           <Text className="font-semibold">
-                            {Math.round(
-                              extraScenario.totalInterest
-                            ).toLocaleString("es-ES")}{" "}
+                            {formatEuro(Math.round(extraScenario.totalInterest))}{" "}
                             €
                           </Text>{" "}
                           en intereses.
@@ -939,9 +934,7 @@ export default function DebtDetailScreen({ route, navigation }: any) {
                           <Text className="text-[12px] text-emerald-50 font-medium">
                             Ahorrarías aproximadamente{" "}
                             <Text className="font-semibold">
-                              {Math.round(
-                                interestSaved
-                              ).toLocaleString("es-ES")}{" "}
+                              {formatEuro(Math.round(interestSaved))}{" "}
                               €
                             </Text>{" "}
                             en intereses y terminarías antes la deuda.

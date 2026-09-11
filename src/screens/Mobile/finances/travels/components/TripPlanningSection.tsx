@@ -9,6 +9,7 @@ import api from "../../../../../api/api";
 import TripMapView from "./TripMapView";
 import { useTripActivityStatus } from "../../../../../hooks/useTripActivityStatus";
 import PlanItemDetailModal from "./PlanItemDetailModal";
+import { formatEuro } from "../../../../../utils/currency";
 
 type TripPlanItemType =
   | "flight"
@@ -1240,7 +1241,7 @@ export default function TripPlanningSectionRedesign({
                       <Text style={{ fontSize: 10, fontWeight: "700", color: UI.muted2, marginTop: 1 }}>
                         {items.length > 0 ? `${items.length} actividad${items.length !== 1 ? "es" : ""}` : ""}
                         {items.length > 0 && dayCost > 0 ? " · " : ""}
-                        {dayCost > 0 ? `${dayCost.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €` : ""}
+                        {dayCost > 0 ? `${formatEuro(dayCost)} €` : ""}
                       </Text>
                     )}
                   </View>

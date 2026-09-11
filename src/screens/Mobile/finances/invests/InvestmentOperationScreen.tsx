@@ -18,6 +18,7 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
+import { formatEuro } from "../../../../utils/currency";
 
 type OperationMode = "buy" | "sell" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -56,6 +57,7 @@ const parseQty = (s: string) => {
 
 function formatMoney(n: any, currency = "EUR") {
   const v = Number.isFinite(Number(n)) ? Number(n) : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
   try {
     return v.toLocaleString("es-ES", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {

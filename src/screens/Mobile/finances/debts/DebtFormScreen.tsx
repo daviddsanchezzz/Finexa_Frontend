@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import api from "../../../../api/api";
+import { formatEuro } from "../../../../utils/currency";
 
 type DebtType = "loan" | "personal";
 type DirectionType = "i_ow" | "they_owe";
@@ -391,13 +392,13 @@ export default function DebtFormScreen({ navigation, route }: any) {
                   <Text className="text-[11px] text-white/80">
                     Pagado:{" "}
                     <Text className="font-semibold text-white">
-                      {payedNumeric.toLocaleString("es-ES")} €
+                      {formatEuro(payedNumeric)} €
                     </Text>
                   </Text>
                   <Text className="text-[11px] text-white/80">
                     Pendiente:{" "}
                     <Text className="font-semibold text-white">
-                      {remaining.toLocaleString("es-ES")} €
+                      {formatEuro(remaining)} €
                     </Text>
                   </Text>
                 </View>

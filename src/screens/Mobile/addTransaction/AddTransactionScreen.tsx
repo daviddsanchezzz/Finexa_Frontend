@@ -17,6 +17,7 @@ import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
+import { formatEuro } from "../../../utils/currency";
 import { ViewStyle, TextStyle } from "react-native";
 import EditCategoryModal from "../../../components/EditCategoryModal";
 import CrossPlatformDateTimePicker from "../../../components/CrossPlatformDateTimePicker";
@@ -51,7 +52,7 @@ const TYPE_LABEL_ES: Record<string, string> = {
 
 function formatBalance(n: number) {
   const value = typeof n === "number" && isFinite(n) ? n : 0;
-  return `${Math.round(value).toLocaleString("es-ES")} €`;
+  return `${formatEuro(Math.round(value)).replace(/,00$/, "")} €`;
 }
 
 //---------------------------------------

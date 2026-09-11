@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { Ionicons } from "@expo/vector-icons";
 import DesktopTransactionDetailsModal from "./DesktopTransactionDetailsModal";
+import { formatEuro } from "../utils/currency";
 
 type Props = {
   transactions: any[];
@@ -31,9 +32,9 @@ const UI = {
 function formatEuroSigned(tx: any) {
   const n = Number(tx?.amount) || 0;
 
-  if (tx?.type === "expense") return `-${n.toFixed(2).replace(".", ",")} €`;
-  if (tx?.type === "income") return `+${n.toFixed(2).replace(".", ",")} €`;
-  return `${n.toFixed(2).replace(".", ",")} €`; // transfer
+  if (tx?.type === "expense") return `-${formatEuro(n)} €`;
+  if (tx?.type === "income") return `+${formatEuro(n)} €`;
+  return `${formatEuro(n)} €`; // transfer
 }
 
 function amountColor(tx: any) {

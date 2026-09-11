@@ -25,6 +25,7 @@ import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
+import { formatEuro as formatEuroBase } from "../../../utils/currency";
 
 type GraphType = "expense" | "income";
 type RangeType = "week" | "month" | "year" | "all";
@@ -117,13 +118,7 @@ export default function StatsScreen({ navigation }: any) {
   const capitalizeLabel = (label: string) =>
     label ? label.charAt(0).toUpperCase() + label.slice(1) : label;
 
-  const formatEuro = (n: number) =>
-    (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
   const formatPercent = (value: number) =>
     `${(Number.isFinite(value) ? value : 0).toFixed(1).replace(".", ",")}%`;

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
+import { formatEuro as formatEuroShared } from "../utils/currency";
 
 type TxType = "expense" | "income" | "transfer";
 
@@ -21,7 +22,7 @@ type Props = {
   onDelete: (tx: any) => void; // ✅ reutiliza tu lógica de borrado (scopes, etc.)
 };
 
-const formatEuro = (n: number) => (n || 0).toFixed(2).replace(".", ",");
+const formatEuro = (n: number) => formatEuroShared(n || 0);
 
 const formatDateTime = (iso: string) => {
   try {

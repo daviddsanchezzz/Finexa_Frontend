@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle } from "react-native-svg";
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
+import { formatEuro as formatEuroShared } from "../../../utils/currency";
 
 type TxType = "income" | "expense" | "transfer";
 
@@ -55,12 +56,7 @@ function normMoney(n: number) {
 
 function formatEuro(n: number) {
   const v = normMoney(n);
-  return v.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return `${formatEuroShared(v)} €`;
 }
 
 function formatMonthShort(y: number, m: number) {

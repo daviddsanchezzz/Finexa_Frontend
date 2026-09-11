@@ -20,6 +20,7 @@ import AppHeader from "../../../../components/AppHeader";
 import SkeletonBox from "../../../../components/SkeletonBox";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
+import { formatEuro } from "../../../../utils/currency";
 
 type CategoryKey = "expense" | "investment" | "savings";
 
@@ -78,17 +79,7 @@ const parseMoneyNullable = (raw: string): number | null => {
 };
 const parseMoney = (raw: string) => parseMoneyNullable(raw) ?? 0;
 
-const fmtEUR = (n: number) => {
-  try {
-    return new Intl.NumberFormat("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      maximumFractionDigits: 2,
-    }).format(n);
-  } catch {
-    return `${n.toFixed(2).replace(".", ",")} €`;
-  }
-};
+const fmtEUR = (n: number) => `${formatEuro(n)} €`;
 
 const fmtDate = (iso: string) => {
   try {

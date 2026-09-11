@@ -15,6 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
+import { formatEuro as formatEuroShared } from "../../../utils/currency";
 
 import PieChartComponent from "../../../components/PieChart";
 import DesktopPeriodChart from "../../../components/DesktopPeriodChart";
@@ -74,12 +75,7 @@ function capitalizeLabel(label: string) {
 
 function formatEuro(n: number) {
   const v = Number.isFinite(n) ? n : 0;
-  return v.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return `${formatEuroShared(v)} €`;
 }
 
 function formatPercent(n: number) {

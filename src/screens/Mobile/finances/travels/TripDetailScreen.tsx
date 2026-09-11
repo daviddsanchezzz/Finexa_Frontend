@@ -23,6 +23,7 @@ import { tripDateKey } from "../../../../utils/tripDates";
 import { appAlert } from "../../../../utils/appAlert";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { TripDetailScreenSkeleton } from "../../../../components/skeletons/TripDetailScreenSkeleton";
+import { formatEuro as formatEuroCore } from "../../../../utils/currency";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
@@ -297,13 +298,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const [exporting, setExporting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const formatEuro = (n: number) => `${formatEuroCore(n)} €`;
 
   const handleDeleteTrip = () => {
     if (!trip) return;

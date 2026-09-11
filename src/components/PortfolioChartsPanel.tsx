@@ -11,6 +11,7 @@ import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg"
 import { Ionicons } from "@expo/vector-icons";
 import { textStyles } from "../theme/typography";
 import { colors } from "../theme/theme";
+import { formatEuro } from "../utils/currency";
 
 export type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
@@ -26,13 +27,16 @@ type TabKey = "value" | "perf" | "contrib" | "dd";
 /* -----------------------------
    Formatting (serio)
 ----------------------------- */
-const formatCurrency = (v: number, currency = "EUR") =>
-  Number(v || 0).toLocaleString("es-ES", {
+const formatCurrency = (v: number, currency = "EUR") => {
+  const n = Number(v || 0);
+  if (currency === "EUR") return `${formatEuro(n)} €`;
+  return n.toLocaleString("es-ES", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+};
 
 const formatPct = (v: number) =>
   `${Number(v || 0).toFixed(2).replace(".", ",")}%`;

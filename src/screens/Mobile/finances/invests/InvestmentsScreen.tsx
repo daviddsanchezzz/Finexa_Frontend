@@ -26,6 +26,7 @@ import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/Inve
 import DonutPro, { DonutSlice } from "../../../../components/DonutPro";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../../../../utils/investmentsInvalidation";
+import { formatEuro } from "../../../../utils/currency";
 import { useUIStore } from "../../../../store/uiStore";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -143,13 +144,16 @@ const palette = [
   "#EC4899", "#64748B",
 ];
 
-const formatMoney = (n: number, currency = "EUR") =>
-  (Number.isFinite(n) ? n : 0).toLocaleString("es-ES", {
+const formatMoney = (n: number, currency = "EUR") => {
+  const v = Number.isFinite(n) ? n : 0;
+  if (currency === "EUR") return `${formatEuro(v)} €`;
+  return v.toLocaleString("es-ES", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+};
 
 const formatPct = (pnl: number, invested: number) => {
   if (!invested) return "0.00%";

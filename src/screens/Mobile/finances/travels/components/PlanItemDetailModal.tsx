@@ -8,6 +8,7 @@ import api from "../../../../../api/api";
 import { appAlert } from "../../../../../utils/appAlert";
 import PdfPreviewModal from "./PdfPreviewModal";
 import ImageGalleryModal from "./ImageGalleryModal";
+import { formatEuro } from "../../../../../utils/currency";
 
 export interface DetailAttachment {
   id?: number;
@@ -316,7 +317,7 @@ export default function PlanItemDetailModal({ visible, tripId, item, onClose, on
 
         {item.cost != null && (
           <Text className="text-center font-bold mb-4" style={{ fontSize: 32 }}>
-            {Number(item.cost).toFixed(2).replace(".", ",")} {item.currency || "€"}
+            {formatEuro(Number(item.cost))} {item.currency || "€"}
           </Text>
         )}
 

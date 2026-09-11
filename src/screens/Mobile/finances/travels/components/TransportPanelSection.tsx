@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatEuro } from "../../../../../utils/currency";
 
 interface TripPlanItem {
     id: number;
@@ -125,7 +126,7 @@ function TransportCard({ item, onPress }: { item: TripPlanItem; onPress: () => v
                     {/* Cost */}
                     {item.cost != null && (
                         <Text style={{ fontSize: 12, fontWeight: "700", color: "#10B981", marginTop: 6 }}>
-                            {typeof item.cost === 'number' ? item.cost.toFixed(2) : item.cost} €
+                            {typeof item.cost === 'number' ? formatEuro(item.cost) : item.cost} €
                         </Text>
                     )}
                 </View>

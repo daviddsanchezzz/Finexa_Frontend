@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
+import { formatEuro as formatEuroBase } from "../utils/currency";
 
 /** Helpers */
 function getWalletBalance(w: any) {
@@ -25,12 +26,7 @@ function getWalletBalance(w: any) {
 
 function formatEuro(n: number) {
   const v = Number.isFinite(n) ? n : 0;
-  return v.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return `${formatEuroBase(v)} €`;
 }
 
 type Wallet = {

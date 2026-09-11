@@ -9,6 +9,7 @@ import NotificationsSheet from "../../../components/NotificationsSheet";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
 import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
+import { formatEuro } from "../../../utils/currency";
 import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
@@ -65,15 +66,6 @@ export default function HomeScreen({ navigation }: any) {
       .toLocaleString("es-ES", { month: "long", year: "numeric" })
       .replace("de ", "");
   });
-
-  // No usamos toLocaleString: en Hermes/RN el soporte de Intl suele ser
-  // parcial y el separador de miles no siempre se aplica en dispositivo.
-  const formatEuro = (n: number) => {
-    const sign = n < 0 ? "-" : "";
-    const [intPart, decPart] = Math.abs(n).toFixed(2).split(".");
-    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    return `${sign}${grouped},${decPart}`;
-  };
 
   const fetchTransactions = async (isManual = false) => {
     try {
@@ -154,6 +146,10 @@ export default function HomeScreen({ navigation }: any) {
     Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
   }, [pullAnim, onRefresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const toSigned = (tx: any) =>
+    tx.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+
+  const totalBalance = transactions.reduce((acc, tx) => acc + toSigned(tx), 0);
   const totalIncome = transactions
     .filter((tx) => tx.type === "income")
     .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
@@ -166,6 +162,25 @@ export default function HomeScreen({ navigation }: any) {
   const effectivePeriodTo =
     dateTo ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString();
   const { profit: totalInvestment } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
+
+  const balancePeriodLabel = (() => {
+    const from = new Date(effectivePeriodFrom);
+    switch (dateFilterType) {
+      case "year":
+        return `Balance de ${from.getFullYear()}`;
+      case "week":
+        return "Balance de esta semana";
+      case "day":
+        return "Balance de hoy";
+      case "all":
+        return "Balance total";
+      case "custom":
+        return "Balance del periodo";
+      case "month":
+      default:
+        return `Balance de ${from.toLocaleDateString("es-ES", { month: "long" })}`;
+    }
+  })();
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const visibleTransactions = trimmedQuery
@@ -317,6 +332,15 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </TouchableOpacity>
             )}
+
+            <View className="items-center mb-3">
+              <Text className="text-gray-400 text-[11px] font-medium">
+                {balancePeriodLabel}
+              </Text>
+              <Text className="text-[#0F172A] text-[24px] font-extrabold">
+                {formatEuro(totalBalance)} €
+              </Text>
+            </View>
 
             {/* Indicadores */}
             <View className="flex-row justify-between mb-1">

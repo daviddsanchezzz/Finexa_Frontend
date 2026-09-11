@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 import * as d3 from "d3-shape";
+import { formatEuro as formatEuroShared } from "../utils/currency";
 
 interface PieItem {
   value: number;       // valor usado para el tamaño del segmento
@@ -90,13 +91,7 @@ export default function PieChartComponent({
       }));
   }
 
-  const formatEuro = (n: number) =>
-    n.toLocaleString("es-ES", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const formatEuro = (n: number) => `${formatEuroShared(n)} €`;
 
 
   // --------------------------------------------------

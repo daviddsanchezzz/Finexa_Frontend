@@ -4,6 +4,7 @@ import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../../theme/theme";
 import { toEur, fromEur, preloadRates } from "../../../../../utils/exchangeRate";
+import { formatEuro } from "../../../../../utils/currency";
 
 interface Props {
   visible: boolean;
@@ -56,7 +57,7 @@ export default function CurrencyConverterModal({ visible, onClose, currencyCode,
         if (cancelled) return;
         setLoading(false);
         if (result == null) setError(true);
-        else setEurStr(formatNumber(result));
+        else setEurStr(formatEuro(result));
       }
     };
     run();
