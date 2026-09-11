@@ -217,30 +217,34 @@ export default function HomeScreen({ navigation }: any) {
           unreadNotificationsCount={unreadNotificationsCount}
         />
 
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10, gap: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
           <View
             style={{
               flex: 1,
               flexDirection: "row",
               alignItems: "center",
               backgroundColor: "#F3F4F6",
-              borderRadius: 16,
-              paddingHorizontal: 14,
-              height: 46,
+              borderRadius: 13,
+              paddingHorizontal: 12,
+              height: 38,
             }}
           >
-            <Ionicons name="search-outline" size={18} color="#9CA3AF" />
+            <Ionicons name="search-outline" size={16} color="#9CA3AF" />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Buscar transacciones, categorías, comercios..."
               placeholderTextColor="#9CA3AF"
-              style={{ flex: 1, marginLeft: 8, fontSize: 14, color: "#111827" }}
+              style={
+                Platform.OS === "web"
+                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: "#111827", outlineStyle: "none", outlineWidth: 0 } as any)
+                  : { flex: 1, marginLeft: 6, fontSize: 13, color: "#111827" }
+              }
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+                <Ionicons name="close-circle" size={16} color="#9CA3AF" />
               </TouchableOpacity>
             )}
           </View>
@@ -249,15 +253,15 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => setDateModalVisible(true)}
             activeOpacity={0.8}
             style={{
-              width: 46,
-              height: 46,
-              borderRadius: 16,
+              width: 38,
+              height: 38,
+              borderRadius: 13,
               backgroundColor: "#F3F4F6",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons name="options-outline" size={20} color="#4B5563" />
+            <Ionicons name="options-outline" size={18} color="#4B5563" />
           </TouchableOpacity>
         </View>
       </View>
