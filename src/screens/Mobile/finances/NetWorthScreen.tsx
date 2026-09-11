@@ -15,6 +15,7 @@ import SkeletonBox from "../../../components/SkeletonBox";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
 import { formatEuro } from "../../../utils/currency";
+import { getTransactionsDataVersion } from "../../../utils/transactionsInvalidation";
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -234,11 +235,17 @@ const ASSET_TYPE_EMOJI: Record<string, string> = {
   cash:   "💵",
 };
 
+// Cache a nivel de módulo: sobrevive a que la pantalla se desmonte al navegar
+// fuera y volver a entrar. Solo se refresca si no hay caché todavía o si algo
+// ha tocado transacciones (markTransactionsDirty) desde la última carga.
+let cachedNetWorthData: NetWorthData | null = null;
+let cachedAtVersion = -1;
+
 // ── Screen ────────────────────────────────────────────
 export default function NetWorthScreen({ navigation: _nav }: any) {
   const { isDark, colors: t } = useTheme();
-  const [data, setData] = useState<NetWorthData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<NetWorthData | null>(cachedNetWorthData);
+  const [loading, setLoading] = useState(cachedNetWorthData === null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async (silent = false) => {
@@ -250,7 +257,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
         api.get("/debts"),
       ]);
 
-      setData({
+      const result: NetWorthData = {
         wallets: walletsRes.status === "fulfilled" ? walletsRes.value.data || [] : [],
         investments:
           investRes.status === "fulfilled"
@@ -262,7 +269,11 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
               }
             : { totalCurrentValue: 0, totalPnL: 0, totalInvested: 0, assets: [] },
         debts: debtsRes.status === "fulfilled" ? debtsRes.value.data || [] : [],
-      });
+      };
+
+      cachedNetWorthData = result;
+      cachedAtVersion = getTransactionsDataVersion();
+      setData(result);
     } catch (e) {
       console.error("❌ NetWorth fetch error", e);
     } finally {
@@ -271,7 +282,18 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
     }
   };
 
-  useFocusEffect(useCallback(() => { fetchData(); }, []));
+  useFocusEffect(
+    useCallback(() => {
+      // Ya hay datos en caché y ninguna transacción los ha podido dejar
+      // obsoletos desde que se guardaron: no vuelvas a pedirlos al backend.
+      if (cachedNetWorthData && cachedAtVersion === getTransactionsDataVersion()) {
+        setData(cachedNetWorthData);
+        setLoading(false);
+        return;
+      }
+      fetchData();
+    }, [])
+  );
 
   // ── Derived values ──
   const cashWallets    = (data?.wallets ?? []).filter((w) => w.kind === "cash");
