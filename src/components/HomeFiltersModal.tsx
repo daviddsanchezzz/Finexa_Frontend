@@ -130,27 +130,34 @@ function Chip({
       style={{
         flexDirection: "row",
         alignItems: "center",
-        height: 36,
-        paddingHorizontal: 12,
+        height: 30,
+        paddingHorizontal: 10,
         borderRadius: 999,
         borderWidth: 1,
         borderColor: active ? colors.primary : "#E5E7EB",
         backgroundColor: active ? "rgba(0,60,197,0.08)" : "#F9FAFB",
-        marginRight: 8,
-        marginBottom: 8,
+        marginRight: 6,
       }}
     >
       {showCheck && active ? (
-        <Ionicons name="checkmark-circle" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+        <Ionicons name="checkmark-circle" size={13} color={colors.primary} style={{ marginRight: 5 }} />
       ) : emoji ? (
-        <Text style={{ fontSize: 14, marginRight: 6 }}>{emoji}</Text>
+        <Text style={{ fontSize: 12, marginRight: 5 }}>{emoji}</Text>
       ) : icon ? (
-        <Ionicons name={icon} size={15} color={active ? colors.primary : "#64748B"} style={{ marginRight: 6 }} />
+        <Ionicons name={icon} size={12} color={active ? colors.primary : "#64748B"} style={{ marginRight: 5 }} />
       ) : null}
-      <Text style={{ fontSize: 13, fontWeight: "700", color: active ? colors.primary : "#374151" }}>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: active ? colors.primary : "#374151" }}>
         {label}
       </Text>
     </TouchableOpacity>
+  );
+}
+
+function ChipRow({ children }: { children: React.ReactNode }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 4 }}>
+      {children}
+    </ScrollView>
   );
 }
 
@@ -212,31 +219,31 @@ export default function HomeFiltersModal({ visible, onClose, filters, onApply, b
       style={{ justifyContent: "flex-end", margin: 0 }}
       avoidKeyboard
     >
-      <View className="bg-white rounded-t-3xl p-5 pb-8 max-h-[85%]">
+      <View className="bg-white rounded-t-3xl p-4 pb-6 max-h-[80%]">
         {/* Header */}
-        <View className="flex-row justify-between items-center mb-4">
+        <View className="flex-row justify-between items-center mb-3">
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close" size={22} color="#0F172A" />
+            <Ionicons name="close" size={20} color="#0F172A" />
           </TouchableOpacity>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text className="text-[17px] font-semibold text-text">Filtros</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text className="text-[15px] font-semibold text-text">Filtros</Text>
             {activeCount > 0 && (
-              <View style={{ backgroundColor: "rgba(0,60,197,0.1)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }}>{activeCount} activos</Text>
+              <View style={{ backgroundColor: "rgba(0,60,197,0.1)", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1.5 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: "700", color: colors.primary }}>{activeCount} activos</Text>
               </View>
             )}
           </View>
 
           <TouchableOpacity onPress={reset}>
-            <Text className="text-[14px] font-medium" style={{ color: colors.primary }}>Restablecer</Text>
+            <Text className="text-[13px] font-medium" style={{ color: colors.primary }}>Restablecer</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Tipo de movimiento */}
-          <Text className="text-[13px] text-gray-400 mb-2 font-medium">Tipo de movimiento</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <Text className="text-[12px] text-gray-400 mb-1.5 font-medium">Tipo de movimiento</Text>
+          <ChipRow>
             {(
               [
                 { key: "all", label: "Todos" },
@@ -252,16 +259,16 @@ export default function HomeFiltersModal({ visible, onClose, filters, onApply, b
                 onPress={() => setDraft((d) => ({ ...d, type: opt.key }))}
               />
             ))}
-          </View>
+          </ChipRow>
 
           {/* Carteras */}
-          <View className="flex-row justify-between items-center mt-3 mb-2">
-            <Text className="text-[13px] text-gray-400 font-medium">Carteras</Text>
+          <View className="flex-row justify-between items-center mt-2.5 mb-1.5">
+            <Text className="text-[12px] text-gray-400 font-medium">Carteras</Text>
             {draft.walletIds.length > 0 && (
-              <Text className="text-[12px] text-gray-400">{draft.walletIds.length} seleccionada{draft.walletIds.length !== 1 ? "s" : ""}</Text>
+              <Text className="text-[11px] text-gray-400">{draft.walletIds.length} seleccionada{draft.walletIds.length !== 1 ? "s" : ""}</Text>
             )}
           </View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <ChipRow>
             <Chip
               label="Todas"
               active={draft.walletIds.length === 0}
@@ -277,13 +284,13 @@ export default function HomeFiltersModal({ visible, onClose, filters, onApply, b
                 onPress={() => toggleWallet(w.id)}
               />
             ))}
-          </View>
+          </ChipRow>
 
           {/* Categorías */}
           {draft.type !== "transfer" && (
             <>
-              <Text className="text-[13px] text-gray-400 mt-3 mb-2 font-medium">Categorías</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              <Text className="text-[12px] text-gray-400 mt-2.5 mb-1.5 font-medium">Categorías</Text>
+              <ChipRow>
                 {visibleCategories.map((c) => (
                   <Chip
                     key={c.id}
@@ -295,46 +302,46 @@ export default function HomeFiltersModal({ visible, onClose, filters, onApply, b
                   />
                 ))}
                 <Chip
-                  label="Otros"
-                  icon="ellipsis-horizontal"
+                  label="Sin categoría"
+                  icon="pricetag-outline"
                   showCheck
                   active={draft.includeUncategorized}
                   onPress={() => setDraft((d) => ({ ...d, includeUncategorized: !d.includeUncategorized }))}
                 />
-              </View>
+              </ChipRow>
             </>
           )}
 
           {/* Importe */}
-          <Text className="text-[13px] text-gray-400 mt-3 mb-2 font-medium">Importe</Text>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={{ flex: 1, backgroundColor: "#F9FAFB", borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 14, paddingVertical: 8 }}>
-              <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600" }}>Mínimo</Text>
+          <Text className="text-[12px] text-gray-400 mt-2.5 mb-1.5 font-medium">Importe</Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flex: 1, backgroundColor: "#F9FAFB", borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>Mínimo</Text>
               <TextInput
                 value={draft.amountMin}
                 onChangeText={(v) => setDraft((d) => ({ ...d, amountMin: v }))}
                 placeholder="0,00 €"
                 placeholderTextColor="#CBD5E1"
                 keyboardType="decimal-pad"
-                style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", marginTop: 2, padding: 0 }}
+                style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", marginTop: 1, padding: 0 }}
               />
             </View>
-            <View style={{ flex: 1, backgroundColor: "#F9FAFB", borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 14, paddingVertical: 8 }}>
-              <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600" }}>Máximo</Text>
+            <View style={{ flex: 1, backgroundColor: "#F9FAFB", borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>Máximo</Text>
               <TextInput
                 value={draft.amountMax}
                 onChangeText={(v) => setDraft((d) => ({ ...d, amountMax: v }))}
                 placeholder="Sin límite"
                 placeholderTextColor="#CBD5E1"
                 keyboardType="decimal-pad"
-                style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", marginTop: 2, padding: 0 }}
+                style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", marginTop: 1, padding: 0 }}
               />
             </View>
           </View>
 
           {/* Ordenar por */}
-          <Text className="text-[13px] text-gray-400 mt-4 mb-2 font-medium">Ordenar por</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <Text className="text-[12px] text-gray-400 mt-2.5 mb-1.5 font-medium">Ordenar por</Text>
+          <ChipRow>
             {(
               [
                 { key: "recent", label: "Más recientes" },
@@ -350,24 +357,24 @@ export default function HomeFiltersModal({ visible, onClose, filters, onApply, b
                 onPress={() => setDraft((d) => ({ ...d, sortBy: opt.key }))}
               />
             ))}
-          </View>
+          </ChipRow>
         </ScrollView>
 
         {/* Botones inferiores */}
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
           <TouchableOpacity
             onPress={reset}
             activeOpacity={0.85}
-            style={{ flex: 1, backgroundColor: "#F1F5F9", borderRadius: 14, paddingVertical: 13, alignItems: "center" }}
+            style={{ flex: 1, backgroundColor: "#F1F5F9", borderRadius: 13, paddingVertical: 12, alignItems: "center" }}
           >
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#475569" }}>Limpiar</Text>
+            <Text style={{ fontSize: 13.5, fontWeight: "700", color: "#475569" }}>Limpiar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={apply}
             activeOpacity={0.85}
-            style={{ flex: 2, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 13, alignItems: "center" }}
+            style={{ flex: 2, backgroundColor: colors.primary, borderRadius: 13, paddingVertical: 12, alignItems: "center" }}
           >
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "white" }}>Ver {matchCount} movimiento{matchCount !== 1 ? "s" : ""}</Text>
+            <Text style={{ fontSize: 13.5, fontWeight: "700", color: "white" }}>Ver {matchCount} movimiento{matchCount !== 1 ? "s" : ""}</Text>
           </TouchableOpacity>
         </View>
       </View>

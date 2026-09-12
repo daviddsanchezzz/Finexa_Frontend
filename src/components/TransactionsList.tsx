@@ -148,6 +148,10 @@ export default function TransactionsList({
 
   // DESCRIPCIÓN SECUNDARIA
   const getSecondaryText = (tx: any) => {
+    if (tx.type === "transfer" && tx.investmentAsset) {
+      return tx.investmentAsset.abbreviation?.trim() || tx.investmentAsset.name;
+    }
+
     const subcategory = tx.subcategory?.name?.trim();
     const description = tx.description?.trim();
     const detail = [subcategory, description].filter(Boolean).join(" · ");
@@ -332,13 +336,13 @@ export default function TransactionsList({
                       className="flex-row justify-between items-center py-1.5 px-1.5 rounded-xl"
                     >
                       {/* IZQUIERDA */}
-                      <View className="flex-row items-center">
+                      <View className="flex-row items-center" style={{ flex: 1, marginRight: 10 }}>
                         {renderIcon(tx)}
 
-                        <View className="ml-3">
-                          <Text className="text-[16px] font-semibold text-text">
+                        <View className="ml-3" style={{ flex: 1 }}>
+                          <Text className="text-[16px] font-semibold text-text" numberOfLines={1}>
                             {tx.type === "transfer"
-                              ? `${tx.fromWallet?.name}  →  ${tx.toWallet?.name}`
+                              ? `${tx.fromWallet?.name} → ${tx.toWallet?.name}`
                               : tx.category?.name || "Sin categoría"}
                           </Text>
 
@@ -352,7 +356,7 @@ export default function TransactionsList({
                               />
                             )}
 
-                            <Text className="text-gray-400 text-[12px]">
+                            <Text className="text-gray-400 text-[12px]" numberOfLines={1}>
                               {getSecondaryText(tx)}
                             </Text>
                           </View>

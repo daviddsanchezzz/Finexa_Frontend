@@ -150,8 +150,10 @@ export default function HomeScreen({ navigation }: any) {
     Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
   }, [pullAnim, onRefresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toSigned = (tx: any) =>
-    tx.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+  const toSigned = (tx: any) => {
+    if (tx.type === "transfer") return 0;
+    return tx.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+  };
 
   const totalBalance = transactions.reduce((acc, tx) => acc + toSigned(tx), 0);
   const totalIncome = transactions
