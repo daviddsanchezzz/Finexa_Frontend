@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/api";
 import {
@@ -8,6 +8,8 @@ import {
   mapInvestmentSnapshotRows,
   type WealthPoint,
 } from "../utils/wealthSeries";
+import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../utils/transactionsInvalidation";
+import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../utils/investmentsInvalidation";
 
 export type NetWorthFilterType = "day" | "week" | "month" | "year" | "all" | "custom";
 
@@ -43,8 +45,18 @@ function getWeekStart(date: Date) {
 }
 
 export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetWorthTrend {
+  // Home no se desmonta al cambiar de pestaña, así que estas queries se
+  // quedan cacheadas indefinidamente salvo que algo las invalide — al
+  // añadir/editar una transacción o una valoración/operación de inversión,
+  // las versiones de abajo suben y, al ir dentro de la queryKey, react-query
+  // las trata como nuevas y las refetchea.
+  const [txVersion, setTxVersion] = useState(getTransactionsDataVersion);
+  useEffect(() => subscribeTransactionsInvalidation(setTxVersion), []);
+  const [investVersion, setInvestVersion] = useState(getInvestmentsDataVersion);
+  useEffect(() => subscribeInvestmentsInvalidation(setInvestVersion), []);
+
   const seriesQuery = useQuery({
-    queryKey: ["netWorthTrendSeries"],
+    queryKey: ["netWorthTrendSeries", txVersion, investVersion],
     queryFn: async () => {
       const [txRes, manualRes, snapRes] = await Promise.all([
         api.get("/transactions"),
@@ -61,7 +73,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
   });
 
   const walletsQuery = useQuery({
-    queryKey: ["netWorthWallets"],
+    queryKey: ["netWorthWallets", txVersion],
     queryFn: async () => (await api.get("/wallets")).data as { balance: number }[],
     staleTime: 1000 * 30,
   });

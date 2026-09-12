@@ -40,9 +40,9 @@ export default function InvestmentMonthReturnModal({ visible, onClose }: Props) 
   const money = (n: number) => `${formatEuro(n)} €`;
   const neutral = (v: number | null) => (v == null || !Number.isFinite(v) ? "-" : money(v));
   const signed = (v: number | null) =>
-    v == null || !Number.isFinite(v) ? "-" : `${v >= 0 ? "+" : ""}${money(Math.abs(v))}`;
+    v == null || !Number.isFinite(v) ? "-" : `${v >= 0 ? "+" : "-"}${money(Math.abs(v))}`;
   const pct = (v: number | null) =>
-    v == null || !Number.isFinite(v) ? "-" : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(2).replace(".", ",")} %`;
+    v == null || !Number.isFinite(v) ? "-" : `${v >= 0 ? "+" : "-"}${Math.abs(v * 100).toFixed(2).replace(".", ",")} %`;
   const tone = (v: number | null) =>
     v == null || !Number.isFinite(v) ? "#94A3B8" : v >= 0 ? "#14B8A6" : "#FB7185";
 

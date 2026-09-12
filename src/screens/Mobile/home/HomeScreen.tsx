@@ -7,6 +7,7 @@ import AppHeader from "../../../components/AppHeader";
 import TransactionsList from "../../../components/TransactionsList";
 import NotificationsSheet from "../../../components/NotificationsSheet";
 import InvestmentMonthReturnModal from "../../../components/InvestmentMonthReturnModal";
+import HomeFiltersModal, { DEFAULT_HOME_FILTERS, applyHomeFilters, countActiveHomeFilters, type HomeFilters } from "../../../components/HomeFiltersModal";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
 import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
@@ -27,6 +28,8 @@ export default function HomeScreen({ navigation }: any) {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [rentabilidadModalVisible, setRentabilidadModalVisible] = useState(false);
+  const [filtersModalVisible, setFiltersModalVisible] = useState(false);
+  const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilterType, setDateFilterType] = useState<"day" | "week" | "month" | "year" | "all" | "custom">("month");
   const { unreadCount: unreadNotificationsCount } = useNotificationsFeed();
@@ -88,7 +91,6 @@ export default function HomeScreen({ navigation }: any) {
       const res = await api.get("/transactions", { params });
 
       const filtered = res.data
-        .filter((tx: any) => tx.type !== "transfer")
         .filter((tx: any) => tx.isRecurring === false)
         .filter((tx: any) => tx.excludeFromStats !== true)
         .sort(
@@ -185,7 +187,7 @@ export default function HomeScreen({ navigation }: any) {
   })();
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
-  const visibleTransactions = trimmedQuery
+  const searchedTransactions = trimmedQuery
     ? transactions.filter((tx) => {
         const haystack = [tx.description, tx.category?.name, tx.subcategory?.name, tx.wallet?.name]
           .filter(Boolean)
@@ -194,6 +196,9 @@ export default function HomeScreen({ navigation }: any) {
         return haystack.includes(trimmedQuery);
       })
     : transactions;
+
+  const visibleTransactions = applyHomeFilters(searchedTransactions, filters);
+  const activeFilterCount = countActiveHomeFilters(filters);
 
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
@@ -243,7 +248,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
 
           <TouchableOpacity
-            onPress={() => setDateModalVisible(true)}
+            onPress={() => setFiltersModalVisible(true)}
             activeOpacity={0.8}
             style={{
               width: 38,
@@ -255,6 +260,26 @@ export default function HomeScreen({ navigation }: any) {
             }}
           >
             <Ionicons name="options-outline" size={18} color="#4B5563" />
+            {activeFilterCount > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -3,
+                  right: -3,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  paddingHorizontal: 3,
+                  backgroundColor: colors.primary,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1.5,
+                  borderColor: "white",
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>{activeFilterCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -484,6 +509,14 @@ export default function HomeScreen({ navigation }: any) {
       <InvestmentMonthReturnModal
         visible={rentabilidadModalVisible}
         onClose={() => setRentabilidadModalVisible(false)}
+      />
+
+      <HomeFiltersModal
+        visible={filtersModalVisible}
+        onClose={() => setFiltersModalVisible(false)}
+        filters={filters}
+        onApply={setFilters}
+        baseTransactions={searchedTransactions}
       />
     </SafeAreaView>
   );

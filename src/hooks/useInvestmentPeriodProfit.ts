@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/api";
+import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../utils/investmentsInvalidation";
 
 interface SnapshotRow {
   monthStart: string;
@@ -15,14 +16,22 @@ interface SnapshotRow {
 // filtro de día/semana que no incluya el mes en curso ni el día 1 de un mes
 // cerrado no encontrará snapshot y devolverá 0.
 export function useInvestmentPeriodProfit(fromISO: string, toISO: string) {
+  // Home es una pestaña que nunca se desmonta, así que estas queries de
+  // react-query se quedan cacheadas indefinidamente salvo que algo las
+  // invalide explícitamente — al añadir una valoración/operación desde
+  // Inversiones, markInvestmentsDirty() sube esta versión y, al ir dentro
+  // de la queryKey, react-query las trata como nuevas y las refetchea.
+  const [invalidationVersion, setInvalidationVersion] = useState(getInvestmentsDataVersion);
+  useEffect(() => subscribeInvestmentsInvalidation(setInvalidationVersion), []);
+
   const closedQuery = useQuery({
-    queryKey: ["investmentSnapshotsAll"],
+    queryKey: ["investmentSnapshotsAll", invalidationVersion],
     queryFn: async () => (await api.get("/investments/snapshots")).data as SnapshotRow[],
     staleTime: 1000 * 60,
   });
 
   const currentQuery = useQuery({
-    queryKey: ["investmentSnapshotCurrent"],
+    queryKey: ["investmentSnapshotCurrent", invalidationVersion],
     queryFn: async () => {
       try {
         return (await api.get("/investments/snapshots/current")).data as SnapshotRow;
