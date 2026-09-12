@@ -20,16 +20,18 @@ import PieChartComponent from "../../../components/PieChart";
 import GroupedBarChart from "../../../components/GroupedBarChart";
 import TrendChart from "../../../components/TrendChart";
 import CategoryBarList, { type CategoryBarItem } from "../../../components/CategoryBarList";
-import { MetricCard } from "../../../components/MetricCard";
+import { MetricColumn } from "../../../components/MetricCard";
 import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
 
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 import { formatEuro as formatEuroBase, formatEuroInt } from "../../../utils/currency";
+import { getComparison } from "../../../utils/comparison";
 
 type RangeType = "week" | "month" | "year" | "all";
 type MainTab = "resumen" | "gastos" | "ingresos" | "evolucion";
+type EvoRange = "6M" | "1A" | "3A" | "Todo";
 
 // Verdes/rojos ligeramente desaturados respecto a los "semánticos" puros —
 // el azul de marca se mantiene intacto (colors.primary) en todos los usos
@@ -181,14 +183,14 @@ function SubHeader({ children }: { children: React.ReactNode }) {
 // Fila financiera limpia (label + valor), usada en "Comparado con..." y
 // "Resumen del periodo" — un pequeño punto de color identifica la métrica en
 // vez de teñir la cantidad entera.
-function FinancialRow({ dot, label, value, first }: { dot: string; label: string; value: string; first?: boolean }) {
+function FinancialRow({ dot, label, value, first, valueColor }: { dot: string; label: string; value: string; first?: boolean; valueColor?: string }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, borderTopWidth: first ? 0 : 1, borderTopColor: "#F4F5F7" }}>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderTopWidth: first ? 0 : 1, borderTopColor: "#F4F5F7" }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
         <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>{label}</Text>
       </View>
-      <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}>{value}</Text>
+      <Text style={{ fontSize: 15, fontWeight: "700", color: valueColor ?? "#0F172A", fontVariant: ["tabular-nums"] }}>{value}</Text>
     </View>
   );
 }
@@ -199,6 +201,8 @@ export default function StatsScreen({ navigation }: any) {
   const [catView, setCatView] = useState<"barras" | "circular">("barras");
   const [showAllExpense, setShowAllExpense] = useState(false);
   const [showAllIncome, setShowAllIncome] = useState(false);
+  const [evoRange, setEvoRange] = useState<EvoRange>("1A");
+  const hasSetDefaultEvoRange = useRef(false);
 
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
   useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
@@ -222,30 +226,28 @@ export default function StatsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [dateFrom, setDateFrom] = useState<string | null>(null);
-  const [dateTo, setDateTo] = useState<string | null>(null);
+  // Inicializados con el mes actual mediante lazy initializers (no un
+  // useEffect de montaje): así el estado se calcula una única vez, en la
+  // creación del componente, y nada puede volver a pisarlo más tarde y
+  // "resetear" la selección del usuario a este valor por defecto.
+  const [dateFrom, setDateFrom] = useState<string | null>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  });
+  const [dateTo, setDateTo] = useState<string | null>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+  });
   const [rangeType, setRangeType] = useState<RangeType>("month");
-  const [dateLabel, setDateLabel] = useState("");
+  const [dateLabel, setDateLabel] = useState(() => {
+    const now = new Date();
+    const raw = now.toLocaleString("es-ES", { month: "long", year: "numeric" }).replace("de ", "");
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  });
 
   const capitalizeLabel = (label: string) => (label ? label.charAt(0).toUpperCase() + label.slice(1) : label);
   const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
   const formatEuroCompact = (n: number) => `${formatEuroInt(n)} €`;
-
-  const initCurrentMonth = () => {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-    const rawLabel = now.toLocaleString("es-ES", { month: "long", year: "numeric" }).replace("de ", "");
-    return { from: first, to: last, label: capitalizeLabel(rawLabel) };
-  };
-
-  useEffect(() => {
-    const { from, to, label } = initCurrentMonth();
-    setRangeType("month");
-    setDateLabel(label);
-    setDateFrom(from);
-    setDateTo(to);
-  }, []);
 
   const isYearMode = rangeType === "year";
 
@@ -429,12 +431,12 @@ export default function StatsScreen({ navigation }: any) {
   const prevTotalExpenses = prevSummary?.totalExpenses ?? 0;
   const prevTotalSaving = prevTotalIncomes - prevTotalExpenses;
 
-  const incomeDelta = totalIncomes - prevTotalIncomes;
-  const expenseDelta = totalExpenses - prevTotalExpenses;
-  const savingDelta = totalSaving - prevTotalSaving;
-  const incomeDeltaPct = prevTotalIncomes > 0 ? (incomeDelta / prevTotalIncomes) * 100 : null;
-  const expenseDeltaPct = prevTotalExpenses > 0 ? (expenseDelta / prevTotalExpenses) * 100 : null;
-  const savingDeltaPct = prevTotalSaving !== 0 ? (savingDelta / Math.abs(prevTotalSaving)) * 100 : null;
+  // Única fuente de verdad para "vs. periodo anterior" en toda la pantalla:
+  // el signo/flecha siempre reflejan la resta matemática tal cual, y el
+  // color depende del tipo de métrica (getComparison lo resuelve).
+  const incomeComparison = useMemo(() => getComparison(totalIncomes, prevTotalIncomes, "income"), [totalIncomes, prevTotalIncomes]);
+  const expenseComparison = useMemo(() => getComparison(totalExpenses, prevTotalExpenses, "expense"), [totalExpenses, prevTotalExpenses]);
+  const savingComparison = useMemo(() => getComparison(totalSaving, prevTotalSaving, "savings"), [totalSaving, prevTotalSaving]);
 
   const buildPieData = (list: CategoryAgg[], total: number) =>
     list.map((c) => ({ value: c.amount, realValue: c.amount, color: c.color, label: c.name, percent: total > 0 ? (c.amount / total) * 100 : 0 }));
@@ -482,22 +484,34 @@ export default function StatsScreen({ navigation }: any) {
   const miniTrendFullLabels = miniTrendBuckets.map((b) => fullMonthLabel(b));
   const miniTrendCaption = isYearMode ? `Año ${anchorYear}` : "Últimos 6 meses";
 
+  // El selector 6M/1A/3A/Todo elige por defecto 1A o 6M según cuánto
+  // histórico haya disponible, la primera vez que llegan datos.
+  useEffect(() => {
+    if (hasSetDefaultEvoRange.current || monthlyBuckets.length === 0) return;
+    hasSetDefaultEvoRange.current = true;
+    setEvoRange(monthlyBuckets.length >= 12 ? "1A" : "6M");
+  }, [monthlyBuckets]);
+
   // Tendencia de la pestaña Evolución, la más analítica: en modo año, los
-  // últimos 5 años (comparados año a año); en el resto, los últimos 12 meses.
+  // últimos 5 años (comparados año a año, sin selector); en el resto, la
+  // ventana elegida en el selector 6M/1A/3A/Todo, terminando en el periodo
+  // seleccionado arriba.
   const evoSeries = useMemo(() => {
     if (isYearMode) {
       const startYear = anchorYear - 4;
       return fillYearRange(yearlyBuckets, startYear, anchorYear).map((b) => ({ label: String(b.year), fullLabel: `Año ${b.year}`, income: b.income, expense: b.expense }));
     }
-    const start = shiftMonth(anchorYear, anchorMonth, -11);
+    const start = evoRange === "Todo"
+      ? (monthlyBuckets[0] ?? { year: anchorYear, month: anchorMonth })
+      : shiftMonth(anchorYear, anchorMonth, evoRange === "6M" ? -5 : evoRange === "1A" ? -11 : -35);
     const filled = fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
     const multiYear = new Set(filled.map((b) => b.year)).size > 1;
     return filled.map((b) => ({ label: monthLabel(b, multiYear), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
-  }, [isYearMode, yearlyBuckets, monthlyBuckets, anchorYear, anchorMonth]);
+  }, [isYearMode, yearlyBuckets, monthlyBuckets, anchorYear, anchorMonth, evoRange]);
   const evoLabels = evoSeries.map((b) => b.label);
   const evoFullLabels = evoSeries.map((b) => b.fullLabel);
   const evoHasData = evoSeries.some((b) => b.income !== 0 || b.expense !== 0);
-  const evoCaption = isYearMode ? `Últimos 5 años · hasta ${anchorYear}` : `Últimos 12 meses · hasta ${dateLabel}`;
+  const evoCaption = isYearMode ? `Últimos 5 años · hasta ${anchorYear}` : `${evoSeries.length} meses · hasta ${dateLabel}`;
 
   const periodTotals = useMemo(() => {
     const income = evoSeries.reduce((s, b) => s + b.income, 0);
@@ -520,19 +534,20 @@ export default function StatsScreen({ navigation }: any) {
       });
     }
 
-    if (prevTotalExpenses > 0 && expenseDeltaPct != null) {
-      const less = expenseDeltaPct < 0;
+    if (prevTotalExpenses > 0 && expenseComparison.direction !== "neutral") {
+      const less = expenseComparison.direction === "down";
       list.push({
         icon: less ? "trending-down-outline" : "trending-up-outline",
-        tint: less ? "#E4F4EC" : "#FBEAE8", color: less ? GREEN : RED,
-        title: `Has gastado un ${Math.abs(expenseDeltaPct).toFixed(0)}% ${less ? "menos" : "más"} que en ${prevLabel.toLowerCase()}`,
-        subtitle: `${less ? "−" : "+"}${formatEuro(Math.abs(expenseDelta))} respecto al periodo anterior.`,
+        tint: expenseComparison.isPositiveForUser ? "#E4F4EC" : "#FBEAE8",
+        color: expenseComparison.isPositiveForUser ? GREEN : RED,
+        title: `Has gastado un ${expenseComparison.formattedPercentage} ${less ? "menos" : "más"} que en ${prevLabel.toLowerCase()}`,
+        subtitle: `${expenseComparison.formattedDifference} respecto al periodo anterior.`,
         onPress: () => setActiveTab("gastos"),
       });
     }
 
     if (prevTotalIncomes > 0 || prevTotalExpenses > 0) {
-      const up = savingDelta >= 0;
+      const up = savingComparison.direction !== "down";
       list.push({
         icon: up ? "shield-checkmark-outline" : "alert-circle-outline",
         tint: up ? "#EEF2FC" : "#FBEAE8", color: up ? colors.primary : RED,
@@ -543,7 +558,7 @@ export default function StatsScreen({ navigation }: any) {
     }
 
     return list;
-  }, [topExpenseCategory, totalExpenses, prevTotalExpenses, expenseDeltaPct, expenseDelta, prevLabel, prevTotalIncomes, savingDelta, savingsRate, isYearMode]);
+  }, [topExpenseCategory, totalExpenses, prevTotalExpenses, expenseComparison, prevLabel, prevTotalIncomes, savingComparison, savingsRate, isYearMode]);
 
   if (loading) {
     return (
@@ -580,7 +595,7 @@ export default function StatsScreen({ navigation }: any) {
           <AppHeader title="Estadísticas" showProfile={false} onOpenDateModal={() => setDateModalVisible(true)} dateLabel={dateLabel} />
         </View>
 
-        <View style={{ paddingHorizontal: 20, marginBottom: 18 }}>
+        <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
           <SegmentedTabs<MainTab>
             variant="solid"
             options={[
@@ -596,7 +611,7 @@ export default function StatsScreen({ navigation }: any) {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 20 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 14 }}
           scrollEventThrottle={16}
           onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
           refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
@@ -608,13 +623,13 @@ export default function StatsScreen({ navigation }: any) {
                   {isYearMode ? "Resumen del año" : "Resumen del mes"}
                 </SectionTitle>
 
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <MetricCard label="Ingresos" value={formatEuroCompact(totalIncomes)} changeValue={incomeDelta} changePct={incomeDeltaPct} favorable={incomeDelta >= 0} compareLabel={`vs. ${prevLabelShort}`} />
-                  <MetricCard label="Gastos" value={formatEuroCompact(totalExpenses)} changeValue={expenseDelta} changePct={expenseDeltaPct} favorable={expenseDelta <= 0} compareLabel={`vs. ${prevLabelShort}`} />
-                  <MetricCard label="Ahorro" value={formatEuroCompact(totalSaving)} changeValue={savingDelta} changePct={savingDeltaPct} favorable={savingDelta >= 0} compareLabel={`vs. ${prevLabelShort}`} />
-                </View>
+                <Card style={{ flexDirection: "row" }}>
+                  <MetricColumn first label="Ingresos" value={formatEuroCompact(totalIncomes)} comparison={incomeComparison} compareLabel={`vs. ${prevLabelShort}`} />
+                  <MetricColumn label="Gastos" value={formatEuroCompact(totalExpenses)} comparison={expenseComparison} compareLabel={`vs. ${prevLabelShort}`} />
+                  <MetricColumn muted label="Ahorro" value={formatEuroCompact(totalSaving)} comparison={savingComparison} compareLabel={`vs. ${prevLabelShort}`} />
+                </Card>
 
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 14, paddingHorizontal: 2 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 10, paddingHorizontal: 2 }}>
                   <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>Tasa de ahorro</Text>
                   <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}>{savingsRate.toFixed(1).replace(".", ",")} %</Text>
                 </View>
@@ -640,20 +655,36 @@ export default function StatsScreen({ navigation }: any) {
 
               <View>
                 <SubHeader>Comparado con {prevLabel}</SubHeader>
-                <FinancialRow first dot={GREEN} label="Ingresos" value={`${incomeDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(incomeDelta))}`} />
-                <FinancialRow dot={RED} label="Gastos" value={`${-expenseDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(expenseDelta))}`} />
-                <FinancialRow dot={colors.primary} label="Ahorro" value={`${savingDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(savingDelta))}`} />
+                <FinancialRow
+                  first
+                  dot={GREEN}
+                  label="Ingresos"
+                  value={incomeComparison.formattedDifference}
+                  valueColor={incomeComparison.direction === "neutral" ? undefined : incomeComparison.isPositiveForUser ? GREEN : RED}
+                />
+                <FinancialRow
+                  dot={RED}
+                  label="Gastos"
+                  value={expenseComparison.formattedDifference}
+                  valueColor={expenseComparison.direction === "neutral" ? undefined : expenseComparison.isPositiveForUser ? GREEN : RED}
+                />
+                <FinancialRow
+                  dot={colors.primary}
+                  label="Ahorro"
+                  value={savingComparison.formattedDifference}
+                  valueColor={savingComparison.direction === "neutral" ? undefined : savingComparison.isPositiveForUser ? GREEN : RED}
+                />
               </View>
 
-              {insights.length > 0 && (
-                <View>
-                  <SubHeader>{isYearMode ? "Insights del año" : "Insights del mes"}</SubHeader>
-                  {insights.map((ins, i) => (
+              {insights.length > 0 && (() => {
+                const ins = insights[0];
+                return (
+                  <View>
+                    <SubHeader>{isYearMode ? "Insight del año" : "Insight del mes"}</SubHeader>
                     <TouchableOpacity
-                      key={i}
                       onPress={ins.onPress}
                       activeOpacity={0.7}
-                      style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: "#F1F2F4", gap: 12 }}
+                      style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 12 }}
                     >
                       <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: ins.tint, alignItems: "center", justifyContent: "center" }}>
                         <Ionicons name={ins.icon} size={15} color={ins.color} />
@@ -664,9 +695,9 @@ export default function StatsScreen({ navigation }: any) {
                       </View>
                       {ins.onPress ? <Ionicons name="chevron-forward" size={14} color="#D1D5DB" /> : null}
                     </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+                  </View>
+                );
+              })()}
             </>
           )}
 
@@ -675,10 +706,8 @@ export default function StatsScreen({ navigation }: any) {
             const list = isExpense ? expenses : incomes;
             const total = isExpense ? totalExpenses : totalIncomes;
             const prevTotal = isExpense ? prevTotalExpenses : prevTotalIncomes;
-            const deltaPct = isExpense ? expenseDeltaPct : incomeDeltaPct;
-            const favorableWhenLess = isExpense; // gastar menos = favorable
-            const deltaFavorable = deltaPct == null ? true : favorableWhenLess ? deltaPct < 0 : deltaPct >= 0;
-            const deltaColor = deltaFavorable ? GREEN : RED;
+            const comparison = isExpense ? expenseComparison : incomeComparison;
+            const deltaColor = comparison.direction === "neutral" ? "#9CA3AF" : comparison.isPositiveForUser ? GREEN : RED;
             const pieData = isExpense ? expensePieData : incomePieData;
             const showAll = isExpense ? showAllExpense : showAllIncome;
             const setShowAll = isExpense ? setShowAllExpense : setShowAllIncome;
@@ -695,10 +724,12 @@ export default function StatsScreen({ navigation }: any) {
                 <Text style={{ fontSize: 30, fontWeight: "700", color: "#0F172A", marginTop: 3, fontVariant: ["tabular-nums"] }} numberOfLines={1} adjustsFontSizeToFit>
                   {formatEuro(total)}
                 </Text>
-                {prevTotal > 0 && deltaPct != null && (
+                {(prevTotal > 0 || comparison.isNew) && (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
-                    <Ionicons name={deltaPct >= 0 ? "arrow-up" : "arrow-down"} size={12} color={deltaColor} />
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: deltaColor }}>{Math.abs(deltaPct).toFixed(0)}%</Text>
+                    {comparison.direction !== "neutral" && (
+                      <Ionicons name={comparison.direction === "up" ? "arrow-up" : "arrow-down"} size={12} color={deltaColor} />
+                    )}
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: deltaColor }}>{comparison.formattedPercentage}</Text>
                     <Text style={{ fontSize: 13, color: "#8A8F98" }}>vs. {prevLabel.toLowerCase()}</Text>
                   </View>
                 )}
@@ -784,7 +815,17 @@ export default function StatsScreen({ navigation }: any) {
 
           {activeTab === "evolucion" && (
             <>
-              <Text style={{ fontSize: 13, color: "#8A8F98", fontWeight: "500" }}>{evoCaption}</Text>
+              <View style={{ gap: 8 }}>
+                {!isYearMode && (
+                  <SegmentedTabs<EvoRange>
+                    compact
+                    options={[{ key: "6M", label: "6M" }, { key: "1A", label: "1A" }, { key: "3A", label: "3A" }, { key: "Todo", label: "Todo" }]}
+                    value={evoRange}
+                    onChange={setEvoRange}
+                  />
+                )}
+                <Text style={{ fontSize: 13, color: "#8A8F98", fontWeight: "500" }}>{evoCaption}</Text>
+              </View>
 
               <Card>
                 {!evoHasData ? (

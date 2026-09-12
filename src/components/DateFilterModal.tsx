@@ -281,114 +281,153 @@ export default function DateFilterModal({
 
         {/* --------- DAY --------- */}
         {showDayRange && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => emitRange("day", undefined, false)}
-            className={getBlockStyle("day")}
-          >
+          <View className={getBlockStyle("day")}>
             <View className="flex-row justify-between items-center">
-              <TouchableOpacity onPress={() => changeDay("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-                <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
+              <TouchableOpacity
+                onPress={() => changeDay("prev")}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ padding: 8 }}
+              >
+                <Ionicons name="chevron-back-outline" size={20} color={colors.text} />
               </TouchableOpacity>
 
-              <Text
-                className={`text-[15px] font-medium ${
-                  activeFilter === "day" ? "text-primary" : "text-text"
-                }`}
+              <TouchableOpacity
+                onPress={() => emitRange("day", undefined, false)}
+                activeOpacity={0.6}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}
               >
-                {dayDate.toLocaleDateString("es-ES", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
+                <Text
+                  className={`text-[15px] font-medium ${
+                    activeFilter === "day" ? "text-primary" : "text-text"
+                  }`}
+                >
+                  {dayDate.toLocaleDateString("es-ES", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </Text>
+              </TouchableOpacity>
 
-              </Text>
-
-              <TouchableOpacity onPress={() => changeDay("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-                <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
+              <TouchableOpacity
+                onPress={() => changeDay("next")}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ padding: 8 }}
+              >
+                <Ionicons name="chevron-forward-outline" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* --------- WEEK --------- */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => emitRange("week", undefined, false)}
-          className={getBlockStyle("week")}
-        >
+        <View className={getBlockStyle("week")}>
           <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => changeWeek("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-              <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => changeWeek("prev")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="chevron-back-outline" size={20} color={colors.text} />
             </TouchableOpacity>
 
-            <Text
-              className={`text-[15px] font-medium ${
-                activeFilter === "week" ? "text-primary" : "text-text"
-              }`}
+            <TouchableOpacity
+              onPress={() => emitRange("week", undefined, false)}
+              activeOpacity={0.6}
+              style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}
             >
-              {formatWeekRange(weekStart)}
-            </Text>
+              <Text
+                className={`text-[15px] font-medium ${
+                  activeFilter === "week" ? "text-primary" : "text-text"
+                }`}
+              >
+                {formatWeekRange(weekStart)}
+              </Text>
+            </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => changeWeek("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-              <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => changeWeek("next")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="chevron-forward-outline" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* --------- MONTH --------- */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => emitRange("month", undefined, false)}
-          className={getBlockStyle("month")}
-        >
+        <View className={getBlockStyle("month")}>
           <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => changeMonth("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-              <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => changeMonth("prev")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="chevron-back-outline" size={20} color={colors.text} />
             </TouchableOpacity>
 
-            <Text
-              className={`text-[15px] font-medium ${
-                activeFilter === "month" ? "text-primary" : "text-text"
-              }`}
+            <TouchableOpacity
+              onPress={() => emitRange("month", undefined, false)}
+              activeOpacity={0.6}
+              style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}
             >
-              {capitalize(
-                monthDate
-                  .toLocaleString("es-ES", { month: "long", year: "numeric" })
-                  .replace("de ", "")
-              )}
-            </Text>
+              <Text
+                className={`text-[15px] font-medium ${
+                  activeFilter === "month" ? "text-primary" : "text-text"
+                }`}
+              >
+                {capitalize(
+                  monthDate
+                    .toLocaleString("es-ES", { month: "long", year: "numeric" })
+                    .replace("de ", "")
+                )}
+              </Text>
+            </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => changeMonth("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-              <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => changeMonth("next")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="chevron-forward-outline" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* --------- YEAR --------- */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => emitRange("year", undefined, false)}
-          className={getBlockStyle("year")}
-        >
+        <View className={getBlockStyle("year")}>
           <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => changeYear("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-              <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => changeYear("prev")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="chevron-back-outline" size={20} color={colors.text} />
             </TouchableOpacity>
 
-            <Text
-              className={`text-[15px] font-medium ${
-                activeFilter === "year" ? "text-primary" : "text-text"
-              }`}
+            <TouchableOpacity
+              onPress={() => emitRange("year", undefined, false)}
+              activeOpacity={0.6}
+              style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}
             >
-              {year}
-            </Text>
+              <Text
+                className={`text-[15px] font-medium ${
+                  activeFilter === "year" ? "text-primary" : "text-text"
+                }`}
+              >
+                {year}
+              </Text>
+            </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => changeYear("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-              <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => changeYear("next")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 8 }}
+            >
+              <Ionicons name="chevron-forward-outline" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* --------- ALL --------- */}
         {showTotalRange && (

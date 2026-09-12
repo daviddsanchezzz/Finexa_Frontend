@@ -17,7 +17,19 @@ export interface ChartTooltipRow {
 // Es una excepción deliberada a "sin sombras": al ser un overlay flotante
 // (no una superficie estática de la pantalla) necesita despegarse del
 // gráfico, como los tooltips nativos de iOS.
-export default function ChartTooltip({ title, rows, style }: { title: string; rows: ChartTooltipRow[]; style?: any }) {
+export default function ChartTooltip({
+  title,
+  rows,
+  style,
+  pointerLeft,
+}: {
+  title: string;
+  rows: ChartTooltipRow[];
+  style?: any;
+  // Posición horizontal (relativa al propio tooltip) donde dibujar la
+  // puntita que señala al punto/barra tocado. Se omite si no aplica.
+  pointerLeft?: number;
+}) {
   return (
     <View
       style={[
@@ -56,6 +68,42 @@ export default function ChartTooltip({ title, rows, style }: { title: string; ro
           </Text>
         </View>
       ))}
+
+      {pointerLeft != null && (
+        <>
+          {/* borde de la punta (ligeramente mayor, del color del borde) */}
+          <View
+            style={{
+              position: "absolute",
+              bottom: -7,
+              left: pointerLeft - 7,
+              width: 0,
+              height: 0,
+              borderLeftWidth: 7,
+              borderRightWidth: 7,
+              borderTopWidth: 7,
+              borderLeftColor: "transparent",
+              borderRightColor: "transparent",
+              borderTopColor: "#EEF0F3",
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              bottom: -5.5,
+              left: pointerLeft - 6,
+              width: 0,
+              height: 0,
+              borderLeftWidth: 6,
+              borderRightWidth: 6,
+              borderTopWidth: 6,
+              borderLeftColor: "transparent",
+              borderRightColor: "transparent",
+              borderTopColor: "white",
+            }}
+          />
+        </>
+      )}
     </View>
   );
 }
