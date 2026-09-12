@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path, Circle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
@@ -17,6 +18,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { formatEuro } from "../../../utils/currency";
 import { getTransactionsDataVersion } from "../../../utils/transactionsInvalidation";
 import { getNetWorthCache, setNetWorthCache } from "../../../utils/netWorthCache";
+import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -71,6 +73,57 @@ function fmt(n: number, showSign = false) {
   const s = formatEuro(Math.abs(n));
   if (showSign && n !== 0) return (n >= 0 ? "+" : "−") + s + " €";
   return (n < 0 ? "−" : "") + s + " €";
+}
+
+// ── Segmented control (reusado para Composición/Evolución y Ver por) ──
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  compact = false,
+}: {
+  options: { key: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  compact?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: "#E5E7EB",
+        borderRadius: compact ? 12 : 16,
+        padding: 3,
+        alignSelf: compact ? "flex-start" : "stretch",
+      }}
+    >
+      {options.map((opt) => {
+        const active = opt.key === value;
+        return (
+          <TouchableOpacity
+            key={opt.key}
+            onPress={() => onChange(opt.key)}
+            activeOpacity={0.8}
+            style={{
+              flex: compact ? undefined : 1,
+              paddingHorizontal: compact ? 14 : 0,
+              paddingVertical: compact ? 6 : 10,
+              borderRadius: compact ? 9 : 13,
+              backgroundColor: active ? "white" : "transparent",
+              alignItems: "center",
+              ...(active
+                ? { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }
+                : {}),
+            }}
+          >
+            <Text style={{ fontSize: compact ? 13 : 15, fontWeight: active ? "700" : "600", color: active ? "#0F172A" : "#6B7280" }}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 }
 
 // ── Collapsible section ───────────────────────────────
@@ -199,19 +252,172 @@ function EmptyRow({ label }: { label: string }) {
   );
 }
 
+// ── Fila de cartera (vista "Ver por Cartera") ──────────
+function WalletRow({ wallet }: { wallet: WalletItem }) {
+  const { colors: t } = useTheme();
+  const kindMeta = KIND[wallet.kind] ?? KIND.cash;
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: t.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: t.border,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginBottom: 12,
+      }}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          backgroundColor: kindMeta.bg,
+          alignItems: "center",
+          justifyContent: "center",
+          marginRight: 12,
+        }}
+      >
+        <Text style={{ fontSize: 18 }}>{wallet.emoji}</Text>
+      </View>
+      <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
+        {wallet.name}
+      </Text>
+      <Text style={{ fontSize: 15, fontWeight: "800", color: "#111827" }}>
+        {fmt(wallet.balance)}
+      </Text>
+    </View>
+  );
+}
+
+// ── Card de variación (Este mes / Este año) ────────────
+function StatCard({ label, delta, pct }: { label: string; delta: number; pct: number }) {
+  const positive = delta >= 0;
+  return (
+    <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
+      <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600", marginBottom: 6 }}>{label}</Text>
+      <Text style={{ fontSize: 17, fontWeight: "800", color: positive ? "#16A34A" : "#DC2626" }}>
+        {positive ? "+" : "−"}{fmt(Math.abs(delta))}
+      </Text>
+      {Math.abs(pct) > 0.05 && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            alignSelf: "flex-start",
+            backgroundColor: positive ? "#DCFCE7" : "#FEE2E2",
+            borderRadius: 999,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            marginTop: 6,
+            gap: 3,
+          }}
+        >
+          <Ionicons name={positive ? "arrow-up" : "arrow-down"} size={10} color={positive ? "#16A34A" : "#DC2626"} />
+          <Text style={{ fontSize: 11, fontWeight: "700", color: positive ? "#16A34A" : "#DC2626" }}>
+            {Math.abs(pct).toFixed(1)}%
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Formato corto para el eje Y (32k € en vez de 32.000,00 €).
+function shortEuro(n: number) {
+  if (Math.abs(n) >= 1000) return `${Math.round(n / 1000)}k €`;
+  return `${fmt(n)}`;
+}
+
+// ── Gráfica de evolución (solo cierres mensuales reales + "Hoy") ──
+function EvolutionChart({ points }: { points: { label: string; value: number }[] }) {
+  const [width, setWidth] = useState(0);
+  const H = 170;
+  const padY = 14;
+
+  if (points.length < 2) {
+    return (
+      <View style={{ backgroundColor: "white", borderRadius: 20, borderWidth: 1, borderColor: "#E5E7EB", padding: 24, alignItems: "center", marginBottom: 16 }}>
+        <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center" }}>
+          No hay suficiente histórico todavía para este rango.
+        </Text>
+      </View>
+    );
+  }
+
+  const values = points.map((p) => p.value);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const span = maxV - minV || 1;
+
+  const mapped = width > 0
+    ? points.map((p, i) => ({
+        ...p,
+        x: (i * width) / (points.length - 1),
+        y: padY + (1 - (p.value - minV) / span) * (H - padY * 2),
+      }))
+    : [];
+
+  const linePath = mapped.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
+  const areaPath = mapped.length
+    ? `${linePath} L ${mapped[mapped.length - 1].x.toFixed(2)} ${H} L ${mapped[0].x.toFixed(2)} ${H} Z`
+    : "";
+  const last = mapped[mapped.length - 1];
+
+  const maxLabels = Math.min(5, points.length);
+  const labelStep = (points.length - 1) / Math.max(1, maxLabels - 1);
+  const labelIdxs = Array.from({ length: maxLabels }, (_, i) => Math.round(i * labelStep));
+
+  return (
+    <View style={{ backgroundColor: "white", borderRadius: 20, borderWidth: 1, borderColor: "#E5E7EB", padding: 16, marginBottom: 16 }}>
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 4 }}>
+        <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>{fmt(values[values.length - 1])}</Text>
+      </View>
+
+      <View style={{ flexDirection: "row" }}>
+        <View style={{ justifyContent: "space-between", marginRight: 6, height: H, paddingVertical: padY }}>
+          <Text style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600" }}>{shortEuro(maxV)}</Text>
+          <Text style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600" }}>{shortEuro(minV)}</Text>
+        </View>
+        <View style={{ flex: 1 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+          {width > 0 && (
+            <Svg width={width} height={H}>
+              <Path d={areaPath} fill={colors.primary} opacity={0.12} />
+              <Path d={linePath} stroke={colors.primary} strokeWidth={2.5} fill="none" />
+              <Circle cx={last.x} cy={last.y} r={4} fill={colors.primary} />
+            </Svg>
+          )}
+        </View>
+      </View>
+
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8, paddingLeft: 46 }}>
+        {labelIdxs.map((i) => (
+          <Text key={i} style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600" }}>
+            {points[i].label}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ── Distribution bar ──────────────────────────────────
-function DistributionBar({ cash, savings, invest }: { cash: number; savings: number; invest: number }) {
-  const total = cash + savings + invest;
+function DistributionBar({ cash, savings, invest, debt }: { cash: number; savings: number; invest: number; debt: number }) {
+  const total = cash + savings + invest + debt;
   if (total <= 0) return null;
 
   const segments = [
     { value: cash,    color: KIND.cash.color },
     { value: savings, color: KIND.savings.color },
     { value: invest,  color: KIND.investment.color },
+    { value: debt,    color: KIND.debt.color },
   ].filter((s) => s.value > 0);
 
   return (
-    <View style={{ flexDirection: "row", height: 6, borderRadius: 6, overflow: "hidden", marginTop: 20, marginBottom: 16 }}>
+    <View style={{ flexDirection: "row", height: 6, borderRadius: 6, overflow: "hidden", marginTop: 16, marginBottom: 16 }}>
       {segments.map((s, i) => (
         <View
           key={i}
@@ -236,6 +442,18 @@ const ASSET_TYPE_EMOJI: Record<string, string> = {
   cash:   "💵",
 };
 
+type MainTab = "composicion" | "evolucion";
+type ViewBy = "cartera" | "tipo";
+type EvoRange = "1M" | "6M" | "YTD" | "1A" | "Todo";
+
+const EVO_RANGES: { key: EvoRange; label: string }[] = [
+  { key: "1M", label: "1M" },
+  { key: "6M", label: "6M" },
+  { key: "YTD", label: "YTD" },
+  { key: "1A", label: "1A" },
+  { key: "Todo", label: "Todo" },
+];
+
 // ── Screen ────────────────────────────────────────────
 export default function NetWorthScreen({ navigation: _nav }: any) {
   const { isDark, colors: t } = useTheme();
@@ -243,6 +461,12 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
   const [data, setData] = useState<NetWorthData | null>(initialCache.data);
   const [loading, setLoading] = useState(initialCache.data === null);
   const [refreshing, setRefreshing] = useState(false);
+  const [mainTab, setMainTab] = useState<MainTab>("composicion");
+  const [viewBy, setViewBy] = useState<ViewBy>("cartera");
+  const [evoRange, setEvoRange] = useState<EvoRange>("1M");
+
+  const netTrend = useNetWorthTrend();
+  const netTrendYear = useNetWorthTrend("year");
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -292,22 +516,52 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
   );
 
   // ── Derived values ──
-  const cashWallets    = (data?.wallets ?? []).filter((w) => w.kind === "cash");
-  const savingsWallets = (data?.wallets ?? []).filter((w) => w.kind === "savings");
-  const activeDebts    = (data?.debts ?? []).filter((d) => d.status === "active");
+  const wallets         = data?.wallets ?? [];
+  const cashWallets     = wallets.filter((w) => w.kind === "cash");
+  const savingsWallets  = wallets.filter((w) => w.kind === "savings");
+  const activeDebts     = (data?.debts ?? []).filter((d) => d.status === "active");
 
   const cashTotal    = cashWallets.reduce((s, w) => s + w.balance, 0);
   const savingsTotal = savingsWallets.reduce((s, w) => s + w.balance, 0);
   const investTotal  = data?.investments.totalCurrentValue ?? 0;
   const debtTotal    = activeDebts.reduce((s, d) => s + d.remainingAmount, 0);
+  const walletsTotal  = wallets.reduce((s, w) => s + w.balance, 0);
 
   const totalAssets      = cashTotal + savingsTotal + investTotal;
   const totalLiabilities = debtTotal;
-  const netWorth         = totalAssets - totalLiabilities;
+  const netWorth          = totalAssets - totalLiabilities;
+
+  // Denominador de la barra/leyenda: incluye la deuda como un bloque más del
+  // mismo ancho total, igual que en el diseño (5%+58%+32%+5% = 100%).
+  const distributionTotal = totalAssets + debtTotal;
 
   const sortedAssets = [...(data?.investments.assets ?? [])].sort(
     (a, b) => b.currentValue - a.currentValue
   );
+
+  const legendItems = [
+    { label: "Liquidez",  value: cashTotal,    color: KIND.cash.color,       textColor: "white" },
+    { label: "Ahorro",    value: savingsTotal, color: KIND.savings.color,    textColor: "white" },
+    { label: "Inversión", value: investTotal,  color: KIND.investment.color, textColor: "white" },
+    ...(debtTotal > 0 ? [{ label: "Deudas", value: debtTotal, color: KIND.debt.color, textColor: "#FCA5A5" }] : []),
+  ];
+
+  // Puntos de la gráfica de Evolución según el rango elegido, usando solo
+  // cierres mensuales reales (computeWealthSeries) + el punto "Hoy" en vivo.
+  const evoPoints = (() => {
+    const series = netTrend.series;
+    const currentYear = new Date().getFullYear();
+    let sliced;
+    if (evoRange === "1M") sliced = series.slice(-1);
+    else if (evoRange === "6M") sliced = series.slice(-6);
+    else if (evoRange === "YTD") sliced = series.filter((p) => p.year === currentYear);
+    else if (evoRange === "1A") sliced = series.slice(-12);
+    else sliced = series;
+
+    const points = sliced.map((p) => ({ label: p.label, value: p.finalAmount }));
+    points.push({ label: "Hoy", value: netTrend.current });
+    return points;
+  })();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
@@ -318,6 +572,17 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
           showBack={true}
           showProfile={false}
           showDatePicker={false}
+        />
+      </View>
+
+      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+        <Segmented<MainTab>
+          options={[
+            { key: "composicion", label: "Composición" },
+            { key: "evolucion", label: "Evolución" },
+          ]}
+          value={mainTab}
+          onChange={setMainTab}
         />
       </View>
 
@@ -345,100 +610,210 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
                 {fmt(netWorth)}
               </Text>
 
-              <DistributionBar cash={cashTotal} savings={savingsTotal} invest={investTotal} />
-
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                {[
-                  { label: "Liquidez",  value: cashTotal,   color: KIND.cash.color,       textColor: "white",   pct: totalAssets > 0 ? cashTotal / totalAssets : 0 },
-                  { label: "Ahorro",    value: savingsTotal, color: KIND.savings.color,    textColor: "white",   pct: totalAssets > 0 ? savingsTotal / totalAssets : 0 },
-                  { label: "Inversión", value: investTotal,  color: KIND.investment.color, textColor: "white",   pct: totalAssets > 0 ? investTotal / totalAssets : 0 },
-                  { label: "Deudas",   value: debtTotal,    color: KIND.debt.color,       textColor: "#FCA5A5", pct: totalAssets > 0 ? debtTotal / totalAssets : 0 },
-                ].map((s) => (
-                  <View key={s.label} style={{ alignItems: "center" }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color, marginBottom: 4 }} />
-                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.label}</Text>
-                    <Text style={{ color: s.textColor, fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
-                    <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 1 }}>
-                      {s.pct > 0 ? (s.pct * 100).toFixed(0) + "%" : "—"}
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: netTrend.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                  {netTrend.periodDelta >= 0 ? "+" : "−"}{fmt(Math.abs(netTrend.periodDelta))} este mes
+                </Text>
+                {Math.abs(netTrend.pctChange) > 0.05 && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "rgba(255,255,255,0.14)",
+                      borderRadius: 999,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      gap: 3,
+                    }}
+                  >
+                    <Ionicons
+                      name={netTrend.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                      size={11}
+                      color={netTrend.pctChange >= 0 ? "#86EFAC" : "#FCA5A5"}
+                    />
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: netTrend.pctChange >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                      {Math.abs(netTrend.pctChange).toFixed(1)}%
                     </Text>
                   </View>
-                ))}
+                )}
               </View>
+
+              {mainTab === "composicion" && (
+                <>
+                  <DistributionBar cash={cashTotal} savings={savingsTotal} invest={investTotal} debt={debtTotal} />
+
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    {legendItems.map((s) => (
+                      <View key={s.label} style={{ alignItems: "center" }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color, marginBottom: 4 }} />
+                        <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.label}</Text>
+                        <Text style={{ color: s.textColor, fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 1 }}>
+                          {distributionTotal > 0 ? ((s.value / distributionTotal) * 100).toFixed(0) + "%" : "—"}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
           </View>
 
-          {/* ── Secciones con scroll ── */}
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => { setRefreshing(true); fetchData(true); }}
-              />
-            }
-          >
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
-              Activos — {fmt(totalAssets)}
-            </Text>
-
-            <Section kindKey="cash" total={cashTotal}>
-              {cashWallets.length === 0 ? (
-                <EmptyRow label="Sin carteras de gastos" />
-              ) : (
-                cashWallets.map((w) => (
-                  <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
-                    amountColor={w.balance >= 0 ? "#16A34A" : "#DC2626"} />
-                ))
-              )}
-            </Section>
-
-            <Section kindKey="savings" total={savingsTotal}>
-              {savingsWallets.length === 0 ? (
-                <EmptyRow label="Sin carteras de ahorro" />
-              ) : (
-                savingsWallets.map((w) => (
-                  <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
-                    amountColor="#16A34A" />
-                ))
-              )}
-            </Section>
-
-            <Section kindKey="investment" total={investTotal}>
-              {sortedAssets.length === 0 ? (
-                <EmptyRow label="Sin activos de inversión" />
-              ) : (
-                sortedAssets.map((a) => (
-                  <Row
-                    key={a.id}
-                    emoji={ASSET_TYPE_EMOJI[a.type] ?? "💼"}
-                    name={a.abbreviation?.trim() || a.name}
-                    amount={a.currentValue}
-                    amountColor="#16A34A"
+          {mainTab === "composicion" ? (
+            <>
+              {/* ── Ver por + info ── */}
+              <View style={{ paddingHorizontal: 20, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>Ver por</Text>
+                  <Segmented<ViewBy>
+                    compact
+                    options={[
+                      { key: "cartera", label: "Cartera" },
+                      { key: "tipo", label: "Tipo" },
+                    ]}
+                    value={viewBy}
+                    onChange={setViewBy}
                   />
-                ))
-              )}
-            </Section>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Ionicons name="information-circle-outline" size={14} color="#94A3B8" />
+                  <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
+                    {debtTotal > 0 ? `${wallets.length} cuentas` : "Sin deudas"}
+                  </Text>
+                </View>
+              </View>
 
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
-              Pasivos — {fmt(totalLiabilities)}
-            </Text>
+              {/* ── Secciones con scroll ── */}
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={() => { setRefreshing(true); fetchData(true); }}
+                  />
+                }
+              >
+                {viewBy === "cartera" ? (
+                  <>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                      Carteras — {fmt(walletsTotal)}
+                    </Text>
 
-            <Section kindKey="debt" total={totalLiabilities} defaultOpen={activeDebts.length > 0}>
-              {activeDebts.length === 0 ? (
-                <EmptyRow label="Sin deudas activas" />
-              ) : (
-                activeDebts.map((d) => (
-                  <Row key={d.id} emoji={d.emoji || "💸"} name={d.name}
-                    amount={d.remainingAmount} amountColor="#EF4444" />
-                ))
-              )}
-            </Section>
-          </ScrollView>
+                    {wallets.length === 0 ? (
+                      <EmptyRow label="Sin carteras" />
+                    ) : (
+                      wallets.map((w) => <WalletRow key={w.id} wallet={w} />)
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                      Activos — {fmt(totalAssets)}
+                    </Text>
+
+                    <Section kindKey="cash" total={cashTotal}>
+                      {cashWallets.length === 0 ? (
+                        <EmptyRow label="Sin carteras de gastos" />
+                      ) : (
+                        cashWallets.map((w) => (
+                          <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
+                            amountColor={w.balance >= 0 ? "#16A34A" : "#DC2626"} />
+                        ))
+                      )}
+                    </Section>
+
+                    <Section kindKey="savings" total={savingsTotal}>
+                      {savingsWallets.length === 0 ? (
+                        <EmptyRow label="Sin carteras de ahorro" />
+                      ) : (
+                        savingsWallets.map((w) => (
+                          <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
+                            amountColor="#16A34A" />
+                        ))
+                      )}
+                    </Section>
+
+                    <Section kindKey="investment" total={investTotal}>
+                      {sortedAssets.length === 0 ? (
+                        <EmptyRow label="Sin activos de inversión" />
+                      ) : (
+                        sortedAssets.map((a) => (
+                          <Row
+                            key={a.id}
+                            emoji={ASSET_TYPE_EMOJI[a.type] ?? "💼"}
+                            name={a.abbreviation?.trim() || a.name}
+                            amount={a.currentValue}
+                            amountColor="#16A34A"
+                          />
+                        ))
+                      )}
+                    </Section>
+
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
+                      Pasivos — {fmt(totalLiabilities)}
+                    </Text>
+
+                    <Section kindKey="debt" total={totalLiabilities} defaultOpen={activeDebts.length > 0}>
+                      {activeDebts.length === 0 ? (
+                        <EmptyRow label="Sin deudas activas" />
+                      ) : (
+                        activeDebts.map((d) => (
+                          <Row key={d.id} emoji={d.emoji || "💸"} name={d.name}
+                            amount={d.remainingAmount} amountColor="#EF4444" />
+                        ))
+                      )}
+                    </Section>
+                  </>
+                )}
+              </ScrollView>
+            </>
+          ) : (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => { setRefreshing(true); fetchData(true); }}
+                />
+              }
+            >
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+                {EVO_RANGES.map((r) => {
+                  const active = evoRange === r.key;
+                  return (
+                    <TouchableOpacity
+                      key={r.key}
+                      onPress={() => setEvoRange(r.key)}
+                      activeOpacity={0.8}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 999,
+                        backgroundColor: active ? "#DBEAFE" : "#F1F5F9",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
+                        {r.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <EvolutionChart points={evoPoints} />
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <StatCard label="Este mes" delta={netTrend.periodDelta} pct={netTrend.pctChange} />
+                <StatCard label="Este año" delta={netTrendYear.periodDelta} pct={netTrendYear.pctChange} />
+              </View>
+            </ScrollView>
+          )}
         </>
       )}
     </SafeAreaView>
   );
 }
-

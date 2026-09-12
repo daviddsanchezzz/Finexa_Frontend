@@ -26,6 +26,9 @@ export interface NetWorthTrend {
   // Últimos puntos mensuales cerrados + el punto "hoy" (current) al final,
   // para la mini gráfica del card.
   sparkline: { label: string; value: number }[];
+  // Serie completa de cierres mensuales (sin recortar ni el punto "hoy"),
+  // para pantallas que necesiten elegir su propio rango (ej. NetWorthScreen).
+  series: WealthPoint[];
 }
 
 const MAX_SPARKLINE_POINTS = 6;
@@ -67,7 +70,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
 
   return useMemo(() => {
     if (!seriesQuery.data || !walletsQuery.data) {
-      return { isLoading, current: 0, periodDelta: 0, periodLabel: "", pctChange: 0, sparkline: [] };
+      return { isLoading, current: 0, periodDelta: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [] };
     }
 
     const now = new Date();
@@ -129,6 +132,6 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       .map((p) => ({ label: p.label, value: p.finalAmount }));
     sparkline.push({ label: "Hoy", value: current });
 
-    return { isLoading, current, periodDelta, periodLabel, pctChange, sparkline };
+    return { isLoading, current, periodDelta, periodLabel, pctChange, sparkline, series: wealthSeries };
   }, [seriesQuery.data, walletsQuery.data, isLoading, filterType]);
 }
