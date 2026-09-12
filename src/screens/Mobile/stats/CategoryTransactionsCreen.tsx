@@ -101,51 +101,50 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-5 py-3">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
+      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, gap: 12 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
-        <View className="flex-row items-center">
-          <View className="w-9 h-9 rounded-lg items-center justify-center mr-3" style={{ backgroundColor: categoryColor }}>
-            <Text style={{ fontSize: 18 }}>{categoryEmoji}</Text>
-          </View>
+        <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: categoryColor, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontSize: 15 }}>{categoryEmoji}</Text>
+        </View>
 
-          <Text className="text-[20px] font-bold text-text">
+        <View>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A" }}>
             {subcategoryName ? `${categoryName} · ${subcategoryName}` : categoryName}
           </Text>
+          {periodLabel ? <Text style={{ fontSize: 12.5, color: "#8A8F98", marginTop: 1 }}>{periodLabel}</Text> : null}
         </View>
       </View>
-
-      {periodLabel ? (
-        <Text style={{ paddingHorizontal: 20, color: "#9CA3AF", fontSize: 13, marginBottom: 4 }}>{periodLabel}</Text>
-      ) : null}
 
       {loading ? (
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <ScrollView
           className="flex-1 px-5"
-          contentContainerStyle={{ paddingBottom: 40, gap: 16 }}
+          contentContainerStyle={{ paddingBottom: 40, gap: 24 }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: `${categoryColor}22`, borderRadius: 18, padding: 16, gap: 14 }}>
-            <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: categoryColor, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: 22 }}>{categoryEmoji}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 22, fontWeight: "800", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit>
-                {formatEuro(categoryTotal)}
-              </Text>
-              <Text style={{ fontSize: 12.5, color: "#6B7280", marginTop: 3 }}>
-                {pctOfTotal.toFixed(1).replace(".", ",")}% de tus {type === "expense" ? "gastos" : "ingresos"}
+          <View>
+            <Text
+              style={{ fontSize: 30, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {formatEuro(categoryTotal)}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
+              <Text style={{ fontSize: 13.5, color: "#5B6472", fontWeight: "500" }}>
+                {pctOfTotal.toFixed(1).replace(".", ",")}% del {type === "expense" ? "gasto total" : "ingreso total"}
               </Text>
             </View>
           </View>
 
           {subcategoryItems.length > 0 && (
             <View>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginBottom: 8 }}>
+              <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 8 }}>
                 Distribución por subcategorías
               </Text>
               <CategoryBarList items={subcategoryItems} />
@@ -153,7 +152,7 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
           )}
 
           <View>
-            <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginBottom: 4 }}>
+            <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
               Movimientos ({categoryTransactions.length})
             </Text>
             <TransactionsList transactions={categoryTransactions} navigation={navigation} onDeleted={fetchTx} />

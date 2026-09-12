@@ -13,6 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
 import SkeletonBox from "../../../components/SkeletonBox";
+import SegmentedTabs from "../../../components/SegmentedTabs";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
 import { formatEuro } from "../../../utils/currency";
@@ -83,56 +84,6 @@ function fmtNum(n: number, showSign = false) {
   return (n < 0 ? "−" : "") + s;
 }
 
-// ── Segmented control (reusado para Composición/Evolución y Ver por) ──
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  compact = false,
-}: {
-  options: { key: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  compact?: boolean;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        backgroundColor: "#E5E7EB",
-        borderRadius: compact ? 10 : 13,
-        padding: 2,
-        alignSelf: compact ? "flex-start" : "stretch",
-      }}
-    >
-      {options.map((opt) => {
-        const active = opt.key === value;
-        return (
-          <TouchableOpacity
-            key={opt.key}
-            onPress={() => onChange(opt.key)}
-            activeOpacity={0.8}
-            style={{
-              flex: compact ? undefined : 1,
-              paddingHorizontal: compact ? 12 : 0,
-              paddingVertical: compact ? 5 : 8,
-              borderRadius: compact ? 7 : 11,
-              backgroundColor: active ? "white" : "transparent",
-              alignItems: "center",
-              ...(active
-                ? { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }
-                : {}),
-            }}
-          >
-            <Text style={{ fontSize: compact ? 12 : 14, fontWeight: active ? "700" : "600", color: active ? "#0F172A" : "#6B7280" }}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
 
 // ── Collapsible section ───────────────────────────────
 interface SectionProps {
@@ -692,7 +643,7 @@ export default function NetWorthScreen({ navigation }: any) {
       </View>
 
       <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
-        <Segmented<MainTab>
+        <SegmentedTabs<MainTab>
           options={[
             { key: "composicion", label: "Composición" },
             { key: "evolucion", label: "Evolución" },
@@ -781,7 +732,7 @@ export default function NetWorthScreen({ navigation }: any) {
               <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600" }}>Ver por</Text>
-                  <Segmented<ViewBy>
+                  <SegmentedTabs<ViewBy>
                     compact
                     options={[
                       { key: "cartera", label: "Cartera" },

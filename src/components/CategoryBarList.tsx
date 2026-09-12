@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { formatEuro } from "../utils/currency";
 
 export interface CategoryBarItem {
@@ -36,16 +37,16 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
               {item.emoji ? (
                 <View
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 9,
                     backgroundColor: item.color,
                     alignItems: "center",
                     justifyContent: "center",
                     marginRight: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 17 }}>{item.emoji}</Text>
+                  <Text style={{ fontSize: 15 }}>{item.emoji}</Text>
                 </View>
               ) : null}
 
@@ -53,9 +54,13 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
                 {item.label}
               </Text>
 
-              <Text style={{ fontSize: 14.5, fontWeight: "700", color: "#0F172A" }}>
+              <Text style={{ fontSize: 14.5, fontWeight: "600", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
                 {formatEuro(item.amount)} €
               </Text>
+
+              {item.onPress ? (
+                <Ionicons name="chevron-forward" size={14} color="#D1D5DB" style={{ marginLeft: 4 }} />
+              ) : null}
             </View>
 
             <View
@@ -63,21 +68,21 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
                 flexDirection: "row",
                 alignItems: "center",
                 marginTop: 6,
-                marginLeft: item.emoji ? 48 : 0,
+                marginLeft: item.emoji ? 44 : 0,
                 gap: 8,
               }}
             >
-              <View style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: "#F1F5F9", overflow: "hidden" }}>
+              <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: "#F1F2F4", overflow: "hidden" }}>
                 <View
                   style={{
                     width: `${Math.max(2, Math.min(100, item.percent))}%`,
                     height: "100%",
-                    borderRadius: 3,
+                    borderRadius: 2,
                     backgroundColor: item.color,
                   }}
                 />
               </View>
-              <Text style={{ fontSize: 11.5, fontWeight: "600", color: "#9CA3AF", width: 42, textAlign: "right" }}>
+              <Text style={{ fontSize: 11, fontWeight: "500", color: "#B0B4BA", width: 40, textAlign: "right" }}>
                 {item.percent.toFixed(1).replace(".", ",")}%
               </Text>
             </View>
