@@ -19,3 +19,12 @@ export function formatEuroSigned(n: number): string {
   const sign = n < 0 ? "-" : "+";
   return `${sign}${formatEuro(Math.abs(n))}`;
 }
+
+// Entero agrupado sin decimales ni "€" — para ejes de gráficas y etiquetas
+// compactas donde el símbolo de moneda y los decimales sobran.
+export function formatEuroInt(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  const sign = n < 0 ? "-" : "";
+  const grouped = Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${sign}${grouped}`;
+}

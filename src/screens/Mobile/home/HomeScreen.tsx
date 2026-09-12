@@ -202,6 +202,11 @@ export default function HomeScreen({ navigation }: any) {
   const visibleTransactions = applyHomeFilters(searchedTransactions, filters);
   const activeFilterCount = countActiveHomeFilters(filters);
 
+  // Un único gate de carga: si esperásemos solo a `loading` (transacciones),
+  // Patrimonio neto (que depende de useNetWorthTrend, más lento) aparecía
+  // de golpe después de que el resto del contenido ya estuviera pintado.
+  const isLoading = loading || netWorth.isLoading;
+
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
       {/* HEADER */}
@@ -288,7 +293,7 @@ export default function HomeScreen({ navigation }: any) {
 
       <NotificationsSheet visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
 
-      {Platform.OS === "web" && !loading && (
+      {Platform.OS === "web" && !isLoading && (
         <View style={{ position: "absolute", top: 52, left: 0, right: 0, alignItems: "center", zIndex: 0 }}>
           <Animated.View style={{
             opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
@@ -301,7 +306,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <ScrollView
           className="flex-1 px-5"
           showsVerticalScrollIndicator={false}
@@ -318,49 +323,47 @@ export default function HomeScreen({ navigation }: any) {
         >
           <View className="px-5 pb-2">
             {/* PATRIMONIO NETO */}
-            {!netWorth.isLoading && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate("NetWorth")}
-                className="bg-primary rounded-2xl px-4 py-4 mb-2.5 items-center"
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>Patrimonio neto</Text>
-                  <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />
-                </View>
-                <Text style={{ fontSize: 30, fontWeight: "800", color: "white", marginTop: 4 }}>
-                  {formatEuro(netWorth.current)} €
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate("NetWorth")}
+              className="bg-primary rounded-2xl px-4 py-4 mb-2.5 items-center"
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>Patrimonio neto</Text>
+                <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />
+              </View>
+              <Text style={{ fontSize: 30, fontWeight: "800", color: "white", marginTop: 4 }}>
+                {formatEuro(netWorth.current)} €
+              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                  {netWorth.periodDelta >= 0 ? "+" : "−"}
+                  {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
-                  <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                    {netWorth.periodDelta >= 0 ? "+" : "−"}
-                    {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
-                  </Text>
-                  {Math.abs(netWorth.pctChange) > 0.05 && (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "rgba(255,255,255,0.10)",
-                        borderRadius: 999,
-                        paddingHorizontal: 6,
-                        paddingVertical: 1.5,
-                        gap: 2,
-                      }}
-                    >
-                      <Ionicons
-                        name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
-                        size={8}
-                        color={netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
-                      />
-                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
-                        {Math.abs(netWorth.pctChange).toFixed(1)}%
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            )}
+                {Math.abs(netWorth.pctChange) > 0.05 && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "rgba(255,255,255,0.10)",
+                      borderRadius: 999,
+                      paddingHorizontal: 6,
+                      paddingVertical: 1.5,
+                      gap: 2,
+                    }}
+                  >
+                    <Ionicons
+                      name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                      size={8}
+                      color={netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
+                    />
+                    <Text style={{ fontSize: 9.5, fontWeight: "700", color: netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
+                      {Math.abs(netWorth.pctChange).toFixed(1)}%
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
 
             <View className="items-center mb-2">
               <Text className="text-gray-500 text-[11px] font-semibold">

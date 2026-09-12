@@ -75,6 +75,14 @@ function fmt(n: number, showSign = false) {
   return (n < 0 ? "−" : "") + s + " €";
 }
 
+// Igual que fmt pero sin el sufijo " €" — para columnas estrechas (tablas de
+// resumen) donde el símbolo de moneda desperdicia sitio con números grandes.
+function fmtNum(n: number, showSign = false) {
+  const s = formatEuro(Math.abs(n));
+  if (showSign && n !== 0) return (n >= 0 ? "+" : "−") + s;
+  return (n < 0 ? "−" : "") + s;
+}
+
 // ── Segmented control (reusado para Composición/Evolución y Ver por) ──
 function Segmented<T extends string>({
   options,
@@ -325,25 +333,29 @@ function BreakdownRow({
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
-        disabled={!finished}
-        style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, opacity: finished ? 1 : 0.4 }}
+        style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, opacity: finished ? 1 : 0.55 }}
       >
-        <Text style={{ flex: 1.1, fontSize: 13, fontWeight: "700", color: "#0F172A" }}>{label}</Text>
-        <Text style={{ flex: 1, fontSize: 12.5, textAlign: "center", color: "#374151" }}>
-          {finished ? fmt(income) : "–"}
+        <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
+          {label}
         </Text>
-        <Text style={{ flex: 1, fontSize: 12.5, textAlign: "center", color: "#374151" }}>
-          {finished ? fmt(expense) : "–"}
+        <Text style={{ flex: 1.15, fontSize: 12, textAlign: "center", color: "#374151" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+          {finished ? fmtNum(income) : "–"}
         </Text>
-        <View style={{ flex: 1.2, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
+        <Text style={{ flex: 1.15, fontSize: 12, textAlign: "center", color: "#374151" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+          {finished ? fmtNum(expense) : "–"}
+        </Text>
+        <View style={{ flex: 1.3, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
           <Text
             style={{
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: "700",
               color: !finished ? "#9CA3AF" : saving >= 0 ? "#16A34A" : "#DC2626",
             }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
           >
-            {finished ? fmt(saving, true) : "–"}
+            {finished ? fmtNum(saving, true) : "–"}
           </Text>
           {finished && <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={13} color="#9CA3AF" />}
         </View>
@@ -921,10 +933,10 @@ export default function NetWorthScreen({ navigation }: any) {
               </Text>
               <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12 }}>
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
-                  <Text style={{ flex: 1.1, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Mes</Text>
-                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
-                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
-                  <Text style={{ flex: 1.2, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
+                  <Text style={{ flex: 0.9, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Mes</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
+                  <Text style={{ flex: 1.3, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
                 </View>
 
                 {yearSummaryList.map((m, i) => {
@@ -940,25 +952,28 @@ export default function NetWorthScreen({ navigation }: any) {
                       finalAmount={m.finalAmount}
                       finished={finished}
                       expanded={expandedMonth === i}
-                      onPress={() => setExpandedMonth(expandedMonth === i ? null : i)}
+                      onPress={() => finished && setExpandedMonth(expandedMonth === i ? null : i)}
                     />
                   );
                 })}
 
                 <View style={{ flexDirection: "row", paddingVertical: 10 }}>
-                  <Text style={{ flex: 1.1, fontSize: 13, fontWeight: "800", color: "#0F172A" }}>TOTAL</Text>
-                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalYearIncome)}</Text>
-                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalYearExpense)}</Text>
+                  <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>TOTAL</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalYearIncome)}</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalYearExpense)}</Text>
                   <Text
                     style={{
-                      flex: 1.2,
-                      fontSize: 12.5,
+                      flex: 1.3,
+                      fontSize: 12,
                       fontWeight: "800",
                       textAlign: "right",
                       color: totalYearSaving >= 0 ? "#16A34A" : "#DC2626",
                     }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
                   >
-                    {fmt(totalYearSaving, true)}
+                    {fmtNum(totalYearSaving, true)}
                   </Text>
                 </View>
               </View>
@@ -969,10 +984,10 @@ export default function NetWorthScreen({ navigation }: any) {
               </Text>
               <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12 }}>
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
-                  <Text style={{ flex: 1.1, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Año</Text>
-                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
-                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
-                  <Text style={{ flex: 1.2, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
+                  <Text style={{ flex: 0.9, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Año</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
+                  <Text style={{ flex: 1.3, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
                 </View>
 
                 {globalSummaryList.map((y) => {
@@ -990,27 +1005,33 @@ export default function NetWorthScreen({ navigation }: any) {
                       expanded={expandedGlobalYear === y.year}
                       highlighted={selectedTableYear === y.year}
                       onPress={() => {
+                        // Seleccionar el año (para la tabla mensual de arriba)
+                        // siempre funciona, incluso en el año en curso, que
+                        // todavía no tiene datos "cerrados" que desplegar.
                         setSelectedTableYear(y.year);
-                        setExpandedGlobalYear(expandedGlobalYear === y.year ? null : y.year);
+                        if (finished) setExpandedGlobalYear(expandedGlobalYear === y.year ? null : y.year);
                       }}
                     />
                   );
                 })}
 
                 <View style={{ flexDirection: "row", paddingVertical: 10 }}>
-                  <Text style={{ flex: 1.1, fontSize: 13, fontWeight: "800", color: "#0F172A" }}>TOTAL</Text>
-                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalGlobalIncome)}</Text>
-                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalGlobalExpense)}</Text>
+                  <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>TOTAL</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalGlobalIncome)}</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalGlobalExpense)}</Text>
                   <Text
                     style={{
-                      flex: 1.2,
-                      fontSize: 12.5,
+                      flex: 1.3,
+                      fontSize: 12,
                       fontWeight: "800",
                       textAlign: "right",
                       color: totalGlobalSaving >= 0 ? "#16A34A" : "#DC2626",
                     }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
                   >
-                    {fmt(totalGlobalSaving, true)}
+                    {fmtNum(totalGlobalSaving, true)}
                   </Text>
                 </View>
               </View>
