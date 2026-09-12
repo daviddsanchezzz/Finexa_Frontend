@@ -31,6 +31,12 @@ import { formatEuro as formatEuroBase, formatEuroInt } from "../../../utils/curr
 type RangeType = "week" | "month" | "year" | "all";
 type MainTab = "resumen" | "gastos" | "ingresos" | "evolucion";
 
+// Verdes/rojos ligeramente desaturados respecto a los "semánticos" puros —
+// el azul de marca se mantiene intacto (colors.primary) en todos los usos
+// de ahorro/info.
+const GREEN = "#2F9E6E";
+const RED = "#D6534A";
+
 type CategoryAgg = {
   name: string;
   emoji: string;
@@ -108,6 +114,11 @@ function monthLabel(b: { year: number; month: number }, multiYear: boolean) {
   return multiYear ? `${MONTH_ABBR[b.month]} ${String(b.year).slice(2)}` : MONTH_ABBR[b.month];
 }
 
+function fullMonthLabel(b: { year: number; month: number }) {
+  const raw = new Date(b.year, b.month, 1).toLocaleString("es-ES", { month: "long", year: "numeric" }).replace("de ", "");
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
 function shiftMonth(year: number, month: number, delta: number) {
   const d = new Date(year, month + delta, 1);
   return { year: d.getFullYear(), month: d.getMonth() };
@@ -138,12 +149,12 @@ function fillYearRange(buckets: YearBucket[], fromYear: number, toYear: number):
   return result;
 }
 
-// ── Card contenedora blanca — surface neutra usada en todo el rediseño ──
+// ── Card contenedora blanca — usar solo cuando agrupa información real ──
 function Card({ children, style }: { children: React.ReactNode; style?: any }) {
   return (
     <View
       style={[
-        { backgroundColor: "white", borderRadius: 20, borderWidth: 1, borderColor: "#EEF0F3", padding: 16 },
+        { backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#EEF0F3", padding: 14 },
         style,
       ]}
     >
@@ -154,11 +165,17 @@ function Card({ children, style }: { children: React.ReactNode; style?: any }) {
 
 function SectionTitle({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
   return (
-    <View style={{ marginBottom: 14 }}>
+    <View style={{ marginBottom: 11 }}>
       <Text style={{ fontSize: 21, fontWeight: "700", color: "#0F172A" }}>{children}</Text>
       {subtitle ? <Text style={{ fontSize: 13, color: "#8A8F98", marginTop: 3 }}>{subtitle}</Text> : null}
     </View>
   );
+}
+
+// Cabecera de sección discreta (semibold) — un escalón por debajo del título
+// de página, para no acumular demasiados bloques en negrita a la vez.
+function SubHeader({ children }: { children: React.ReactNode }) {
+  return <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A", marginBottom: 4 }}>{children}</Text>;
 }
 
 // Fila financiera limpia (label + valor), usada en "Comparado con..." y
@@ -166,7 +183,7 @@ function SectionTitle({ children, subtitle }: { children: React.ReactNode; subti
 // vez de teñir la cantidad entera.
 function FinancialRow({ dot, label, value, first }: { dot: string; label: string; value: string; first?: boolean }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderTopWidth: first ? 0 : 1, borderTopColor: "#F4F5F7" }}>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, borderTopWidth: first ? 0 : 1, borderTopColor: "#F4F5F7" }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
         <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>{label}</Text>
@@ -255,6 +272,15 @@ export default function StatsScreen({ navigation }: any) {
       return `${new Date(prevRange.to).getFullYear()}`;
     }
     return "el periodo anterior";
+  }, [prevRange, rangeType]);
+
+  // Versión corta para las 3 mini-tarjetas KPI ("vs. ago." en vez de
+  // "vs. agosto 2026") — evita que el texto salte a una segunda línea.
+  const prevLabelShort = useMemo(() => {
+    if (!prevRange) return "anterior";
+    if (rangeType === "month") return `${MONTH_ABBR[new Date(prevRange.to).getMonth()].toLowerCase()}.`;
+    if (rangeType === "year") return `${new Date(prevRange.to).getFullYear()}`;
+    return "anterior";
   }, [prevRange, rangeType]);
 
   const fetchStats = useCallback(async (isManual = false) => {
@@ -453,6 +479,7 @@ export default function StatsScreen({ navigation }: any) {
   }, [monthlyBuckets, isYearMode, anchorYear, anchorMonth]);
   const miniTrendMultiYear = new Set(miniTrendBuckets.map((b) => b.year)).size > 1;
   const miniTrendLabels = miniTrendBuckets.map((b) => monthLabel(b, miniTrendMultiYear));
+  const miniTrendFullLabels = miniTrendBuckets.map((b) => fullMonthLabel(b));
   const miniTrendCaption = isYearMode ? `Año ${anchorYear}` : "Últimos 6 meses";
 
   // Tendencia de la pestaña Evolución, la más analítica: en modo año, los
@@ -460,14 +487,15 @@ export default function StatsScreen({ navigation }: any) {
   const evoSeries = useMemo(() => {
     if (isYearMode) {
       const startYear = anchorYear - 4;
-      return fillYearRange(yearlyBuckets, startYear, anchorYear).map((b) => ({ label: String(b.year), income: b.income, expense: b.expense }));
+      return fillYearRange(yearlyBuckets, startYear, anchorYear).map((b) => ({ label: String(b.year), fullLabel: `Año ${b.year}`, income: b.income, expense: b.expense }));
     }
     const start = shiftMonth(anchorYear, anchorMonth, -11);
     const filled = fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
     const multiYear = new Set(filled.map((b) => b.year)).size > 1;
-    return filled.map((b) => ({ label: monthLabel(b, multiYear), income: b.income, expense: b.expense }));
+    return filled.map((b) => ({ label: monthLabel(b, multiYear), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
   }, [isYearMode, yearlyBuckets, monthlyBuckets, anchorYear, anchorMonth]);
   const evoLabels = evoSeries.map((b) => b.label);
+  const evoFullLabels = evoSeries.map((b) => b.fullLabel);
   const evoHasData = evoSeries.some((b) => b.income !== 0 || b.expense !== 0);
   const evoCaption = isYearMode ? `Últimos 5 años · hasta ${anchorYear}` : `Últimos 12 meses · hasta ${dateLabel}`;
 
@@ -496,7 +524,7 @@ export default function StatsScreen({ navigation }: any) {
       const less = expenseDeltaPct < 0;
       list.push({
         icon: less ? "trending-down-outline" : "trending-up-outline",
-        tint: less ? "#DCFCE7" : "#FEE2E2", color: less ? "#16A34A" : "#DC2626",
+        tint: less ? "#E4F4EC" : "#FBEAE8", color: less ? GREEN : RED,
         title: `Has gastado un ${Math.abs(expenseDeltaPct).toFixed(0)}% ${less ? "menos" : "más"} que en ${prevLabel.toLowerCase()}`,
         subtitle: `${less ? "−" : "+"}${formatEuro(Math.abs(expenseDelta))} respecto al periodo anterior.`,
         onPress: () => setActiveTab("gastos"),
@@ -507,7 +535,7 @@ export default function StatsScreen({ navigation }: any) {
       const up = savingDelta >= 0;
       list.push({
         icon: up ? "shield-checkmark-outline" : "alert-circle-outline",
-        tint: up ? "#EFF6FF" : "#FEE2E2", color: up ? "#2563EB" : "#DC2626",
+        tint: up ? "#EEF2FC" : "#FBEAE8", color: up ? colors.primary : RED,
         title: `Tu tasa de ahorro ha ${up ? "mejorado" : "empeorado"}`,
         subtitle: `${savingsRate.toFixed(1).replace(".", ",")}% este periodo.`,
         onPress: () => setActiveTab("evolucion"),
@@ -552,7 +580,7 @@ export default function StatsScreen({ navigation }: any) {
           <AppHeader title="Estadísticas" showProfile={false} onOpenDateModal={() => setDateModalVisible(true)} dateLabel={dateLabel} />
         </View>
 
-        <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+        <View style={{ paddingHorizontal: 20, marginBottom: 18 }}>
           <SegmentedTabs<MainTab>
             variant="solid"
             options={[
@@ -568,7 +596,7 @@ export default function StatsScreen({ navigation }: any) {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 20 }}
           scrollEventThrottle={16}
           onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
           refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
@@ -581,12 +609,12 @@ export default function StatsScreen({ navigation }: any) {
                 </SectionTitle>
 
                 <View style={{ flexDirection: "row", gap: 8 }}>
-                  <MetricCard label="Ingresos" value={formatEuroCompact(totalIncomes)} deltaValue={incomeDelta} deltaPct={incomeDeltaPct} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
-                  <MetricCard label="Gastos" value={formatEuroCompact(totalExpenses)} deltaValue={-expenseDelta} deltaPct={expenseDeltaPct != null ? -expenseDeltaPct : null} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
-                  <MetricCard label="Ahorro" value={formatEuroCompact(totalSaving)} deltaValue={savingDelta} deltaPct={savingDeltaPct} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
+                  <MetricCard label="Ingresos" value={formatEuroCompact(totalIncomes)} changeValue={incomeDelta} changePct={incomeDeltaPct} favorable={incomeDelta >= 0} compareLabel={`vs. ${prevLabelShort}`} />
+                  <MetricCard label="Gastos" value={formatEuroCompact(totalExpenses)} changeValue={expenseDelta} changePct={expenseDeltaPct} favorable={expenseDelta <= 0} compareLabel={`vs. ${prevLabelShort}`} />
+                  <MetricCard label="Ahorro" value={formatEuroCompact(totalSaving)} changeValue={savingDelta} changePct={savingDeltaPct} favorable={savingDelta >= 0} compareLabel={`vs. ${prevLabelShort}`} />
                 </View>
 
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 16, paddingHorizontal: 2 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 14, paddingHorizontal: 2 }}>
                   <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>Tasa de ahorro</Text>
                   <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}>{savingsRate.toFixed(1).replace(".", ",")} %</Text>
                 </View>
@@ -597,11 +625,12 @@ export default function StatsScreen({ navigation }: any) {
 
               <Card>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A" }}>Ingresos vs gastos</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>Ingresos vs gastos</Text>
                   <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
                 </View>
                 <GroupedBarChart
                   xLabels={miniTrendLabels}
+                  tooltipLabels={miniTrendFullLabels}
                   series={[
                     { label: "Ingresos", color: "#4ADE80", values: miniTrendBuckets.map((b) => b.income) },
                     { label: "Gastos", color: "#F87171", values: miniTrendBuckets.map((b) => b.expense) },
@@ -610,25 +639,21 @@ export default function StatsScreen({ navigation }: any) {
               </Card>
 
               <View>
-                <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-                  Comparado con {prevLabel}
-                </Text>
-                <FinancialRow first dot="#16A34A" label="Ingresos" value={`${incomeDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(incomeDelta))}`} />
-                <FinancialRow dot="#DC2626" label="Gastos" value={`${-expenseDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(expenseDelta))}`} />
-                <FinancialRow dot="#2563EB" label="Ahorro" value={`${savingDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(savingDelta))}`} />
+                <SubHeader>Comparado con {prevLabel}</SubHeader>
+                <FinancialRow first dot={GREEN} label="Ingresos" value={`${incomeDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(incomeDelta))}`} />
+                <FinancialRow dot={RED} label="Gastos" value={`${-expenseDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(expenseDelta))}`} />
+                <FinancialRow dot={colors.primary} label="Ahorro" value={`${savingDelta >= 0 ? "+" : "−"}${formatEuro(Math.abs(savingDelta))}`} />
               </View>
 
               {insights.length > 0 && (
                 <View>
-                  <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-                    {isYearMode ? "Insights del año" : "Insights del mes"}
-                  </Text>
+                  <SubHeader>{isYearMode ? "Insights del año" : "Insights del mes"}</SubHeader>
                   {insights.map((ins, i) => (
                     <TouchableOpacity
                       key={i}
                       onPress={ins.onPress}
                       activeOpacity={0.7}
-                      style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: "#F1F2F4", gap: 12 }}
+                      style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: "#F1F2F4", gap: 12 }}
                     >
                       <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: ins.tint, alignItems: "center", justifyContent: "center" }}>
                         <Ionicons name={ins.icon} size={15} color={ins.color} />
@@ -653,7 +678,7 @@ export default function StatsScreen({ navigation }: any) {
             const deltaPct = isExpense ? expenseDeltaPct : incomeDeltaPct;
             const favorableWhenLess = isExpense; // gastar menos = favorable
             const deltaFavorable = deltaPct == null ? true : favorableWhenLess ? deltaPct < 0 : deltaPct >= 0;
-            const deltaColor = deltaFavorable ? "#16A34A" : "#DC2626";
+            const deltaColor = deltaFavorable ? GREEN : RED;
             const pieData = isExpense ? expensePieData : incomePieData;
             const showAll = isExpense ? showAllExpense : showAllIncome;
             const setShowAll = isExpense ? setShowAllExpense : setShowAllIncome;
@@ -664,86 +689,98 @@ export default function StatsScreen({ navigation }: any) {
             const legendRestPct = legendTop.reduce((s, c) => s + (total > 0 ? (c.amount / total) * 100 : 0), 0);
             const restPct = Math.max(0, 100 - legendRestPct);
 
+            const heroBlock = (
+              <View key="hero">
+                <Text style={{ fontSize: 14, color: "#8A8F98", fontWeight: "500" }}>{isExpense ? "Gasto total" : "Ingresos totales"}</Text>
+                <Text style={{ fontSize: 30, fontWeight: "700", color: "#0F172A", marginTop: 3, fontVariant: ["tabular-nums"] }} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatEuro(total)}
+                </Text>
+                {prevTotal > 0 && deltaPct != null && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
+                    <Ionicons name={deltaPct >= 0 ? "arrow-up" : "arrow-down"} size={12} color={deltaColor} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: deltaColor }}>{Math.abs(deltaPct).toFixed(0)}%</Text>
+                    <Text style={{ fontSize: 13, color: "#8A8F98" }}>vs. {prevLabel.toLowerCase()}</Text>
+                  </View>
+                )}
+              </View>
+            );
+
+            const categoriesBlock = (
+              <View key="categories">
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <SubHeader>Distribución por categorías</SubHeader>
+                  <SegmentedTabs<"barras" | "circular">
+                    compact
+                    options={[{ key: "barras", label: "Barras" }, { key: "circular", label: "Circular" }]}
+                    value={catView}
+                    onChange={setCatView}
+                  />
+                </View>
+
+                {list.length === 0 ? (
+                  <Text style={{ color: "#8A8F98", fontSize: 13, textAlign: "center", paddingVertical: 12 }}>
+                    Sin {isExpense ? "gastos" : "ingresos"} en este periodo.
+                  </Text>
+                ) : catView === "circular" ? (
+                  <Card style={{ alignItems: "center", borderColor: "#F2F3F5" }}>
+                    <PieChartComponent size={132} innerRadius={44} mode={isExpense ? "expense" : "income"} data={pieData} incomes={totalIncomes} expenses={totalExpenses} />
+                    <View style={{ width: "100%", marginTop: 14, gap: 9 }}>
+                      {legendTop.map((c) => (
+                        <View key={c.name} style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.color, marginRight: 8 }} />
+                          <Text style={{ flex: 1, fontSize: 13.5, color: "#0F172A", fontWeight: "500" }} numberOfLines={1}>{c.name}</Text>
+                          <Text style={{ fontSize: 13.5, color: "#5B6472", fontWeight: "600" }}>
+                            {(total > 0 ? (c.amount / total) * 100 : 0).toFixed(1).replace(".", ",")}%
+                          </Text>
+                        </View>
+                      ))}
+                      {restPct > 0.5 && list.length > 4 && (
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#E5E7EB", marginRight: 8 }} />
+                          <Text style={{ flex: 1, fontSize: 13.5, color: "#8A8F98", fontWeight: "500" }}>Resto</Text>
+                          <Text style={{ fontSize: 13.5, color: "#8A8F98", fontWeight: "600" }}>{restPct.toFixed(1).replace(".", ",")}%</Text>
+                        </View>
+                      )}
+                    </View>
+                  </Card>
+                ) : (
+                  <Card style={{ borderColor: "#F2F3F5" }}>
+                    <CategoryBarList items={barItems} />
+                    {list.length > 5 && (
+                      <TouchableOpacity onPress={() => setShowAll(!showAll)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 10, marginTop: 2, borderTopWidth: 1, borderTopColor: "#F1F2F4" }}>
+                        <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.primary }}>{showAll ? "Ver menos" : "Ver todas"}</Text>
+                        <Ionicons name={showAll ? "chevron-up" : "chevron-forward"} size={15} color={colors.primary} />
+                      </TouchableOpacity>
+                    )}
+                  </Card>
+                )}
+              </View>
+            );
+
+            const evolutionBlock = (
+              <Card key="evolution">
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
+                    Evolución {isExpense ? "del gasto" : "de ingresos"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
+                </View>
+                <GroupedBarChart
+                  xLabels={miniTrendLabels}
+                  tooltipLabels={miniTrendFullLabels}
+                  series={[{ label: isExpense ? "Gastos" : "Ingresos", color: isExpense ? "#FCA5A5" : "#86EFAC", values: evoSeriesValues }]}
+                />
+              </Card>
+            );
+
+            // En Ingresos, con solo un par de categorías la sección de
+            // distribución queda muy corta — se antepone la evolución para
+            // no dejar la pantalla desequilibrada.
             return (
               <>
-                <View>
-                  <Text style={{ fontSize: 14, color: "#8A8F98", fontWeight: "500" }}>{isExpense ? "Gasto total" : "Ingresos totales"}</Text>
-                  <Text style={{ fontSize: 30, fontWeight: "700", color: "#0F172A", marginTop: 4, fontVariant: ["tabular-nums"] }} numberOfLines={1} adjustsFontSizeToFit>
-                    {formatEuro(total)}
-                  </Text>
-                  {prevTotal > 0 && deltaPct != null && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
-                      <Ionicons name={deltaPct >= 0 ? "arrow-up" : "arrow-down"} size={12} color={deltaColor} />
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: deltaColor }}>{Math.abs(deltaPct).toFixed(0)}%</Text>
-                      <Text style={{ fontSize: 13, color: "#8A8F98" }}>vs. {prevLabel.toLowerCase()}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A" }}>Distribución por categorías</Text>
-                    <SegmentedTabs<"barras" | "circular">
-                      compact
-                      options={[{ key: "barras", label: "Barras" }, { key: "circular", label: "Circular" }]}
-                      value={catView}
-                      onChange={setCatView}
-                    />
-                  </View>
-
-                  {list.length === 0 ? (
-                    <Text style={{ color: "#8A8F98", fontSize: 13, textAlign: "center", paddingVertical: 12 }}>
-                      Sin {isExpense ? "gastos" : "ingresos"} en este periodo.
-                    </Text>
-                  ) : catView === "circular" ? (
-                    <Card style={{ alignItems: "center" }}>
-                      <PieChartComponent size={148} innerRadius={48} mode={isExpense ? "expense" : "income"} data={pieData} incomes={totalIncomes} expenses={totalExpenses} />
-                      <View style={{ width: "100%", marginTop: 16, gap: 10 }}>
-                        {legendTop.map((c) => (
-                          <View key={c.name} style={{ flexDirection: "row", alignItems: "center" }}>
-                            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.color, marginRight: 8 }} />
-                            <Text style={{ flex: 1, fontSize: 13.5, color: "#0F172A", fontWeight: "500" }} numberOfLines={1}>{c.name}</Text>
-                            <Text style={{ fontSize: 13.5, color: "#5B6472", fontWeight: "600" }}>
-                              {(total > 0 ? (c.amount / total) * 100 : 0).toFixed(1).replace(".", ",")}%
-                            </Text>
-                          </View>
-                        ))}
-                        {restPct > 0.5 && list.length > 4 && (
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#E5E7EB", marginRight: 8 }} />
-                            <Text style={{ flex: 1, fontSize: 13.5, color: "#8A8F98", fontWeight: "500" }}>Resto</Text>
-                            <Text style={{ fontSize: 13.5, color: "#8A8F98", fontWeight: "600" }}>{restPct.toFixed(1).replace(".", ",")}%</Text>
-                          </View>
-                        )}
-                      </View>
-                    </Card>
-                  ) : (
-                    <Card>
-                      <CategoryBarList items={barItems} />
-                      {list.length > 5 && (
-                        <TouchableOpacity onPress={() => setShowAll(!showAll)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 12, marginTop: 4, borderTopWidth: 1, borderTopColor: "#F1F2F4" }}>
-                          <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.primary }}>{showAll ? "Ver menos" : "Ver todas"}</Text>
-                          <Ionicons name={showAll ? "chevron-up" : "chevron-forward"} size={15} color={colors.primary} />
-                        </TouchableOpacity>
-                      )}
-                    </Card>
-                  )}
-                </View>
-
-                <Card>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A" }}>
-                      Evolución {isExpense ? "del gasto" : "de ingresos"}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
-                  </View>
-                  <GroupedBarChart
-                    xLabels={miniTrendLabels}
-                    series={[{ label: isExpense ? "Gastos" : "Ingresos", color: isExpense ? "#FCA5A5" : "#86EFAC", values: evoSeriesValues }]}
-                    highlightLast
-                    highlightColor={isExpense ? "#DC2626" : "#16A34A"}
-                  />
-                </Card>
+                {heroBlock}
+                {isExpense ? categoriesBlock : evolutionBlock}
+                {isExpense ? evolutionBlock : categoriesBlock}
               </>
             );
           })()}
@@ -760,9 +797,10 @@ export default function StatsScreen({ navigation }: any) {
                 ) : (
                   <TrendChart
                     xLabels={evoLabels}
+                    tooltipLabels={evoFullLabels}
                     series={[
-                      { key: "income", label: "Ingresos", color: "#16A34A", values: evoSeries.map((b) => b.income) },
-                      { key: "expense", label: "Gastos", color: "#DC2626", values: evoSeries.map((b) => b.expense) },
+                      { key: "income", label: "Ingresos", color: GREEN, values: evoSeries.map((b) => b.income) },
+                      { key: "expense", label: "Gastos", color: RED, values: evoSeries.map((b) => b.expense) },
                       { key: "saving", label: "Ahorro", color: colors.primary, values: evoSeries.map((b) => b.income - b.expense), area: true },
                     ]}
                   />
@@ -770,15 +808,15 @@ export default function StatsScreen({ navigation }: any) {
               </Card>
 
               <View>
-                <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>Resumen del periodo</Text>
-                <FinancialRow first dot="#16A34A" label="Ingresos totales" value={formatEuro(periodTotals.income)} />
-                <FinancialRow dot="#DC2626" label="Gastos totales" value={formatEuro(periodTotals.expense)} />
-                <FinancialRow dot="#2563EB" label="Ahorro" value={formatEuro(periodTotals.saving)} />
+                <SubHeader>Resumen del periodo</SubHeader>
+                <FinancialRow first dot={GREEN} label="Ingresos totales" value={formatEuro(periodTotals.income)} />
+                <FinancialRow dot={RED} label="Gastos totales" value={formatEuro(periodTotals.expense)} />
+                <FinancialRow dot={colors.primary} label="Ahorro" value={formatEuro(periodTotals.saving)} />
                 <FinancialRow dot="#0F172A" label="Tasa de ahorro" value={`${periodTotals.rate.toFixed(1).replace(".", ",")} %`} />
               </View>
 
               {evoHasData && (
-                <View style={{ flexDirection: "row", alignItems: "flex-start", backgroundColor: "#F3F6FB", borderRadius: 16, padding: 14, gap: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", backgroundColor: "#F3F6FB", borderRadius: 14, padding: 12, gap: 10 }}>
                   <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: "white", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
                   </View>

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import Svg, { Path, Circle, Line } from "react-native-svg";
-import { formatEuro, formatEuroInt } from "../utils/currency";
+import { formatEuroInt } from "../utils/currency";
+import ChartTooltip from "./ChartTooltip";
 
 export interface TrendSeries {
   key: string;
@@ -14,23 +15,29 @@ export interface TrendSeries {
 interface Props {
   series: TrendSeries[]; // 1-3 series, mismo nº de valores que xLabels
   xLabels: string[];
+  // Etiquetas completas para el tooltip (ej. "Septiembre 2026"); si se omite
+  // se reutiliza xLabels.
+  tooltipLabels?: string[];
   height?: number;
 }
+
+const TOOLTIP_WIDTH = 158;
 
 function buildPath(points: { x: number; y: number }[]) {
   if (!points.length) return "";
   return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
 }
 
-// Gráfica de líneas multi-serie (con relleno opcional de área para una
-// serie, ej. Ahorro) — mucho más legible que barras agrupadas cuando hay
-// muchos puntos (rangos largos en Evolución). Escoge como mucho ~6 labels
-// del eje X, siempre repartidos, para que nunca se amontonen. Cada punto es
-// tocable (columna invisible) — al tocar muestra sus valores exactos.
-export default function TrendChart({ series, xLabels, height = 150 }: Props) {
+// Gráfica de líneas multi-serie (con relleno opcional de área muy sutil
+// para una serie, ej. Ahorro) — mucho más legible que barras agrupadas
+// cuando hay muchos puntos (rangos largos en Evolución). Escoge como mucho
+// ~6 labels del eje X, siempre repartidos. Cada punto es tocable (columna
+// invisible) — al tocar muestra un tooltip flotante con sus valores.
+export default function TrendChart({ series, xLabels, tooltipLabels, height = 130 }: Props) {
   const [width, setWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const padY = 10;
+  const labels = tooltipLabels ?? xLabels;
 
   const allValues = series.flatMap((s) => s.values);
   const minV = Math.min(0, ...allValues);
@@ -47,6 +54,10 @@ export default function TrendChart({ series, xLabels, height = 150 }: Props) {
   const labelStep = n > 1 ? (n - 1) / Math.max(1, maxLabels - 1) : 1;
   const labelIdxs = new Set(Array.from({ length: maxLabels }, (_, i) => Math.round(i * labelStep)));
 
+  const tooltipLeft = selectedIndex != null && width > 0
+    ? Math.min(Math.max(mapX(selectedIndex) - TOOLTIP_WIDTH / 2, 0), width - TOOLTIP_WIDTH)
+    : 0;
+
   return (
     <View style={{ width: "100%" }}>
       {series.length > 1 && (
@@ -60,29 +71,18 @@ export default function TrendChart({ series, xLabels, height = 150 }: Props) {
         </View>
       )}
 
-      {selectedIndex != null && (
-        <Text style={{ fontSize: 12, fontWeight: "600", color: "#0F172A", marginBottom: 10 }}>
-          {xLabels[selectedIndex]} ·{" "}
-          {series.map((s, i) => (
-            <Text key={s.key} style={{ color: s.color, fontWeight: "700" }}>
-              {s.label} {formatEuro(s.values[selectedIndex] ?? 0)} €{i < series.length - 1 ? "   " : ""}
-            </Text>
-          ))}
-        </Text>
-      )}
-
       <View style={{ flexDirection: "row" }}>
         <View style={{ justifyContent: "space-between", marginRight: 8, height, paddingVertical: padY }}>
-          <Text style={{ fontSize: 10, color: "#B0B4BA", fontWeight: "500" }}>{formatEuroInt(maxV)}</Text>
-          <Text style={{ fontSize: 10, color: "#B0B4BA", fontWeight: "500" }}>{formatEuroInt(minV)}</Text>
+          <Text style={{ fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>{formatEuroInt(maxV)}</Text>
+          <Text style={{ fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>{formatEuroInt(minV)}</Text>
         </View>
 
-        <View style={{ flex: 1 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        <View style={{ flex: 1, position: "relative" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {width > 0 && n > 0 && (
             <>
               <Svg width={width} height={height}>
                 {minV < 0 && (
-                  <Path d={`M 0 ${zeroY.toFixed(1)} L ${width} ${zeroY.toFixed(1)}`} stroke="#F1F2F4" strokeWidth={1} />
+                  <Path d={`M 0 ${zeroY.toFixed(1)} L ${width} ${zeroY.toFixed(1)}`} stroke="#F4F5F7" strokeWidth={1} />
                 )}
                 {series.map((s) => {
                   const points = s.values.map((v, i) => ({ x: mapX(i), y: mapY(v) }));
@@ -93,7 +93,7 @@ export default function TrendChart({ series, xLabels, height = 150 }: Props) {
                   const last = points[points.length - 1];
                   return (
                     <React.Fragment key={s.key}>
-                      {areaPath && <Path d={areaPath} fill={s.color} opacity={0.1} />}
+                      {areaPath && <Path d={areaPath} fill={s.color} opacity={0.04} />}
                       <Path d={linePath} stroke={s.color} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
                       {last && <Circle cx={last.x} cy={last.y} r={3} fill={s.color} />}
                     </React.Fragment>
@@ -106,7 +106,7 @@ export default function TrendChart({ series, xLabels, height = 150 }: Props) {
                       y1={0}
                       x2={mapX(selectedIndex)}
                       y2={height}
-                      stroke="#D1D5DB"
+                      stroke="#E5E7EB"
                       strokeWidth={1}
                       strokeDasharray="3,3"
                     />
@@ -136,6 +136,14 @@ export default function TrendChart({ series, xLabels, height = 150 }: Props) {
                   />
                 ))}
               </View>
+
+              {selectedIndex != null && (
+                <ChartTooltip
+                  title={labels[selectedIndex]}
+                  style={{ position: "absolute", left: tooltipLeft, top: 0 }}
+                  rows={series.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0 }))}
+                />
+              )}
             </>
           )}
         </View>

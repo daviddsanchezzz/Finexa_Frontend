@@ -32,7 +32,7 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
               paddingVertical: 8,
               paddingHorizontal: item.active ? 8 : 0,
               marginHorizontal: item.active ? -8 : 0,
-              borderRadius: item.active ? 10 : 0,
+              borderRadius: item.active ? 8 : 0,
               backgroundColor: item.active ? `${item.color}14` : "transparent",
               borderTopWidth: i === 0 ? 0 : 1,
               borderTopColor: "#F1F5F9",
@@ -58,13 +58,13 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
               ) : null}
 
               <Text
-                style={{ flex: 1, fontSize: 14, fontWeight: item.active ? "700" : "600", color: "#0F172A" }}
+                style={{ flex: 1, fontSize: 14, fontWeight: item.active ? "700" : "500", color: "#0F172A" }}
                 numberOfLines={1}
               >
                 {item.label}
               </Text>
 
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
                 {formatEuro(item.amount)} €
               </Text>
 

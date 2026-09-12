@@ -1,89 +1,144 @@
 import React from 'react';
-import { View, Dimensions } from 'react-native';
+import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W - 40;
+function KpiCardSkeleton() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: 'white',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#EEF0F3',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        gap: 6,
+      }}
+    >
+      <SkeletonBox width="60%" height={11} borderRadius={5} />
+      <SkeletonBox width="75%" height={16} borderRadius={6} />
+      <SkeletonBox width="80%" height={10} borderRadius={5} />
+    </View>
+  );
+}
 
-function CategoryRow() {
+function FinancialRowSkeleton({ first }: { first?: boolean }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 9,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: '#F4F5F7',
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <SkeletonBox width={6} height={6} borderRadius={3} />
+        <SkeletonBox width={90} height={12} borderRadius={5} />
+      </View>
+      <SkeletonBox width={70} height={13} borderRadius={5} />
+    </View>
+  );
+}
+
+function InsightRowSkeleton({ first }: { first?: boolean }) {
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 11,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        paddingVertical: 10,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: '#F1F2F4',
+        gap: 12,
       }}
     >
-      <SkeletonBox width={36} height={36} borderRadius={10} style={{ marginRight: 12 }} />
-      <View style={{ flex: 1, gap: 5 }}>
-        <SkeletonBox width="45%" height={13} borderRadius={6} />
-        <SkeletonBox width="25%" height={10} borderRadius={5} />
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 5 }}>
-        <SkeletonBox width={72} height={13} borderRadius={6} />
-        <SkeletonBox width={40} height={10} borderRadius={5} />
+      <SkeletonBox width={30} height={30} borderRadius={9} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <SkeletonBox width="80%" height={12} borderRadius={5} />
+        <SkeletonBox width="45%" height={10} borderRadius={5} />
       </View>
     </View>
   );
 }
 
+// Refleja la pestaña "Resumen" (la que se ve al abrir Estadísticas): mismos
+// radios, paddings y proporciones que el layout real para que la carga no
+// dé una sensación de salto al llegar los datos.
 export function StatsScreenSkeleton() {
   return (
-    <View style={{ paddingHorizontal: 20 }}>
-      {/* Type selector */}
-      <SkeletonBox width="100%" height={44} borderRadius={16} style={{ marginBottom: 16 }} />
+    <View style={{ paddingHorizontal: 20, gap: 20 }}>
+      {/* Tabs Resumen/Gastos/Ingresos/Evolución */}
+      <SkeletonBox width="100%" height={44} borderRadius={13} />
 
-      {/* Chart card */}
-      <View style={{ marginBottom: 24 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <SkeletonBox width={140} height={14} borderRadius={6} />
-          <SkeletonBox width={110} height={32} borderRadius={12} />
+      {/* Título + subtítulo */}
+      <View style={{ gap: 11 }}>
+        <View style={{ gap: 6 }}>
+          <SkeletonBox width={170} height={19} borderRadius={6} />
+          <SkeletonBox width={230} height={12} borderRadius={5} />
         </View>
-        <SkeletonBox width={CARD_W} height={200} borderRadius={24} />
-        {/* Dots */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 12, gap: 8 }}>
-          <SkeletonBox width={18} height={7} borderRadius={999} />
-          <SkeletonBox width={7} height={7} borderRadius={999} />
+
+        {/* 3 KPI cards */}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <KpiCardSkeleton />
+          <KpiCardSkeleton />
+          <KpiCardSkeleton />
+        </View>
+
+        {/* Tasa de ahorro */}
+        <View style={{ paddingTop: 6 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
+            <SkeletonBox width={90} height={13} borderRadius={5} />
+            <SkeletonBox width={50} height={15} borderRadius={5} />
+          </View>
+          <SkeletonBox width="100%" height={3} borderRadius={2} style={{ marginTop: 10 }} />
         </View>
       </View>
 
-      {/* Date label */}
-      <SkeletonBox width={200} height={22} borderRadius={8} style={{ marginBottom: 20 }} />
-
-      {/* Category section label */}
-      <SkeletonBox width={180} height={12} borderRadius={5} style={{ marginBottom: 10 }} />
-
-      {/* Category rows */}
-      <CategoryRow />
-      <CategoryRow />
-      <CategoryRow />
-      <CategoryRow />
-
-      {/* Total row */}
+      {/* Card "Ingresos vs gastos" */}
       <View
         style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingVertical: 12,
-          marginTop: 4,
+          backgroundColor: 'white',
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: '#EEF0F3',
+          padding: 14,
         }}
       >
-        <SkeletonBox width={100} height={14} borderRadius={6} />
-        <SkeletonBox width={80} height={14} borderRadius={6} />
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+          <SkeletonBox width={120} height={13} borderRadius={5} />
+          <SkeletonBox width={90} height={11} borderRadius={5} />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, height: 100, paddingLeft: 42 }}>
+          {[0.55, 0.7, 0.5, 0.8, 0.65, 1].map((h, i) => (
+            <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+              <View style={{ flexDirection: 'row', gap: 3, alignItems: 'flex-end' }}>
+                <SkeletonBox width={9} height={100 * h} borderRadius={3} />
+                <SkeletonBox width={9} height={100 * h * 0.55} borderRadius={3} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
 
-      {/* Ahorro section */}
-      <SkeletonBox width={80} height={12} borderRadius={5} style={{ marginTop: 16, marginBottom: 8 }} />
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 }}>
-        <SkeletonBox width={100} height={14} borderRadius={6} />
-        <SkeletonBox width={80} height={14} borderRadius={6} />
+      {/* Comparado con... */}
+      <View>
+        <SkeletonBox width={190} height={15} borderRadius={5} style={{ marginBottom: 8 }} />
+        <FinancialRowSkeleton first />
+        <FinancialRowSkeleton />
+        <FinancialRowSkeleton />
       </View>
 
-      {/* Advanced button */}
-      <SkeletonBox width="100%" height={48} borderRadius={16} style={{ marginTop: 24 }} />
+      {/* Insights */}
+      <View>
+        <SkeletonBox width={110} height={15} borderRadius={5} style={{ marginBottom: 4 }} />
+        <InsightRowSkeleton first />
+        <InsightRowSkeleton />
+        <InsightRowSkeleton />
+      </View>
     </View>
   );
 }
