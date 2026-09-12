@@ -92,8 +92,8 @@ function Segmented<T extends string>({
       style={{
         flexDirection: "row",
         backgroundColor: "#E5E7EB",
-        borderRadius: compact ? 12 : 16,
-        padding: 3,
+        borderRadius: compact ? 10 : 13,
+        padding: 2,
         alignSelf: compact ? "flex-start" : "stretch",
       }}
     >
@@ -106,9 +106,9 @@ function Segmented<T extends string>({
             activeOpacity={0.8}
             style={{
               flex: compact ? undefined : 1,
-              paddingHorizontal: compact ? 14 : 0,
-              paddingVertical: compact ? 6 : 10,
-              borderRadius: compact ? 9 : 13,
+              paddingHorizontal: compact ? 12 : 0,
+              paddingVertical: compact ? 5 : 8,
+              borderRadius: compact ? 7 : 11,
               backgroundColor: active ? "white" : "transparent",
               alignItems: "center",
               ...(active
@@ -116,7 +116,7 @@ function Segmented<T extends string>({
                 : {}),
             }}
           >
-            <Text style={{ fontSize: compact ? 13 : 15, fontWeight: active ? "700" : "600", color: active ? "#0F172A" : "#6B7280" }}>
+            <Text style={{ fontSize: compact ? 12 : 14, fontWeight: active ? "700" : "600", color: active ? "#0F172A" : "#6B7280" }}>
               {opt.label}
             </Text>
           </TouchableOpacity>
@@ -146,10 +146,10 @@ function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = fa
     <View
       style={{
         backgroundColor: t.surface,
-        borderRadius: 18,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: t.border,
-        marginBottom: 12,
+        marginBottom: 8,
         overflow: "hidden",
       }}
     >
@@ -160,22 +160,22 @@ function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = fa
         style={{
           flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: 16,
-          paddingVertical: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
         }}
       >
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
+            width: 32,
+            height: 32,
+            borderRadius: 9,
             backgroundColor: k.bg,
             alignItems: "center",
             justifyContent: "center",
-            marginRight: 12,
+            marginRight: 10,
           }}
         >
-          <Ionicons name={k.icon as any} size={18} color={k.color} />
+          <Ionicons name={k.icon as any} size={16} color={k.color} />
         </View>
 
         <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: "#111827" }}>
@@ -225,16 +225,16 @@ function Row({ emoji, name, amount, amountColor }: { emoji?: string; name: strin
       style={{
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 11,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
         borderBottomWidth: 1,
         borderBottomColor: "#F9FAFB",
       }}
     >
       {emoji ? (
-        <Text style={{ fontSize: 18, marginRight: 10, width: 28, textAlign: "center" }}>{emoji}</Text>
+        <Text style={{ fontSize: 16, marginRight: 8, width: 24, textAlign: "center" }}>{emoji}</Text>
       ) : (
-        <View style={{ width: 28, marginRight: 10 }} />
+        <View style={{ width: 24, marginRight: 8 }} />
       )}
       <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{name}</Text>
       <Text style={{ fontSize: 13, fontWeight: "600", color: amountColor || "#111827" }}>
@@ -262,31 +262,31 @@ function WalletRow({ wallet }: { wallet: WalletItem }) {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: t.surface,
-        borderRadius: 18,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: t.border,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        marginBottom: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        marginBottom: 8,
       }}
     >
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
+          width: 32,
+          height: 32,
+          borderRadius: 9,
           backgroundColor: kindMeta.bg,
           alignItems: "center",
           justifyContent: "center",
-          marginRight: 12,
+          marginRight: 10,
         }}
       >
-        <Text style={{ fontSize: 18 }}>{wallet.emoji}</Text>
+        <Text style={{ fontSize: 16 }}>{wallet.emoji}</Text>
       </View>
-      <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
+      <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
         {wallet.name}
       </Text>
-      <Text style={{ fontSize: 15, fontWeight: "800", color: "#111827" }}>
+      <Text style={{ fontSize: 14, fontWeight: "800", color: "#111827" }}>
         {fmt(wallet.balance)}
       </Text>
     </View>
@@ -297,9 +297,9 @@ function WalletRow({ wallet }: { wallet: WalletItem }) {
 function StatCard({ label, delta, pct }: { label: string; delta: number; pct: number }) {
   const positive = delta >= 0;
   return (
-    <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
-      <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600", marginBottom: 6 }}>{label}</Text>
-      <Text style={{ fontSize: 17, fontWeight: "800", color: positive ? "#16A34A" : "#DC2626" }}>
+    <View style={{ flex: 1, backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", padding: 10 }}>
+      <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600", marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: "800", color: positive ? "#16A34A" : "#DC2626" }}>
         {positive ? "+" : "−"}{fmt(Math.abs(delta))}
       </Text>
       {Math.abs(pct) > 0.05 && (
@@ -310,9 +310,9 @@ function StatCard({ label, delta, pct }: { label: string; delta: number; pct: nu
             alignSelf: "flex-start",
             backgroundColor: positive ? "#DCFCE7" : "#FEE2E2",
             borderRadius: 999,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            marginTop: 6,
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+            marginTop: 5,
             gap: 3,
           }}
         >
@@ -335,12 +335,12 @@ function shortEuro(n: number) {
 // ── Gráfica de evolución (solo cierres mensuales reales + "Hoy") ──
 function EvolutionChart({ points }: { points: { label: string; value: number }[] }) {
   const [width, setWidth] = useState(0);
-  const H = 170;
-  const padY = 14;
+  const H = 140;
+  const padY = 12;
 
   if (points.length < 2) {
     return (
-      <View style={{ backgroundColor: "white", borderRadius: 20, borderWidth: 1, borderColor: "#E5E7EB", padding: 24, alignItems: "center", marginBottom: 16 }}>
+      <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 18, alignItems: "center", marginBottom: 12 }}>
         <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center" }}>
           No hay suficiente histórico todavía para este rango.
         </Text>
@@ -372,9 +372,9 @@ function EvolutionChart({ points }: { points: { label: string; value: number }[]
   const labelIdxs = Array.from({ length: maxLabels }, (_, i) => Math.round(i * labelStep));
 
   return (
-    <View style={{ backgroundColor: "white", borderRadius: 20, borderWidth: 1, borderColor: "#E5E7EB", padding: 16, marginBottom: 16 }}>
+    <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 12, marginBottom: 12 }}>
       <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 4 }}>
-        <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>{fmt(values[values.length - 1])}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{fmt(values[values.length - 1])}</Text>
       </View>
 
       <View style={{ flexDirection: "row" }}>
@@ -417,7 +417,7 @@ function DistributionBar({ cash, savings, invest, debt }: { cash: number; saving
   ].filter((s) => s.value > 0);
 
   return (
-    <View style={{ flexDirection: "row", height: 6, borderRadius: 6, overflow: "hidden", marginTop: 16, marginBottom: 16 }}>
+    <View style={{ flexDirection: "row", height: 5, borderRadius: 5, overflow: "hidden", marginTop: 12, marginBottom: 12 }}>
       {segments.map((s, i) => (
         <View
           key={i}
@@ -444,10 +444,9 @@ const ASSET_TYPE_EMOJI: Record<string, string> = {
 
 type MainTab = "composicion" | "evolucion";
 type ViewBy = "cartera" | "tipo";
-type EvoRange = "1M" | "6M" | "YTD" | "1A" | "Todo";
+type EvoRange = "6M" | "YTD" | "1A" | "Todo";
 
 const EVO_RANGES: { key: EvoRange; label: string }[] = [
-  { key: "1M", label: "1M" },
   { key: "6M", label: "6M" },
   { key: "YTD", label: "YTD" },
   { key: "1A", label: "1A" },
@@ -463,7 +462,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [mainTab, setMainTab] = useState<MainTab>("composicion");
   const [viewBy, setViewBy] = useState<ViewBy>("cartera");
-  const [evoRange, setEvoRange] = useState<EvoRange>("1M");
+  const [evoRange, setEvoRange] = useState<EvoRange>("Todo");
 
   const netTrend = useNetWorthTrend();
   const netTrendYear = useNetWorthTrend("year");
@@ -552,8 +551,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
     const series = netTrend.series;
     const currentYear = new Date().getFullYear();
     let sliced;
-    if (evoRange === "1M") sliced = series.slice(-1);
-    else if (evoRange === "6M") sliced = series.slice(-6);
+    if (evoRange === "6M") sliced = series.slice(-6);
     else if (evoRange === "YTD") sliced = series.filter((p) => p.year === currentYear);
     else if (evoRange === "1A") sliced = series.slice(-12);
     else sliced = series;
@@ -575,7 +573,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
         />
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
         <Segmented<MainTab>
           options={[
             { key: "composicion", label: "Composición" },
@@ -601,16 +599,16 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
       ) : (
         <>
           {/* ── Hero fijo (no scrollea) ── */}
-          <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-            <View style={{ backgroundColor: colors.primary, borderRadius: 24, padding: 22 }}>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6 }}>
+          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+            <View style={{ backgroundColor: colors.primary, borderRadius: 20, padding: 16 }}>
+              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6 }}>
                 Patrimonio neto
               </Text>
-              <Text style={{ color: "white", fontSize: 38, fontWeight: "800", marginTop: 6 }}>
+              <Text style={{ color: "white", fontSize: 32, fontWeight: "800", marginTop: 3 }}>
                 {fmt(netWorth)}
               </Text>
 
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 6 }}>
                 <Text style={{ fontSize: 14, fontWeight: "700", color: netTrend.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
                   {netTrend.periodDelta >= 0 ? "+" : "−"}{fmt(Math.abs(netTrend.periodDelta))} este mes
                 </Text>
@@ -645,10 +643,10 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
                   <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                     {legendItems.map((s) => (
                       <View key={s.label} style={{ alignItems: "center" }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color, marginBottom: 4 }} />
-                        <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10 }}>{s.label}</Text>
-                        <Text style={{ color: s.textColor, fontSize: 13, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
-                        <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 1 }}>
+                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: s.color, marginBottom: 3 }} />
+                        <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 9.5 }}>{s.label}</Text>
+                        <Text style={{ color: s.textColor, fontSize: 12, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 9.5, marginTop: 1 }}>
                           {distributionTotal > 0 ? ((s.value / distributionTotal) * 100).toFixed(0) + "%" : "—"}
                         </Text>
                       </View>
@@ -662,9 +660,9 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
           {mainTab === "composicion" ? (
             <>
               {/* ── Ver por + info ── */}
-              <View style={{ paddingHorizontal: 20, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>Ver por</Text>
+              <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600" }}>Ver por</Text>
                   <Segmented<ViewBy>
                     compact
                     options={[
@@ -781,7 +779,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
                 />
               }
             >
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+              <View style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}>
                 {EVO_RANGES.map((r) => {
                   const active = evoRange === r.key;
                   return (
@@ -790,13 +788,13 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
                       onPress={() => setEvoRange(r.key)}
                       activeOpacity={0.8}
                       style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
                         borderRadius: 999,
                         backgroundColor: active ? "#DBEAFE" : "#F1F5F9",
                       }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
                         {r.label}
                       </Text>
                     </TouchableOpacity>
@@ -806,7 +804,7 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
 
               <EvolutionChart points={evoPoints} />
 
-              <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flexDirection: "row", gap: 10 }}>
                 <StatCard label="Este mes" delta={netTrend.periodDelta} pct={netTrend.pctChange} />
                 <StatCard label="Este año" delta={netTrendYear.periodDelta} pct={netTrendYear.pctChange} />
               </View>
