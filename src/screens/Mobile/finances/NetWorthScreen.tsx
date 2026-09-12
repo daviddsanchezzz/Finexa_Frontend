@@ -293,6 +293,87 @@ function WalletRow({ wallet }: { wallet: WalletItem }) {
   );
 }
 
+// ── Fila con desplegable de las tablas mensual/anual ──
+// 4 columnas visibles (Mes/Año, Ingresos, Gastos, Ahorro); al tocar la fila
+// se despliega Rentabilidad (antes "Inversión") y Patrimonio Neto Final
+// (antes "Saldo final").
+function BreakdownRow({
+  label,
+  income,
+  expense,
+  saving,
+  investment,
+  finalAmount,
+  finished,
+  expanded,
+  highlighted,
+  onPress,
+}: {
+  label: string;
+  income: number;
+  expense: number;
+  saving: number;
+  investment: number | null;
+  finalAmount: number;
+  finished: boolean;
+  expanded: boolean;
+  highlighted?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: "#F1F5F9", backgroundColor: highlighted ? "rgba(0,60,197,0.04)" : "transparent" }}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        disabled={!finished}
+        style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, opacity: finished ? 1 : 0.4 }}
+      >
+        <Text style={{ flex: 1.1, fontSize: 13, fontWeight: "700", color: "#0F172A" }}>{label}</Text>
+        <Text style={{ flex: 1, fontSize: 12.5, textAlign: "center", color: "#374151" }}>
+          {finished ? fmt(income) : "–"}
+        </Text>
+        <Text style={{ flex: 1, fontSize: 12.5, textAlign: "center", color: "#374151" }}>
+          {finished ? fmt(expense) : "–"}
+        </Text>
+        <View style={{ flex: 1.2, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
+          <Text
+            style={{
+              fontSize: 12.5,
+              fontWeight: "700",
+              color: !finished ? "#9CA3AF" : saving >= 0 ? "#16A34A" : "#DC2626",
+            }}
+          >
+            {finished ? fmt(saving, true) : "–"}
+          </Text>
+          {finished && <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={13} color="#9CA3AF" />}
+        </View>
+      </TouchableOpacity>
+
+      {expanded && finished && (
+        <View style={{ flexDirection: "row", justifyContent: "space-between", paddingBottom: 12, paddingHorizontal: 2 }}>
+          <View>
+            <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>Rentabilidad</Text>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                marginTop: 1,
+                color: investment == null ? "#9CA3AF" : investment >= 0 ? "#16A34A" : "#DC2626",
+              }}
+            >
+              {investment != null ? fmt(investment) : "—"}
+            </Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>Patrimonio Neto Final</Text>
+            <Text style={{ fontSize: 13, fontWeight: "800", marginTop: 1, color: "#0F172A" }}>{fmt(finalAmount)}</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ── Card de variación (Este mes / Este año) ────────────
 function StatCard({ label, delta, pct }: { label: string; delta: number; pct: number }) {
   const positive = delta >= 0;
@@ -454,7 +535,7 @@ const EVO_RANGES: { key: EvoRange; label: string }[] = [
 ];
 
 // ── Screen ────────────────────────────────────────────
-export default function NetWorthScreen({ navigation: _nav }: any) {
+export default function NetWorthScreen({ navigation }: any) {
   const { isDark, colors: t } = useTheme();
   const initialCache = getNetWorthCache<NetWorthData>();
   const [data, setData] = useState<NetWorthData | null>(initialCache.data);
@@ -463,6 +544,10 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
   const [mainTab, setMainTab] = useState<MainTab>("composicion");
   const [viewBy, setViewBy] = useState<ViewBy>("cartera");
   const [evoRange, setEvoRange] = useState<EvoRange>("Todo");
+  const currentYearNow = new Date().getFullYear();
+  const [selectedTableYear, setSelectedTableYear] = useState(currentYearNow);
+  const [expandedMonth, setExpandedMonth] = useState<number | null>(null);
+  const [expandedGlobalYear, setExpandedGlobalYear] = useState<number | null>(null);
 
   const netTrend = useNetWorthTrend();
   const netTrendYear = useNetWorthTrend("year");
@@ -560,6 +645,27 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
     points.push({ label: "Hoy", value: netTrend.current });
     return points;
   })();
+
+  // Tablas mensual/anual (movidas desde Estadísticas avanzadas), usando la
+  // misma serie compartida de cierres mensuales.
+  const monthsByYear = netTrend.monthsByYear;
+  const globalSummaryList = netTrend.globalSummaryList;
+  const currentMonthNow = new Date().getMonth();
+  const isPastSelectedYear = selectedTableYear < currentYearNow;
+  const isCurrentSelectedYear = selectedTableYear === currentYearNow;
+
+  const yearSummaryList = monthsByYear[selectedTableYear] || [];
+  const finishedMonths = yearSummaryList.filter(
+    (_, i) => isPastSelectedYear || (isCurrentSelectedYear && i < currentMonthNow)
+  );
+  const totalYearIncome = finishedMonths.reduce((s, m) => s + m.income, 0);
+  const totalYearExpense = finishedMonths.reduce((s, m) => s + m.expense, 0);
+  const totalYearSaving = finishedMonths.reduce((s, m) => s + m.saving, 0);
+
+  const finishedYears = globalSummaryList.filter((y) => y.year < currentYearNow);
+  const totalGlobalIncome = finishedYears.reduce((s, y) => s + y.income, 0);
+  const totalGlobalExpense = finishedYears.reduce((s, y) => s + y.expense, 0);
+  const totalGlobalSaving = finishedYears.reduce((s, y) => s + y.saving, 0);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
@@ -808,6 +914,120 @@ export default function NetWorthScreen({ navigation: _nav }: any) {
                 <StatCard label="Este mes" delta={netTrend.periodDelta} pct={netTrend.pctChange} />
                 <StatCard label="Este año" delta={netTrendYear.periodDelta} pct={netTrendYear.pctChange} />
               </View>
+
+              {/* ── Resumen {año} ── */}
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginTop: 20, marginBottom: 8 }}>
+                Resumen {selectedTableYear}
+              </Text>
+              <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12 }}>
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+                  <Text style={{ flex: 1.1, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Mes</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
+                  <Text style={{ flex: 1.2, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
+                </View>
+
+                {yearSummaryList.map((m, i) => {
+                  const finished = isPastSelectedYear || (isCurrentSelectedYear && i < currentMonthNow);
+                  return (
+                    <BreakdownRow
+                      key={i}
+                      label={m.monthName}
+                      income={m.income}
+                      expense={m.expense}
+                      saving={m.saving}
+                      investment={m.investment}
+                      finalAmount={m.finalAmount}
+                      finished={finished}
+                      expanded={expandedMonth === i}
+                      onPress={() => setExpandedMonth(expandedMonth === i ? null : i)}
+                    />
+                  );
+                })}
+
+                <View style={{ flexDirection: "row", paddingVertical: 10 }}>
+                  <Text style={{ flex: 1.1, fontSize: 13, fontWeight: "800", color: "#0F172A" }}>TOTAL</Text>
+                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalYearIncome)}</Text>
+                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalYearExpense)}</Text>
+                  <Text
+                    style={{
+                      flex: 1.2,
+                      fontSize: 12.5,
+                      fontWeight: "800",
+                      textAlign: "right",
+                      color: totalYearSaving >= 0 ? "#16A34A" : "#DC2626",
+                    }}
+                  >
+                    {fmt(totalYearSaving, true)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* ── Resumen global ── */}
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginTop: 20, marginBottom: 8 }}>
+                Resumen global
+              </Text>
+              <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12 }}>
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+                  <Text style={{ flex: 1.1, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Año</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
+                  <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
+                  <Text style={{ flex: 1.2, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
+                </View>
+
+                {globalSummaryList.map((y) => {
+                  const finished = y.year < currentYearNow;
+                  return (
+                    <BreakdownRow
+                      key={y.year}
+                      label={String(y.year)}
+                      income={y.income}
+                      expense={y.expense}
+                      saving={y.saving}
+                      investment={y.investment}
+                      finalAmount={y.finalAmount}
+                      finished={finished}
+                      expanded={expandedGlobalYear === y.year}
+                      highlighted={selectedTableYear === y.year}
+                      onPress={() => {
+                        setSelectedTableYear(y.year);
+                        setExpandedGlobalYear(expandedGlobalYear === y.year ? null : y.year);
+                      }}
+                    />
+                  );
+                })}
+
+                <View style={{ flexDirection: "row", paddingVertical: 10 }}>
+                  <Text style={{ flex: 1.1, fontSize: 13, fontWeight: "800", color: "#0F172A" }}>TOTAL</Text>
+                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalGlobalIncome)}</Text>
+                  <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", textAlign: "center", color: "#0F172A" }}>{fmt(totalGlobalExpense)}</Text>
+                  <Text
+                    style={{
+                      flex: 1.2,
+                      fontSize: 12.5,
+                      fontWeight: "800",
+                      textAlign: "right",
+                      color: totalGlobalSaving >= 0 ? "#16A34A" : "#DC2626",
+                    }}
+                  >
+                    {fmt(totalGlobalSaving, true)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* ── Añadir año / mes manual ── */}
+              <TouchableOpacity
+                onPress={() => navigation.navigate("EditMonth", { mode: "select" })}
+                activeOpacity={0.85}
+                style={{ marginTop: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "white" }}
+              >
+                <Text style={{ textAlign: "center", fontSize: 13, fontWeight: "700", color: "#334155" }}>
+                  Añadir año / mes manual
+                </Text>
+              </TouchableOpacity>
+              <Text style={{ textAlign: "center", color: "#9CA3AF", marginTop: 6, fontSize: 11 }}>
+                Úsalo para un registro manual en cualquier mes.
+              </Text>
             </ScrollView>
           )}
         </>

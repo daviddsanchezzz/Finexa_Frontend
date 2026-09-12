@@ -7,6 +7,8 @@ import {
   mapManualMonthRows,
   mapInvestmentSnapshotRows,
   type WealthPoint,
+  type MonthSummary,
+  type YearSummary,
 } from "../utils/wealthSeries";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../utils/transactionsInvalidation";
 import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../utils/investmentsInvalidation";
@@ -31,6 +33,10 @@ export interface NetWorthTrend {
   // Serie completa de cierres mensuales (sin recortar ni el punto "hoy"),
   // para pantallas que necesiten elegir su propio rango (ej. NetWorthScreen).
   series: WealthPoint[];
+  // Desglose mes a mes por año y resumen por año (para las tablas de
+  // Estadísticas movidas a NetWorthScreen > Evolución).
+  monthsByYear: Record<number, MonthSummary[]>;
+  globalSummaryList: YearSummary[];
 }
 
 const MAX_SPARKLINE_POINTS = 6;
@@ -82,7 +88,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
 
   return useMemo(() => {
     if (!seriesQuery.data || !walletsQuery.data) {
-      return { isLoading, current: 0, periodDelta: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [] };
+      return { isLoading, current: 0, periodDelta: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [], monthsByYear: {}, globalSummaryList: [] };
     }
 
     const now = new Date();
@@ -93,7 +99,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       (tx: any) => tx.type === "income" || tx.type === "expense"
     );
 
-    const { wealthSeries, globalSummaryList } = computeWealthSeries({
+    const { wealthSeries, globalSummaryList, monthsByYear } = computeWealthSeries({
       transactions: incomeExpense,
       manualData: mapManualMonthRows(seriesQuery.data.manual),
       snapshots: mapInvestmentSnapshotRows(seriesQuery.data.snapshots),
@@ -144,6 +150,6 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       .map((p) => ({ label: p.label, value: p.finalAmount }));
     sparkline.push({ label: "Hoy", value: current });
 
-    return { isLoading, current, periodDelta, periodLabel, pctChange, sparkline, series: wealthSeries };
+    return { isLoading, current, periodDelta, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
   }, [seriesQuery.data, walletsQuery.data, isLoading, filterType]);
 }

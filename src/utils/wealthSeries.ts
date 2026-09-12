@@ -1,6 +1,6 @@
 // Cálculo compartido del "saldo final" mensual (patrimonio neto histórico),
-// usado tanto por AdvancedStats (tabla + gráfica de evolución) como por el
-// card de Home. Vive aquí para que ambos muestren siempre el mismo número.
+// usado tanto por las tablas/gráfica de NetWorthScreen > Evolución como por
+// el card de Home. Vive aquí para que ambos muestren siempre el mismo número.
 
 export type TxType = "income" | "expense" | "transfer";
 

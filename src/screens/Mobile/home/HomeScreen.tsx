@@ -366,7 +366,7 @@ export default function HomeScreen({ navigation }: any) {
               <Text className="text-gray-500 text-[11px] font-semibold">
                 {balancePeriodLabel}
               </Text>
-              <Text className="text-[#0F172A] text-[24px] font-extrabold" style={{ marginTop: -1 }}>
+              <Text className="text-[#0F172A] text-[21px] font-extrabold" style={{ marginTop: -1 }}>
                 {formatEuro(totalBalance)} €
               </Text>
             </View>

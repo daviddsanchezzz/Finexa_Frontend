@@ -18,7 +18,6 @@ import AppHeader from "../../../components/AppHeader";
 import DateFilterModal from "../../../components/DateFilterModal";
 import PeriodChart from "../../../components/PeriodChart";
 import PieChartComponent from "../../../components/PieChart";
-import AdvancedStats from "../../../components/AdvancedStats";
 import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
 
 import api from "../../../api/api";
@@ -72,7 +71,6 @@ export default function StatsScreen({ navigation }: any) {
   const { isDark, colors: t } = useTheme();
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [graphType, setGraphType] = useState<GraphType>("expense");
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [expandedIncome, setExpandedIncome] = useState<Record<string, boolean>>(
     {}
   );
@@ -1021,28 +1019,6 @@ export default function StatsScreen({ navigation }: any) {
               </View>
             </View>
 
-            {/* BOTÓN ADVANCED */}
-            <TouchableOpacity
-              onPress={() => setShowAdvanced(!showAdvanced)}
-              className="mx-5 mt-6 py-3 rounded-2xl"
-              style={{
-                borderWidth: 1.5,
-                borderColor: "#CBD5E1",
-                backgroundColor: "white",
-              }}
-            >
-              <Text className="text-center font-semibold text-gray-700">
-                {showAdvanced
-                  ? "Ocultar estadísticas avanzadas"
-                  : "Ver estadísticas avanzadas"}
-              </Text>
-            </TouchableOpacity>
-
-            {showAdvanced && (
-              <View className="mt-4">
-                <AdvancedStats navigation={navigation} />
-              </View>
-            )}
           </>
         )}
       </ScrollView>

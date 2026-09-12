@@ -360,23 +360,14 @@ export default function HomeFiltersModal({ visible, onClose, filters, onApply, b
           </ChipRow>
         </ScrollView>
 
-        {/* Botones inferiores */}
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-          <TouchableOpacity
-            onPress={reset}
-            activeOpacity={0.85}
-            style={{ flex: 1, backgroundColor: "#F1F5F9", borderRadius: 13, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontSize: 13.5, fontWeight: "700", color: "#475569" }}>Limpiar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={apply}
-            activeOpacity={0.85}
-            style={{ flex: 2, backgroundColor: colors.primary, borderRadius: 13, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontSize: 13.5, fontWeight: "700", color: "white" }}>Ver {matchCount} movimiento{matchCount !== 1 ? "s" : ""}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Botón inferior */}
+        <TouchableOpacity
+          onPress={apply}
+          activeOpacity={0.85}
+          style={{ marginTop: 12, backgroundColor: colors.primary, borderRadius: 13, paddingVertical: 12, alignItems: "center" }}
+        >
+          <Text style={{ fontSize: 13.5, fontWeight: "700", color: "white" }}>Ver {matchCount} movimiento{matchCount !== 1 ? "s" : ""}</Text>
+        </TouchableOpacity>
       </View>
     </Modal>
   );
