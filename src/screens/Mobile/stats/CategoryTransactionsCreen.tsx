@@ -33,6 +33,9 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
   // categoría), para poder calcular el "% de tus gastos/ingresos" de esta
   // categoría sobre el total, no solo sobre sí misma.
   const [allTypeTransactions, setAllTypeTransactions] = useState<any[]>([]);
+  // Filtro local por subcategoría — tocar una fila de "Distribución por
+  // subcategorías" filtra los Movimientos de abajo sin salir de la pantalla.
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(subcategoryName ?? null);
 
   const periodLabel = useMemo(() => {
     if (!dateFrom) return "";
@@ -59,14 +62,21 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
     fetchTx();
   }, []);
 
+  // Todas las transacciones de esta categoría (sin filtrar por
+  // subcategoría) — base tanto del total/% de cabecera como del desglose
+  // por subcategorías, que debe seguir mostrando TODAS las subcategorías
+  // aunque una de ellas esté seleccionada como filtro.
+  const categoryAllTransactions = useMemo(
+    () => allTypeTransactions.filter((tx: any) => tx.category?.name === categoryName),
+    [allTypeTransactions, categoryName]
+  );
+
   const categoryTransactions = useMemo(
     () =>
-      allTypeTransactions
-        .filter((tx: any) => tx.category?.name === categoryName)
-        .filter((tx: any) =>
-          subcategoryName ? (tx.subcategory?.name || "Sin subcategoría") === subcategoryName : true
-        ),
-    [allTypeTransactions, categoryName, subcategoryName]
+      categoryAllTransactions.filter((tx: any) =>
+        selectedSubcategory ? (tx.subcategory?.name || "Sin subcategoría") === selectedSubcategory : true
+      ),
+    [categoryAllTransactions, selectedSubcategory]
   );
 
   const totalForType = useMemo(
@@ -75,15 +85,15 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
   );
 
   const categoryTotal = useMemo(
-    () => categoryTransactions.reduce((s, tx) => s + Math.abs(tx.amount), 0),
-    [categoryTransactions]
+    () => categoryAllTransactions.reduce((s, tx) => s + Math.abs(tx.amount), 0),
+    [categoryAllTransactions]
   );
 
   const pctOfTotal = totalForType > 0 ? (categoryTotal / totalForType) * 100 : 0;
 
   const subcategoryItems: CategoryBarItem[] = useMemo(() => {
     const map: Record<string, { amount: number }> = {};
-    categoryTransactions.forEach((tx: any) => {
+    categoryAllTransactions.forEach((tx: any) => {
       const name = tx.subcategory?.name?.trim() || "Sin subcategoría";
       if (!map[name]) map[name] = { amount: 0 };
       map[name].amount += Math.abs(tx.amount);
@@ -95,9 +105,11 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
         amount: v.amount,
         percent: categoryTotal > 0 ? (v.amount / categoryTotal) * 100 : 0,
         color: categoryColor,
+        active: name === selectedSubcategory,
+        onPress: () => setSelectedSubcategory((prev) => (prev === name ? null : name)),
       }))
       .sort((a, b) => b.amount - a.amount);
-  }, [categoryTransactions, categoryTotal, categoryColor]);
+  }, [categoryAllTransactions, categoryTotal, categoryColor, selectedSubcategory]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -112,7 +124,7 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
 
         <View>
           <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A" }}>
-            {subcategoryName ? `${categoryName} · ${subcategoryName}` : categoryName}
+            {selectedSubcategory ? `${categoryName} · ${selectedSubcategory}` : categoryName}
           </Text>
           {periodLabel ? <Text style={{ fontSize: 12.5, color: "#8A8F98", marginTop: 1 }}>{periodLabel}</Text> : null}
         </View>
@@ -152,9 +164,21 @@ export default function CategoryTransactionsScreen({ route, navigation }: any) {
           )}
 
           <View>
-            <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-              Movimientos ({categoryTransactions.length})
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A" }}>
+                Movimientos ({categoryTransactions.length})
+              </Text>
+              {selectedSubcategory && (
+                <TouchableOpacity
+                  onPress={() => setSelectedSubcategory(null)}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: `${categoryColor}14`, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#0F172A" }}>{selectedSubcategory}</Text>
+                  <Ionicons name="close" size={12} color="#5B6472" />
+                </TouchableOpacity>
+              )}
+            </View>
             <TransactionsList transactions={categoryTransactions} navigation={navigation} onDeleted={fetchTx} />
           </View>
         </ScrollView>

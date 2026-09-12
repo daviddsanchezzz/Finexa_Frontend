@@ -1,6 +1,6 @@
-import React from "react";
-import { View, Text, Dimensions } from "react-native";
-import { formatEuroInt } from "../utils/currency";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, Dimensions } from "react-native";
+import { formatEuro, formatEuroInt } from "../utils/currency";
 
 export interface BarSeries {
   label: string;
@@ -19,7 +19,8 @@ interface Props {
 }
 
 // Gráfica de barras agrupadas (1-3 series por mes/periodo). Estilo sobrio:
-// barras finas, grid casi invisible, sin bordes ni sombras.
+// barras finas, grid casi invisible, sin bordes ni sombras. Cada columna es
+// tocable — al tocarla muestra sus valores exactos en una leyenda superior.
 export default function GroupedBarChart({
   series,
   xLabels,
@@ -27,6 +28,7 @@ export default function GroupedBarChart({
   highlightLast = false,
   highlightColor = "#0F172A",
 }: Props) {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const screenWidth = Dimensions.get("window").width - 80;
   const seriesCount = series.length;
 
@@ -40,7 +42,7 @@ export default function GroupedBarChart({
   return (
     <View style={{ width: "100%" }}>
       {seriesCount > 1 && (
-        <View style={{ flexDirection: "row", gap: 16, marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", gap: 16, marginBottom: 10, flexWrap: "wrap" }}>
           {series.map((s) => (
             <View key={s.label} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: s.color }} />
@@ -48,6 +50,17 @@ export default function GroupedBarChart({
             </View>
           ))}
         </View>
+      )}
+
+      {selectedIndex != null && (
+        <Text style={{ fontSize: 12, fontWeight: "600", color: "#0F172A", marginBottom: 10 }}>
+          {xLabels[selectedIndex]} ·{" "}
+          {series.map((s, i) => (
+            <Text key={s.label} style={{ color: s.color, fontWeight: "700" }}>
+              {s.label} {formatEuro(Math.abs(s.values[selectedIndex] ?? 0))} €{i < series.length - 1 ? "   " : ""}
+            </Text>
+          ))}
+        </Text>
       )}
 
       <View style={{ width: screenWidth, alignSelf: "center" }}>
@@ -77,8 +90,14 @@ export default function GroupedBarChart({
             const maxBarHeight = height - 4;
             const isLastIdx = i === xLabels.length - 1;
             const isHighlighted = highlightLast && isLastIdx && seriesCount === 1;
+            const isSelected = selectedIndex === i;
             return (
-              <View key={i} style={{ alignItems: "center", justifyContent: "flex-end" }}>
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.7}
+                onPress={() => setSelectedIndex(isSelected ? null : i)}
+                style={{ alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 2 }}
+              >
                 <View style={{ flexDirection: "row", alignItems: "flex-end", gap: groupGap }}>
                   {series.map((s) => {
                     const v = Math.abs(s.values[i] ?? 0);
@@ -98,10 +117,10 @@ export default function GroupedBarChart({
                   })}
                 </View>
 
-                <Text style={{ marginTop: 8, fontSize: 11, fontWeight: isHighlighted ? "700" : "500", color: isHighlighted ? "#0F172A" : "#B0B4BA" }}>
+                <Text style={{ marginTop: 8, fontSize: 11, fontWeight: isHighlighted || isSelected ? "700" : "500", color: isHighlighted || isSelected ? "#0F172A" : "#B0B4BA" }}>
                   {label}
                 </Text>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>

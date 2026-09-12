@@ -20,17 +20,16 @@ import PieChartComponent from "../../../components/PieChart";
 import GroupedBarChart from "../../../components/GroupedBarChart";
 import TrendChart from "../../../components/TrendChart";
 import CategoryBarList, { type CategoryBarItem } from "../../../components/CategoryBarList";
-import { MetricCard, MetricDelta } from "../../../components/MetricCard";
+import { MetricCard } from "../../../components/MetricCard";
 import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
 
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
-import { formatEuro as formatEuroBase } from "../../../utils/currency";
+import { formatEuro as formatEuroBase, formatEuroInt } from "../../../utils/currency";
 
 type RangeType = "week" | "month" | "year" | "all";
 type MainTab = "resumen" | "gastos" | "ingresos" | "evolucion";
-type EvoRange = "6M" | "1A" | "3A" | "Todo";
 
 type CategoryAgg = {
   name: string;
@@ -72,6 +71,12 @@ interface MonthBucket {
   expense: number;
 }
 
+interface YearBucket {
+  year: number;
+  income: number;
+  expense: number;
+}
+
 function bucketByMonth(list: TxLite[]): MonthBucket[] {
   const map = new Map<string, MonthBucket>();
   list.forEach((tx) => {
@@ -87,8 +92,50 @@ function bucketByMonth(list: TxLite[]): MonthBucket[] {
   return [...map.values()].sort((a, b) => (a.year - b.year) || (a.month - b.month));
 }
 
-function monthLabel(b: MonthBucket, multiYear: boolean) {
+function bucketByYear(list: TxLite[]): YearBucket[] {
+  const map = new Map<number, YearBucket>();
+  list.forEach((tx) => {
+    const y = new Date(tx.date).getFullYear();
+    if (!map.has(y)) map.set(y, { year: y, income: 0, expense: 0 });
+    const bucket = map.get(y)!;
+    if (tx.type === "income") bucket.income += Math.abs(tx.amount);
+    else if (tx.type === "expense") bucket.expense += Math.abs(tx.amount);
+  });
+  return [...map.values()].sort((a, b) => a.year - b.year);
+}
+
+function monthLabel(b: { year: number; month: number }, multiYear: boolean) {
   return multiYear ? `${MONTH_ABBR[b.month]} ${String(b.year).slice(2)}` : MONTH_ABBR[b.month];
+}
+
+function shiftMonth(year: number, month: number, delta: number) {
+  const d = new Date(year, month + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
+}
+
+// Relleno de meses consecutivos con ceros donde no hay datos — así los
+// gráficos de tendencia siempre muestran un eje temporal continuo, sin
+// saltos cuando un mes no tuvo movimientos.
+function fillMonthRange(buckets: MonthBucket[], fromYear: number, fromMonth: number, toYear: number, toMonth: number): MonthBucket[] {
+  const map = new Map(buckets.map((b) => [`${b.year}-${b.month}`, b]));
+  const result: MonthBucket[] = [];
+  let y = fromYear;
+  let m = fromMonth;
+  while (y < toYear || (y === toYear && m <= toMonth)) {
+    result.push(map.get(`${y}-${m}`) ?? { year: y, month: m, income: 0, expense: 0 });
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+  }
+  return result;
+}
+
+function fillYearRange(buckets: YearBucket[], fromYear: number, toYear: number): YearBucket[] {
+  const map = new Map(buckets.map((b) => [b.year, b]));
+  const result: YearBucket[] = [];
+  for (let y = fromYear; y <= toYear; y += 1) {
+    result.push(map.get(y) ?? { year: y, income: 0, expense: 0 });
+  }
+  return result;
 }
 
 // ── Card contenedora blanca — surface neutra usada en todo el rediseño ──
@@ -135,8 +182,6 @@ export default function StatsScreen({ navigation }: any) {
   const [catView, setCatView] = useState<"barras" | "circular">("barras");
   const [showAllExpense, setShowAllExpense] = useState(false);
   const [showAllIncome, setShowAllIncome] = useState(false);
-  const [evoRange, setEvoRange] = useState<EvoRange>("6M");
-  const hasSetDefaultEvoRange = useRef(false);
 
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
   useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
@@ -167,6 +212,7 @@ export default function StatsScreen({ navigation }: any) {
 
   const capitalizeLabel = (label: string) => (label ? label.charAt(0).toUpperCase() + label.slice(1) : label);
   const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
+  const formatEuroCompact = (n: number) => `${formatEuroInt(n)} €`;
 
   const initCurrentMonth = () => {
     const now = new Date();
@@ -184,8 +230,11 @@ export default function StatsScreen({ navigation }: any) {
     setDateTo(to);
   }, []);
 
+  const isYearMode = rangeType === "year";
+
   // Ventana anterior de la misma duración que el periodo seleccionado, para
-  // los deltas "vs mes anterior" — generaliza a semana/mes/año/todo.
+  // los deltas "vs periodo anterior" — generaliza a semana/mes/año/todo:
+  // un mes se compara con el mes anterior, un año con el año anterior, etc.
   const prevRange = useMemo(() => {
     if (!dateFrom || !dateTo) return null;
     const from = new Date(dateFrom);
@@ -201,6 +250,9 @@ export default function StatsScreen({ navigation }: any) {
     if (rangeType === "month") {
       const raw = new Date(prevRange.to).toLocaleString("es-ES", { month: "long", year: "numeric" }).replace("de ", "");
       return capitalizeLabel(raw);
+    }
+    if (rangeType === "year") {
+      return `${new Date(prevRange.to).getFullYear()}`;
     }
     return "el periodo anterior";
   }, [prevRange, rangeType]);
@@ -237,12 +289,13 @@ export default function StatsScreen({ navigation }: any) {
     }
   }, [dateFrom, dateTo, prevRange]);
 
-  // Histórico amplio (hasta 3 años) para las gráficas de evolución — una
-  // sola vez, independiente del rango de fecha elegido arriba.
+  // Histórico amplio (6 años) para las gráficas de tendencia de Evolución —
+  // se pide una sola vez y luego todos los rangos (6/12 meses, 5 años...) se
+  // recortan en memoria a partir del periodo seleccionado arriba.
   const fetchHistory = useCallback(async () => {
     try {
       const from = new Date();
-      from.setFullYear(from.getFullYear() - 3);
+      from.setFullYear(from.getFullYear() - 6);
       from.setDate(1);
       const res = await api.get("/transactions", { params: { dateFrom: from.toISOString() } });
       const filtered = (res.data || [])
@@ -378,32 +431,51 @@ export default function StatsScreen({ navigation }: any) {
     }));
   };
 
+  // ── Todo el histórico, agrupado por mes y por año ──
   const monthlyBuckets = useMemo(() => bucketByMonth(historyTransactions), [historyTransactions]);
-  const last6 = monthlyBuckets.slice(-6);
-  const last6MultiYear = new Set(last6.map((b) => b.year)).size > 1;
-  const last6Labels = last6.map((b) => monthLabel(b, last6MultiYear));
+  const yearlyBuckets = useMemo(() => bucketByYear(historyTransactions), [historyTransactions]);
 
-  // Rango por defecto de Evolución: 1A si hay suficiente histórico, si no 6M.
-  useEffect(() => {
-    if (hasSetDefaultEvoRange.current || monthlyBuckets.length === 0) return;
-    hasSetDefaultEvoRange.current = true;
-    setEvoRange(monthlyBuckets.length >= 12 ? "1A" : "6M");
-  }, [monthlyBuckets]);
+  // El selector de fecha de arriba a la derecha gobierna TODO: el punto de
+  // anclaje de cualquier gráfico de tendencia es siempre el periodo
+  // seleccionado, no "hoy". Mes seleccionado → tendencia mensual; año
+  // seleccionado → tendencia anual, comparado con el año anterior.
+  const anchor = useMemo(() => (dateTo ? new Date(dateTo) : new Date()), [dateTo]);
+  const anchorYear = anchor.getFullYear();
+  const anchorMonth = anchor.getMonth();
 
-  const evoBuckets = useMemo(() => {
-    if (evoRange === "6M") return monthlyBuckets.slice(-6);
-    if (evoRange === "1A") return monthlyBuckets.slice(-12);
-    if (evoRange === "3A") return monthlyBuckets.slice(-36);
-    return monthlyBuckets;
-  }, [monthlyBuckets, evoRange]);
-  const evoMultiYear = new Set(evoBuckets.map((b) => b.year)).size > 1;
-  const evoLabels = evoBuckets.map((b) => monthLabel(b, evoMultiYear));
+  // Mini-tendencia usada en "Ingresos vs gastos" (Resumen) y "Evolución del
+  // gasto/ingreso" (Gastos/Ingresos): en modo año, los 12 meses de ese año;
+  // en el resto de modos, los 6 meses que terminan en el periodo elegido.
+  const miniTrendBuckets = useMemo(() => {
+    if (isYearMode) return fillMonthRange(monthlyBuckets, anchorYear, 0, anchorYear, 11);
+    const start = shiftMonth(anchorYear, anchorMonth, -5);
+    return fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
+  }, [monthlyBuckets, isYearMode, anchorYear, anchorMonth]);
+  const miniTrendMultiYear = new Set(miniTrendBuckets.map((b) => b.year)).size > 1;
+  const miniTrendLabels = miniTrendBuckets.map((b) => monthLabel(b, miniTrendMultiYear));
+  const miniTrendCaption = isYearMode ? `Año ${anchorYear}` : "Últimos 6 meses";
+
+  // Tendencia de la pestaña Evolución, la más analítica: en modo año, los
+  // últimos 5 años (comparados año a año); en el resto, los últimos 12 meses.
+  const evoSeries = useMemo(() => {
+    if (isYearMode) {
+      const startYear = anchorYear - 4;
+      return fillYearRange(yearlyBuckets, startYear, anchorYear).map((b) => ({ label: String(b.year), income: b.income, expense: b.expense }));
+    }
+    const start = shiftMonth(anchorYear, anchorMonth, -11);
+    const filled = fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
+    const multiYear = new Set(filled.map((b) => b.year)).size > 1;
+    return filled.map((b) => ({ label: monthLabel(b, multiYear), income: b.income, expense: b.expense }));
+  }, [isYearMode, yearlyBuckets, monthlyBuckets, anchorYear, anchorMonth]);
+  const evoLabels = evoSeries.map((b) => b.label);
+  const evoHasData = evoSeries.some((b) => b.income !== 0 || b.expense !== 0);
+  const evoCaption = isYearMode ? `Últimos 5 años · hasta ${anchorYear}` : `Últimos 12 meses · hasta ${dateLabel}`;
 
   const periodTotals = useMemo(() => {
-    const income = evoBuckets.reduce((s, b) => s + b.income, 0);
-    const expense = evoBuckets.reduce((s, b) => s + b.expense, 0);
+    const income = evoSeries.reduce((s, b) => s + b.income, 0);
+    const expense = evoSeries.reduce((s, b) => s + b.expense, 0);
     return { income, expense, saving: income - expense, rate: income > 0 ? ((income - expense) / income) * 100 : 0 };
-  }, [evoBuckets]);
+  }, [evoSeries]);
 
   const topExpenseCategory = expenses[0] ?? null;
 
@@ -415,7 +487,7 @@ export default function StatsScreen({ navigation }: any) {
       list.push({
         icon: "pie-chart-outline", tint: `${topExpenseCategory.color}1F`, color: topExpenseCategory.color,
         title: `${topExpenseCategory.name} concentra el ${pct.toFixed(1).replace(".", ",")}% de tus gastos`,
-        subtitle: `${formatEuro(topExpenseCategory.amount)} este mes.`,
+        subtitle: `${formatEuro(topExpenseCategory.amount)} este ${isYearMode ? "año" : "mes"}.`,
         onPress: () => setActiveTab("gastos"),
       });
     }
@@ -443,7 +515,7 @@ export default function StatsScreen({ navigation }: any) {
     }
 
     return list;
-  }, [topExpenseCategory, totalExpenses, prevTotalExpenses, expenseDeltaPct, expenseDelta, prevLabel, prevTotalIncomes, savingDelta, savingsRate]);
+  }, [topExpenseCategory, totalExpenses, prevTotalExpenses, expenseDeltaPct, expenseDelta, prevLabel, prevTotalIncomes, savingDelta, savingsRate, isYearMode]);
 
   if (loading) {
     return (
@@ -504,12 +576,14 @@ export default function StatsScreen({ navigation }: any) {
           {activeTab === "resumen" && (
             <>
               <View>
-                <SectionTitle subtitle={`Así ha sido tu actividad en ${dateLabel.toLowerCase()}.`}>Resumen del mes</SectionTitle>
+                <SectionTitle subtitle={`Así ha sido tu actividad en ${dateLabel.toLowerCase()}.`}>
+                  {isYearMode ? "Resumen del año" : "Resumen del mes"}
+                </SectionTitle>
 
                 <View style={{ flexDirection: "row", gap: 8 }}>
-                  <MetricCard label="Ingresos" value={formatEuro(totalIncomes)} deltaValue={incomeDelta} deltaPct={incomeDeltaPct} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
-                  <MetricCard label="Gastos" value={formatEuro(totalExpenses)} deltaValue={-expenseDelta} deltaPct={expenseDeltaPct != null ? -expenseDeltaPct : null} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
-                  <MetricCard label="Ahorro" value={formatEuro(totalSaving)} deltaValue={savingDelta} deltaPct={savingDeltaPct} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
+                  <MetricCard label="Ingresos" value={formatEuroCompact(totalIncomes)} deltaValue={incomeDelta} deltaPct={incomeDeltaPct} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
+                  <MetricCard label="Gastos" value={formatEuroCompact(totalExpenses)} deltaValue={-expenseDelta} deltaPct={expenseDeltaPct != null ? -expenseDeltaPct : null} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
+                  <MetricCard label="Ahorro" value={formatEuroCompact(totalSaving)} deltaValue={savingDelta} deltaPct={savingDeltaPct} compareLabel={`vs. ${prevLabel.toLowerCase()}`} />
                 </View>
 
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 16, paddingHorizontal: 2 }}>
@@ -522,15 +596,15 @@ export default function StatsScreen({ navigation }: any) {
               </View>
 
               <Card>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                   <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A" }}>Ingresos vs gastos</Text>
-                  <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>Últimos 6 meses</Text>
+                  <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
                 </View>
                 <GroupedBarChart
-                  xLabels={last6Labels}
+                  xLabels={miniTrendLabels}
                   series={[
-                    { label: "Ingresos", color: "#4ADE80", values: last6.map((b) => b.income) },
-                    { label: "Gastos", color: "#F87171", values: last6.map((b) => b.expense) },
+                    { label: "Ingresos", color: "#4ADE80", values: miniTrendBuckets.map((b) => b.income) },
+                    { label: "Gastos", color: "#F87171", values: miniTrendBuckets.map((b) => b.expense) },
                   ]}
                 />
               </Card>
@@ -546,7 +620,9 @@ export default function StatsScreen({ navigation }: any) {
 
               {insights.length > 0 && (
                 <View>
-                  <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>Insights del mes</Text>
+                  <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
+                    {isYearMode ? "Insights del año" : "Insights del mes"}
+                  </Text>
                   {insights.map((ins, i) => (
                     <TouchableOpacity
                       key={i}
@@ -582,7 +658,7 @@ export default function StatsScreen({ navigation }: any) {
             const showAll = isExpense ? showAllExpense : showAllIncome;
             const setShowAll = isExpense ? setShowAllExpense : setShowAllIncome;
             const barItems = toBarItems(list, total, isExpense ? "expense" : "income", showAll);
-            const evoSeriesValues = last6.map((b) => (isExpense ? b.expense : b.income));
+            const evoSeriesValues = miniTrendBuckets.map((b) => (isExpense ? b.expense : b.income));
 
             const legendTop = list.slice(0, 4);
             const legendRestPct = legendTop.reduce((s, c) => s + (total > 0 ? (c.amount / total) * 100 : 0), 0);
@@ -655,14 +731,14 @@ export default function StatsScreen({ navigation }: any) {
                 </View>
 
                 <Card>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                     <Text style={{ fontSize: 15.5, fontWeight: "700", color: "#0F172A" }}>
                       Evolución {isExpense ? "del gasto" : "de ingresos"}
                     </Text>
-                    <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>6 meses</Text>
+                    <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
                   </View>
                   <GroupedBarChart
-                    xLabels={last6Labels}
+                    xLabels={miniTrendLabels}
                     series={[{ label: isExpense ? "Gastos" : "Ingresos", color: isExpense ? "#FCA5A5" : "#86EFAC", values: evoSeriesValues }]}
                     highlightLast
                     highlightColor={isExpense ? "#DC2626" : "#16A34A"}
@@ -674,15 +750,10 @@ export default function StatsScreen({ navigation }: any) {
 
           {activeTab === "evolucion" && (
             <>
-              <SegmentedTabs<EvoRange>
-                compact
-                options={[{ key: "6M", label: "6M" }, { key: "1A", label: "1A" }, { key: "3A", label: "3A" }, { key: "Todo", label: "Todo" }]}
-                value={evoRange}
-                onChange={setEvoRange}
-              />
+              <Text style={{ fontSize: 13, color: "#8A8F98", fontWeight: "500" }}>{evoCaption}</Text>
 
               <Card>
-                {evoBuckets.length === 0 ? (
+                {!evoHasData ? (
                   <Text style={{ color: "#8A8F98", fontSize: 13, textAlign: "center", paddingVertical: 20 }}>
                     Todavía no hay suficiente histórico.
                   </Text>
@@ -690,9 +761,9 @@ export default function StatsScreen({ navigation }: any) {
                   <TrendChart
                     xLabels={evoLabels}
                     series={[
-                      { key: "income", label: "Ingresos", color: "#16A34A", values: evoBuckets.map((b) => b.income) },
-                      { key: "expense", label: "Gastos", color: "#DC2626", values: evoBuckets.map((b) => b.expense) },
-                      { key: "saving", label: "Ahorro", color: colors.primary, values: evoBuckets.map((b) => b.income - b.expense), area: true },
+                      { key: "income", label: "Ingresos", color: "#16A34A", values: evoSeries.map((b) => b.income) },
+                      { key: "expense", label: "Gastos", color: "#DC2626", values: evoSeries.map((b) => b.expense) },
+                      { key: "saving", label: "Ahorro", color: colors.primary, values: evoSeries.map((b) => b.income - b.expense), area: true },
                     ]}
                   />
                 )}
@@ -706,7 +777,7 @@ export default function StatsScreen({ navigation }: any) {
                 <FinancialRow dot="#0F172A" label="Tasa de ahorro" value={`${periodTotals.rate.toFixed(1).replace(".", ",")} %`} />
               </View>
 
-              {evoBuckets.length > 0 && (
+              {evoHasData && (
                 <View style={{ flexDirection: "row", alignItems: "flex-start", backgroundColor: "#F3F6FB", borderRadius: 16, padding: 14, gap: 10 }}>
                   <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: "white", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
@@ -714,7 +785,7 @@ export default function StatsScreen({ navigation }: any) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 12, fontWeight: "700", color: "#5B6472", textTransform: "uppercase", letterSpacing: 0.3 }}>Insight</Text>
                     <Text style={{ fontSize: 13, color: "#374151", marginTop: 2, lineHeight: 18 }}>
-                      Tu tasa de ahorro media en los últimos {evoBuckets.length} meses ha sido del {periodTotals.rate.toFixed(1).replace(".", ",")}%.
+                      Tu tasa de ahorro media en {isYearMode ? "los últimos 5 años" : "los últimos 12 meses"} ha sido del {periodTotals.rate.toFixed(1).replace(".", ",")}%.
                     </Text>
                   </View>
                 </View>

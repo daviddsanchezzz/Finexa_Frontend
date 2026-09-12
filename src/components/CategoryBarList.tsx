@@ -11,13 +11,14 @@ export interface CategoryBarItem {
   color: string;
   emoji?: string | null;
   onPress?: () => void;
+  active?: boolean; // fila seleccionada (ej. subcategoría usada para filtrar movimientos)
 }
 
 // Lista ranqueada con barra de progreso — usada tanto para "Distribución por
 // categorías" (Gastos/Ingresos) como para "Distribución por subcategorías"
 // en el detalle de una categoría. Con emoji pinta el icono cuadrado de
 // siempre (category.color de fondo); sin emoji es la variante "solo barra"
-// que usa el detalle de subcategorías.
+// que usa el detalle de subcategorías. Compacta: pensada para listas largas.
 export default function CategoryBarList({ items }: { items: CategoryBarItem[] }) {
   return (
     <View>
@@ -28,7 +29,11 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
             key={item.key}
             {...(item.onPress ? { onPress: item.onPress, activeOpacity: 0.7 } : {})}
             style={{
-              paddingVertical: 11,
+              paddingVertical: 8,
+              paddingHorizontal: item.active ? 8 : 0,
+              marginHorizontal: item.active ? -8 : 0,
+              borderRadius: item.active ? 10 : 0,
+              backgroundColor: item.active ? `${item.color}14` : "transparent",
               borderTopWidth: i === 0 ? 0 : 1,
               borderTopColor: "#F1F5F9",
             }}
@@ -37,29 +42,39 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
               {item.emoji ? (
                 <View
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 9,
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
                     backgroundColor: item.color,
                     alignItems: "center",
                     justifyContent: "center",
-                    marginRight: 12,
+                    marginRight: 10,
                   }}
                 >
-                  <Text style={{ fontSize: 15 }}>{item.emoji}</Text>
+                  <Text style={{ fontSize: 13 }}>{item.emoji}</Text>
                 </View>
+              ) : item.active ? (
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: item.color, marginRight: 10 }} />
               ) : null}
 
-              <Text style={{ flex: 1, fontSize: 14.5, fontWeight: "600", color: "#0F172A" }} numberOfLines={1}>
+              <Text
+                style={{ flex: 1, fontSize: 14, fontWeight: item.active ? "700" : "600", color: "#0F172A" }}
+                numberOfLines={1}
+              >
                 {item.label}
               </Text>
 
-              <Text style={{ fontSize: 14.5, fontWeight: "600", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
                 {formatEuro(item.amount)} €
               </Text>
 
               {item.onPress ? (
-                <Ionicons name="chevron-forward" size={14} color="#D1D5DB" style={{ marginLeft: 4 }} />
+                <Ionicons
+                  name={item.active ? "checkmark-circle" : "chevron-forward"}
+                  size={14}
+                  color={item.active ? item.color : "#D1D5DB"}
+                  style={{ marginLeft: 4 }}
+                />
               ) : null}
             </View>
 
@@ -67,12 +82,12 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                marginTop: 6,
-                marginLeft: item.emoji ? 44 : 0,
+                marginTop: 4,
+                marginLeft: item.emoji ? 36 : 0,
                 gap: 8,
               }}
             >
-              <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: "#F1F2F4", overflow: "hidden" }}>
+              <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: "#F1F2F4", overflow: "hidden" }}>
                 <View
                   style={{
                     width: `${Math.max(2, Math.min(100, item.percent))}%`,
@@ -82,7 +97,7 @@ export default function CategoryBarList({ items }: { items: CategoryBarItem[] })
                   }}
                 />
               </View>
-              <Text style={{ fontSize: 11, fontWeight: "500", color: "#B0B4BA", width: 40, textAlign: "right" }}>
+              <Text style={{ fontSize: 10.5, fontWeight: "500", color: "#B0B4BA", width: 36, textAlign: "right" }}>
                 {item.percent.toFixed(1).replace(".", ",")}%
               </Text>
             </View>
