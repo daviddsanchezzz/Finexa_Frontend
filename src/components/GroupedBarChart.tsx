@@ -16,16 +16,18 @@ interface Props {
   // Etiquetas completas para el tooltip (ej. "Abril 2026"); si se omite se
   // reutiliza xLabels (ej. "Abr").
   tooltipLabels?: string[];
-  height?: number;
+  height?: number; // alto del área de trazado (barras), sin contar labels
 }
 
-const TOOLTIP_WIDTH = 158;
+const TOOLTIP_WIDTH = 172;
+const LABEL_HEIGHT = 24;
 
 // Gráfica de barras agrupadas (1-3 series por mes/periodo). Estilo sobrio:
 // columnas de ancho igual, grid casi invisible, sin bordes ni sombras. El
 // periodo más reciente siempre se ve a plena intensidad; los anteriores se
 // atenúan ligeramente. Tocar una columna la selecciona en su lugar (misma
-// intensidad) y abre un tooltip flotante con sus valores exactos.
+// intensidad) y superpone un tooltip flotante con sus valores exactos —
+// el tooltip nunca desplaza el contenido de alrededor.
 export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const screenWidth = Dimensions.get("window").width - 80;
@@ -33,6 +35,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
   const n = xLabels.length;
   const labels = tooltipLabels ?? xLabels;
   const highlightIndex = selectedIndex ?? n - 1;
+  const plotHeight = height;
 
   const allValues = series.flatMap((s) => s.values.map((v) => Math.abs(v)));
   const rawMax = Math.max(...allValues, 1);
@@ -58,19 +61,9 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
         </View>
       )}
 
-      {selectedIndex != null && (
-        <View style={{ width: screenWidth, alignSelf: "center", marginBottom: 8 }}>
-          <ChartTooltip
-            title={labels[selectedIndex]}
-            style={{ marginLeft: tooltipLeft, alignSelf: "flex-start" }}
-            rows={series.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0 }))}
-          />
-        </View>
-      )}
-
       <View style={{ width: screenWidth, alignSelf: "center", position: "relative" }}>
-        {/* GRID Y EJE Y */}
-        <View style={{ height, position: "absolute", left: 0, right: 0, top: 0, justifyContent: "space-between" }}>
+        {/* GRID Y EJE Y — solo cubre el área de trazado, no las etiquetas */}
+        <View style={{ height: plotHeight, position: "absolute", left: 0, right: 0, top: 0, justifyContent: "space-between" }}>
           {[niceMax, niceMax / 2, 0].map((v, idx) => (
             <View key={idx} style={{ flexDirection: "row", alignItems: "center" }}>
               <Text style={{ width: 34, textAlign: "right", marginRight: 8, fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>
@@ -81,38 +74,41 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
           ))}
         </View>
 
-        {/* BARRAS */}
-        <View style={{ flexDirection: "row", alignItems: "flex-end", marginLeft: gridLeft, height }}>
+        {/* BARRAS + ETIQUETAS — alturas separadas para que el texto nunca
+            empuje las barras a desbordar el área de trazado hacia arriba */}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", marginLeft: gridLeft, height: plotHeight + LABEL_HEIGHT }}>
           {xLabels.map((label, i) => {
-            const maxBarHeight = height - 4;
+            const maxBarHeight = plotHeight - 4;
             const isHighlighted = i === highlightIndex;
             return (
               <TouchableOpacity
                 key={i}
                 activeOpacity={0.7}
                 onPress={() => setSelectedIndex(selectedIndex === i ? null : i)}
-                style={{ flex: 1, height, alignItems: "center", justifyContent: "flex-end" }}
+                style={{ flex: 1, height: plotHeight + LABEL_HEIGHT, alignItems: "center" }}
               >
                 {isHighlighted && (
-                  <View style={{ position: "absolute", top: 0, bottom: 0, left: 1, right: 1, backgroundColor: `${colors.primary}0D`, borderRadius: 8 }} />
+                  <View style={{ position: "absolute", top: 0, height: plotHeight, left: 1, right: 1, backgroundColor: `${colors.primary}0D`, borderRadius: 8 }} />
                 )}
-                <View style={{ flexDirection: "row", alignItems: "flex-end", gap: groupGap }}>
-                  {series.map((s) => {
-                    const v = Math.abs(s.values[i] ?? 0);
-                    const barHeight = Math.max((v / niceMax) * maxBarHeight, v === 0 ? 0 : 3);
-                    return (
-                      <View
-                        key={s.label}
-                        style={{
-                          width: barWidth,
-                          height: barHeight,
-                          borderRadius: 3,
-                          backgroundColor: s.color,
-                          opacity: v === 0 ? 0.18 : isHighlighted ? 1 : 0.4,
-                        }}
-                      />
-                    );
-                  })}
+                <View style={{ height: plotHeight, width: "100%", justifyContent: "flex-end", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "flex-end", gap: groupGap }}>
+                    {series.map((s) => {
+                      const v = Math.abs(s.values[i] ?? 0);
+                      const barHeight = Math.max((v / niceMax) * maxBarHeight, v === 0 ? 0 : 3);
+                      return (
+                        <View
+                          key={s.label}
+                          style={{
+                            width: barWidth,
+                            height: barHeight,
+                            borderRadius: 3,
+                            backgroundColor: s.color,
+                            opacity: v === 0 ? 0.18 : isHighlighted ? 1 : 0.4,
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
                 </View>
 
                 <Text style={{ marginTop: 7, fontSize: 10.5, fontWeight: isHighlighted ? "700" : "500", color: isHighlighted ? "#0F172A" : "#B0B4BA" }}>
@@ -122,6 +118,14 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
             );
           })}
         </View>
+
+        {selectedIndex != null && (
+          <ChartTooltip
+            title={labels[selectedIndex]}
+            style={{ position: "absolute", left: tooltipLeft, top: 0, zIndex: 20, elevation: 6 }}
+            rows={series.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0 }))}
+          />
+        )}
       </View>
     </View>
   );

@@ -21,7 +21,7 @@ interface Props {
   height?: number;
 }
 
-const TOOLTIP_WIDTH = 158;
+const TOOLTIP_WIDTH = 172;
 
 function buildPath(points: { x: number; y: number }[]) {
   if (!points.length) return "";
@@ -140,7 +140,7 @@ export default function TrendChart({ series, xLabels, tooltipLabels, height = 13
               {selectedIndex != null && (
                 <ChartTooltip
                   title={labels[selectedIndex]}
-                  style={{ position: "absolute", left: tooltipLeft, top: 0 }}
+                  style={{ position: "absolute", left: tooltipLeft, top: 0, zIndex: 20, elevation: 6 }}
                   rows={series.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0 }))}
                 />
               )}

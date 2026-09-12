@@ -773,14 +773,11 @@ export default function StatsScreen({ navigation }: any) {
               </Card>
             );
 
-            // En Ingresos, con solo un par de categorías la sección de
-            // distribución queda muy corta — se antepone la evolución para
-            // no dejar la pantalla desequilibrada.
             return (
               <>
                 {heroBlock}
-                {isExpense ? categoriesBlock : evolutionBlock}
-                {isExpense ? evolutionBlock : categoriesBlock}
+                {categoriesBlock}
+                {evolutionBlock}
               </>
             );
           })()}

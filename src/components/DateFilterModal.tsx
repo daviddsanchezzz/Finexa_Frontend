@@ -283,11 +283,11 @@ export default function DateFilterModal({
         {showDayRange && (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => emitRange("day", undefined, true)}
+            onPress={() => emitRange("day", undefined, false)}
             className={getBlockStyle("day")}
           >
             <View className="flex-row justify-between items-center">
-              <TouchableOpacity onPress={() => changeDay("prev")}>
+              <TouchableOpacity onPress={() => changeDay("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
                 <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
               </TouchableOpacity>
 
@@ -304,7 +304,7 @@ export default function DateFilterModal({
 
               </Text>
 
-              <TouchableOpacity onPress={() => changeDay("next")}>
+              <TouchableOpacity onPress={() => changeDay("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
                 <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -314,11 +314,11 @@ export default function DateFilterModal({
         {/* --------- WEEK --------- */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => emitRange("week", undefined, true)}
+          onPress={() => emitRange("week", undefined, false)}
           className={getBlockStyle("week")}
         >
           <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => changeWeek("prev")}>
+            <TouchableOpacity onPress={() => changeWeek("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
               <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
             </TouchableOpacity>
 
@@ -330,7 +330,7 @@ export default function DateFilterModal({
               {formatWeekRange(weekStart)}
             </Text>
 
-            <TouchableOpacity onPress={() => changeWeek("next")}>
+            <TouchableOpacity onPress={() => changeWeek("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
               <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -339,11 +339,11 @@ export default function DateFilterModal({
         {/* --------- MONTH --------- */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => emitRange("month", undefined, true)}
+          onPress={() => emitRange("month", undefined, false)}
           className={getBlockStyle("month")}
         >
           <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => changeMonth("prev")}>
+            <TouchableOpacity onPress={() => changeMonth("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
               <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
             </TouchableOpacity>
 
@@ -359,7 +359,7 @@ export default function DateFilterModal({
               )}
             </Text>
 
-            <TouchableOpacity onPress={() => changeMonth("next")}>
+            <TouchableOpacity onPress={() => changeMonth("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
               <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -368,11 +368,11 @@ export default function DateFilterModal({
         {/* --------- YEAR --------- */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => emitRange("year", undefined, true)}
+          onPress={() => emitRange("year", undefined, false)}
           className={getBlockStyle("year")}
         >
           <View className="flex-row justify-between items-center">
-            <TouchableOpacity onPress={() => changeYear("prev")}>
+            <TouchableOpacity onPress={() => changeYear("prev")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
               <Ionicons name="chevron-back-outline" size={18} color={colors.text} />
             </TouchableOpacity>
 
@@ -384,7 +384,7 @@ export default function DateFilterModal({
               {year}
             </Text>
 
-            <TouchableOpacity onPress={() => changeYear("next")}>
+            <TouchableOpacity onPress={() => changeYear("next")} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
               <Ionicons name="chevron-forward-outline" size={18} color={colors.text} />
             </TouchableOpacity>
           </View>

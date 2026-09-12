@@ -28,7 +28,7 @@ export default function ChartTooltip({ title, rows, style }: { title: string; ro
           borderColor: "#EEF0F3",
           paddingVertical: 8,
           paddingHorizontal: 12,
-          minWidth: 148,
+          minWidth: 172,
           shadowColor: "#0F172A",
           shadowOpacity: 0.1,
           shadowRadius: 8,
@@ -41,12 +41,17 @@ export default function ChartTooltip({ title, rows, style }: { title: string; ro
         {title}
       </Text>
       {rows.map((r) => (
-        <View key={r.label} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        <View key={r.label} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 }}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: r.color }} />
-            <Text style={{ fontSize: 12.5, color: "#5B6472", fontWeight: "500" }}>{r.label}</Text>
+            <Text style={{ fontSize: 12.5, color: "#5B6472", fontWeight: "500" }} numberOfLines={1}>
+              {r.label}
+            </Text>
           </View>
-          <Text style={{ fontSize: 12.5, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+          <Text
+            style={{ fontSize: 12.5, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"], flexShrink: 0 }}
+            numberOfLines={1}
+          >
             {formatEuro(Math.abs(r.value))}
           </Text>
         </View>
