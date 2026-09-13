@@ -7,6 +7,7 @@ import { colors } from "../../../theme/theme";
 import { useFriends } from "../../../hooks/useFriends";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import { avatarColorForId, initialsFromName } from "../../../utils/avatarColor";
+import IconCircleButton from "../../../components/IconCircleButton";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -57,23 +58,22 @@ export default function ProfileScreen({ navigation }: any) {
       {/* Header con avatar */}
       <View className="bg-primary/10 pb-6 pt-8 items-center relative">
         {/* Botón cerrar */}
-        <TouchableOpacity
+        <IconCircleButton
+          icon="close-outline"
           onPress={() => navigation.navigate("Home")}
-          activeOpacity={0.7}
+          size={36}
+          iconSize={22}
+          color={colors.text}
+          backgroundColor="white"
           style={{
             position: "absolute",
             top: 18,
             left: 20,
             zIndex: 10,
-            backgroundColor: "white",
-            borderRadius: 100,
-            padding: 6,
             borderWidth: 1,
             borderColor: "#E5E7EB",
           }}
-        >
-          <Ionicons name="close-outline" size={22} color={colors.text} />
-        </TouchableOpacity>
+        />
 
         <View
           className="w-20 h-20 rounded-full mb-3 mt-4 items-center justify-center overflow-hidden"

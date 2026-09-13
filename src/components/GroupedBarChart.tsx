@@ -18,6 +18,9 @@ interface Props {
   // reutiliza xLabels (ej. "Abr").
   tooltipLabels?: string[];
   height?: number; // alto del área de trazado (barras), sin contar labels
+  // Periodo destacado mientras el usuario no haya seleccionado otro.
+  // `null` deja la gráfica sin un periodo destacado por defecto.
+  currentPeriodIndex?: number | null;
 }
 
 const TOOLTIP_WIDTH = 172;
@@ -25,18 +28,19 @@ const LABEL_HEIGHT = 24;
 
 // Gráfica de barras agrupadas (1-3 series por mes/periodo). Estilo sobrio:
 // columnas de ancho igual, grid casi invisible, sin bordes ni sombras. El
-// periodo más reciente siempre se ve a plena intensidad; los anteriores se
+// El periodo indicado por la pantalla se ve a plena intensidad; los demás se
 // atenúan ligeramente. Tocar o arrastrar por las columnas las selecciona
 // (con un pequeño golpe háptico en cada cambio de mes) y superpone un
 // tooltip flotante con sus valores exactos — el tooltip nunca desplaza el
 // contenido de alrededor.
-export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100 }: Props) {
+export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100, currentPeriodIndex }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const screenWidth = Dimensions.get("window").width - 80;
   const seriesCount = series.length;
   const n = xLabels.length;
   const labels = tooltipLabels ?? xLabels;
-  const highlightIndex = selectedIndex ?? n - 1;
+  const defaultHighlightIndex = currentPeriodIndex === undefined ? n - 1 : currentPeriodIndex;
+  const highlightIndex = selectedIndex ?? defaultHighlightIndex;
   const plotHeight = height;
 
   const allValues = series.flatMap((s) => s.values.map((v) => Math.abs(v)));
@@ -86,7 +90,8 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
     [n, colWidth, selectedIndex]
   );
 
-  const barCenterX = gridLeft + highlightIndex * colWidth + colWidth / 2;
+  const positionedIndex = selectedIndex ?? defaultHighlightIndex ?? 0;
+  const barCenterX = gridLeft + positionedIndex * colWidth + colWidth / 2;
   const tooltipLeft = Math.min(Math.max(barCenterX - TOOLTIP_WIDTH / 2, 0), screenWidth - TOOLTIP_WIDTH);
   const pointerLeft = Math.min(Math.max(barCenterX - tooltipLeft, 12), TOOLTIP_WIDTH - 12);
 

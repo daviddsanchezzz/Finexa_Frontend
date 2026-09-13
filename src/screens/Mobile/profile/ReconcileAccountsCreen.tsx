@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 import WalletIcon from "../../../components/WalletIcon";
 import { formatEuro as formatEuroBase } from "../../../utils/currency";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../../../context/AuthContext";
 
 const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
@@ -20,21 +22,42 @@ const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 1
 
 export default function ReconcileAccountsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [wallets, setWallets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [realValues, setRealValues] = useState<{ [key: string]: string }>({});
   const [focusedWalletId, setFocusedWalletId] = useState<number | null>(null);
+  const realValuesRef = useRef<{ [key: string]: string }>({});
+  const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const storageKey = `reconcile-real-values:${user?.id ?? "anonymous"}`;
 
   useEffect(() => {
     const fetchWallets = async () => {
       try {
-        const res = await api.get("/wallets");
+        const [res, storedDraft] = await Promise.all([
+          api.get("/wallets"),
+          AsyncStorage.getItem(storageKey).catch(() => null),
+        ]);
         const data = res.data || [];
 
         setWallets(data);
 
-        const initial: any = {};
-        data.forEach((w: any) => (initial[w.id] = ""));
+        let savedValues: Record<string, unknown> = {};
+        if (storedDraft) {
+          try {
+            const parsed = JSON.parse(storedDraft);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) savedValues = parsed;
+          } catch {
+            // Un borrador dañado no debe impedir cargar las cuentas.
+          }
+        }
+
+        const initial: { [key: string]: string } = {};
+        data.forEach((w: any) => {
+          const savedValue = savedValues[String(w.id)];
+          initial[w.id] = typeof savedValue === "string" ? savedValue : "";
+        });
+        realValuesRef.current = initial;
         setRealValues(initial);
       } catch (e) {
         console.error("❌ Error wallets:", e);
@@ -44,10 +67,20 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
     };
 
     fetchWallets();
-  }, []);
+  }, [storageKey]);
 
-  const handleChange = (id: string, value: string) =>
-    setRealValues((prev) => ({ ...prev, [id]: value }));
+  const handleChange = (id: string, value: string) => {
+    const next = { ...realValuesRef.current, [id]: value };
+    realValuesRef.current = next;
+    setRealValues(next);
+
+    // Mantiene el orden de las escrituras para que el último dígito escrito
+    // sea también el que quede persistido si se abandona la pantalla enseguida.
+    persistQueueRef.current = persistQueueRef.current
+      .catch(() => undefined)
+      .then(() => AsyncStorage.setItem(storageKey, JSON.stringify(next)))
+      .catch((error) => console.error("Error guardando valores de conciliación:", error));
+  };
 
   const focusedIndex = wallets.findIndex((w) => w.id === focusedWalletId);
   const keyboardVisible = focusedWalletId !== null;

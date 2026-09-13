@@ -36,7 +36,12 @@ export default function StatsRow({ items }: Props) {
             activeOpacity={item.onPress ? 0.7 : undefined}
           >
             <Text style={{ fontSize: 12, color: "#9CA3AF", letterSpacing: 0.8, fontWeight: "500" }}>{item.label}</Text>
-            <Text style={{ fontSize: 16, fontWeight: "600", color: item.color ?? "#0F172A", marginTop: 1 }}>
+            <Text
+              style={{ fontSize: 16, fontWeight: "600", color: item.color ?? "#0F172A", marginTop: 1, fontVariant: ["tabular-nums"] }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
               {item.value}
             </Text>
           </Wrapper>

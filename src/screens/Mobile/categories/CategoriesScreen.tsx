@@ -17,6 +17,7 @@ import AppHeader from "../../../components/AppHeader";
 import AddButton from "../../../components/AddButton";
 import IconCircleButton from "../../../components/IconCircleButton";
 import EditCategoryModal from "../../../components/EditCategoryModal";
+import SegmentedTabs from "../../../components/SegmentedTabs";
 import api from "../../../api/api";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -284,44 +285,19 @@ export default function CategoriesScreen({ navigation }: any) {
       </View>
 
       {/* Selector tipo */}
-      <View className="flex-row bg-gray-100 mx-6 p-1.5 rounded-full mb-5">
-        <TouchableOpacity
-          onPress={() => {
+      <View style={{ marginHorizontal: 24, marginBottom: 20 }}>
+        <SegmentedTabs<"expense" | "income">
+          options={[
+            { key: "expense", label: "Gastos" },
+            { key: "income", label: "Ingresos" },
+          ]}
+          value={selectedType}
+          onChange={(type) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSelectedType("expense");
+            setSelectedType(type);
             setExpandedId(null);
           }}
-          className={`flex-1 py-2 rounded-full items-center ${
-            selectedType === "expense" ? "bg-white" : ""
-          }`}
-        >
-          <Text
-            className={`text-[16px] font-semibold ${
-              selectedType === "expense" ? "text-text" : "text-gray-500"
-            }`}
-          >
-            Gastos
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSelectedType("income");
-            setExpandedId(null);
-          }}
-          className={`flex-1 py-2 rounded-full items-center ${
-            selectedType === "income" ? "bg-white" : ""
-          }`}
-        >
-          <Text
-            className={`text-[16px] font-semibold ${
-              selectedType === "income" ? "text-text" : "text-gray-500"
-            }`}
-          >
-            Ingresos
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
 
       {/* Lista */}

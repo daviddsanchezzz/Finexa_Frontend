@@ -188,12 +188,14 @@ export default function PieChartComponent({
               ? formatEuro(pieData[selectedIndex].realValue ?? pieData[selectedIndex].value)
               : formatEuro(totalReferencia);
 
-          // adjustsFontSizeToFit no funciona en react-native-web (trunca con
-          // "…" en vez de encoger), así que el tamaño se calcula a mano según
-          // la longitud del texto para que quepa dentro del anillo en todas
-          // las plataformas.
-          const centerValueFontSize =
-            centerValueText.length > 12 ? 13 : centerValueText.length > 9 ? 15 : centerValueText.length > 7 ? 17 : 20;
+          // adjustsFontSizeToFit no funciona de forma fiable en web. Calculamos
+          // el tamaño con el ancho disponible para que el importe completo
+          // (decimales y símbolo incluidos) siempre quede dentro del anillo.
+          const centerValueWidth = innerRadius * 1.9;
+          const centerValueFontSize = Math.max(
+            9,
+            Math.min(20, Math.floor(centerValueWidth / Math.max(centerValueText.length * 0.64, 1)))
+          );
 
           return (
             <View
@@ -201,7 +203,7 @@ export default function PieChartComponent({
                 position: "absolute",
                 alignItems: "center",
                 justifyContent: "center",
-                width: innerRadius * 1.8,
+                width: centerValueWidth,
               }}
             >
               <Text style={{ fontSize: 12, fontWeight: "600", color: "#4b5563" }} numberOfLines={1}>
@@ -217,6 +219,7 @@ export default function PieChartComponent({
                   textAlign: "center",
                 }}
                 numberOfLines={1}
+                allowFontScaling={false}
               >
                 {centerValueText}
               </Text>

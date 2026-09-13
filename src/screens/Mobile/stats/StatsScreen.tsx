@@ -19,7 +19,7 @@ import SegmentedTabs from "../../../components/SegmentedTabs";
 import PieChartComponent from "../../../components/PieChart";
 import GroupedBarChart from "../../../components/GroupedBarChart";
 import CategoryBarList, { type CategoryBarItem } from "../../../components/CategoryBarList";
-import { MetricColumn } from "../../../components/MetricCard";
+import StatsRow from "../../../components/StatsRow";
 import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
 
 import api from "../../../api/api";
@@ -291,15 +291,6 @@ export default function StatsScreen({ navigation }: any) {
     return "el periodo anterior";
   }, [prevRange, rangeType]);
 
-  // Versión corta para las 3 mini-tarjetas KPI ("vs. ago." en vez de
-  // "vs. agosto 2026") — evita que el texto salte a una segunda línea.
-  const prevLabelShort = useMemo(() => {
-    if (!prevRange) return "anterior";
-    if (rangeType === "month") return `${MONTH_ABBR[new Date(prevRange.to).getMonth()].toLowerCase()}.`;
-    if (rangeType === "year") return `${new Date(prevRange.to).getFullYear()}`;
-    return "anterior";
-  }, [prevRange, rangeType]);
-
   const fetchStats = useCallback(async (isManual = false) => {
     if (!dateFrom || !dateTo || !prevRange) return;
     try {
@@ -490,21 +481,48 @@ export default function StatsScreen({ navigation }: any) {
   // (ya validado y sin tocar); en modo mes, las semanas de ese mes; en el
   // resto de modos (semana/todo), los 6 meses que terminan en el periodo.
   const miniTrendSeries = useMemo(() => {
+    const now = new Date();
     if (isYearMode) {
       const buckets = fillMonthRange(monthlyBuckets, anchorYear, 0, anchorYear, 11);
-      return buckets.map((b) => ({ label: monthLabel(b, false), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
+      return buckets.map((b) => ({
+        label: monthLabel(b, false),
+        fullLabel: fullMonthLabel(b),
+        income: b.income,
+        expense: b.expense,
+        isCurrent: b.year === now.getFullYear() && b.month === now.getMonth(),
+      }));
     }
     if (rangeType === "month") {
       const buckets = bucketByWeekOfMonth(transactions, anchorYear, anchorMonth);
-      return buckets.map((b) => ({ label: weekShortLabel(b), fullLabel: weekFullLabel(b), income: b.income, expense: b.expense }));
+      return buckets.map((b) => ({
+        label: weekShortLabel(b),
+        fullLabel: weekFullLabel(b),
+        income: b.income,
+        expense: b.expense,
+        isCurrent:
+          b.year === now.getFullYear() &&
+          b.month === now.getMonth() &&
+          now.getDate() >= b.startDay &&
+          now.getDate() <= b.endDay,
+      }));
     }
     const start = shiftMonth(anchorYear, anchorMonth, -5);
     const buckets = fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
     const multiYear = new Set(buckets.map((b) => b.year)).size > 1;
-    return buckets.map((b) => ({ label: monthLabel(b, multiYear), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
+    return buckets.map((b) => ({
+      label: monthLabel(b, multiYear),
+      fullLabel: fullMonthLabel(b),
+      income: b.income,
+      expense: b.expense,
+      isCurrent: b.year === now.getFullYear() && b.month === now.getMonth(),
+    }));
   }, [isYearMode, rangeType, monthlyBuckets, transactions, anchorYear, anchorMonth]);
   const miniTrendLabels = miniTrendSeries.map((p) => p.label);
   const miniTrendFullLabels = miniTrendSeries.map((p) => p.fullLabel);
+  const currentMiniTrendIndex = (() => {
+    const index = miniTrendSeries.findIndex((p) => p.isCurrent);
+    return index >= 0 ? index : null;
+  })();
   const miniTrendCaption = isYearMode ? `Año ${anchorYear}` : rangeType === "month" ? "Por semanas" : "Últimos 6 meses";
 
   const topExpenseCategory = expenses[0] ?? null;
@@ -601,11 +619,18 @@ export default function StatsScreen({ navigation }: any) {
                   {isYearMode ? "Resumen del año" : "Resumen del mes"}
                 </SectionTitle>
 
-                <Card style={{ flexDirection: "row" }}>
-                  <MetricColumn first label="Ingresos" value={formatEuroCompact(totalIncomes)} comparison={incomeComparison} compareLabel={`vs. ${prevLabelShort}`} />
-                  <MetricColumn label="Gastos" value={formatEuroCompact(totalExpenses)} comparison={expenseComparison} compareLabel={`vs. ${prevLabelShort}`} />
-                  <MetricColumn muted label="Ahorro" value={formatEuroCompact(totalSaving)} comparison={savingComparison} compareLabel={`vs. ${prevLabelShort}`} />
-                </Card>
+                <StatsRow
+                  items={[
+                    { key: "ingresos", label: "INGRESOS", value: formatEuro(totalIncomes), color: GREEN },
+                    { key: "gastos", label: "GASTOS", value: formatEuro(totalExpenses), color: RED },
+                    {
+                      key: "ahorro",
+                      label: "AHORRO",
+                      value: formatEuro(totalSaving),
+                      color: totalSaving >= 0 ? GREEN : RED,
+                    },
+                  ]}
+                />
 
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 10, paddingHorizontal: 2 }}>
                   <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>Tasa de ahorro</Text>
@@ -624,6 +649,7 @@ export default function StatsScreen({ navigation }: any) {
                 <GroupedBarChart
                   xLabels={miniTrendLabels}
                   tooltipLabels={miniTrendFullLabels}
+                  currentPeriodIndex={currentMiniTrendIndex}
                   series={[
                     { label: "Ingresos", color: "#4ADE80", values: miniTrendSeries.map((p) => p.income) },
                     { label: "Gastos", color: "#F87171", values: miniTrendSeries.map((p) => p.expense) },
@@ -777,6 +803,7 @@ export default function StatsScreen({ navigation }: any) {
                 <GroupedBarChart
                   xLabels={miniTrendLabels}
                   tooltipLabels={miniTrendFullLabels}
+                  currentPeriodIndex={currentMiniTrendIndex}
                   series={[{ label: isExpense ? "Gastos" : "Ingresos", color: isExpense ? "#FCA5A5" : "#86EFAC", values: evoSeriesValues }]}
                 />
               </Card>
