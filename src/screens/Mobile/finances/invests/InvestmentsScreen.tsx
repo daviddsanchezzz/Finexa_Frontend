@@ -28,6 +28,8 @@ import { translateCountry, translateSector } from "../../../../utils/investmentL
 import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../../../../utils/investmentsInvalidation";
 import { formatEuro } from "../../../../utils/currency";
 import { useUIStore } from "../../../../store/uiStore";
+import { findCryptoPresetBySymbol, getCryptoLogoUrl } from "../../../../constants/bankPresets";
+import WalletIcon from "../../../../components/WalletIcon";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -1256,6 +1258,7 @@ const submitContribution = useCallback(() => {
               const typeColor = assetTypeColor(a.type);
               const typeBg = assetTypeSoftBg(a.type);
               const allocPct = allocationMap.get(a.id);
+              const cryptoPreset = a.type === "crypto" ? findCryptoPresetBySymbol(a.identificator) : undefined;
 
               return (
                 <TouchableOpacity
@@ -1280,12 +1283,16 @@ const submitContribution = useCallback(() => {
                     <View
                       style={{
                         width: 40, height: 40, borderRadius: 14,
-                        backgroundColor: typeBg,
+                        backgroundColor: cryptoPreset ? "#F9FAFB" : typeBg,
                         alignItems: "center", justifyContent: "center",
                         marginRight: 12,
                       }}
                     >
-                      <Ionicons name={assetTypeIcon(a.type)} size={18} color={typeColor} />
+                      {cryptoPreset ? (
+                        <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={22} />
+                      ) : (
+                        <Ionicons name={assetTypeIcon(a.type)} size={18} color={typeColor} />
+                      )}
                     </View>
 
                     <View style={{ flex: 1 }}>

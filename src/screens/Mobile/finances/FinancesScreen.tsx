@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Modal,
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -101,7 +100,6 @@ function ModuleCard({
 export default function FinancesScreen({ navigation }: any) {
   const { isDark, colors: t } = useTheme();
   const [config, setConfig] = useState<ModuleConfig[]>(buildDefaultConfig());
-  const [organizeOpen, setOrganizeOpen] = useState(false);
   const [containerH, setContainerH] = useState<number | null>(null);
 
   const loadConfig = async () => {
@@ -112,22 +110,12 @@ export default function FinancesScreen({ navigation }: any) {
   useEffect(() => { loadConfig(); }, []);
   useFocusEffect(useCallback(() => { loadConfig(); }, []));
 
-  const saveConfig = async (next: ModuleConfig[]) => {
-    setConfig(next);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  };
-
   const modulesToRender = useMemo(() => {
     const map = new Map(config.map((c) => [c.key, c]));
     return MODULES.filter((m) => map.get(m.key)?.enabled).sort(
       (a, b) => map.get(a.key)!.order - map.get(b.key)!.order
     );
   }, [config]);
-
-  const enabledConfig = useMemo(
-    () => [...config].filter((c) => c.enabled).sort((a, b) => a.order - b.order),
-    [config]
-  );
 
   const hasDisabled = config.some((c) => !c.enabled);
 
@@ -155,25 +143,6 @@ export default function FinancesScreen({ navigation }: any) {
     return Math.min(MAX_CARD_H, Math.max(MIN_CARD_H, available / numRows));
   }, [containerH, modulesToRender.length, hasDisabled]);
 
-  const move = (key: string, dir: "up" | "down") => {
-    const idx = enabledConfig.findIndex((c) => c.key === key);
-    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= enabledConfig.length) return;
-    const keyA = enabledConfig[idx].key;
-    const keyB = enabledConfig[swapIdx].key;
-    const orderA = enabledConfig[idx].order;
-    const orderB = enabledConfig[swapIdx].order;
-    const next = config
-      .map((c) => {
-        if (c.key === keyA) return { ...c, order: orderB };
-        if (c.key === keyB) return { ...c, order: orderA };
-        return c;
-      })
-      .sort((a, b) => a.order - b.order)
-      .map((c, i) => ({ ...c, order: i }));
-    saveConfig(next);
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
       {/* ── Header ── */}
@@ -192,8 +161,7 @@ export default function FinancesScreen({ navigation }: any) {
         </Text>
 
         <TouchableOpacity
-          onPress={() => setOrganizeOpen(true)}
-          disabled={enabledConfig.length < 2}
+          onPress={() => navigation.navigate("FinancesSettings" as never)}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -203,12 +171,11 @@ export default function FinancesScreen({ navigation }: any) {
             paddingVertical: 6,
             borderWidth: 1,
             borderColor: t.border,
-            opacity: enabledConfig.length < 2 ? 0.35 : 1,
           }}
         >
-          <Ionicons name="swap-vertical-outline" size={15} color={colors.text} />
+          <Ionicons name="options-outline" size={15} color={colors.text} />
           <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginLeft: 4 }}>
-            Organizar
+            Gestionar
           </Text>
         </TouchableOpacity>
       </View>
@@ -299,90 +266,6 @@ export default function FinancesScreen({ navigation }: any) {
           </ScrollView>
         )}
       </View>
-
-      {/* ── Organize modal ── */}
-      <Modal visible={organizeOpen} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-          <View
-            style={{
-              backgroundColor: t.surface,
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              paddingHorizontal: 16,
-              paddingTop: 16,
-              paddingBottom: 32,
-            }}
-          >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: t.text }}>
-                Ordenar módulos
-              </Text>
-              <TouchableOpacity onPress={() => setOrganizeOpen(false)}>
-                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>
-                  Listo
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 16 }}>
-              Usa las flechas para cambiar el orden de aparición.
-            </Text>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {enabledConfig.map((c, i) => {
-                const m = MODULES.find((x) => x.key === c.key)!;
-                return (
-                  <View
-                    key={c.key}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 12,
-                      borderBottomWidth: i < enabledConfig.length - 1 ? 1 : 0,
-                      borderBottomColor: t.border,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        backgroundColor: m.softBg,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 10,
-                      }}
-                    >
-                      <Text style={{ fontSize: 18 }}>{m.emoji}</Text>
-                    </View>
-
-                    <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: t.text }}>
-                      {m.title}
-                    </Text>
-
-                    <View style={{ flexDirection: "row" }}>
-                      <TouchableOpacity
-                        onPress={() => move(c.key, "up")}
-                        disabled={i === 0}
-                        style={{ paddingHorizontal: 8, opacity: i === 0 ? 0.25 : 1 }}
-                      >
-                        <Ionicons name="chevron-up" size={20} color={t.textSecondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => move(c.key, "down")}
-                        disabled={i === enabledConfig.length - 1}
-                        style={{ paddingHorizontal: 8, opacity: i === enabledConfig.length - 1 ? 0.25 : 1 }}
-                      >
-                        <Ionicons name="chevron-down" size={20} color={t.textSecondary} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

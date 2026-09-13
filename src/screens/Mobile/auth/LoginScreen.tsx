@@ -8,9 +8,13 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
-import { Ionicons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
 import { useAuth } from "../../../context/AuthContext";
+import WalletIcon from "../../../components/WalletIcon";
+
+const GOOGLE_LOGO_URL = "https://unavatar.io/google.com";
+const APPLE_LOGO_URL = "https://unavatar.io/apple.com";
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -86,6 +90,7 @@ const handleLogin = async () => {
           <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
           <TextInput
             className="flex-1 ml-2 text-base"
+            style={{ outlineStyle: "none" } as any}
             value={email}
             onChangeText={setEmail}
             placeholder="Correo electrónico"
@@ -106,6 +111,7 @@ const handleLogin = async () => {
           <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
           <TextInput
             className="flex-1 ml-2 text-base"
+            style={{ outlineStyle: "none" } as any}
             value={password}
             onChangeText={setPassword}
             placeholder="Contraseña"
@@ -143,14 +149,14 @@ const handleLogin = async () => {
 
       {/* Botones sociales */}
       <TouchableOpacity className="flex-row items-center justify-center border border-gray-300 rounded-2xl py-3 mb-4">
-        <FontAwesome name="google" size={20} color="#DB4437" />
+        <WalletIcon emoji={GOOGLE_LOGO_URL} size={20} />
         <Text className="ml-3 text-base text-gray-700 font-medium">
           Iniciar sesión con Google
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity className="flex-row items-center justify-center border border-gray-300 rounded-2xl py-3">
-        <FontAwesome name="apple" size={22} color="#000" />
+        <WalletIcon emoji={APPLE_LOGO_URL} size={22} />
         <Text className="ml-3 text-base text-gray-700 font-medium">
           Iniciar sesión con Apple
         </Text>

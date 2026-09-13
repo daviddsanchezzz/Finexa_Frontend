@@ -71,6 +71,15 @@ export function getCryptoLogoUrl(symbol: string): string {
   return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${symbol}.png`;
 }
 
+// Busca un preset de criptomoneda por símbolo (ej. el campo "Símbolo" de una
+// inversión tipo Crypto) para poder mostrar su logo real en vez de un icono
+// genérico, sin necesidad de guardar nada nuevo en el activo.
+export function findCryptoPresetBySymbol(symbol?: string | null): CryptoPreset | undefined {
+  if (!symbol) return undefined;
+  const s = symbol.trim().toLowerCase();
+  return CRYPTO_PRESETS.find((p) => p.symbol === s);
+}
+
 // Reconoce si un valor guardado en el campo "emoji" de una cartera es en
 // realidad una URL de logo (en vez de un emoji de verdad).
 export function isLogoUrl(value?: string | null): value is string {

@@ -16,6 +16,8 @@ import AppHeader from "../../../../components/AppHeader";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
+import { CRYPTO_PRESETS, getCryptoLogoUrl } from "../../../../constants/bankPresets";
+import PresetPickerCard from "../../../../components/PresetPickerCard";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income"; // ✅ solo dos valores
@@ -667,6 +669,35 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                 );
               })}
             </View>
+
+            {/* CRIPTOMONEDA (solo si el tipo es Crypto) — elegir una rellena Nombre y Símbolo */}
+            {type === "crypto" && (
+              <>
+                <Text className="text-[11px] text-gray-400 mt-4">Elegir criptomoneda (opcional)</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 12, paddingVertical: 8 }}
+                >
+                  {CRYPTO_PRESETS.map((preset) => {
+                    const logoUrl = getCryptoLogoUrl(preset.symbol);
+                    const selected = identificator.trim().toLowerCase() === preset.symbol;
+                    return (
+                      <PresetPickerCard
+                        key={preset.key}
+                        logoUrl={logoUrl}
+                        label={preset.name}
+                        selected={selected}
+                        onPress={() => {
+                          setIdentificator(preset.symbol.toUpperCase());
+                          if (!name.trim()) setName(preset.name);
+                        }}
+                      />
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
 
             {/* RISK TYPE */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>

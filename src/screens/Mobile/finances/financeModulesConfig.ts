@@ -86,19 +86,6 @@ export const MODULES: FinanceModule[] = [
     softBg: "#F3E8FF",
   },
   {
-    key: "netWorth",
-    title: "Patrimonio neto",
-    subtitle: "Visualiza activos, pasivos y tu riqueza neta en tiempo real.",
-    emoji: "🏦",
-    iconName: "analytics-outline",
-    routeName: "NetWorth",
-    accentColor: "#7C3AED",
-    softBg: "#EDE9FE",
-    // Ya es accesible desde otra parte de la app — innecesario duplicarlo
-    // en el hub de Finanzas personales.
-    defaultEnabled: false,
-  },
-  {
     key: "investments",
     title: "Inversiones",
     subtitle: "Cartera, rendimiento y composición de tus inversiones.",

@@ -95,6 +95,7 @@ export default function RegisterScreen({ navigation }: any) {
           <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
           <TextInput
             className="flex-1 ml-2 text-base"
+            style={{ outlineStyle: "none" } as any}
             value={name}
             onChangeText={setName}
             placeholder="Nombre completo"
@@ -109,6 +110,7 @@ export default function RegisterScreen({ navigation }: any) {
           <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
           <TextInput
             className="flex-1 ml-2 text-base"
+            style={{ outlineStyle: "none" } as any}
             value={email}
             onChangeText={setEmail}
             placeholder="Correo electrónico"
@@ -125,6 +127,7 @@ export default function RegisterScreen({ navigation }: any) {
           <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
           <TextInput
             className="flex-1 ml-2 text-base"
+            style={{ outlineStyle: "none" } as any}
             value={password}
             onChangeText={setPassword}
             placeholder="Contraseña"
