@@ -22,6 +22,8 @@ import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation"
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { formatEuro } from "../../../../utils/currency";
+import { findCryptoPresetBySymbol, getCryptoLogoUrl } from "../../../../constants/bankPresets";
+import WalletIcon from "../../../../components/WalletIcon";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
@@ -295,6 +297,10 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [actionTarget, setActionTarget] = useState<ActionTarget>(null);
 
   const currency = useMemo(() => asset?.currency ?? "EUR", [asset?.currency]);
+  const cryptoPreset = useMemo(
+    () => (asset?.type === "crypto" ? findCryptoPresetBySymbol(asset.identificator) : undefined),
+    [asset?.type, asset?.identificator]
+  );
   const cryptoCategoryLabel = useMemo(() => {
     const direct = metadata?.cryptoCategory?.trim();
     if (direct) return direct;
@@ -726,11 +732,15 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   <View
                     style={{
                       width: 33, height: 33, borderRadius: 12,
-                      backgroundColor: "rgba(255,255,255,0.16)",
+                      backgroundColor: cryptoPreset ? "white" : "rgba(255,255,255,0.16)",
                       alignItems: "center", justifyContent: "center", marginRight: 8,
                     }}
                   >
-                    <Ionicons name={assetTypeIcon(asset.type)} size={16} color="white" />
+                    {cryptoPreset ? (
+                      <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={20} />
+                    ) : (
+                      <Ionicons name={assetTypeIcon(asset.type)} size={16} color="white" />
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 10.5, fontWeight: "700", color: "rgba(255,255,255,0.65)" }}>

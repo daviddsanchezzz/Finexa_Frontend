@@ -13,11 +13,7 @@ import RecurringScopeModal, {
   RecurringScope,
 } from "./RecurringScopeModal";
 import { formatEuro as formatEuroShared } from "../utils/currency";
-import { isLogoUrl } from "../constants/bankPresets";
-
-// Evita imprimir una URL de logo como texto plano cuando una cartera con
-// banco elegido aparece dentro de una frase (en vez de en su propio icono).
-const emojiPrefix = (e?: string | null) => (e && !isLogoUrl(e) ? `${e} ` : "");
+import WalletIcon from "./WalletIcon";
 
 interface Props {
   transactions: any[];
@@ -429,12 +425,14 @@ export default function TransactionsList({
               {/* ICONO */}
               <View className="items-center mb-6 mt-3">
                 {selectedTx.type === "transfer" ? (
-                  <View className="bg-blue-100 p-3 rounded-xl mb-3">
-                    <Ionicons
-                      name="swap-horizontal-outline"
-                      size={28}
-                      color="#2563eb"
-                    />
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center" }}>
+                      <WalletIcon emoji={selectedTx.fromWallet?.emoji} size={22} />
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color="#94A3B8" style={{ marginHorizontal: 8 }} />
+                    <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center" }}>
+                      <WalletIcon emoji={selectedTx.toWallet?.emoji} size={22} />
+                    </View>
                   </View>
                 ) : (
                   <View
@@ -453,8 +451,7 @@ export default function TransactionsList({
                 {/* TÍTULO */}
                 {selectedTx.type === "transfer" ? (
                   <Text className="text-[17px] font-semibold text-black">
-                    {emojiPrefix(selectedTx.fromWallet?.emoji)}{selectedTx.fromWallet?.name} →{" "}
-                    {emojiPrefix(selectedTx.toWallet?.emoji)}{selectedTx.toWallet?.name}
+                    {selectedTx.fromWallet?.name} → {selectedTx.toWallet?.name}
                   </Text>
                 ) : (
                   <Text className="text-[17px] font-semibold text-black">

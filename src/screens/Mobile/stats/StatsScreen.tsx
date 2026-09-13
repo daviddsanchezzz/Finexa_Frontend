@@ -560,17 +560,6 @@ export default function StatsScreen({ navigation }: any) {
     return list;
   }, [topExpenseCategory, totalExpenses, prevTotalExpenses, expenseComparison, prevLabel, prevTotalIncomes, savingComparison, savingsRate, isYearMode]);
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-background">
-        <View className="px-5 pb-2">
-          <AppHeader title="Estadísticas" showProfile={false} onOpenDateModal={() => setDateModalVisible(true)} dateLabel={dateLabel} />
-        </View>
-        <StatsScreenSkeleton />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
       {Platform.OS === "web" && (
@@ -609,6 +598,9 @@ export default function StatsScreen({ navigation }: any) {
           />
         </View>
 
+        {loading ? (
+          <StatsScreenSkeleton />
+        ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, gap: 14 }}
@@ -869,6 +861,7 @@ export default function StatsScreen({ navigation }: any) {
             </>
           )}
         </ScrollView>
+        )}
       </Animated.View>
 
       <DateFilterModal
