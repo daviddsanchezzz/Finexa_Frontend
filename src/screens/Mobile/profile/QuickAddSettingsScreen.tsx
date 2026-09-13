@@ -51,7 +51,7 @@ export default function QuickAddSettingsScreen(_: any) {
           Tu token
         </Text>
 
-        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", padding: 16, marginBottom: 20 }}>
+        <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 20 }}>
           {isLoading ? (
             <ActivityIndicator color={colors.primary} />
           ) : (
@@ -92,7 +92,7 @@ export default function QuickAddSettingsScreen(_: any) {
           Cómo configurarlo
         </Text>
 
-        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", padding: 16, marginBottom: 20, gap: 10 }}>
+        <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 20, gap: 10 }}>
           <Text style={{ fontSize: 13, color: "#374151", lineHeight: 19 }}>
             En la app Atajos, abre tu automatización de "Abrir URL" y añade esto al final, después de{" "}
             <Text style={{ fontFamily: "monospace" }}>&card=[Tarjeta o pase]</Text>:

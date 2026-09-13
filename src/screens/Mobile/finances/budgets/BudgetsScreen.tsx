@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../../components/AppHeader";
+import AddButton from "../../../../components/AddButton";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
@@ -277,25 +278,11 @@ export default function BudgetsHomeScreen({ navigation }: any) {
           )}
 
           {/* BOTÓN AÑADIR PRESUPUESTO */}
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate("BudgetCreate", {
-                periodType,
-              })
-            }
-            className="flex-row items-center justify-center py-2.5 rounded-2xl mt-2"
-            style={{
-              backgroundColor: "#F3F4F6",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-            }}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="add-outline" size={18} color="#64748B" />
-            <Text className="text-sm text-slate-500 font-medium ml-1.5">
-              Añadir presupuesto
-            </Text>
-          </TouchableOpacity>
+          <AddButton
+            label="Añadir presupuesto"
+            onPress={() => navigation.navigate("BudgetCreate", { periodType })}
+            style={{ justifyContent: "center", alignSelf: "stretch", marginTop: 8 }}
+          />
         </ScrollView>
       )}
     </SafeAreaView>

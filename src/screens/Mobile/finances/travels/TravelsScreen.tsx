@@ -16,6 +16,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
+import AddButton from "../../../../components/AddButton";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { tripDateKey } from "../../../../utils/tripDates";
@@ -485,16 +487,7 @@ export default function TripsHomeScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Viajes</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate("TripForm")}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: colors.primary, borderRadius: 16,
-            paddingVertical: 9, paddingHorizontal: 16,
-          }}
-        >
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>+ Nuevo</Text>
-        </TouchableOpacity>
+        <AddButton label="Nuevo" onPress={() => navigation.navigate("TripForm")} />
       </View>
 
 
@@ -822,33 +815,16 @@ export default function TripsHomeScreen({ navigation }: any) {
         {viewType === "list" && (
           <>
             {/* Board mode tabs */}
-            <View style={{ marginHorizontal: 20, flexDirection: "row", marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
-              {([
-                { id: "status",    label: "Estado"     },
-                { id: "continent", label: "Continente" },
-                { id: "year",      label: "Año"        },
-              ] as { id: BoardMode; label: string }[]).map(opt => {
-                const active = boardMode === opt.id;
-                return (
-                  <TouchableOpacity
-                    key={opt.id}
-                    onPress={() => setBoardMode(opt.id)}
-                    activeOpacity={0.8}
-                    style={{
-                      width: "33.333333%",
-                      paddingVertical: 8,
-                      alignItems: "center",
-                      borderBottomWidth: 2,
-                      borderBottomColor: active ? colors.primary : "transparent",
-                      marginBottom: -1,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
+              <SegmentedTabs<BoardMode>
+                options={[
+                  { key: "status", label: "Estado" },
+                  { key: "continent", label: "Continente" },
+                  { key: "year", label: "Año" },
+                ]}
+                value={boardMode}
+                onChange={setBoardMode}
+              />
             </View>
 
             {/* Sub-pills */}
@@ -896,14 +872,7 @@ export default function TripsHomeScreen({ navigation }: any) {
                   <Text style={{ fontSize: 13, color: "#94A3B8", textAlign: "center" }}>
                     Añade tu primer viaje para empezar a explorar el mundo.
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("TripForm")}
-                    activeOpacity={0.9}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 14, backgroundColor: colors.primary }}
-                  >
-                    <Ionicons name="add-outline" size={16} color="white" />
-                    <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>Añadir viaje</Text>
-                  </TouchableOpacity>
+                  <AddButton label="Añadir viaje" onPress={() => navigation.navigate("TripForm")} />
                 </View>
               ) : activeColumn.trips.length === 0 ? (
                 <View style={{ padding: 24, borderRadius: 18, backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", gap: 6 }}>
@@ -943,8 +912,6 @@ export default function TripsHomeScreen({ navigation }: any) {
                             paddingVertical: 12, paddingHorizontal: 14,
                             borderWidth: 1, borderColor: "#F0F4F8",
                             flexDirection: "row", alignItems: "center", gap: 12,
-                            shadowColor: "#000", shadowOpacity: 0.04,
-                            shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
                           }}
                         >
                         {/* Thumbnail */}

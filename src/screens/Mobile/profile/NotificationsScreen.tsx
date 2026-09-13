@@ -95,7 +95,7 @@ export default function NotificationsScreen() {
               style={{
                 width: 36,
                 height: 36,
-                borderRadius: 18,
+                borderRadius: 16,
                 backgroundColor: "#F3F4F6",
                 borderWidth: 1.2,
                 borderColor: "#E5E7EB",

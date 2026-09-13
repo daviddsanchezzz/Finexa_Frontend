@@ -135,7 +135,7 @@ export default function FinancesSettingsScreen(_: any) {
         <View
           style={{
             backgroundColor: "white",
-            borderRadius: 18,
+            borderRadius: 16,
             borderWidth: 1,
             borderColor: "#F3F4F6",
             overflow: "hidden",

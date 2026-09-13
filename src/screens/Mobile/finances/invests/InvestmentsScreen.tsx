@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import Svg, { Path, Line, Rect, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
+import AddButton from "../../../../components/AddButton";
 import { colors } from "../../../../theme/theme";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -1076,18 +1077,7 @@ const submitContribution = useCallback(() => {
         <View style={{ flex: 1 }}>
           <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
         </View>
-        <TouchableOpacity
-          onPress={() => setFabOpen(true)}
-          activeOpacity={0.8}
-          style={{
-            flexDirection: "row", alignItems: "center", gap: 6,
-            backgroundColor: "#0F172A", borderRadius: 14,
-            paddingVertical: 8, paddingHorizontal: 12, marginBottom: 4,
-          }}
-        >
-          <Ionicons name="add-outline" size={15} color="white" />
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
-        </TouchableOpacity>
+        <AddButton label="Añadir" onPress={() => setFabOpen(true)} style={{ marginBottom: 4 }} />
       </View>
 
       {/* -- Loading / Error states -- */}
@@ -1142,10 +1132,6 @@ const submitContribution = useCallback(() => {
                 paddingHorizontal: 14,
                 paddingTop: 13,
                 paddingBottom: 12,
-                shadowColor: "#000",
-                shadowOpacity: 0.12,
-                shadowRadius: 10,
-                shadowOffset: { width: 0, height: 4 },
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -1171,7 +1157,7 @@ const submitContribution = useCallback(() => {
 
               <View style={{ marginTop: 9 }}>
                 <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>Valor actual total</Text>
-                <Text style={{ fontSize: 22, fontWeight: "900", color: "white", marginTop: 1 }}>
+                <Text style={{ fontSize: 22, fontWeight: "900", color: "white", marginTop: 1, fontVariant: ["tabular-nums"] }}>
                   {formatMoney(hero.totalCurrentValue, currency)}
                 </Text>
               </View>
@@ -1273,10 +1259,6 @@ const submitContribution = useCallback(() => {
                     marginBottom: 8,
                     borderWidth: 1,
                     borderColor: t.border,
-                    shadowColor: "#000",
-                    shadowOpacity: 0.03,
-                    shadowRadius: 4,
-                    shadowOffset: { width: 0, height: 1 },
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -1455,10 +1437,6 @@ const submitContribution = useCallback(() => {
                 padding: 16,
                 marginBottom: 10,
                 marginHorizontal: 20,
-                shadowColor: "#000",
-                shadowOpacity: 0.04,
-                shadowRadius: 5,
-                shadowOffset: { width: 0, height: 2 },
                 borderWidth: 1,
                 borderColor: t.border,
               }}
@@ -1825,11 +1803,11 @@ const submitContribution = useCallback(() => {
             {/* Stats strip */}
             {performanceChart && (
               <View style={{ flexDirection: "row", marginHorizontal: 20, marginBottom: 10, gap: 8 }}>
-                <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+                <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border }}>
                   <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>Valor cartera</Text>
                   <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{formatMoney(performanceChart.lastEquity, currency)}</Text>
                 </View>
-                <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+                <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border }}>
                   <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>Valor inicial</Text>
                   <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{formatMoney(performanceChart.startEquity, currency)}</Text>
                 </View>
@@ -2076,7 +2054,7 @@ const submitContribution = useCallback(() => {
                 </View>
               </View>
 
-              <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: "white", borderRadius: 22, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, overflow: "hidden" }}>
+              <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: "white", borderRadius: 22, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
                 <ScrollView horizontal={!isSingleYear} showsHorizontalScrollIndicator={false} contentContainerStyle={isSingleYear ? { flexGrow: 1 } : undefined}>
                   <View style={isSingleYear ? { minWidth: "100%" } : undefined}>
 
@@ -2173,10 +2151,6 @@ const submitContribution = useCallback(() => {
               padding: 16,
               borderWidth: 1,
               borderColor: "#E5E7EB",
-              shadowColor: "#000",
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 2 },
             }}
           >
             <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A", marginBottom: 4 }}>
@@ -2273,10 +2247,8 @@ const submitContribution = useCallback(() => {
                       style={{
                         backgroundColor: "white",
                         borderRadius: 20,
-                        shadowColor: "#000",
-                        shadowOpacity: 0.05,
-                        shadowRadius: 6,
-                        shadowOffset: { width: 0, height: 2 },
+                        borderWidth: 1,
+                        borderColor: colors.border,
                         overflow: "hidden",
                       }}
                     >

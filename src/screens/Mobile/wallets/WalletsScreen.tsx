@@ -14,6 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
+import AppHeader from "../../../components/AppHeader";
+import AddButton from "../../../components/AddButton";
+import IconCircleButton from "../../../components/IconCircleButton";
 import EditWalletModal from "../../../components/EditWalletModal";
 import WalletIcon from "../../../components/WalletIcon";
 import { formatEuro as formatEuroBase } from "../../../utils/currency";
@@ -126,63 +129,33 @@ export default function WalletsScreen({ navigation }: any) {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="flex-row justify-between items-center px-6 py-5">
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-            className="mr-3"
-          >
-            <Ionicons name="chevron-back-outline" size={26} color={colors.text} />
-          </TouchableOpacity>
-          <Text className="text-[20px] font-bold text-text">Carteras</Text>
-        </View>
+      <View className="px-5 pb-2">
+        <AppHeader
+          title="Carteras"
+          showBack
+          showProfile={false}
+          showDatePicker={false}
+          rightElement={
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {!reorderMode && <AddButton label="Nueva" onPress={() => openModal()} />}
 
-        {/* Botones derecha */}
-        <View className="flex-row items-center">
-          {!reorderMode && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              className="bg-primary/10 rounded-full p-2.5 mr-2"
-              onPress={() => openModal()}
-            >
-              <Ionicons name="add-outline" size={22} color={colors.primary} />
-            </TouchableOpacity>
-          )}
-
-          {!reorderMode ? (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              className="rounded-full p-2.5"
-              onPress={() => setReorderMode(true)}
-            >
-              <Ionicons name="reorder-three-outline" size={22} color={colors.text} />
-            </TouchableOpacity>
-          ) : (
-            <View className="flex-row items-center">
-              <TouchableOpacity
-                activeOpacity={0.8}
-                className="rounded-full p-2.5 mr-1"
-                onPress={handleCancelReorder}
-                disabled={savingOrder}
-              >
-                <Ionicons name="close-outline" size={24} color="#9CA3AF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                className="bg-primary/10 rounded-full p-2.5"
-                onPress={handleSaveOrder}
-                disabled={savingOrder}
-              >
-                {savingOrder ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons name="checkmark-outline" size={22} color={colors.primary} />
-                )}
-              </TouchableOpacity>
+              {!reorderMode ? (
+                <IconCircleButton icon="reorder-three" onPress={() => setReorderMode(true)} />
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <IconCircleButton icon="close" onPress={handleCancelReorder} disabled={savingOrder} color="#9CA3AF" />
+                  {savingOrder ? (
+                    <View style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    </View>
+                  ) : (
+                    <IconCircleButton icon="checkmark" onPress={handleSaveOrder} color={colors.primary} backgroundColor={`${colors.primary}1A`} />
+                  )}
+                </View>
+              )}
             </View>
-          )}
-        </View>
+          }
+        />
       </View>
 
       {/* Lista */}
@@ -207,10 +180,8 @@ export default function WalletsScreen({ navigation }: any) {
               key={wallet.id}
               className="bg-white rounded-2xl mb-3 px-4 py-3 flex-row justify-between items-center"
               style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 3,
+                borderWidth: 1,
+                borderColor: colors.border,
               }}
             >
               {/* Info (toca para editar si no estamos en modo reordenar) */}

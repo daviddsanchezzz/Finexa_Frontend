@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../../theme/theme";
+import AppHeader from "../../../../components/AppHeader";
 import TransactionsList from "../../../../components/TransactionsList";
 import api from "../../../../api/api";
 import { formatEuro } from "../../../../utils/currency";
@@ -267,16 +268,8 @@ export default function DebtDetailScreen({ route, navigation }: any) {
   if (loadingDebt) {
     return (
       <SafeAreaView className="flex-1 bg-background">
-        <View className="px-5 pt-3 pb-2 flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ paddingRight: 12, paddingVertical: 4 }}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-900">
-            Detalle de deuda
-          </Text>
+        <View className="px-5 pb-2">
+          <AppHeader title="Detalle de deuda" showBack showProfile={false} showDatePicker={false} />
         </View>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.primary} />
@@ -288,16 +281,8 @@ export default function DebtDetailScreen({ route, navigation }: any) {
   if (!debt) {
     return (
       <SafeAreaView className="flex-1 bg-background">
-        <View className="px-5 pt-3 pb-2 flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ paddingRight: 12, paddingVertical: 4 }}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-900">
-            Detalle de deuda
-          </Text>
+        <View className="px-5 pb-2">
+          <AppHeader title="Detalle de deuda" showBack showProfile={false} showDatePicker={false} />
         </View>
 
         <View className="flex-1 justify-center items-center px-5">
@@ -385,47 +370,30 @@ export default function DebtDetailScreen({ route, navigation }: any) {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* HEADER */}
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ paddingRight: 10, paddingVertical: 4 }}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-
-          <Text className="text-lg font-semibold text-gray-900">
-            Detalle de deuda
-          </Text>
-          </View>
-          <View className="flex-row items-center">
-
-            <TouchableOpacity
-              onPress={handleDeleteDebt}
-              style={{ paddingHorizontal: 4, paddingVertical: 4 }}
-            >
-              <Text
-                className="text-[14px] font-semibold mr-2"
-                style={{ color: "#DC2626" }} // rojo elegante
+      <View className="px-5 pb-2">
+        <AppHeader
+          title="Detalle de deuda"
+          showBack
+          showProfile={false}
+          showDatePicker={false}
+          rightElement={
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TouchableOpacity onPress={handleDeleteDebt} style={{ paddingHorizontal: 4, paddingVertical: 4 }}>
+                <Text className="text-[14px] font-semibold mr-2" style={{ color: colors.danger }}>
+                  Eliminar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("DebtForm", { editDebt: debt })}
+                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
               >
-                Eliminar
-              </Text>
-            </TouchableOpacity>
-
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("DebtForm", { editDebt: debt })}
-            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-          >
-            <Text
-              className="text-[14px] font-semibold"
-              style={{ color: colors.primary }}
-            >
-              Editar
-            </Text>
-          </TouchableOpacity>
-
-        </View>
+                <Text className="text-[14px] font-semibold" style={{ color: colors.primary }}>
+                  Editar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
       </View>
 
 
@@ -441,11 +409,6 @@ export default function DebtDetailScreen({ route, navigation }: any) {
             padding: 20,
             marginBottom: 16,
             backgroundColor: colors.primary,
-            shadowColor: "#000",
-            shadowOpacity: 0.12,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 6 },
-            elevation: 4,
           }}
         >
           <View className="flex-row justify-between items-start mb-4">

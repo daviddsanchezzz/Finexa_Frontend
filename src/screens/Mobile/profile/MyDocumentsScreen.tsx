@@ -74,7 +74,7 @@ export default function MyDocumentsScreen(_: any) {
               <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
                 {section.title}
               </Text>
-              <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
+              <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
                 {section.types.map((type, idx) => {
                   const isMulti = MULTI_INSTANCE_PERSONAL_TYPES.includes(type);
                   const docs = documentsByType.get(type) ?? [];

@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
+import AddButton from "../../../../components/AddButton";
 import { useTripContacts } from "../../../../hooks/useTripContacts";
 import { getEmergencyNumber } from "../../../../utils/emergencyNumbers";
 
@@ -49,7 +50,7 @@ export default function ContactosScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <SectionTitle>Contactos de emergencia</SectionTitle>
-        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden", marginBottom: 20 }}>
+        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: "hidden", marginBottom: 20 }}>
           {emergencyNumber && (
             <ContactRow
               emoji="🚨"
@@ -79,12 +80,10 @@ export default function ContactosScreen() {
 
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <SectionTitle noMargin>Tus contactos</SectionTitle>
-          <TouchableOpacity onPress={() => setAddOpen(true)}>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>+ Añadir</Text>
-          </TouchableOpacity>
+          <AddButton label="Añadir" onPress={() => setAddOpen(true)} />
         </View>
 
-        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
+        <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
           {isLoading ? (
             <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
           ) : contacts.length === 0 ? (

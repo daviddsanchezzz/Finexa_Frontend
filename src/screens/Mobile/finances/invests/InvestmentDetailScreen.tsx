@@ -17,6 +17,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import AppHeader from "../../../../components/AppHeader";
+import AddButton from "../../../../components/AddButton";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
@@ -628,47 +630,32 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     <SafeAreaView className="flex-1 bg-background">
       {/* -- HEADER -- */}
       <View className="px-5 pb-3">
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ marginRight: 8 }}
-          >
-            <Ionicons name="chevron-back" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-            Inversión
-          </Text>
-          {asset && (
-            <>
-              <TouchableOpacity
-                onPress={() => navigation.navigate("InvestmentForm", { assetId })}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: "row", alignItems: "center", gap: 5,
-                  paddingHorizontal: 12, paddingVertical: 8,
-                  borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB",
-                  backgroundColor: "white", marginRight: 8,
-                }}
-              >
-                <Ionicons name="pencil-outline" size={15} color="#0F172A" />
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>Editar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setQuickAddOpen(true)}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: "row", alignItems: "center", gap: 5,
-                  paddingHorizontal: 12, paddingVertical: 8,
-                  borderRadius: 14, backgroundColor: "#0F172A",
-                }}
-              >
-                <Ionicons name="add-outline" size={15} color="white" />
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Añadir</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+        <AppHeader
+          title="Inversión"
+          showBack
+          showProfile={false}
+          showDatePicker={false}
+          rightElement={
+            asset ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("InvestmentForm", { assetId })}
+                  activeOpacity={0.8}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: 5,
+                    paddingHorizontal: 12, paddingVertical: 8,
+                    borderRadius: 14, borderWidth: 1, borderColor: colors.border,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <Ionicons name="pencil-outline" size={15} color={colors.ink} />
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: colors.ink }}>Editar</Text>
+                </TouchableOpacity>
+                <AddButton label="Añadir" onPress={() => setQuickAddOpen(true)} />
+              </View>
+            ) : undefined
+          }
+        />
       </View>
 
       {loading || !asset ? (
@@ -721,10 +708,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 paddingHorizontal: 13,
                 paddingTop: 10,
                 paddingBottom: 10,
-                shadowColor: "#000",
-                shadowOpacity: 0.12,
-                shadowRadius: 10,
-                shadowOffset: { width: 0, height: 4 },
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>

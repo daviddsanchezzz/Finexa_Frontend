@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
+import IconCircleButton from '../../../../components/IconCircleButton';
 import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDateTimePicker';
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
@@ -809,12 +810,12 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       >
         <View
           className="rounded-3xl p-4 mb-3"
-          style={{ backgroundColor: '#0F172A' }}
+          style={{ backgroundColor: colors.primary }}
         >
           <View className="flex-row justify-between items-start">
             <View className="flex-1 pr-2">
               <Text className="text-[11px] text-slate-300">BALANCE DEL PROYECTO</Text>
-              <Text className="text-white text-2xl font-semibold mt-1">{formatCurrency(balance)}</Text>
+              <Text className="text-white text-2xl font-extrabold mt-1" style={{ fontVariant: ["tabular-nums"] }}>{formatCurrency(balance)}</Text>
               {!!project.description && (
                 <Text className="text-[12px] text-slate-300 mt-1" numberOfLines={2}>{project.description}</Text>
               )}
@@ -860,19 +861,14 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         <SectionCard
           title="Movimientos del proyecto"
           action={
-            <TouchableOpacity
+            <IconCircleButton
+              icon="add"
               onPress={() => setAddMovementMenuOpen(true)}
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 999,
-                backgroundColor: '#0F172A',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="add-outline" size={16} color="white" />
-            </TouchableOpacity>
+              size={30}
+              iconSize={16}
+              color="white"
+              backgroundColor={colors.primary}
+            />
           }
         >
           {combinedMovements.length === 0 ? (
@@ -1109,7 +1105,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 onPress={saveSelectedTransactions}
                 disabled={txLoading}
                 className="py-3 rounded-xl items-center"
-                style={{ backgroundColor: '#0F172A', opacity: txLoading ? 0.7 : 1 }}
+                style={{ backgroundColor: colors.primary, opacity: txLoading ? 0.7 : 1 }}
               >
                 <Text className="text-sm font-semibold text-white">Guardar selección</Text>
               </TouchableOpacity>
@@ -1138,8 +1134,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                       marginRight: option === 'income' ? 8 : 0,
                       borderRadius: 10,
                       borderWidth: 1,
-                      borderColor: active ? '#0F172A' : '#D1D5DB',
-                      backgroundColor: active ? '#0F172A' : 'white',
+                      borderColor: active ? colors.primary : '#D1D5DB',
+                      backgroundColor: active ? colors.primary : 'white',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -1220,7 +1216,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 onPress={saveManualEntry}
                 disabled={manualSaving}
                 className="flex-1 py-2.5 rounded-xl ml-2 items-center"
-                style={{ backgroundColor: '#0F172A', opacity: manualSaving ? 0.7 : 1 }}
+                style={{ backgroundColor: colors.primary, opacity: manualSaving ? 0.7 : 1 }}
               >
                 {manualSaving ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -1356,7 +1352,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 onPress={saveProfitDistribution}
                 disabled={profitSaving}
                 className="flex-1 py-2.5 rounded-xl ml-2 items-center"
-                style={{ backgroundColor: '#0F172A', opacity: profitSaving ? 0.7 : 1 }}
+                style={{ backgroundColor: colors.primary, opacity: profitSaving ? 0.7 : 1 }}
               >
                 {profitSaving ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -1455,7 +1451,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 onPress={savePartners}
                 disabled={partnersSaving}
                 className="flex-1 py-2.5 rounded-xl ml-2 items-center"
-                style={{ backgroundColor: '#0F172A', opacity: partnersSaving ? 0.7 : 1 }}
+                style={{ backgroundColor: colors.primary, opacity: partnersSaving ? 0.7 : 1 }}
               >
                 {partnersSaving ? (
                   <ActivityIndicator size="small" color="#fff" />

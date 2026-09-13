@@ -10,8 +10,11 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../../../api/api";
+import { colors } from "../../../theme/theme";
+import ModalHeader from "../../../components/ModalHeader";
 
 export default function EditMonthScreen({ route, navigation }: any) {
   const { year, month, monthName, currentValues, mode } = route.params;
@@ -132,6 +135,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
   };
 
   return (
+    <SafeAreaView className="flex-1 bg-white">
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1 bg-white"
@@ -139,23 +143,13 @@ export default function EditMonthScreen({ route, navigation }: any) {
 
       {/* =============== HEADER =============== */}
       <View
-        className="flex-row items-center justify-between px-4 pt-20 pb-4 mb-1"
-        style={{
-          borderBottomWidth: 1,
-          borderColor: "#E5E7EB",
-        }}
+        className="px-4 pt-3 pb-4 mb-1"
+        style={{ borderBottomWidth: 1, borderColor: colors.border }}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={28} color="#333" />
-        </TouchableOpacity>
-
-        <Text className="text-lg font-semibold text-gray-900">
-          {isSelecting
-            ? "Nuevo registro manual"
-            : `Editar ${monthName} ${year}`}
-        </Text>
-
-        <View style={{ width: 28 }} />
+        <ModalHeader
+          title={isSelecting ? "Nuevo registro manual" : `Editar ${monthName} ${year}`}
+          onClose={() => navigation.goBack()}
+        />
       </View>
 
       {/* =============== CONTENIDO =============== */}
@@ -179,7 +173,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
                 onPress={() => setSelectYear((y) => y - 1)}
                 className="p-2 rounded-lg bg-gray-200 mr-3"
               >
-                <Ionicons name="chevron-back" size={20} color="#333" />
+                <Ionicons name="chevron-back" size={20} color={colors.text} />
               </TouchableOpacity>
 
               <Text className="text-lg font-bold text-gray-900 mr-3">
@@ -190,7 +184,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
                 onPress={() => setSelectYear((y) => y + 1)}
                 className="p-2 rounded-lg bg-gray-200"
               >
-                <Ionicons name="chevron-forward" size={20} color="#333" />
+                <Ionicons name="chevron-forward" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -207,7 +201,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
                     onPress={() => setSelectMonth(idx)}
                     activeOpacity={0.7}
                     className={`px-3 py-2 rounded-xl mr-2 mb-2 ${
-                      active ? "bg-blue-600" : "bg-gray-200"
+                      active ? "bg-primary" : "bg-gray-200"
                     }`}
                   >
                     <Text
@@ -280,7 +274,7 @@ export default function EditMonthScreen({ route, navigation }: any) {
             <TouchableOpacity
               onPress={save}
               disabled={loading}
-              className="bg-blue-600 py-3 rounded-xl"
+              className="bg-primary py-3 rounded-xl"
             >
               <Text className="text-center text-white text-[16px] font-bold">
                 {loading ? "Guardando..." : "Guardar cambios"}
@@ -303,5 +297,6 @@ export default function EditMonthScreen({ route, navigation }: any) {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

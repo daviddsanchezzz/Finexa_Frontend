@@ -18,7 +18,6 @@ import DateFilterModal from "../../../components/DateFilterModal";
 import SegmentedTabs from "../../../components/SegmentedTabs";
 import PieChartComponent from "../../../components/PieChart";
 import GroupedBarChart from "../../../components/GroupedBarChart";
-import TrendChart from "../../../components/TrendChart";
 import CategoryBarList, { type CategoryBarItem } from "../../../components/CategoryBarList";
 import { MetricColumn } from "../../../components/MetricCard";
 import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
@@ -30,8 +29,7 @@ import { formatEuro as formatEuroBase, formatEuroInt } from "../../../utils/curr
 import { getComparison } from "../../../utils/comparison";
 
 type RangeType = "week" | "month" | "year" | "all";
-type MainTab = "resumen" | "gastos" | "ingresos" | "evolucion";
-type EvoRange = "6M" | "1A" | "3A" | "Todo";
+type MainTab = "resumen" | "gastos" | "ingresos";
 
 // Verdes/rojos ligeramente desaturados respecto a los "semánticos" puros —
 // el azul de marca se mantiene intacto (colors.primary) en todos los usos
@@ -79,12 +77,6 @@ interface MonthBucket {
   expense: number;
 }
 
-interface YearBucket {
-  year: number;
-  income: number;
-  expense: number;
-}
-
 function bucketByMonth(list: TxLite[]): MonthBucket[] {
   const map = new Map<string, MonthBucket>();
   list.forEach((tx) => {
@@ -100,16 +92,50 @@ function bucketByMonth(list: TxLite[]): MonthBucket[] {
   return [...map.values()].sort((a, b) => (a.year - b.year) || (a.month - b.month));
 }
 
-function bucketByYear(list: TxLite[]): YearBucket[] {
-  const map = new Map<number, YearBucket>();
+interface WeekBucket {
+  year: number;
+  month: number;
+  weekIndex: number;
+  startDay: number;
+  endDay: number;
+  income: number;
+  expense: number;
+}
+
+// Divide un mes en semanas naturales (lunes-domingo, recortadas a los
+// límites del mes) y sitúa cada transacción de `list` (ya acotada a ese
+// mes) en la semana que le corresponde según el día del mes.
+function bucketByWeekOfMonth(list: TxLite[], year: number, month: number): WeekBucket[] {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const buckets: WeekBucket[] = [];
+  let day = 1;
+  let weekIndex = 1;
+  while (day <= daysInMonth) {
+    const weekdayOfStart = (new Date(year, month, day).getDay() + 6) % 7; // 0 = lunes
+    const daysLeftInWeek = 7 - weekdayOfStart;
+    const endDay = Math.min(daysInMonth, day + daysLeftInWeek - 1);
+    buckets.push({ year, month, weekIndex, startDay: day, endDay, income: 0, expense: 0 });
+    day = endDay + 1;
+    weekIndex += 1;
+  }
   list.forEach((tx) => {
-    const y = new Date(tx.date).getFullYear();
-    if (!map.has(y)) map.set(y, { year: y, income: 0, expense: 0 });
-    const bucket = map.get(y)!;
+    const d = new Date(tx.date);
+    if (d.getFullYear() !== year || d.getMonth() !== month) return;
+    const dayOfMonth = d.getDate();
+    const bucket = buckets.find((b) => dayOfMonth >= b.startDay && dayOfMonth <= b.endDay);
+    if (!bucket) return;
     if (tx.type === "income") bucket.income += Math.abs(tx.amount);
     else if (tx.type === "expense") bucket.expense += Math.abs(tx.amount);
   });
-  return [...map.values()].sort((a, b) => a.year - b.year);
+  return buckets;
+}
+
+function weekShortLabel(b: WeekBucket) {
+  return `${b.startDay}-${b.endDay}`;
+}
+
+function weekFullLabel(b: WeekBucket) {
+  return `${b.startDay}-${b.endDay} ${MONTH_ABBR[b.month]}`;
 }
 
 function monthLabel(b: { year: number; month: number }, multiYear: boolean) {
@@ -138,15 +164,6 @@ function fillMonthRange(buckets: MonthBucket[], fromYear: number, fromMonth: num
     result.push(map.get(`${y}-${m}`) ?? { year: y, month: m, income: 0, expense: 0 });
     m += 1;
     if (m > 11) { m = 0; y += 1; }
-  }
-  return result;
-}
-
-function fillYearRange(buckets: YearBucket[], fromYear: number, toYear: number): YearBucket[] {
-  const map = new Map(buckets.map((b) => [b.year, b]));
-  const result: YearBucket[] = [];
-  for (let y = fromYear; y <= toYear; y += 1) {
-    result.push(map.get(y) ?? { year: y, income: 0, expense: 0 });
   }
   return result;
 }
@@ -201,8 +218,6 @@ export default function StatsScreen({ navigation }: any) {
   const [catView, setCatView] = useState<"barras" | "circular">("barras");
   const [showAllExpense, setShowAllExpense] = useState(false);
   const [showAllIncome, setShowAllIncome] = useState(false);
-  const [evoRange, setEvoRange] = useState<EvoRange>("1A");
-  const hasSetDefaultEvoRange = useRef(false);
 
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
   useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
@@ -459,9 +474,8 @@ export default function StatsScreen({ navigation }: any) {
     }));
   };
 
-  // ── Todo el histórico, agrupado por mes y por año ──
+  // ── Todo el histórico, agrupado por mes ──
   const monthlyBuckets = useMemo(() => bucketByMonth(historyTransactions), [historyTransactions]);
-  const yearlyBuckets = useMemo(() => bucketByYear(historyTransactions), [historyTransactions]);
 
   // El selector de fecha de arriba a la derecha gobierna TODO: el punto de
   // anclaje de cualquier gráfico de tendencia es siempre el periodo
@@ -472,52 +486,26 @@ export default function StatsScreen({ navigation }: any) {
   const anchorMonth = anchor.getMonth();
 
   // Mini-tendencia usada en "Ingresos vs gastos" (Resumen) y "Evolución del
-  // gasto/ingreso" (Gastos/Ingresos): en modo año, los 12 meses de ese año;
-  // en el resto de modos, los 6 meses que terminan en el periodo elegido.
-  const miniTrendBuckets = useMemo(() => {
-    if (isYearMode) return fillMonthRange(monthlyBuckets, anchorYear, 0, anchorYear, 11);
-    const start = shiftMonth(anchorYear, anchorMonth, -5);
-    return fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
-  }, [monthlyBuckets, isYearMode, anchorYear, anchorMonth]);
-  const miniTrendMultiYear = new Set(miniTrendBuckets.map((b) => b.year)).size > 1;
-  const miniTrendLabels = miniTrendBuckets.map((b) => monthLabel(b, miniTrendMultiYear));
-  const miniTrendFullLabels = miniTrendBuckets.map((b) => fullMonthLabel(b));
-  const miniTrendCaption = isYearMode ? `Año ${anchorYear}` : "Últimos 6 meses";
-
-  // El selector 6M/1A/3A/Todo elige por defecto 1A o 6M según cuánto
-  // histórico haya disponible, la primera vez que llegan datos.
-  useEffect(() => {
-    if (hasSetDefaultEvoRange.current || monthlyBuckets.length === 0) return;
-    hasSetDefaultEvoRange.current = true;
-    setEvoRange(monthlyBuckets.length >= 12 ? "1A" : "6M");
-  }, [monthlyBuckets]);
-
-  // Tendencia de la pestaña Evolución, la más analítica: en modo año, los
-  // últimos 5 años (comparados año a año, sin selector); en el resto, la
-  // ventana elegida en el selector 6M/1A/3A/Todo, terminando en el periodo
-  // seleccionado arriba.
-  const evoSeries = useMemo(() => {
+  // gasto/ingreso" (Gastos/Ingresos): en modo año, los 12 meses de ese año
+  // (ya validado y sin tocar); en modo mes, las semanas de ese mes; en el
+  // resto de modos (semana/todo), los 6 meses que terminan en el periodo.
+  const miniTrendSeries = useMemo(() => {
     if (isYearMode) {
-      const startYear = anchorYear - 4;
-      return fillYearRange(yearlyBuckets, startYear, anchorYear).map((b) => ({ label: String(b.year), fullLabel: `Año ${b.year}`, income: b.income, expense: b.expense }));
+      const buckets = fillMonthRange(monthlyBuckets, anchorYear, 0, anchorYear, 11);
+      return buckets.map((b) => ({ label: monthLabel(b, false), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
     }
-    const start = evoRange === "Todo"
-      ? (monthlyBuckets[0] ?? { year: anchorYear, month: anchorMonth })
-      : shiftMonth(anchorYear, anchorMonth, evoRange === "6M" ? -5 : evoRange === "1A" ? -11 : -35);
-    const filled = fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
-    const multiYear = new Set(filled.map((b) => b.year)).size > 1;
-    return filled.map((b) => ({ label: monthLabel(b, multiYear), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
-  }, [isYearMode, yearlyBuckets, monthlyBuckets, anchorYear, anchorMonth, evoRange]);
-  const evoLabels = evoSeries.map((b) => b.label);
-  const evoFullLabels = evoSeries.map((b) => b.fullLabel);
-  const evoHasData = evoSeries.some((b) => b.income !== 0 || b.expense !== 0);
-  const evoCaption = isYearMode ? `Últimos 5 años · hasta ${anchorYear}` : `${evoSeries.length} meses · hasta ${dateLabel}`;
-
-  const periodTotals = useMemo(() => {
-    const income = evoSeries.reduce((s, b) => s + b.income, 0);
-    const expense = evoSeries.reduce((s, b) => s + b.expense, 0);
-    return { income, expense, saving: income - expense, rate: income > 0 ? ((income - expense) / income) * 100 : 0 };
-  }, [evoSeries]);
+    if (rangeType === "month") {
+      const buckets = bucketByWeekOfMonth(transactions, anchorYear, anchorMonth);
+      return buckets.map((b) => ({ label: weekShortLabel(b), fullLabel: weekFullLabel(b), income: b.income, expense: b.expense }));
+    }
+    const start = shiftMonth(anchorYear, anchorMonth, -5);
+    const buckets = fillMonthRange(monthlyBuckets, start.year, start.month, anchorYear, anchorMonth);
+    const multiYear = new Set(buckets.map((b) => b.year)).size > 1;
+    return buckets.map((b) => ({ label: monthLabel(b, multiYear), fullLabel: fullMonthLabel(b), income: b.income, expense: b.expense }));
+  }, [isYearMode, rangeType, monthlyBuckets, transactions, anchorYear, anchorMonth]);
+  const miniTrendLabels = miniTrendSeries.map((p) => p.label);
+  const miniTrendFullLabels = miniTrendSeries.map((p) => p.fullLabel);
+  const miniTrendCaption = isYearMode ? `Año ${anchorYear}` : rangeType === "month" ? "Por semanas" : "Últimos 6 meses";
 
   const topExpenseCategory = expenses[0] ?? null;
 
@@ -553,7 +541,6 @@ export default function StatsScreen({ navigation }: any) {
         tint: up ? "#EEF2FC" : "#FBEAE8", color: up ? colors.primary : RED,
         title: `Tu tasa de ahorro ha ${up ? "mejorado" : "empeorado"}`,
         subtitle: `${savingsRate.toFixed(1).replace(".", ",")}% este periodo.`,
-        onPress: () => setActiveTab("evolucion"),
       });
     }
 
@@ -591,7 +578,6 @@ export default function StatsScreen({ navigation }: any) {
               { key: "resumen", label: "Resumen" },
               { key: "gastos", label: "Gastos" },
               { key: "ingresos", label: "Ingresos" },
-              { key: "evolucion", label: "Evolución" },
             ]}
             value={activeTab}
             onChange={setActiveTab}
@@ -639,8 +625,8 @@ export default function StatsScreen({ navigation }: any) {
                   xLabels={miniTrendLabels}
                   tooltipLabels={miniTrendFullLabels}
                   series={[
-                    { label: "Ingresos", color: "#4ADE80", values: miniTrendBuckets.map((b) => b.income) },
-                    { label: "Gastos", color: "#F87171", values: miniTrendBuckets.map((b) => b.expense) },
+                    { label: "Ingresos", color: "#4ADE80", values: miniTrendSeries.map((p) => p.income) },
+                    { label: "Gastos", color: "#F87171", values: miniTrendSeries.map((p) => p.expense) },
                   ]}
                 />
               </Card>
@@ -704,7 +690,7 @@ export default function StatsScreen({ navigation }: any) {
             const showAll = isExpense ? showAllExpense : showAllIncome;
             const setShowAll = isExpense ? setShowAllExpense : setShowAllIncome;
             const barItems = toBarItems(list, total, isExpense ? "expense" : "income", showAll);
-            const evoSeriesValues = miniTrendBuckets.map((b) => (isExpense ? b.expense : b.income));
+            const evoSeriesValues = miniTrendSeries.map((p) => (isExpense ? p.expense : p.income));
 
             const legendTop = list.slice(0, 4);
             const legendRestPct = legendTop.reduce((s, c) => s + (total > 0 ? (c.amount / total) * 100 : 0), 0);
@@ -804,62 +790,6 @@ export default function StatsScreen({ navigation }: any) {
               </>
             );
           })()}
-
-          {activeTab === "evolucion" && (
-            <>
-              <View style={{ gap: 8 }}>
-                {!isYearMode && (
-                  <SegmentedTabs<EvoRange>
-                    compact
-                    options={[{ key: "6M", label: "6M" }, { key: "1A", label: "1A" }, { key: "3A", label: "3A" }, { key: "Todo", label: "Todo" }]}
-                    value={evoRange}
-                    onChange={setEvoRange}
-                  />
-                )}
-                <Text style={{ fontSize: 13, color: "#8A8F98", fontWeight: "500" }}>{evoCaption}</Text>
-              </View>
-
-              <Card>
-                {!evoHasData ? (
-                  <Text style={{ color: "#8A8F98", fontSize: 13, textAlign: "center", paddingVertical: 20 }}>
-                    Todavía no hay suficiente histórico.
-                  </Text>
-                ) : (
-                  <TrendChart
-                    xLabels={evoLabels}
-                    tooltipLabels={evoFullLabels}
-                    series={[
-                      { key: "income", label: "Ingresos", color: GREEN, values: evoSeries.map((b) => b.income) },
-                      { key: "expense", label: "Gastos", color: RED, values: evoSeries.map((b) => b.expense) },
-                      { key: "saving", label: "Ahorro", color: colors.primary, values: evoSeries.map((b) => b.income - b.expense), area: true },
-                    ]}
-                  />
-                )}
-              </Card>
-
-              <View>
-                <SubHeader>Resumen del periodo</SubHeader>
-                <FinancialRow first dot={GREEN} label="Ingresos totales" value={formatEuro(periodTotals.income)} />
-                <FinancialRow dot={RED} label="Gastos totales" value={formatEuro(periodTotals.expense)} />
-                <FinancialRow dot={colors.primary} label="Ahorro" value={formatEuro(periodTotals.saving)} />
-                <FinancialRow dot="#0F172A" label="Tasa de ahorro" value={`${periodTotals.rate.toFixed(1).replace(".", ",")} %`} />
-              </View>
-
-              {evoHasData && (
-                <View style={{ flexDirection: "row", alignItems: "flex-start", backgroundColor: "#F3F6FB", borderRadius: 14, padding: 12, gap: 10 }}>
-                  <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: "white", alignItems: "center", justifyContent: "center" }}>
-                    <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#5B6472", textTransform: "uppercase", letterSpacing: 0.3 }}>Insight</Text>
-                    <Text style={{ fontSize: 13, color: "#374151", marginTop: 2, lineHeight: 18 }}>
-                      Tu tasa de ahorro media en {isYearMode ? "los últimos 5 años" : "los últimos 12 meses"} ha sido del {periodTotals.rate.toFixed(1).replace(".", ",")}%.
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </>
-          )}
         </ScrollView>
         )}
       </Animated.View>

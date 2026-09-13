@@ -101,6 +101,14 @@ export const textStyles = {
   } as TextStyle,
 
   // Numbers
+  numberHero: {
+    fontFamily: families.base,
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#0F172A",
+    ...tabularNums,
+  } as TextStyle,
+
   numberXL: {
     fontFamily: families.base,
     fontSize: 24,

@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import api from "../../../../api/api";
+import ModalHeader from "../../../../components/ModalHeader";
 import { formatEuro } from "../../../../utils/currency";
 
 type DebtType = "loan" | "personal";
@@ -256,31 +257,14 @@ export default function DebtFormScreen({ navigation, route }: any) {
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* HEADER */}
-      <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ width: 50 }}
-        >
-          <Ionicons name="chevron-back" size={26} color="#111" />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text className="text-[17px] font-medium text-[#111]">
-            {isEditMode ? "Editar deuda" : "Nueva deuda"}
-          </Text>
-        </View>
-
-        <View style={{ minWidth: 60, alignItems: "flex-end" }}>
-          <TouchableOpacity onPress={handleSave} disabled={saving}>
-            {saving ? (
-              <ActivityIndicator size="small" />
-            ) : (
-              <Text className="text-[15px] text-primary font-medium">
-                {isEditMode ? "Actualizar" : "Guardar"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      <View className="px-5 py-4 border-b border-gray-100">
+        <ModalHeader
+          title={isEditMode ? "Editar deuda" : "Nueva deuda"}
+          onClose={() => navigation.goBack()}
+          rightLabel={isEditMode ? "Actualizar" : "Guardar"}
+          onRightPress={handleSave}
+          rightLoading={saving}
+        />
       </View>
 
       <KeyboardAvoidingView

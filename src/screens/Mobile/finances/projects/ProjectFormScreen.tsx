@@ -242,7 +242,7 @@ export default function ProjectFormScreen({ navigation, route }: any) {
           onPress={handleSave}
           disabled={saving || deleting}
           className="px-3 py-2 rounded-xl"
-          style={{ backgroundColor: '#0F172A', opacity: saving || deleting ? 0.75 : 1 }}
+          style={{ backgroundColor: colors.primary, opacity: saving || deleting ? 0.75 : 1 }}
         >
           {saving ? (
             <ActivityIndicator size="small" color="#fff" />
@@ -263,10 +263,6 @@ export default function ProjectFormScreen({ navigation, route }: any) {
             borderWidth: 1,
             borderColor: '#E2E8F0',
             backgroundColor: 'white',
-            shadowColor: '#0F172A',
-            shadowOpacity: 0.04,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 4 },
           }}
         >
           <Text className="text-[11px] text-slate-500 mb-2">INFORMACIÓN BÁSICA</Text>
@@ -314,8 +310,8 @@ export default function ProjectFormScreen({ navigation, route }: any) {
                   className="flex-row items-center px-3 py-2 rounded-full mr-2 mb-2"
                   style={{
                     borderWidth: 1,
-                    borderColor: active ? '#0F172A' : '#CBD5E1',
-                    backgroundColor: active ? '#0F172A' : '#fff',
+                    borderColor: active ? colors.primary : '#CBD5E1',
+                    backgroundColor: active ? colors.primary : '#fff',
                   }}
                 >
                   <Ionicons

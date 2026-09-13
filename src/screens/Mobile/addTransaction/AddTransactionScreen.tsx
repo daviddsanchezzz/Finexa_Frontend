@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "../../../theme/theme";
+import ModalHeader from "../../../components/ModalHeader";
 import api from "../../../api/api";
 import { formatEuro } from "../../../utils/currency";
 import { ViewStyle, TextStyle } from "react-native";
@@ -609,18 +610,12 @@ export default function AddScreen({ navigation }: any) {
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* HEADER */}
-      <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 70 }}>
-          <Text style={{ fontSize: 16, color: colors.primary, fontWeight: "500" }}>Cancelar</Text>
-        </TouchableOpacity>
-
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text className="text-[17px] font-medium text-[#111]">
-            {isEditing ? "Editar transacción" : "Nueva transacción"}
-          </Text>
-        </View>
-
-        <View style={{ width: 70 }} />
+      <View className="px-5 py-4 border-b border-gray-100">
+        <ModalHeader
+          title={isEditing ? "Editar transacción" : "Nueva transacción"}
+          onClose={() => navigation.goBack()}
+          closeLabel="Cancelar"
+        />
       </View>
 
       {/* CONTENIDO */}
@@ -716,6 +711,7 @@ export default function AddScreen({ navigation }: any) {
                     fontWeight: "700",
                     color: amount ? "#0F172A" : "#D1D5DB",
                     letterSpacing: -1,
+                    fontVariant: ["tabular-nums"],
                   }}
                 >
                   {amount || "0,00"}

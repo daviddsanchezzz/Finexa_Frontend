@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import AppHeader from "../../../../components/AppHeader";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
@@ -95,12 +96,9 @@ export default function InvestmentTargetAllocationScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      <View style={{ paddingHorizontal: 20, paddingBottom: 10, flexDirection: "row", alignItems: "center" }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 8 }}>
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: "#0F172A" }}>Distribucion objetivo</Text>
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="px-5 pb-2">
+        <AppHeader title="Distribución objetivo" showBack showProfile={false} showDatePicker={false} />
       </View>
 
       {loading ? (

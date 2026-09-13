@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
+import AppHeader from "../../../components/AppHeader";
 import api from "../../../api/api";
 
 type PeriodMode = "monthly" | "yearly";
@@ -57,8 +58,6 @@ export default function ReportsScreen({ navigation }: any) {
       : `Informe anual · ${year}`;
   }, [mode, month, year]);
 
-  const onBack = () => navigation.goBack();
-
   const adjustMonth = (delta: number) => {
     const [y, m] = month.split("-").map(Number);
     const d = new Date(Date.UTC(y, m - 1, 1));
@@ -91,20 +90,8 @@ const openPdf = () => {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="px-5 pt-2 pb-3 flex-row items-center justify-between">
-        <TouchableOpacity
-          onPress={onBack}
-          activeOpacity={0.7}
-          className="w-10 h-10 rounded-full bg-white border border-gray-200 items-center justify-center"
-        >
-          <Ionicons name="arrow-back-outline" size={20} color={colors.text} />
-        </TouchableOpacity>
-
-        <Text className="text-[16px] font-extrabold text-text">
-          Informes
-        </Text>
-
-        <View className="w-10 h-10" />
+      <View className="px-5 pb-2">
+        <AppHeader title="Informes" showBack showProfile={false} showDatePicker={false} />
       </View>
 
       <ScrollView
@@ -177,7 +164,7 @@ const openPdf = () => {
               }
               className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 items-center justify-center"
             >
-              <Ionicons name="chevron-back-outline" size={20} />
+              <Ionicons name="chevron-back" size={20} />
             </TouchableOpacity>
 
             <View className="items-center">
@@ -197,7 +184,7 @@ const openPdf = () => {
               }
               className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 items-center justify-center"
             >
-              <Ionicons name="chevron-forward-outline" size={20} />
+              <Ionicons name="chevron-forward" size={20} />
             </TouchableOpacity>
           </View>
         </View>

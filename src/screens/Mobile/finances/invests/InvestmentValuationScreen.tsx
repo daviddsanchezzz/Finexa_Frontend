@@ -281,10 +281,6 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
               borderRadius: 24,
               padding: 18,
               marginBottom: 12,
-              shadowColor: "#000",
-              shadowOpacity: 0.12,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 4 },
             }}
           >
             <View className="flex-row items-center">
@@ -316,10 +312,8 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
             style={{
               backgroundColor: "white",
               padding: 14,
-              shadowColor: "#000",
-              shadowOpacity: 0.04,
-              shadowRadius: 5,
-              shadowOffset: { width: 0, height: 2 },
+              borderWidth: 1,
+              borderColor: colors.border,
             }}
           >
             <Text className="text-[11px] text-gray-400">Fecha</Text>
@@ -473,10 +467,6 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
             className="flex-row items-center justify-center py-3 rounded-2xl"
             style={{
               backgroundColor: !canSave || saving || visibleAssets.length === 0 ? "#E5E7EB" : colors.primary,
-              shadowColor: "#000",
-              shadowOpacity: !canSave || saving ? 0 : 0.08,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 3 },
             }}
             activeOpacity={0.9}
           >

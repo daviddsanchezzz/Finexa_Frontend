@@ -11,9 +11,25 @@ export const colors = {
   textSecondary: "#6B7280",
   border: "#E5E7EB",
   white: "#FFFFFF",
-  error: "#E63946",
+  error: "#DC2626",
   card: "#F2F4F7",
 
+  // Tokens de la unificación visual de mobile (2026-09): un único verde/rojo
+  // de dinero, un único "casi negro" de énfasis, y los dos grises de fondo
+  // permitidos — sustituyen a los hex sueltos que cada pantalla inventaba.
+  success: "#16A34A",
+  danger: "#DC2626",
+  ink: "#0F172A",
+  surfaceMuted: "#F3F4F6",
+  surfaceSubtle: "#F9FAFB",
+};
+
+// Radios compartidos — evita que cada pantalla invente su propio valor.
+export const radii = {
+  card: 16,
+  input: 14,
+  chip: 10,
+  full: 999,
 };
 
 // Tipografía centralizada

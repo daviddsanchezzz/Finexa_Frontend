@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import AppHeader from "../../../../components/AppHeader";
+import AddButton from "../../../../components/AddButton";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import { DebtsScreenSkeleton } from "../../../../components/skeletons/DebtsScreenSkeleton";
@@ -143,7 +144,7 @@ export default function DebtsHomeScreen({ navigation }: any) {
                 <Text className="text-xs text-gray-300 mb-1">
                   Deuda total activa
                 </Text>
-                <Text className="text-2xl font-semibold text-white">
+                <Text className="text-2xl font-extrabold text-white" style={{ fontVariant: ["tabular-nums"] }}>
                   {formatCurrency(summary.totalDebt)}
                 </Text>
               </View>
@@ -184,7 +185,7 @@ export default function DebtsHomeScreen({ navigation }: any) {
               style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
             >
               <Text className="text-[11px] text-gray-500 mb-0.5">Yo debo</Text>
-              <Text className="text-sm font-semibold text-rose-600">
+              <Text className="text-sm font-semibold text-red-600">
                 {formatCurrency(summary.iOwe)}
               </Text>
             </View>
@@ -193,7 +194,7 @@ export default function DebtsHomeScreen({ navigation }: any) {
               style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
             >
               <Text className="text-[11px] text-gray-500 mb-0.5">Me deben</Text>
-              <Text className="text-sm font-semibold text-emerald-600">
+              <Text className="text-sm font-semibold text-green-600">
                 {formatCurrency(summary.theyOwe)}
               </Text>
             </View>
@@ -275,7 +276,7 @@ export default function DebtsHomeScreen({ navigation }: any) {
               d.direction === "i_ow" ? "Yo debo" : "Me deben";
 
             const directionColor =
-              d.direction === "i_ow" ? "#EF4444" : "#22C55E";
+              d.direction === "i_ow" ? colors.danger : colors.success;
 
             return (
               <View key={d.id} className="mb-2">
@@ -297,22 +298,12 @@ export default function DebtsHomeScreen({ navigation }: any) {
           })
         )}
 
-        {/* BOTÓN AÑADIR DEUDA (igual que Añadir presupuesto) */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("DebtForm")}
-            className="flex-row items-center justify-center py-2.5 rounded-2xl"
-            style={{
-              backgroundColor: "#F3F4F6",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-            }}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="add-outline" size={18} color="#64748B" />
-            <Text className="text-sm text-slate-500 font-medium ml-1.5">
-              Añadir deuda
-            </Text>
-          </TouchableOpacity>
+        {/* BOTÓN AÑADIR DEUDA */}
+        <AddButton
+          label="Añadir deuda"
+          onPress={() => navigation.navigate("DebtForm")}
+          style={{ justifyContent: "center", alignSelf: "stretch" }}
+        />
 
       </ScrollView>
         </>

@@ -130,7 +130,7 @@ export default function ProjectsScreen({ navigation }: any) {
           style={{ backgroundColor: colors.primary }}
         >
           <Text className="text-[11px] text-gray-300">RENTABILIDAD GLOBAL</Text>
-          <Text className="text-white text-2xl font-semibold mt-1">
+          <Text className="text-white text-2xl font-extrabold mt-1" style={{ fontVariant: ["tabular-nums"] }}>
             {formatCurrency(totals.balance)}
           </Text>
 
@@ -167,9 +167,9 @@ export default function ProjectsScreen({ navigation }: any) {
                     onPress={() => setFilter(item.key as ProjectFilter)}
                     className="px-3 py-2 rounded-full mr-2"
                     style={{
-                      backgroundColor: isActive ? '#0F172A' : 'white',
+                      backgroundColor: isActive ? colors.primary : 'white',
                       borderWidth: 1,
-                      borderColor: isActive ? '#0F172A' : '#E2E8F0',
+                      borderColor: isActive ? colors.primary : '#E2E8F0',
                     }}
                   >
                     <Text
@@ -218,10 +218,6 @@ export default function ProjectsScreen({ navigation }: any) {
                   borderWidth: 1,
                   borderColor: '#E2E8F0',
                   backgroundColor: 'white',
-                  shadowColor: '#0F172A',
-                  shadowOpacity: 0.04,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 4 },
                 }}
               >
                 <View className="flex-row justify-between items-start">
@@ -287,16 +283,16 @@ export default function ProjectsScreen({ navigation }: any) {
           width: 56,
           height: 56,
           borderRadius: 999,
-          backgroundColor: '#0F172A',
+          backgroundColor: colors.primary,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#0B1220',
+          shadowColor: '#000',
           shadowOpacity: 0.2,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 8 },
         }}
       >
-        <Ionicons name="add-outline" size={24} color="white" />
+        <Ionicons name="add" size={24} color="white" />
       </TouchableOpacity>
     </SafeAreaView>
   );

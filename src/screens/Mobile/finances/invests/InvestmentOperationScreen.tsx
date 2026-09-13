@@ -16,6 +16,7 @@ import { useFocusEffect } from "@react-navigation/native";
 
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
+import ModalHeader from "../../../../components/ModalHeader";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { formatEuro } from "../../../../utils/currency";
@@ -377,28 +378,15 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       {/* HEADER */}
-      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 50 }}>
-          <Ionicons name="chevron-back" size={26} color="#111" />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={{ fontSize: 17, fontWeight: "500", color: "#111" }}>
-            {isEditing ? "Editar operación" : "Añadir operación"}
-          </Text>
-        </View>
-
-        <View style={{ minWidth: 50, alignItems: "flex-end" }}>
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <TouchableOpacity onPress={handleSubmit} disabled={!canSave}>
-              <Text style={{ fontSize: 15, fontWeight: "500", color: canSave ? colors.primary : "#d1d5db" }}>
-                Guardar
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <ModalHeader
+          title={isEditing ? "Editar operación" : "Añadir operación"}
+          onClose={() => navigation.goBack()}
+          rightLabel="Guardar"
+          onRightPress={handleSubmit}
+          rightDisabled={!canSave}
+          rightLoading={saving}
+        />
       </View>
 
       {loading ? (

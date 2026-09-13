@@ -107,7 +107,7 @@ export default function ProfileScreen({ navigation }: any) {
           <TouchableOpacity
             onPress={() => navigation.navigate("Wallets")}
             activeOpacity={0.8}
-            className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mr-3"
+            className="flex-1 bg-white rounded-2xl p-4 border border-[#E5E7EB] mr-3"
           >
             <Ionicons name="wallet-outline" size={26} color={colors.primary} />
             <Text className="text-text font-semibold mt-2 text-[15px]">Carteras</Text>
@@ -117,7 +117,7 @@ export default function ProfileScreen({ navigation }: any) {
           <TouchableOpacity
             onPress={() => navigation.navigate("Categories")}
             activeOpacity={0.8}
-            className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ml-3"
+            className="flex-1 bg-white rounded-2xl p-4 border border-[#E5E7EB] ml-3"
           >
             <Ionicons name="color-palette-outline" size={26} color={colors.primary} />
             <Text className="text-text font-semibold mt-2 text-[15px]">Categorías</Text>
@@ -130,7 +130,7 @@ export default function ProfileScreen({ navigation }: any) {
             <Text className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider px-1 mb-2">
               {section.title}
             </Text>
-            <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <View className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden">
               {section.items.map((item, idx) => (
                 <TouchableOpacity
                   key={item.label}
@@ -171,7 +171,7 @@ export default function ProfileScreen({ navigation }: any) {
                         </Text>
                       </View>
                     )}
-                    <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
+                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                   </View>
                 </TouchableOpacity>
               ))}

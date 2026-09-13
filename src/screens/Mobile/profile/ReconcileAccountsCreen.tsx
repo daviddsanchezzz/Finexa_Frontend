@@ -96,11 +96,11 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
               className="mr-2 p-1"
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={24} color="#111" />
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
             </TouchableOpacity>
 
             <View>
-              <Text className="text-[18px] font-bold text-text">
+              <Text className="text-[22px] font-bold text-text">
                 Cuadrar cuentas
               </Text>
               <Text className="text-[12px] text-gray-500 mt-0.5">
@@ -139,7 +139,7 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
             return (
               <View
                 key={wallet.id}
-                className="mx-4 mb-4 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3"
+                className="mx-4 mb-4 bg-white rounded-2xl border border-[#E5E7EB] px-4 py-3"
               >
                 {/* Línea 1: wallet + nombre + dif */}
                 <View className="flex-row items-center justify-between mb-2">
@@ -227,7 +227,7 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
           })}
 
           {/* Totales */}
-          <View className="mx-4 mt-2 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3">
+          <View className="mx-4 mt-2 bg-white rounded-2xl border border-[#E5E7EB] px-4 py-3">
             <Text className="text-[15px] font-semibold text-text mb-3">
               Resumen total
             </Text>

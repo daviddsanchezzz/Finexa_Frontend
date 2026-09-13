@@ -620,10 +620,10 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={{ marginRight: 8 }}
         >
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+          <Text style={{ fontSize: 22, fontWeight: "700", color: colors.ink }} numberOfLines={1}>
             Composición
           </Text>
           <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600", marginTop: 1 }} numberOfLines={1}>
@@ -637,7 +637,7 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
           style={{
             flexDirection: "row", alignItems: "center", gap: 6,
             paddingHorizontal: 16, paddingVertical: 9,
-            borderRadius: 14, backgroundColor: "#0F172A",
+            borderRadius: 14, backgroundColor: colors.primary,
             opacity: saving ? 0.6 : 1,
           }}
         >
@@ -750,7 +750,7 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
                     marginTop: regions.length > 0 ? 4 : 0,
                   }}
                 >
-                  <Ionicons name="add-outline" size={16} color={colors.primary} />
+                  <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Añadir región</Text>
                 </TouchableOpacity>
               </View>
@@ -801,7 +801,7 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
                     marginTop: sectors.length > 0 ? 4 : 0,
                   }}
                 >
-                  <Ionicons name="add-outline" size={16} color={colors.primary} />
+                  <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Añadir sector</Text>
                 </TouchableOpacity>
               </View>
@@ -855,7 +855,7 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
                     marginTop: holdings.length > 0 ? 4 : 0,
                   }}
                 >
-                  <Ionicons name="add-outline" size={16} color={colors.primary} />
+                  <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary }}>Añadir holding</Text>
                 </TouchableOpacity>
               </View>

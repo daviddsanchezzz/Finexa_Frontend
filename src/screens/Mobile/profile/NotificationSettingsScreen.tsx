@@ -135,7 +135,7 @@ export default function NotificationSettingsScreen(_: any) {
           <View
             style={{
               backgroundColor: "#FFF7ED",
-              borderRadius: 18,
+              borderRadius: 16,
               padding: 16,
               flexDirection: "row",
               alignItems: "center",
@@ -157,7 +157,7 @@ export default function NotificationSettingsScreen(_: any) {
           <View
             style={{
               backgroundColor: "#EFF6FF",
-              borderRadius: 18,
+              borderRadius: 16,
               padding: 14,
               flexDirection: "row",
               alignItems: "flex-start",
@@ -256,7 +256,7 @@ export default function NotificationSettingsScreen(_: any) {
         <View
           style={{
             backgroundColor: "white",
-            borderRadius: 18,
+            borderRadius: 16,
             borderWidth: 1,
             borderColor: "#F3F4F6",
             overflow: "hidden",

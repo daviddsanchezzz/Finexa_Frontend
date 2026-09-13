@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AppHeader from "../../../../components/AppHeader";
+import AddButton from "../../../../components/AddButton";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 
@@ -161,22 +162,12 @@ export default function GoalsHomeScreen({ navigation }: any) {
           ))
         )}
 
-        {/* BOTÓN AÑADIR OBJETIVO (discreto, igual que presupuestos/deudas) */}
-        <TouchableOpacity
+        {/* BOTÓN AÑADIR OBJETIVO */}
+        <AddButton
+          label="Añadir objetivo"
           onPress={() => navigation.navigate("GoalCreate")}
-          className="flex-row items-center justify-center py-2.5 rounded-2xl mt-2"
-          style={{
-            backgroundColor: "#F3F4F6",
-            borderWidth: 1,
-            borderColor: "#E5E7EB",
-          }}
-          activeOpacity={0.9}
-        >
-          <Ionicons name="add-outline" size={18} color="#64748B" />
-          <Text className="text-sm text-slate-500 font-medium ml-1.5">
-            Añadir objetivo
-          </Text>
-        </TouchableOpacity>
+          style={{ justifyContent: "center", alignSelf: "stretch", marginTop: 8 }}
+        />
       </ScrollView>
     </SafeAreaView>
   );

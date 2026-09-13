@@ -57,11 +57,6 @@ function ModuleCard({
         borderColor: t.border,
         alignItems: "center",
         justifyContent: "center",
-        shadowColor: "#0F172A",
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 3,
       }}
     >
       <View

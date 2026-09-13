@@ -16,6 +16,7 @@ import { useFocusEffect, useRoute } from "@react-navigation/native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 import { colors } from "../../../../theme/theme";
+import ModalHeader from "../../../../components/ModalHeader";
 import api from "../../../../api/api";
 import { ViewStyle, TextStyle } from "react-native";
 
@@ -261,28 +262,14 @@ export default function BudgetCreateScreen({ navigation }: any) {
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* HEADER */}
-      <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 50 }}>
-          <Ionicons name="chevron-back" size={26} color="#111" />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text className="text-[17px] font-medium text-[#111]">
-            {editData ? "Editar presupuesto" : "Nuevo presupuesto"}
-          </Text>
-        </View>
-
-        <View style={{ minWidth: 80, alignItems: "flex-end" }}>
-          <TouchableOpacity onPress={handleSubmit} disabled={saving}>
-            {saving ? (
-              <ActivityIndicator size="small" />
-            ) : (
-              <Text className="text-[15px] text-primary font-medium">
-                {editData ? "Actualizar" : "Guardar"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      <View className="px-5 py-4 border-b border-gray-100">
+        <ModalHeader
+          title={editData ? "Editar presupuesto" : "Nuevo presupuesto"}
+          onClose={() => navigation.goBack()}
+          rightLabel={editData ? "Actualizar" : "Guardar"}
+          onRightPress={handleSubmit}
+          rightLoading={saving}
+        />
       </View>
 
       {/* CONTENIDO */}

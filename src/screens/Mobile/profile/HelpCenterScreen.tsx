@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Linking, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AppHeader from "../../../components/AppHeader";
+import { colors } from "../../../theme/theme";
 
 export default function HelpCenterScreen() {
   return (
@@ -50,14 +51,14 @@ function ActionCard({
       activeOpacity={0.8}
       className="bg-white rounded-2xl border border-gray-100 p-4 mb-3 flex-row items-center"
     >
-      <View className="w-10 h-10 rounded-xl bg-blue-50 items-center justify-center mr-3">
-        <Ionicons name={icon} size={20} color="#2563EB" />
+      <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mr-3">
+        <Ionicons name={icon} size={20} color={colors.primary} />
       </View>
       <View className="flex-1">
         <Text className="text-[15px] font-semibold text-text">{title}</Text>
         <Text className="text-[12px] text-gray-400 mt-0.5">{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward-outline" size={20} color="#9CA3AF" />
+      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
     </TouchableOpacity>
   );
 }

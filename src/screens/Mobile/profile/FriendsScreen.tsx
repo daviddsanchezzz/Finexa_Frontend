@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import { colors } from "../../../theme/theme";
+import AppHeader from "../../../components/AppHeader";
 import { appAlert } from "../../../utils/appAlert";
 import { useFriends, FriendUser, FriendRequest } from "../../../hooks/useFriends";
 import { avatarColorForId, initialsFromName } from "../../../utils/avatarColor";
@@ -37,7 +37,6 @@ function Avatar({ user, size = 44 }: { user: FriendUser; size?: number }) {
 }
 
 export default function FriendsScreen() {
-  const navigation = useNavigation<any>();
   const {
     friends,
     incomingRequests,
@@ -78,21 +77,9 @@ export default function FriendsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 20,
-          paddingTop: 8,
-          paddingBottom: 8,
-          gap: 8,
-        }}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: "900", color: "#0F172A" }}>Amigos</Text>
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="px-5 pb-2">
+        <AppHeader title="Amigos" showBack showProfile={false} showDatePicker={false} />
       </View>
 
       <KeyboardAvoidingView
@@ -175,7 +162,7 @@ export default function FriendsScreen() {
                         backgroundColor: "white",
                         borderRadius: 16,
                         borderWidth: 1,
-                        borderColor: "#F3F4F6",
+                        borderColor: colors.border,
                         padding: 14,
                         gap: 12,
                       }}
@@ -222,7 +209,7 @@ export default function FriendsScreen() {
                         backgroundColor: "white",
                         borderRadius: 16,
                         borderWidth: 1,
-                        borderColor: "#F3F4F6",
+                        borderColor: colors.border,
                         padding: 14,
                         gap: 12,
                       }}
@@ -249,7 +236,7 @@ export default function FriendsScreen() {
                     backgroundColor: "white",
                     borderRadius: 16,
                     borderWidth: 1,
-                    borderColor: "#F3F4F6",
+                    borderColor: colors.border,
                     padding: 24,
                     alignItems: "center",
                   }}
@@ -260,7 +247,7 @@ export default function FriendsScreen() {
                   </Text>
                 </View>
               ) : (
-                <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
+                <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
                   {friends.map((friend, idx) => (
                     <TouchableOpacity
                       key={friend.id}
