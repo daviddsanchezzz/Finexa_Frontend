@@ -11,13 +11,14 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import SegmentedTabs from "../../../../components/SegmentedTabs";
 import AddButton from "../../../../components/AddButton";
+import HeroBalanceCard from "../../../../components/HeroBalanceCard";
+import StatsRow from "../../../../components/StatsRow";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { tripDateKey } from "../../../../utils/tripDates";
@@ -286,7 +287,6 @@ function tripDurationDays(t: TripUI) {
 export default function TripsHomeScreen({ navigation }: any) {
   const [boardMode, setBoardMode]           = useState<BoardMode>("status");
   const [q, setQ]                           = useState("");
-  const [searchOpen, setSearchOpen]         = useState(false);
   const [statusSelected, setStatusSelected] = useState<TripStatus>("planning");
   const [continentSelected, setContinentSelected] = useState<string>("europe");
   const [yearSelected, setYearSelected]     = useState<string>("unknown");
@@ -490,124 +490,76 @@ export default function TripsHomeScreen({ navigation }: any) {
         <AddButton label="Nuevo" onPress={() => navigation.navigate("TripForm")} />
       </View>
 
-
-        {/* ── Hero card ── */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-          <LinearGradient
-            colors={["#001B5E", "#003cc5", "#1A6AF5"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={{
-              borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14,
-              shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 16,
-              shadowOffset: { width: 0, height: 6 }, elevation: 4,
-            }}
-          >
-            {/* Badge % mundo */}
-            {heroStats.visitedPct > 0 && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("WorldOverview")}
-                activeOpacity={0.7}
-                style={{
-                  alignSelf: "flex-end",
-                  paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.18)",
-                  flexDirection: "row", alignItems: "center", gap: 4,
-                  marginBottom: 6,
-                }}
-              >
-                <Ionicons name="earth-outline" size={10} color="rgba(255,255,255,0.85)" />
-                <Text style={{ fontSize: 10, fontWeight: "800", color: "white" }}>
-                  {Math.round(heroStats.visitedPct)}%
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Número grande + viajes */}
-            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-              <Text style={{ fontSize: 30, fontWeight: "900", color: "white", lineHeight: 34 }}>
-                {summaryLoading ? "—" : heroStats.visited} <Text style={{ fontSize: 16, fontWeight: "800" }}>países</Text>
-              </Text>
-              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }} numberOfLines={1}>
-                {heroStats.totalTrips} {heroStats.totalTrips === 1 ? "viaje" : "viajes"}
-              </Text>
-            </View>
-
-            {/* Próximo · Gastado en una sola línea */}
-            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6 }} numberOfLines={1}>
-              {summaryLoading
-                ? "—"
-                : summary?.daysToNextTrip != null
-                  ? `Próximo en ${summary.daysToNextTrip} días`
-                  : "Sin próximo viaje"}
-              {"  ·  "}Gastado {formatEuro(heroStats.totalSpent)}
-            </Text>
-          </LinearGradient>
-        </View>
-
         {/* ── Buscador ── */}
         <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-          {searchOpen ? (
-            <View style={{
-              flexDirection: "row", alignItems: "center", gap: 8,
-              paddingHorizontal: 14, height: 46,
-              backgroundColor: "white", borderRadius: 16,
-              borderWidth: 1, borderColor: "#E5E7EB",
-            }}>
-              <Ionicons name="search-outline" size={16} color="#94A3B8" />
-              <TextInput
-                autoFocus
-                value={q}
-                onChangeText={setQ}
-                placeholder="Buscar viaje…"
-                placeholderTextColor="#CBD5E1"
-                style={{ flex: 1, fontSize: 14, color: "#0F172A", paddingVertical: 0 }}
-              />
-              <TouchableOpacity onPress={() => { setQ(""); setSearchOpen(false); }}>
-                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+          <View
+            style={{
+              flexDirection: "row", alignItems: "center",
+              backgroundColor: "#F3F4F6", borderRadius: 13,
+              paddingHorizontal: 12, height: 38,
+            }}
+          >
+            <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder="Buscar viaje"
+              placeholderTextColor="#9CA3AF"
+              style={{ flex: 1, marginLeft: 6, fontSize: 13, color: "#111827" }}
+              returnKeyType="search"
+            />
+            {q.length > 0 && (
+              <TouchableOpacity onPress={() => setQ("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#9CA3AF" />
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setSearchOpen(true)}
-              activeOpacity={0.7}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: 8,
-                paddingHorizontal: 14, height: 46,
-                backgroundColor: "white", borderRadius: 16,
-                borderWidth: 1, borderColor: "#E5E7EB",
-              }}
-            >
-              <Ionicons name="search-outline" size={16} color="#94A3B8" />
-              <Text style={{ fontSize: 14, color: "#CBD5E1" }}>Buscar viaje…</Text>
-            </TouchableOpacity>
-          )}
+            )}
+          </View>
+        </View>
+
+        {/* ── Hero card ── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
+          <HeroBalanceCard
+            align="left"
+            gradientColors={["#001B5E", "#003cc5", "#1A6AF5"]}
+            label="Gastado en viajes"
+            value={summaryLoading ? "—" : formatEuro(heroStats.totalSpent)}
+            footer={
+              <Text style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6 }} numberOfLines={1}>
+                {summaryLoading
+                  ? "—"
+                  : summary?.daysToNextTrip != null
+                    ? `Próximo en ${summary.daysToNextTrip} días`
+                    : "Sin próximo viaje"}
+              </Text>
+            }
+          />
+        </View>
+
+        {/* ── Indicadores: Viajes / Países / Tu mundo ── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+          <StatsRow
+            items={[
+              { key: "viajes", label: "VIAJES", value: String(heroStats.totalTrips) },
+              { key: "paises", label: "PAÍSES", value: String(heroStats.visited) },
+              {
+                key: "mundo",
+                label: "TU MUNDO",
+                value: `${Math.round(heroStats.visitedPct)}%`,
+                onPress: () => navigation.navigate("WorldOverview"),
+              },
+            ]}
+          />
         </View>
 
         {/* ── Toggle Lista / Calendario ── */}
-        <View style={{ marginHorizontal: 20, flexDirection: "row", marginBottom: 14, backgroundColor: "#EEF2FF", borderRadius: 14, padding: 3 }}>
-          {(["list", "calendar"] as const).map(type => {
-            const active = viewType === type;
-            return (
-              <TouchableOpacity
-                key={type}
-                onPress={() => { setViewType(type); setSelectedCalDay(null); }}
-                activeOpacity={0.8}
-                style={{
-                  flex: 1, paddingVertical: 8, borderRadius: 11,
-                  backgroundColor: active ? "white" : "transparent",
-                  alignItems: "center", justifyContent: "center",
-                  shadowColor: active ? "#000" : "transparent",
-                  shadowOpacity: active ? 0.06 : 0,
-                  shadowRadius: active ? 4 : 0,
-                  shadowOffset: { width: 0, height: 1 },
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
-                  {type === "list" ? "Lista" : "Calendario"}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+        <View style={{ marginHorizontal: 20, marginBottom: 14 }}>
+          <SegmentedTabs<"list" | "calendar">
+            variant="solid"
+            dense
+            options={[{ key: "list", label: "Lista" }, { key: "calendar", label: "Calendario" }]}
+            value={viewType}
+            onChange={(v) => { setViewType(v); setSelectedCalDay(null); }}
+          />
         </View>
 
       <View style={{ flex: 1 }}>
@@ -817,6 +769,7 @@ export default function TripsHomeScreen({ navigation }: any) {
             {/* Board mode tabs */}
             <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
               <SegmentedTabs<BoardMode>
+                variant="underline"
                 options={[
                   { key: "status", label: "Estado" },
                   { key: "continent", label: "Continente" },

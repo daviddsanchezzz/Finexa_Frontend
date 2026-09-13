@@ -736,6 +736,7 @@ export default function NetWorthScreen({ navigation }: any) {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600" }}>Ver por</Text>
                   <SegmentedTabs<ViewBy>
+                    variant="underline"
                     compact
                     options={[
                       { key: "cartera", label: "Cartera" },

@@ -13,6 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import AppHeader from "../../../../components/AppHeader";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
 import SkeletonBox from "../../../../components/SkeletonBox";
 import { formatEuro } from "../../../../utils/currency";
 
@@ -403,33 +404,14 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
       </View>
 
       {/* View toggle */}
-      <View style={{ flexDirection: "row", backgroundColor: "#E8EDF3", borderRadius: 14, padding: 4, marginBottom: 12 }}>
-        {(["list", "calendar"] as const).map((v) => (
-          <TouchableOpacity
-            key={v}
-            onPress={() => setView(v)}
-            style={{
-              flex: 1,
-              paddingVertical: 8,
-              borderRadius: 10,
-              backgroundColor: view === v ? "white" : "transparent",
-              alignItems: "center",
-              flexDirection: "row",
-              justifyContent: "center",
-              gap: 5,
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={v === "list" ? "list-outline" : "calendar-outline"}
-              size={15}
-              color={view === v ? colors.primary : "#6B7280"}
-            />
-            <Text style={{ fontSize: 12, fontWeight: "600", color: view === v ? colors.primary : "#6B7280" }}>
-              {v === "list" ? "Lista" : "Calendario"}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ marginBottom: 12 }}>
+        <SegmentedTabs<"list" | "calendar">
+          variant="solid"
+          dense
+          options={[{ key: "list", label: "Lista" }, { key: "calendar", label: "Calendario" }]}
+          value={view}
+          onChange={setView}
+        />
       </View>
 
       <ScrollView

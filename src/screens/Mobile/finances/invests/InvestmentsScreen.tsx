@@ -20,6 +20,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import Svg, { Path, Line, Rect, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
+import HeroBalanceCard from "../../../../components/HeroBalanceCard";
+import StatsRow from "../../../../components/StatsRow";
 import { colors } from "../../../../theme/theme";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -177,6 +179,7 @@ const typeLabel = (t: InvestmentAssetType) => {
     case "etf":    return "ETF";
     case "stock":  return "Acción";
     case "fund":   return "Fondo";
+    case "cash":   return "Efectivo";
     default:       return "Custom";
   }
 };
@@ -545,6 +548,10 @@ const submitContribution = useCallback(() => {
     };
   }, [summary]);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<InvestmentAssetType | "all">("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const assets = useMemo(() => {
     const list = summary?.assets || [];
     return [...list].sort((a, b) => {
@@ -554,7 +561,18 @@ const submitContribution = useCallback(() => {
     });
   }, [summary]);
 
-  const totalBadge = useMemo(() => pnlBadge(hero.totalPnL), [hero.totalPnL]);
+  const visibleAssets = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return assets.filter((a) => {
+      const matchesQuery =
+        !q ||
+        (a.name || "").toLowerCase().includes(q) ||
+        (a.abbreviation || "").toLowerCase().includes(q) ||
+        (a.identificator || "").toLowerCase().includes(q);
+      const matchesType = typeFilter === "all" || a.type === typeFilter;
+      return matchesQuery && matchesType;
+    });
+  }, [assets, searchQuery, typeFilter]);
 
   const allocation = useMemo(() => {
     const list = assets || [];
@@ -1073,11 +1091,74 @@ const submitContribution = useCallback(() => {
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
       {/* -- Header -- */}
-      <View className="px-5 pb-3" style={{ flexDirection: "row", alignItems: "center" }}>
-        <View style={{ flex: 1 }}>
-          <AppHeader title="Inversiones" showProfile={false} showDatePicker={false} showBack={true} />
+      <View className="px-5 pb-2">
+        <AppHeader
+          title="Inversiones"
+          showProfile={false}
+          showDatePicker={false}
+          showBack={true}
+          rightElement={<AddButton label="Añadir" onPress={() => setFabOpen(true)} />}
+        />
+
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#F3F4F6",
+              borderRadius: 13,
+              paddingHorizontal: 12,
+              height: 38,
+            }}
+          >
+            <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Buscar inversiones"
+              placeholderTextColor="#9CA3AF"
+              style={
+                Platform.OS === "web"
+                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: "#111827", outlineStyle: "none", outlineWidth: 0 } as any)
+                  : { flex: 1, marginLeft: 6, fontSize: 13, color: "#111827" }
+              }
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setFiltersOpen(true)}
+            activeOpacity={0.8}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 13,
+              backgroundColor: "#F3F4F6",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="options-outline" size={18} color="#4B5563" />
+            {typeFilter !== "all" && (
+              <View
+                style={{
+                  position: "absolute", top: -3, right: -3,
+                  minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3,
+                  backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
+                  borderWidth: 1.5, borderColor: "white",
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>1</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-        <AddButton label="Añadir" onPress={() => setFabOpen(true)} style={{ marginBottom: 4 }} />
       </View>
 
       {/* -- Loading / Error states -- */}
@@ -1123,66 +1204,65 @@ const submitContribution = useCallback(() => {
           onTouchEnd={handleWebTouchEnd}
         >
 
-          {/* -- Hero (fijo, no scrollea) -- */}
-          <View style={{ paddingHorizontal: 20 }}>
-            <View
-              style={{
-                backgroundColor: colors.primary,
-                borderRadius: 26,
-                paddingHorizontal: 14,
-                paddingTop: 13,
-                paddingBottom: 12,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                  <View style={{ width: 38, height: 38, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" }}>
-                    <Ionicons name="stats-chart" size={18} color="white" />
-                  </View>
-                  <View style={{ marginLeft: 8, flex: 1 }}>
-                    <Text style={{ fontSize: 17, fontWeight: "800", color: "white" }}>Resumen</Text>
-                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", marginTop: 1 }}>
-                      {hero.count} {hero.count === 1 ? "activo" : "activos"}
-                      {hero.lastGlobal ? ` · Última: ${formatShortDate(hero.lastGlobal)}` : ""}
-                    </Text>
-                  </View>
-                </View>
-                <View style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: hero.pct > 0 ? "rgba(34,197,94,0.25)" : hero.pct < 0 ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.18)", flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons name={totalBadge.icon} size={13} color={hero.pct > 0 ? "#86EFAC" : hero.pct < 0 ? "#FCA5A5" : "white"} />
-                  <Text style={{ color: hero.pct > 0 ? "#86EFAC" : hero.pct < 0 ? "#FCA5A5" : "white", fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
-                    {hero.pct > 0 ? "+" : ""}{hero.pct.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+          {/* -- Hero (fijo, no scrollea) — mismo lenguaje visual que el Patrimonio neto de Inicio -- */}
+          <View className="px-5">
+            <HeroBalanceCard
+              label="Valor actual total"
+              value={formatMoney(hero.totalCurrentValue, currency)}
+              style={{ marginBottom: 8 }}
+              footer={
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: "600", color: hero.totalPnL >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                    {hero.totalPnL >= 0 ? "+" : "−"}
+                    {formatMoney(Math.abs(hero.totalPnL), currency)} ganancia total
                   </Text>
+                  {Math.abs(hero.pct) > 0.05 && (
+                    <View
+                      style={{
+                        flexDirection: "row", alignItems: "center",
+                        backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 999,
+                        paddingHorizontal: 6, paddingVertical: 1.5, gap: 2,
+                      }}
+                    >
+                      <Ionicons
+                        name={hero.pct >= 0 ? "arrow-up" : "arrow-down"}
+                        size={8}
+                        color={hero.pct >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
+                      />
+                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: hero.pct >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
+                        {Math.abs(hero.pct).toFixed(1)}%
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              </View>
+              }
+            />
 
-              <View style={{ marginTop: 9 }}>
-                <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "700" }}>Valor actual total</Text>
-                <Text style={{ fontSize: 22, fontWeight: "900", color: "white", marginTop: 1, fontVariant: ["tabular-nums"] }}>
-                  {formatMoney(hero.totalCurrentValue, currency)}
-                </Text>
-              </View>
+            {hero.count > 0 && (
+              <Text style={{ textAlign: "center", fontSize: 11, color: "#94A3B8", fontWeight: "600", marginBottom: 8 }}>
+                {hero.count} {hero.count === 1 ? "activo" : "activos"}
+                {hero.lastGlobal ? ` · Última actualización: ${formatShortDate(hero.lastGlobal)}` : ""}
+              </Text>
+            )}
 
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 9 }}>
-                <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Ionicons name="add-circle-outline" size={13} color="rgba(255,255,255,0.9)" />
-                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Invertido</Text>
-                  </View>
-                  <Text style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 4 }}>
-                    {formatMoney(hero.totalInvested, currency)}
-                  </Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 16, paddingVertical: 9, paddingHorizontal: 10 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Ionicons name={totalBadge.icon} size={13} color="rgba(255,255,255,0.9)" />
-                    <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.75)", fontWeight: "800" }}>Resultado</Text>
-                  </View>
-                  <Text style={{ fontSize: 13.5, fontWeight: "900", marginTop: 4, color: hero.totalPnL > 0 ? "#86EFAC" : hero.totalPnL < 0 ? "#FCA5A5" : "white" }}>
-                    {hero.totalPnL >= 0 ? "+" : ""}{formatMoney(hero.totalPnL, currency)}
-                  </Text>
-                </View>
-              </View>
-            </View>
+            {/* Indicadores: Invertido / Ganancia / Rentabilidad */}
+            <StatsRow
+              items={[
+                { key: "invertido", label: "INVERTIDO", value: formatMoney(hero.totalInvested, currency) },
+                {
+                  key: "ganancia",
+                  label: "GANANCIA",
+                  value: `${hero.totalPnL >= 0 ? "+" : "−"}${formatMoney(Math.abs(hero.totalPnL), currency)}`,
+                  color: hero.totalPnL >= 0 ? colors.success : colors.danger,
+                },
+                {
+                  key: "rentabilidad",
+                  label: "RENTABILIDAD",
+                  value: `${hero.pct >= 0 ? "+" : "−"}${Math.abs(hero.pct).toFixed(2).replace(".", ",")}%`,
+                  color: hero.pct >= 0 ? colors.success : colors.danger,
+                },
+              ]}
+            />
           </View>
 
           {/* -- Tabs -- */}
@@ -1237,8 +1317,15 @@ const submitContribution = useCallback(() => {
                 Crea tu primer activo para empezar a seguir tu cartera.
               </Text>
             </View>
+          ) : visibleAssets.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 32 }}>
+              <Ionicons name="search-outline" size={26} color="#CBD5E1" />
+              <Text style={{ color: "#94A3B8", fontSize: 13, marginTop: 8, textAlign: "center" }}>
+                {searchQuery.trim() ? `Sin resultados para "${searchQuery.trim()}"` : "Sin activos con este filtro."}
+              </Text>
+            </View>
           ) : (
-            assets.map((a) => {
+            visibleAssets.map((a) => {
               const pctText = formatPct(a.pnl || 0, a.invested || 0);
               const badge = pnlBadge(a.pnl);
               const typeColor = assetTypeColor(a.type);
@@ -2567,6 +2654,39 @@ const submitContribution = useCallback(() => {
               </View>
             )}
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* -- Modal de filtro por tipo -- */}
+      <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)}>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
+          activeOpacity={1}
+          onPress={() => setFiltersOpen(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <View style={{ backgroundColor: "white", borderRadius: 28, paddingVertical: 8, paddingHorizontal: 12, width: 280 }}>
+              <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textAlign: "center", paddingVertical: 14 }}>
+                FILTRAR POR TIPO
+              </Text>
+              {(["all", "crypto", "etf", "stock", "fund", "cash", "custom"] as const).map((t) => {
+                const active = typeFilter === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => { setTypeFilter(t); setFiltersOpen(false); }}
+                    activeOpacity={0.8}
+                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#0F172A" }}>
+                      {t === "all" ? "Todos" : typeLabel(t)}
+                    </Text>
+                    {active && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 

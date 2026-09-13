@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
+import SegmentedTabs from '../../../../components/SegmentedTabs';
 import { colors } from '../../../../theme/theme';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
@@ -156,32 +157,18 @@ export default function ProjectsScreen({ navigation }: any) {
           </View>
         </View>
 
-        <View className="flex-row items-center mb-3">
+        <View className="mb-3">
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row">
-              {[{ key: 'all', label: 'Todos' }, ...Object.entries(STATUS_LABELS).map(([k, v]) => ({ key: k, label: v }))].map((item) => {
-                const isActive = filter === item.key;
-                return (
-                  <TouchableOpacity
-                    key={item.key}
-                    onPress={() => setFilter(item.key as ProjectFilter)}
-                    className="px-3 py-2 rounded-full mr-2"
-                    style={{
-                      backgroundColor: isActive ? colors.primary : 'white',
-                      borderWidth: 1,
-                      borderColor: isActive ? colors.primary : '#E2E8F0',
-                    }}
-                  >
-                    <Text
-                      className="text-[12px] font-semibold"
-                      style={{ color: isActive ? 'white' : '#475569' }}
-                    >
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <SegmentedTabs<ProjectFilter>
+              variant="underline"
+              compact
+              options={[
+                { key: 'all', label: 'Todos' },
+                ...Object.entries(STATUS_LABELS).map(([k, v]) => ({ key: k as ProjectFilter, label: v })),
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
           </ScrollView>
         </View>
 

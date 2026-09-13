@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
@@ -167,42 +168,16 @@ export default function BudgetsHomeScreen({ navigation }: any) {
 
       {/* SELECTOR PERIODO - siempre visible (interactivo) */}
       <View className="px-5 mb-3">
-        <View className="flex-row rounded-2xl bg-slate-50 p-1">
-          {[
-            { key: "daily" as PeriodType, label: "Día" },
-            { key: "weekly" as PeriodType, label: "Semana" },
-            { key: "monthly" as PeriodType, label: "Mes" },
-            { key: "yearly" as PeriodType, label: "Año" },
-          ].map((opt) => {
-            const active = periodType === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                onPress={() => setPeriodType(opt.key)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 14,
-                  backgroundColor: active ? "white" : "transparent",
-                  borderWidth: active ? 1 : 0,
-                  borderColor: active ? colors.primary : "transparent",
-                }}
-                activeOpacity={0.9}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: active ? colors.primary : "#6B7280",
-                  }}
-                >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedTabs<PeriodType>
+          options={[
+            { key: "daily", label: "Día" },
+            { key: "weekly", label: "Semana" },
+            { key: "monthly", label: "Mes" },
+            { key: "yearly", label: "Año" },
+          ]}
+          value={periodType}
+          onChange={setPeriodType}
+        />
       </View>
 
       {/* CONTENIDO */}

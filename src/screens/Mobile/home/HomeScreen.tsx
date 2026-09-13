@@ -4,6 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AppHeader from "../../../components/AppHeader";
+import HeroBalanceCard from "../../../components/HeroBalanceCard";
+import StatsRow from "../../../components/StatsRow";
 import TransactionsList from "../../../components/TransactionsList";
 import NotificationsSheet from "../../../components/NotificationsSheet";
 import InvestmentMonthReturnModal from "../../../components/InvestmentMonthReturnModal";
@@ -323,47 +325,42 @@ export default function HomeScreen({ navigation }: any) {
         >
           <View className="px-5 pb-2">
             {/* PATRIMONIO NETO */}
-            <TouchableOpacity
-              activeOpacity={0.85}
+            <HeroBalanceCard
+              label="Patrimonio neto"
+              value={`${formatEuro(netWorth.current)} €`}
               onPress={() => navigation.navigate("NetWorth")}
-              className="bg-primary rounded-2xl px-4 py-4 mb-2.5 items-center"
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>Patrimonio neto</Text>
-                <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />
-              </View>
-              <Text style={{ fontSize: 30, fontWeight: "800", color: "white", marginTop: 4 }}>
-                {formatEuro(netWorth.current)} €
-              </Text>
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
-                <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                  {netWorth.periodDelta >= 0 ? "+" : "−"}
-                  {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
-                </Text>
-                {Math.abs(netWorth.pctChange) > 0.05 && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: "rgba(255,255,255,0.10)",
-                      borderRadius: 999,
-                      paddingHorizontal: 6,
-                      paddingVertical: 1.5,
-                      gap: 2,
-                    }}
-                  >
-                    <Ionicons
-                      name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
-                      size={8}
-                      color={netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
-                    />
-                    <Text style={{ fontSize: 9.5, fontWeight: "700", color: netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
-                      {Math.abs(netWorth.pctChange).toFixed(1)}%
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
+              style={{ marginBottom: 10 }}
+              footer={
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: "600", color: netWorth.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                    {netWorth.periodDelta >= 0 ? "+" : "−"}
+                    {formatEuro(Math.abs(netWorth.periodDelta))} € {netWorth.periodLabel}
+                  </Text>
+                  {Math.abs(netWorth.pctChange) > 0.05 && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "rgba(255,255,255,0.10)",
+                        borderRadius: 999,
+                        paddingHorizontal: 6,
+                        paddingVertical: 1.5,
+                        gap: 2,
+                      }}
+                    >
+                      <Ionicons
+                        name={netWorth.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                        size={8}
+                        color={netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
+                      />
+                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: netWorth.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
+                        {Math.abs(netWorth.pctChange).toFixed(1)}%
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              }
+            />
 
             <View className="items-center mb-2">
               <Text className="text-gray-500 text-[11px] font-semibold">
@@ -375,41 +372,19 @@ export default function HomeScreen({ navigation }: any) {
             </View>
 
             {/* Indicadores */}
-            <View className="flex-row justify-between mb-1">
-              <View className="flex-1 items-center mr-2.5">
-                <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
-                  INGRESOS
-                </Text>
-                <Text className="text-green-600 text-[18px] font-semibold mt-0.5">
-                  {formatEuro(totalIncome)} €
-                </Text>
-              </View>
-
-              <View className="flex-1 items-center mx-1.5">
-                <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
-                  GASTOS
-                </Text>
-                <Text className="text-red-600 text-[18px] font-semibold mt-0.5">
-                  {formatEuro(totalExpense)} €
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setRentabilidadModalVisible(true)}
-                className="flex-1 items-center ml-2.5"
-              >
-                <Text className="text-[13px] text-gray-400 tracking-wider font-medium">
-                  RENTABILIDAD
-                </Text>
-                <Text
-                  className={`text-[18px] font-semibold mt-0.5 ${totalInvestment >= 0 ? "text-green-600" : "text-red-600"}`}
-                >
-                  {totalInvestment >= 0 ? "+" : "−"}
-                  {formatEuro(Math.abs(totalInvestment))} €
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <StatsRow
+              items={[
+                { key: "ingresos", label: "INGRESOS", value: `${formatEuro(totalIncome)} €`, color: colors.success },
+                { key: "gastos", label: "GASTOS", value: `${formatEuro(totalExpense)} €`, color: colors.danger },
+                {
+                  key: "rentabilidad",
+                  label: "RENTABILIDAD",
+                  value: `${totalInvestment >= 0 ? "+" : "−"}${formatEuro(Math.abs(totalInvestment))} €`,
+                  color: totalInvestment >= 0 ? colors.success : colors.danger,
+                  onPress: () => setRentabilidadModalVisible(true),
+                },
+              ]}
+            />
 
             {showMonthlyReportBanner && (
               <View className="mt-3">
