@@ -86,16 +86,6 @@ export const MODULES: FinanceModule[] = [
     softBg: "#F3E8FF",
   },
   {
-    key: "monthlyContributions",
-    title: "Aportaciones mensuales",
-    subtitle: "Planifica cuánto aportas cada mes a tus objetivos e inversión.",
-    emoji: "🗓️",
-    iconName: "calendar-outline",
-    routeName: "MonthlyContributions",
-    accentColor: "#14B8A6",
-    softBg: "#E6FFFB",
-  },
-  {
     key: "netWorth",
     title: "Patrimonio neto",
     subtitle: "Visualiza activos, pasivos y tu riqueza neta en tiempo real.",
@@ -104,6 +94,9 @@ export const MODULES: FinanceModule[] = [
     routeName: "NetWorth",
     accentColor: "#7C3AED",
     softBg: "#EDE9FE",
+    // Ya es accesible desde otra parte de la app — innecesario duplicarlo
+    // en el hub de Finanzas personales.
+    defaultEnabled: false,
   },
   {
     key: "investments",

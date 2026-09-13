@@ -13,6 +13,11 @@ import RecurringScopeModal, {
   RecurringScope,
 } from "./RecurringScopeModal";
 import { formatEuro as formatEuroShared } from "../utils/currency";
+import { isLogoUrl } from "../constants/bankPresets";
+
+// Evita imprimir una URL de logo como texto plano cuando una cartera con
+// banco elegido aparece dentro de una frase (en vez de en su propio icono).
+const emojiPrefix = (e?: string | null) => (e && !isLogoUrl(e) ? `${e} ` : "");
 
 interface Props {
   transactions: any[];
@@ -448,8 +453,8 @@ export default function TransactionsList({
                 {/* TÍTULO */}
                 {selectedTx.type === "transfer" ? (
                   <Text className="text-[17px] font-semibold text-black">
-                    {selectedTx.fromWallet?.emoji} {selectedTx.fromWallet?.name} →{" "}
-                    {selectedTx.toWallet?.emoji} {selectedTx.toWallet?.name}
+                    {emojiPrefix(selectedTx.fromWallet?.emoji)}{selectedTx.fromWallet?.name} →{" "}
+                    {emojiPrefix(selectedTx.toWallet?.emoji)}{selectedTx.toWallet?.name}
                   </Text>
                 ) : (
                   <Text className="text-[17px] font-semibold text-black">

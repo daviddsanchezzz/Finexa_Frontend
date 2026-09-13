@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 import { formatEuro as formatEuroBase } from "../utils/currency";
+import WalletIcon from "./WalletIcon";
 
 /** Helpers */
 function getWalletBalance(w: any) {
@@ -387,7 +388,7 @@ export function WalletPickerModal({
                               justifyContent: "center",
                             }}
                           >
-                            <Text style={{ fontSize: 18 }}>{w.emoji ?? "👛"}</Text>
+                            <WalletIcon emoji={w.emoji ?? "👛"} size={18} />
                           </View>
 
                           <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>

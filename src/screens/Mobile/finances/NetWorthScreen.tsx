@@ -14,6 +14,7 @@ import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
 import SkeletonBox from "../../../components/SkeletonBox";
 import SegmentedTabs from "../../../components/SegmentedTabs";
+import WalletIcon from "../../../components/WalletIcon";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
 import { formatEuro } from "../../../utils/currency";
@@ -191,7 +192,9 @@ function Row({ emoji, name, amount, amountColor }: { emoji?: string; name: strin
       }}
     >
       {emoji ? (
-        <Text style={{ fontSize: 16, marginRight: 8, width: 24, textAlign: "center" }}>{emoji}</Text>
+        <View style={{ marginRight: 8, width: 24, alignItems: "center" }}>
+          <WalletIcon emoji={emoji} size={16} />
+        </View>
       ) : (
         <View style={{ width: 24, marginRight: 8 }} />
       )}
@@ -240,7 +243,7 @@ function WalletRow({ wallet }: { wallet: WalletItem }) {
           marginRight: 10,
         }}
       >
-        <Text style={{ fontSize: 16 }}>{wallet.emoji}</Text>
+        <WalletIcon emoji={wallet.emoji} size={16} />
       </View>
       <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
         {wallet.name}

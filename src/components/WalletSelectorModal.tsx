@@ -5,6 +5,7 @@ import { colors } from "../theme/theme";
 import { useNavigation } from "@react-navigation/native";
 import api from "../api/api";
 import { formatEuro as formatEuroBase } from "../utils/currency";
+import WalletIcon from "./WalletIcon";
 
 interface WalletSelectorModalProps {
   visible: boolean;
@@ -103,7 +104,9 @@ export default function WalletSelectorModal({
                   }`}
                 >
                   <View className="flex-row items-center">
-                    <Text className="text-[20px] mr-3">{wallet.emoji}</Text>
+                    <View style={{ marginRight: 12 }}>
+                      <WalletIcon emoji={wallet.emoji} size={20} />
+                    </View>
                     <Text className="text-[15px] text-text font-medium">{wallet.name}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>

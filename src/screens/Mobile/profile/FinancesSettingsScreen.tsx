@@ -17,7 +17,6 @@ import {
   STORAGE_KEY,
   ModuleConfig,
   FinanceModule,
-  buildDefaultConfig,
   mergeConfig,
 } from "../finances/financeModulesConfig";
 import { usePinnedFinanceModule } from "../../../hooks/usePinnedFinanceModule";
@@ -67,6 +66,7 @@ export default function FinancesSettingsScreen(_: any) {
 
   const configMap = new Map(config.map((c) => [c.key, c]));
   const activeCount = config.filter((c) => c.enabled).length;
+  const isReady = !loading && !pinnedLoading;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -92,64 +92,20 @@ export default function FinancesSettingsScreen(_: any) {
             marginBottom: 20,
           }}
         >
-          Elige qué módulos aparecen en la pantalla de Finanzas. Puedes
-          activarlos o desactivarlos en cualquier momento.
+          Elige qué módulos aparecen en la pantalla de Finanzas y cuál ocupa
+          el 4º tab principal.
         </Text>
 
-        {/* Sección módulo principal (4º tab) */}
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: "600",
-            color: "#9CA3AF",
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-            marginBottom: 10,
-          }}
-        >
-          Módulo principal (4º tab)
-        </Text>
-
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 18,
-            borderWidth: 1,
-            borderColor: "#F3F4F6",
-            overflow: "hidden",
-            marginBottom: 24,
-          }}
-        >
-          {pinnedLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
-          ) : (
-            MODULES.map((m, i) => (
-              <PinnedModuleRow
-                key={m.key}
-                module={m}
-                selected={pinnedKey === m.key}
-                disabled={switchingPin}
-                isLast={i === MODULES.length - 1}
-                onPress={() => handlePinModule(m.key)}
-              />
-            ))
-          )}
+        {/* Cabecera de columnas */}
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 10, paddingRight: 16 }}>
+          <Text style={{ fontSize: 11, fontWeight: "600", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.6, width: 44, textAlign: "center" }}>
+            4º tab
+          </Text>
+          <Text style={{ fontSize: 11, fontWeight: "600", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.6, width: 60, textAlign: "center" }}>
+            Visible
+          </Text>
         </View>
 
-        {/* Sección módulos */}
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: "600",
-            color: "#9CA3AF",
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-            marginBottom: 10,
-          }}
-        >
-          Módulos — {activeCount} activos
-        </Text>
-
         <View
           style={{
             backgroundColor: "white",
@@ -157,32 +113,36 @@ export default function FinancesSettingsScreen(_: any) {
             borderWidth: 1,
             borderColor: "#F3F4F6",
             overflow: "hidden",
-            marginBottom: 24,
+            marginBottom: 16,
           }}
         >
-          {loading ? (
+          {!isReady ? (
             <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
           ) : (
             MODULES.map((m, i) => {
               const cfg = configMap.get(m.key);
               const enabled = cfg?.enabled ?? true;
-              const isLast = i === MODULES.length - 1;
               const isPinned = pinnedKey === m.key;
               return (
                 <ModuleRow
                   key={m.key}
                   module={m}
                   enabled={isPinned ? false : enabled}
+                  pinned={isPinned}
                   saving={savingKey === m.key}
-                  isLast={isLast}
-                  disabled={isPinned}
-                  pinnedNote={isPinned ? "En el tab principal" : undefined}
-                  onToggle={(v) => handleToggle(m.key, v)}
+                  switchingPin={switchingPin}
+                  isLast={i === MODULES.length - 1}
+                  onToggleEnabled={(v) => handleToggle(m.key, v)}
+                  onPin={() => handlePinModule(m.key)}
                 />
               );
             })
           )}
         </View>
+
+        <Text style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 24 }}>
+          {activeCount} módulo{activeCount === 1 ? "" : "s"} visible{activeCount === 1 ? "" : "s"} en el hub de Finanzas.
+        </Text>
 
         {/* Nota pie */}
         <View
@@ -214,14 +174,15 @@ export default function FinancesSettingsScreen(_: any) {
 interface ModuleRowProps {
   module: FinanceModule;
   enabled: boolean;
+  pinned: boolean;
   saving: boolean;
+  switchingPin: boolean;
   isLast: boolean;
-  disabled?: boolean;
-  pinnedNote?: string;
-  onToggle: (value: boolean) => void;
+  onToggleEnabled: (value: boolean) => void;
+  onPin: () => void;
 }
 
-function ModuleRow({ module: m, enabled, saving, isLast, disabled, pinnedNote, onToggle }: ModuleRowProps) {
+function ModuleRow({ module: m, enabled, pinned, saving, switchingPin, isLast, onToggleEnabled, onPin }: ModuleRowProps) {
   return (
     <View
       style={{
@@ -247,79 +208,44 @@ function ModuleRow({ module: m, enabled, saving, isLast, disabled, pinnedNote, o
         <Text style={{ fontSize: 20 }}>{m.emoji}</Text>
       </View>
 
-      <View style={{ flex: 1, marginRight: 12 }}>
+      <View style={{ flex: 1, marginRight: 8 }}>
         <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
           {m.title}
         </Text>
         <Text
           style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2, lineHeight: 16 }}
+          numberOfLines={2}
         >
-          {pinnedNote ?? m.subtitle}
+          {pinned ? "En el tab principal" : m.subtitle}
         </Text>
       </View>
 
-      {saving ? (
-        <ActivityIndicator size={20} color={colors.primary} />
-      ) : (
-        <Switch
-          value={enabled}
-          onValueChange={onToggle}
-          disabled={disabled}
-          trackColor={{ false: "#E5E7EB", true: colors.primary }}
-          thumbColor="white"
-        />
-      )}
-    </View>
-  );
-}
-
-interface PinnedModuleRowProps {
-  module: FinanceModule;
-  selected: boolean;
-  disabled: boolean;
-  isLast: boolean;
-  onPress: () => void;
-}
-
-function PinnedModuleRow({ module: m, selected, disabled, isLast, onPress }: PinnedModuleRowProps) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.7}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: "#F3F4F6",
-        opacity: disabled && !selected ? 0.5 : 1,
-      }}
-    >
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 10,
-          backgroundColor: m.softBg,
-          alignItems: "center",
-          justifyContent: "center",
-          marginRight: 12,
-        }}
+      <TouchableOpacity
+        onPress={onPin}
+        disabled={pinned || switchingPin}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={{ width: 44, alignItems: "center" }}
       >
-        <Text style={{ fontSize: 20 }}>{m.emoji}</Text>
+        <Ionicons
+          name={pinned ? "star" : "star-outline"}
+          size={20}
+          color={pinned ? colors.primary : "#D1D5DB"}
+        />
+      </TouchableOpacity>
+
+      <View style={{ width: 60, alignItems: "center" }}>
+        {saving ? (
+          <ActivityIndicator size={20} color={colors.primary} />
+        ) : (
+          <Switch
+            value={enabled}
+            onValueChange={onToggleEnabled}
+            disabled={pinned}
+            trackColor={{ false: "#E5E7EB", true: colors.primary }}
+            thumbColor="white"
+          />
+        )}
       </View>
-
-      <Text style={{ flex: 1, fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
-        {m.title}
-      </Text>
-
-      <Ionicons
-        name={selected ? "radio-button-on" : "radio-button-off"}
-        size={22}
-        color={selected ? colors.primary : "#D1D5DB"}
-      />
-    </TouchableOpacity>
+    </View>
   );
 }

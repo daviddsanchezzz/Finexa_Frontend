@@ -19,6 +19,7 @@ import { colors } from "../../../../theme/theme";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { formatEuro } from "../../../../utils/currency";
+import { isLogoUrl } from "../../../../constants/bankPresets";
 
 type OperationMode = "buy" | "sell" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -471,7 +472,7 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
                     {wallets.map((w) => (
                       <Chip
                         key={w.id}
-                        label={`${w.emoji || "👛"} ${w.name}${w.balance != null ? ` · ${formatMoney(w.balance, w.currency || "EUR")}` : ""}`}
+                        label={`${w.emoji && !isLogoUrl(w.emoji) ? w.emoji : "👛"} ${w.name}${w.balance != null ? ` · ${formatMoney(w.balance, w.currency || "EUR")}` : ""}`}
                         active={selectedWallet?.id === w.id}
                         onPress={() => setSelectedWallet(w)}
                       />

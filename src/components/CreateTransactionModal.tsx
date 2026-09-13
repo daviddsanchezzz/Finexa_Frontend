@@ -19,6 +19,12 @@ import { markTransactionsDirty } from "../utils/transactionsInvalidation";
 import { matchWalletByCard } from "../utils/quickAdd";
 import EditCategoryModal from "./EditCategoryModal";
 import CrossPlatformDateTimePicker from "./CrossPlatformDateTimePicker";
+import { isLogoUrl } from "../constants/bankPresets";
+
+// Los chips de cartera solo aceptan texto; si el "emoji" es en realidad la
+// URL de un logo de banco, se omite en vez de imprimir la URL como texto.
+const walletChipLabel = (w: { emoji?: string | null; name: string }) =>
+  `${w.emoji && !isLogoUrl(w.emoji) ? w.emoji : "👛"} ${w.name}`;
 
 type TxType = "expense" | "income" | "transfer";
 type Recurrence = "never" | "daily" | "weekly" | "monthly" | "yearly";
@@ -751,7 +757,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                           return (
                             <View key={w.id} style={idx ? { marginLeft: 8 } : undefined}>
                               <Chip
-                                label={`${w.emoji || "👛"} ${w.name}`}
+                                label={walletChipLabel(w)}
                                 active={active}
                                 onPress={() => {
                                   setSelectedWalletFrom(w);
@@ -779,7 +785,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                           return (
                             <View key={w.id} style={idx ? { marginLeft: 8 } : undefined}>
                               <Chip
-                                label={`${w.emoji || "👛"} ${w.name}`}
+                                label={walletChipLabel(w)}
                                 active={active}
                                 disabled={disabled}
                                 onPress={() => {
@@ -822,7 +828,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                           const active = selectedWallet?.id === w.id;
                           return (
                             <View key={w.id} style={idx ? { marginLeft: 8 } : undefined}>
-                              <Chip label={`${w.emoji || "👛"} ${w.name}`} active={active} onPress={() => setSelectedWallet(w)} />
+                              <Chip label={walletChipLabel(w)} active={active} onPress={() => setSelectedWallet(w)} />
                             </View>
                           );
                         })}

@@ -15,6 +15,8 @@ import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 import { appAlert } from "../utils/appAlert";
 import { formatEuro as formatEuroBase } from "../utils/currency";
+import { BANK_PRESETS, getBankLogoUrl, CRYPTO_PRESETS, getCryptoLogoUrl, isLogoUrl } from "../constants/bankPresets";
+import WalletIcon from "./WalletIcon";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -53,6 +55,36 @@ const KIND_OPTIONS: {
     description: "Solo puede haber una",
   },
 ];
+
+// Tarjeta reutilizada por los pickers de banco y de criptomoneda: logo +
+// nombre, resaltada cuando es la opción actualmente elegida.
+function PresetCard({ logoUrl, label, selected, onPress }: { logoUrl: string; label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={{ width: 66, alignItems: "center" }}>
+      <View
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          backgroundColor: "#F9FAFB",
+          borderWidth: selected ? 2 : 1,
+          borderColor: selected ? colors.primary : "#E5E7EB",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 5,
+        }}
+      >
+        <WalletIcon emoji={logoUrl} size={26} />
+      </View>
+      <Text
+        style={{ fontSize: 10.5, color: selected ? colors.primary : "#6B7280", fontWeight: selected ? "700" : "500", textAlign: "center" }}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 interface EditWalletModalProps {
   visible: boolean;
@@ -253,7 +285,7 @@ export default function EditWalletModal({
                 marginRight: 12,
               }}
             >
-              <Text style={{ fontSize: 28 }}>{emoji || "💰"}</Text>
+              <WalletIcon emoji={emoji} size={28} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "500" }}>
@@ -331,6 +363,54 @@ export default function EditWalletModal({
             </View>
           )}
 
+          {/* Elegir banco (opcional) */}
+          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Elegir banco (opcional)
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
+            style={{ marginBottom: 20 }}
+          >
+            {BANK_PRESETS.map((preset) => (
+              <PresetCard
+                key={preset.key}
+                logoUrl={getBankLogoUrl(preset.domain)}
+                label={preset.name}
+                selected={emoji === getBankLogoUrl(preset.domain)}
+                onPress={() => {
+                  setEmoji(getBankLogoUrl(preset.domain));
+                  setName(preset.name);
+                }}
+              />
+            ))}
+          </ScrollView>
+
+          {/* Elegir criptomoneda (opcional) */}
+          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Elegir criptomoneda (opcional)
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
+            style={{ marginBottom: 20 }}
+          >
+            {CRYPTO_PRESETS.map((preset) => (
+              <PresetCard
+                key={preset.key}
+                logoUrl={getCryptoLogoUrl(preset.symbol)}
+                label={preset.name}
+                selected={emoji === getCryptoLogoUrl(preset.symbol)}
+                onPress={() => {
+                  setEmoji(getCryptoLogoUrl(preset.symbol));
+                  setName(preset.name);
+                }}
+              />
+            ))}
+          </ScrollView>
+
           {/* Nombre y emoji */}
           <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
             Información básica
@@ -357,22 +437,41 @@ export default function EditWalletModal({
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
             <View style={{ marginRight: 12 }}>
               <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Emoji</Text>
-              <TextInput
-                value={emoji}
-                onChangeText={setEmoji}
-                maxLength={2}
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  borderRadius: 12,
-                  paddingHorizontal: 10,
-                  paddingVertical: 10,
-                  width: 58,
-                  textAlign: "center",
-                  fontSize: 20,
-                  backgroundColor: "#F9FAFB",
-                }}
-              />
+              {isLogoUrl(emoji) ? (
+                <TouchableOpacity
+                  onPress={() => setEmoji("💰")}
+                  activeOpacity={0.7}
+                  style={{
+                    width: 58,
+                    height: 42,
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#F9FAFB",
+                  }}
+                >
+                  <WalletIcon emoji={emoji} size={24} />
+                </TouchableOpacity>
+              ) : (
+                <TextInput
+                  value={emoji}
+                  onChangeText={setEmoji}
+                  maxLength={2}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 10,
+                    paddingVertical: 10,
+                    width: 58,
+                    textAlign: "center",
+                    fontSize: 20,
+                    backgroundColor: "#F9FAFB",
+                  }}
+                />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Divisa</Text>

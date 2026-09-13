@@ -39,7 +39,6 @@ export type RootStackParamList = {
   InvestmentDetail: undefined;
   Reports: undefined;
   ReportsPdfViewer: { path?: string; title?: string; base64?: string; fileName?: string } | undefined;
-  MonthlyContributions: undefined;
   InvestmentOperation: undefined;
   InvestmentComposition: undefined;
   InvestmentTargetAllocation: undefined;
@@ -319,13 +318,6 @@ export default function MobileNavigator() {
             name="ReportsPdfViewer"
             getComponent={() =>
               require("../screens/Mobile/reports/ReportsPdfViewerScreen").default
-            }
-          />
-
-          <Stack.Screen
-            name="MonthlyContributions"
-            getComponent={() =>
-              require("../screens/Mobile/finances/MonthlyContributions/MonthlyContributionsScreen").default
             }
           />
 

@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
 import { formatEuro } from "../utils/currency";
+import { isLogoUrl } from "../constants/bankPresets";
 
 type OperationType = "buy" | "sell" | "transfer_in" | "transfer_out" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -781,7 +782,7 @@ export default function DesktopInvestmentOperationModal({
                       <View style={{ flexDirection: "row" }}>
                         {wallets.map((w, idx) => {
                           const active = selectedWallet?.id === w.id;
-                          const label = `${w.emoji || "👛"} ${w.name}${
+                          const label = `${w.emoji && !isLogoUrl(w.emoji) ? w.emoji : "👛"} ${w.name}${
                             w.balance !== undefined ? ` · ${formatMoney(w.balance, w.currency || "EUR")}` : ""
                           }`;
 

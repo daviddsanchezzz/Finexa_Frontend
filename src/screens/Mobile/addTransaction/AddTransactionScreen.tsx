@@ -26,6 +26,7 @@ import { markTransactionsDirty } from "../../../utils/transactionsInvalidation";
 import { matchWalletByCard } from "../../../utils/quickAdd";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
+import WalletIcon from "../../../components/WalletIcon";
 
 // Mismas categorías que la pestaña "Gastos" de un viaje (TripExpensesSection).
 const TRIP_EXPENSE_CATEGORIES = [
@@ -103,7 +104,7 @@ function SelectCard({
           marginBottom: 4,
         }}
       >
-        <Text style={{ fontSize: 12 }}>{emoji}</Text>
+        <WalletIcon emoji={emoji} size={14} />
       </View>
       <Text
         numberOfLines={1}

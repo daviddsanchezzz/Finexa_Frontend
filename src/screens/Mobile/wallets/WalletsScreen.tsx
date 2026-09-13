@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import EditWalletModal from "../../../components/EditWalletModal";
+import WalletIcon from "../../../components/WalletIcon";
 import { formatEuro as formatEuroBase } from "../../../utils/currency";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -227,7 +228,7 @@ export default function WalletsScreen({ navigation }: any) {
                     marginRight: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 22 }}>{wallet.emoji}</Text>
+                  <WalletIcon emoji={wallet.emoji} size={22} />
                 </View>
                 <View>
                   <Text className="text-[16px] font-semibold text-text">

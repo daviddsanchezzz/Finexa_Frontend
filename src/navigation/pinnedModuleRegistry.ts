@@ -18,9 +18,6 @@ export const PINNED_MODULE_SCREEN_LOADERS: Record<string, () => ComponentType<an
   recurring: () =>
     require("../screens/Mobile/finances/RecurringTransactions/RecurringTransactionsScreen")
       .default,
-  monthlyContributions: () =>
-    require("../screens/Mobile/finances/MonthlyContributions/MonthlyContributionsScreen")
-      .default,
   netWorth: () =>
     require("../screens/Mobile/finances/NetWorthScreen").default,
 };

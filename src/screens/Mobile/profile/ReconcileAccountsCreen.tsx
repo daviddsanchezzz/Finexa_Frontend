@@ -11,6 +11,7 @@ import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { Ionicons } from "@expo/vector-icons";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
+import WalletIcon from "../../../components/WalletIcon";
 import { formatEuro as formatEuroBase } from "../../../utils/currency";
 
 const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
@@ -143,7 +144,9 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
                 {/* Línea 1: wallet + nombre + dif */}
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center flex-shrink">
-                    <Text className="text-[22px] mr-2">{wallet.emoji}</Text>
+                    <View style={{ marginRight: 8 }}>
+                      <WalletIcon emoji={wallet.emoji} size={22} />
+                    </View>
                     <Text
                       className="text-[15px] font-semibold text-text"
                       numberOfLines={1}

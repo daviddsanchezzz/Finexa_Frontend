@@ -4,6 +4,7 @@ import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/api";
 import { colors } from "../theme/theme";
+import WalletIcon from "./WalletIcon";
 
 export type MovementType = "all" | "expense" | "income" | "transfer";
 export type SortBy = "recent" | "oldest" | "amount_desc" | "amount_asc";
@@ -142,7 +143,9 @@ function Chip({
       {showCheck && active ? (
         <Ionicons name="checkmark-circle" size={13} color={colors.primary} style={{ marginRight: 5 }} />
       ) : emoji ? (
-        <Text style={{ fontSize: 12, marginRight: 5 }}>{emoji}</Text>
+        <View style={{ marginRight: 5 }}>
+          <WalletIcon emoji={emoji} size={12} />
+        </View>
       ) : icon ? (
         <Ionicons name={icon} size={12} color={active ? colors.primary : "#64748B"} style={{ marginRight: 5 }} />
       ) : null}
