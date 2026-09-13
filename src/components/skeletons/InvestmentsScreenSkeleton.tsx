@@ -57,60 +57,39 @@ function SnapshotRow({ even }: { even: boolean }) {
 export function InvestmentsScreenSkeleton() {
   return (
     <View style={{ paddingHorizontal: 20 }}>
-      {/* Hero card */}
+      {/* Hero card — mismo lenguaje visual que el Patrimonio neto de Inicio */}
       <View
         style={{
           backgroundColor: '#003cc5',
-          borderRadius: 26,
-          padding: 16,
-          marginBottom: 16,
+          borderRadius: 16,
+          paddingVertical: 16,
+          paddingHorizontal: 16,
+          alignItems: 'center',
+          marginBottom: 8,
         }}
       >
-        {/* Top row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <SkeletonBox width={42} height={42} borderRadius={16} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-            <View style={{ gap: 6 }}>
-              <SkeletonBox width={90} height={16} borderRadius={6} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-              <SkeletonBox width={130} height={11} borderRadius={5} style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
-            </View>
-          </View>
-          <SkeletonBox width={64} height={28} borderRadius={999} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-        </View>
+        <SkeletonBox width={110} height={11} borderRadius={5} style={{ backgroundColor: 'rgba(255,255,255,0.35)' }} />
+        <SkeletonBox width={170} height={28} borderRadius={7} style={{ backgroundColor: 'rgba(255,255,255,0.28)', marginTop: 8 }} />
+        <SkeletonBox width={190} height={11} borderRadius={5} style={{ backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 8 }} />
+      </View>
 
-        {/* Value */}
-        <View style={{ marginTop: 14, gap: 6 }}>
-          <SkeletonBox width={100} height={11} borderRadius={5} style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
-          <SkeletonBox width={200} height={30} borderRadius={8} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-        </View>
+      {/* Indicadores: Invertido / Ganancia / Rentabilidad */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+            <SkeletonBox width={62} height={10} borderRadius={4} />
+            <SkeletonBox width={70} height={14} borderRadius={5} style={{ marginTop: 6 }} />
+          </View>
+        ))}
+      </View>
 
-        {/* Sub cards */}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(255,255,255,0.14)',
-              borderRadius: 18,
-              padding: 12,
-              gap: 8,
-            }}
-          >
-            <SkeletonBox width={60} height={11} borderRadius={5} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-            <SkeletonBox width={90} height={16} borderRadius={6} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
+      {/* Tabs: Cartera / Distribución / Rentabilidad / Operaciones */}
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginBottom: 14, paddingBottom: 11 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+            <SkeletonBox width={i === 0 ? 52 : 64} height={11} borderRadius={5} />
           </View>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(255,255,255,0.14)',
-              borderRadius: 18,
-              padding: 12,
-              gap: 8,
-            }}
-          >
-            <SkeletonBox width={68} height={11} borderRadius={5} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-            <SkeletonBox width={90} height={16} borderRadius={6} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-          </View>
-        </View>
+        ))}
       </View>
 
       {/* Section label */}

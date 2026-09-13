@@ -35,8 +35,8 @@ export default function StatsRow({ items }: Props) {
             onPress={item.onPress}
             activeOpacity={item.onPress ? 0.7 : undefined}
           >
-            <Text style={{ fontSize: 13, color: "#9CA3AF", letterSpacing: 1, fontWeight: "500" }}>{item.label}</Text>
-            <Text style={{ fontSize: 18, fontWeight: "600", color: item.color ?? "#0F172A", marginTop: 2 }}>
+            <Text style={{ fontSize: 12, color: "#9CA3AF", letterSpacing: 0.8, fontWeight: "500" }}>{item.label}</Text>
+            <Text style={{ fontSize: 16, fontWeight: "600", color: item.color ?? "#0F172A", marginTop: 1 }}>
               {item.value}
             </Text>
           </Wrapper>

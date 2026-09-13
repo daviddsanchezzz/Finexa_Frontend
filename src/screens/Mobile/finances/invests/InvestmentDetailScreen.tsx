@@ -19,6 +19,9 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
+import HeroBalanceCard from "../../../../components/HeroBalanceCard";
+import StatsRow from "../../../../components/StatsRow";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
@@ -206,12 +209,6 @@ const fmt1 = (n: number) =>
 
 const fmt2 = (n: number) =>
   n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const pnlHeroColor = (pnl: number): string => {
-  if (pnl > 0) return "#86EFAC";
-  if (pnl < 0) return "#FCA5A5";
-  return "rgba(255,255,255,0.85)";
-};
 
 function buildSparkPath(points: { x: number; y: number }[]) {
   if (!points.length) return "";
@@ -595,27 +592,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       .sort((a, b) => parseISO(opIso(b)) - parseISO(opIso(a)));
   }, [operations, assetId]);
 
-  // Pill tabs — used only for the records sub-tabs (2 options inside a card)
-  const SegmentedTab = ({
-    label, active, onPress,
-  }: {
-    label: string; active: boolean; onPress: () => void;
-  }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.9}
-      style={{
-        flex: 1, paddingVertical: 8, borderRadius: 9,
-        backgroundColor: active ? "white" : "transparent",
-        alignItems: "center", justifyContent: "center",
-      }}
-    >
-      <Text style={{ fontSize: 12, fontWeight: "800", color: active ? colors.primary : "#64748B" }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
   if (!assetId) {
     return (
       <SafeAreaView className="flex-1 bg-background">
@@ -699,134 +675,80 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           onTouchStart={handleWebTouchStart}
           onTouchEnd={handleWebTouchEnd}
         >
-          {/* -- HERO -- */}
-          <View style={{ paddingHorizontal: 16 }}>
+          {/* -- Identidad del activo -- */}
+          <View style={{ paddingHorizontal: 16, flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
             <View
               style={{
-                backgroundColor: colors.primary,
-                borderRadius: 22,
-                paddingHorizontal: 13,
-                paddingTop: 10,
-                paddingBottom: 10,
+                width: 33, height: 33, borderRadius: 12,
+                backgroundColor: cryptoPreset ? "white" : `${colors.primary}1A`,
+                alignItems: "center", justifyContent: "center", marginRight: 8,
+                borderWidth: cryptoPreset ? 0 : 1, borderColor: colors.border,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 8 }}>
-                  <View
-                    style={{
-                      width: 33, height: 33, borderRadius: 12,
-                      backgroundColor: cryptoPreset ? "white" : "rgba(255,255,255,0.16)",
-                      alignItems: "center", justifyContent: "center", marginRight: 8,
-                    }}
-                  >
-                    {cryptoPreset ? (
-                      <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={20} />
-                    ) : (
-                      <Ionicons name={assetTypeIcon(asset.type)} size={16} color="white" />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: "700", color: "rgba(255,255,255,0.65)" }}>
-                      {typeLabel(asset.type)}
-                    </Text>
-                    <Text
-                      style={{ fontSize: 13.5, fontWeight: "900", color: "white", marginTop: 1 }}
-                      numberOfLines={2}
-                    >
-                      {asset.abbreviation?.trim() || asset.name}
-                    </Text>
-                    <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1, fontWeight: "600" }} numberOfLines={1}>
-                      Última: {stats.last}
-                    </Text>
-                  </View>
-                </View>
-                <View
-                  style={{
-                    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999,
-                    backgroundColor: stats.pnl > 0 ? "rgba(34,197,94,0.25)" : stats.pnl < 0 ? "rgba(239,68,68,0.25)" : "rgba(0,0,0,0.22)",
-                    flexDirection: "row", alignItems: "center",
-                  }}
-                >
-                  <Ionicons name={stats.meta.icon} size={12} color={pnlHeroColor(stats.pnl)} />
-                  <Text style={{ color: pnlHeroColor(stats.pnl), fontWeight: "900", marginLeft: 5, fontSize: 11.5 }}>
-                    {formatPct(stats.pnl, stats.invested)}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>
-                Valor actual
+              {cryptoPreset ? (
+                <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={20} />
+              ) : (
+                <Ionicons name={assetTypeIcon(asset.type)} size={16} color={colors.primary} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#94A3B8" }}>
+                {typeLabel(asset.type)}
               </Text>
-              <Text style={{ fontSize: 23, fontWeight: "900", color: "white", marginTop: 1 }} numberOfLines={1}>
-                {formatMoney(stats.currentValue, currency)}
+              <Text
+                style={{ fontSize: 13.5, fontWeight: "900", color: "#0F172A", marginTop: 1 }}
+                numberOfLines={1}
+              >
+                {asset.abbreviation?.trim() || asset.name}
               </Text>
-
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                <View
-                  style={{
-                    flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                    borderRadius: 14, paddingVertical: 7, paddingHorizontal: 10,
-                  }}
-                >
-                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>Aportado</Text>
-                  <Text style={{ fontSize: 12.5, fontWeight: "900", color: "white", marginTop: 2 }}>
-                    {formatMoney(stats.invested, currency)}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    flex: 1, backgroundColor: "rgba(255,255,255,0.14)",
-                    borderRadius: 14, paddingVertical: 7, paddingHorizontal: 10,
-                  }}
-                >
-                  <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "700" }}>Resultado</Text>
-                  <Text style={{ fontSize: 12.5, fontWeight: "900", color: pnlHeroColor(stats.pnl), marginTop: 2 }}>
-                    {formatMoney(stats.pnl, currency)}
-                  </Text>
-                </View>
-              </View>
             </View>
           </View>
 
-          {/* -- TABS: underline style, full-width scroll -- */}
-          <View style={{ borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginTop: 12 }}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20 }}
-            >
-              {(["info", "evolution", "composition", "records"] as const).map((tab) => {
-                const labels: Record<typeof tab, string> = {
-                  info: "Información",
-                  evolution: "Evolución",
-                  composition: "Composición",
-                  records: "Operaciones",
-                };
-                const active = sectionTab === tab;
-                return (
-                  <TouchableOpacity
-                    key={tab}
-                    onPress={() => setSectionTab(tab)}
-                    activeOpacity={0.8}
-                    style={{
-                      paddingHorizontal: 2,
-                      paddingVertical: 11,
-                      marginRight: 24,
-                      borderBottomWidth: 2.5,
-                      borderBottomColor: active ? colors.primary : "transparent",
-                    }}
-                  >
-                    <Text style={{
-                      fontSize: 13,
-                      fontWeight: active ? "800" : "600",
-                      color: active ? colors.primary : "#94A3B8",
-                    }}>
-                      {labels[tab]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          {/* -- HERO -- mismo lenguaje visual que Inicio/Inversiones/Viajes */}
+          <View style={{ paddingHorizontal: 16 }}>
+            <HeroBalanceCard
+              label="Valor actual"
+              value={formatMoney(stats.currentValue, currency)}
+              style={{ marginBottom: 8 }}
+              footer={
+                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }} numberOfLines={1}>
+                  Última actualización: {stats.last}
+                </Text>
+              }
+            />
+
+            <StatsRow
+              items={[
+                { key: "aportado", label: "APORTADO", value: formatMoney(stats.invested, currency) },
+                {
+                  key: "resultado",
+                  label: "RESULTADO",
+                  value: `${stats.pnl >= 0 ? "+" : "−"}${formatMoney(Math.abs(stats.pnl), currency)}`,
+                  color: stats.pnl >= 0 ? colors.success : colors.danger,
+                },
+                {
+                  key: "rentabilidad",
+                  label: "RENTABILIDAD",
+                  value: `${stats.pnl >= 0 ? "+" : ""}${formatPct(stats.pnl, stats.invested)}`,
+                  color: stats.pnl >= 0 ? colors.success : colors.danger,
+                },
+              ]}
+            />
+          </View>
+
+          {/* -- TABS: underline, ancho completo, sin scroll -- */}
+          <View style={{ marginTop: 12 }}>
+            <SegmentedTabs<"info" | "evolution" | "composition" | "records">
+              variant="underline"
+              options={[
+                { key: "info", label: "Información" },
+                { key: "evolution", label: "Evolución" },
+                { key: "composition", label: "Composición" },
+                { key: "records", label: "Operaciones" },
+              ]}
+              value={sectionTab}
+              onChange={setSectionTab}
+            />
           </View>
 
           <ScrollView
@@ -1077,16 +999,16 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           {sectionTab === "composition" && (
           <>
             {/* Sub-tabs: Regiones / Sectores / Holdings */}
-            <View
-              style={{
-                flexDirection: "row", gap: 8, padding: 6,
-                borderRadius: 18, backgroundColor: "#F8FAFC",
-                borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12,
-              }}
-            >
-              <SegmentedTab label="Regiones"  active={compositionTab === "regions"}  onPress={() => setCompositionTab("regions")} />
-              <SegmentedTab label="Sectores"  active={compositionTab === "sectors"}  onPress={() => setCompositionTab("sectors")} />
-              <SegmentedTab label="Holdings"  active={compositionTab === "holdings"} onPress={() => setCompositionTab("holdings")} />
+            <View style={{ marginBottom: 12 }}>
+              <SegmentedTabs<"regions" | "sectors" | "holdings">
+                options={[
+                  { key: "regions", label: "Regiones" },
+                  { key: "sectors", label: "Sectores" },
+                  { key: "holdings", label: "Holdings" },
+                ]}
+                value={compositionTab}
+                onChange={setCompositionTab}
+              />
             </View>
 
             <View
@@ -1166,22 +1088,14 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           {/* -- OPERACIONES / VALORACIONES -- */}
           {sectionTab === "records" && (
           <>
-            <View
-              style={{
-                flexDirection: "row", gap: 8, padding: 4,
-                borderRadius: 12, backgroundColor: "#F1F5F9",
-                borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12,
-              }}
-            >
-              <SegmentedTab
-                label="Operaciones"
-                active={recordsTab === "operations"}
-                onPress={() => setRecordsTab("operations")}
-              />
-              <SegmentedTab
-                label="Valoraciones"
-                active={recordsTab === "valuations"}
-                onPress={() => setRecordsTab("valuations")}
+            <View style={{ marginBottom: 12 }}>
+              <SegmentedTabs<"operations" | "valuations">
+                options={[
+                  { key: "operations", label: "Operaciones" },
+                  { key: "valuations", label: "Valoraciones" },
+                ]}
+                value={recordsTab}
+                onChange={setRecordsTab}
               />
             </View>
 

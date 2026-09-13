@@ -487,7 +487,7 @@ export default function TripsHomeScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Viajes</Text>
-        <AddButton label="Nuevo" onPress={() => navigation.navigate("TripForm")} />
+        <AddButton label="Añadir" onPress={() => navigation.navigate("TripForm")} />
       </View>
 
         {/* ── Buscador ── */}
@@ -519,12 +519,10 @@ export default function TripsHomeScreen({ navigation }: any) {
         {/* ── Hero card ── */}
         <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
           <HeroBalanceCard
-            align="left"
-            gradientColors={["#001B5E", "#003cc5", "#1A6AF5"]}
             label="Gastado en viajes"
             value={summaryLoading ? "—" : formatEuro(heroStats.totalSpent)}
             footer={
-              <Text style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6 }} numberOfLines={1}>
+              <Text style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 4, textAlign: "center" }} numberOfLines={1}>
                 {summaryLoading
                   ? "—"
                   : summary?.daysToNextTrip != null
@@ -554,7 +552,6 @@ export default function TripsHomeScreen({ navigation }: any) {
         {/* ── Toggle Lista / Calendario ── */}
         <View style={{ marginHorizontal: 20, marginBottom: 14 }}>
           <SegmentedTabs<"list" | "calendar">
-            variant="solid"
             dense
             options={[{ key: "list", label: "Lista" }, { key: "calendar", label: "Calendario" }]}
             value={viewType}
@@ -767,7 +764,7 @@ export default function TripsHomeScreen({ navigation }: any) {
         {viewType === "list" && (
           <>
             {/* Board mode tabs */}
-            <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
+            <View style={{ marginBottom: 12 }}>
               <SegmentedTabs<BoardMode>
                 variant="underline"
                 options={[

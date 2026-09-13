@@ -8,8 +8,9 @@ import { colors } from "../theme/theme";
 //   Cartera/Tipo).
 // - "solid": pista gris muy sutil con píldora azul brand + texto blanco en
 //   el activo — usado en las pestañas principales de Estadísticas (Resumen/
-//   Gastos/Ingresos). Pasa `dense` para una versión mucho más baja/compacta
-//   de este mismo estilo, pensada para sitios con menos espacio vertical.
+//   Gastos/Ingresos). Pasa `dense` para una versión algo más baja/compacta
+//   de este mismo estilo (punto medio, no extrema), para sitios con menos
+//   espacio vertical.
 // - "underline": sin píldora ni pista — cada pestaña se marca con texto azul
 //   en negrita + una línea inferior azul cuando está activa; el resto queda
 //   en gris sobre una línea inferior tenue compartida. Pensado para tabs de
@@ -72,7 +73,7 @@ export default function SegmentedTabs<T extends string>({
       style={{
         flexDirection: "row",
         backgroundColor: trackBg,
-        borderRadius: compact ? 10 : dense ? 10 : 13,
+        borderRadius: compact ? 10 : dense ? 11 : 12,
         padding: 2,
         alignSelf: compact ? "flex-start" : "stretch",
       }}
@@ -87,8 +88,8 @@ export default function SegmentedTabs<T extends string>({
             style={{
               flex: compact ? undefined : 1,
               paddingHorizontal: compact ? 12 : 0,
-              paddingVertical: compact ? 5 : dense ? 5 : 10,
-              borderRadius: compact ? 7 : dense ? 8 : 11,
+              paddingVertical: compact ? 5 : dense ? 7 : 9,
+              borderRadius: compact ? 7 : dense ? 9 : 10,
               backgroundColor: active ? activeBg : "transparent",
               alignItems: "center",
               ...(active && variant === "light"
@@ -96,7 +97,7 @@ export default function SegmentedTabs<T extends string>({
                 : {}),
             }}
           >
-            <Text style={{ fontSize: compact ? 12 : dense ? 12.5 : 14.5, fontWeight: active ? "700" : "600", color: active ? activeText : inactiveText }}>
+            <Text style={{ fontSize: compact ? 12 : dense ? 13.5 : 14, fontWeight: active ? "700" : "600", color: active ? activeText : inactiveText }}>
               {opt.label}
             </Text>
           </TouchableOpacity>

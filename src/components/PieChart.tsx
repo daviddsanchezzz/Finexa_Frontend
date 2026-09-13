@@ -180,36 +180,49 @@ export default function PieChartComponent({
         </Svg>
 
         {/* TEXTO CENTRAL */}
-        <View
-          style={{
-            position: "absolute",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ fontSize: 13, fontWeight: "600", color: "#4b5563" }}>
-            {mode === "saving"
-              ? "Ahorro"
+        {(() => {
+          const centerValueText =
+            mode === "saving"
+              ? formatEuro(ahorroReal) // 👈 nunca verás 1€ aquí
               : selectedIndex !== null
-              ? pieData[selectedIndex].label
-              : "Total"}
-          </Text>
+              ? formatEuro(pieData[selectedIndex].realValue ?? pieData[selectedIndex].value)
+              : formatEuro(totalReferencia);
 
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: "800",
-              color: "#111827",
-              marginTop: 2,
-            }}
-          >
-            {mode === "saving"
-              ? `${formatEuro(ahorroReal)}` // 👈 nunca verás 1€ aquí
-              : selectedIndex !== null
-              ? `${formatEuro(pieData[selectedIndex].realValue ?? pieData[selectedIndex].value)}`
-              : `${formatEuro(totalReferencia)}`}
-          </Text>
-        </View>
+          // adjustsFontSizeToFit no funciona en react-native-web (trunca con
+          // "…" en vez de encoger), así que el tamaño se calcula a mano según
+          // la longitud del texto para que quepa dentro del anillo en todas
+          // las plataformas.
+          const centerValueFontSize =
+            centerValueText.length > 12 ? 13 : centerValueText.length > 9 ? 15 : centerValueText.length > 7 ? 17 : 20;
+
+          return (
+            <View
+              style={{
+                position: "absolute",
+                alignItems: "center",
+                justifyContent: "center",
+                width: innerRadius * 1.8,
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#4b5563" }} numberOfLines={1}>
+                {mode === "saving" ? "Ahorro" : selectedIndex !== null ? pieData[selectedIndex].label : "Total"}
+              </Text>
+
+              <Text
+                style={{
+                  fontSize: centerValueFontSize,
+                  fontWeight: "800",
+                  color: "#111827",
+                  marginTop: 2,
+                  textAlign: "center",
+                }}
+                numberOfLines={1}
+              >
+                {centerValueText}
+              </Text>
+            </View>
+          );
+        })()}
       </View>
 
       {/* LEYENDA: solo cuando hay algo seleccionado */}

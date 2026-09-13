@@ -44,10 +44,10 @@ export default function HeroBalanceCard({
       </View>
       <Text
         style={{
-          fontSize: 30,
+          fontSize: 27,
           fontWeight: "800",
           color: "white",
-          marginTop: 4,
+          marginTop: 3,
           fontVariant: ["tabular-nums"],
         }}
       >
@@ -59,8 +59,8 @@ export default function HeroBalanceCard({
 
   const containerStyle: ViewStyle = {
     borderRadius: radii.card,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     alignItems: centered ? "center" : "flex-start",
   };
 

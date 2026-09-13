@@ -20,8 +20,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import Svg, { Path, Line, Rect, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
 import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
+import InvestmentsFiltersModal, {
+  type InvestmentFilters,
+  DEFAULT_INVESTMENT_FILTERS,
+  countActiveInvestmentFilters,
+  applyInvestmentFilters,
+} from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -549,7 +556,7 @@ const submitContribution = useCallback(() => {
   }, [summary]);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<InvestmentAssetType | "all">("all");
+  const [filters, setFilters] = useState<InvestmentFilters>(DEFAULT_INVESTMENT_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const assets = useMemo(() => {
@@ -561,18 +568,18 @@ const submitContribution = useCallback(() => {
     });
   }, [summary]);
 
-  const visibleAssets = useMemo(() => {
+  const searchedAssets = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return assets.filter((a) => {
-      const matchesQuery =
-        !q ||
-        (a.name || "").toLowerCase().includes(q) ||
-        (a.abbreviation || "").toLowerCase().includes(q) ||
-        (a.identificator || "").toLowerCase().includes(q);
-      const matchesType = typeFilter === "all" || a.type === typeFilter;
-      return matchesQuery && matchesType;
-    });
-  }, [assets, searchQuery, typeFilter]);
+    if (!q) return assets;
+    return assets.filter((a) =>
+      (a.name || "").toLowerCase().includes(q) ||
+      (a.abbreviation || "").toLowerCase().includes(q) ||
+      (a.identificator || "").toLowerCase().includes(q)
+    );
+  }, [assets, searchQuery]);
+
+  const visibleAssets = useMemo(() => applyInvestmentFilters(searchedAssets, filters), [searchedAssets, filters]);
+  const activeFilterCount = countActiveInvestmentFilters(filters);
 
   const allocation = useMemo(() => {
     const list = assets || [];
@@ -1145,7 +1152,7 @@ const submitContribution = useCallback(() => {
             }}
           >
             <Ionicons name="options-outline" size={18} color="#4B5563" />
-            {typeFilter !== "all" && (
+            {activeFilterCount > 0 && (
               <View
                 style={{
                   position: "absolute", top: -3, right: -3,
@@ -1154,7 +1161,7 @@ const submitContribution = useCallback(() => {
                   borderWidth: 1.5, borderColor: "white",
                 }}
               >
-                <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>1</Text>
+                <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>{activeFilterCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -1211,39 +1218,14 @@ const submitContribution = useCallback(() => {
               value={formatMoney(hero.totalCurrentValue, currency)}
               style={{ marginBottom: 8 }}
               footer={
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
-                  <Text style={{ fontSize: 11.5, fontWeight: "600", color: hero.totalPnL >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                    {hero.totalPnL >= 0 ? "+" : "−"}
-                    {formatMoney(Math.abs(hero.totalPnL), currency)} ganancia total
+                hero.count > 0 ? (
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }}>
+                    {hero.count} {hero.count === 1 ? "activo" : "activos"}
+                    {hero.lastGlobal ? ` · Última actualización: ${formatShortDate(hero.lastGlobal)}` : ""}
                   </Text>
-                  {Math.abs(hero.pct) > 0.05 && (
-                    <View
-                      style={{
-                        flexDirection: "row", alignItems: "center",
-                        backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 999,
-                        paddingHorizontal: 6, paddingVertical: 1.5, gap: 2,
-                      }}
-                    >
-                      <Ionicons
-                        name={hero.pct >= 0 ? "arrow-up" : "arrow-down"}
-                        size={8}
-                        color={hero.pct >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
-                      />
-                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: hero.pct >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
-                        {Math.abs(hero.pct).toFixed(1)}%
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                ) : undefined
               }
             />
-
-            {hero.count > 0 && (
-              <Text style={{ textAlign: "center", fontSize: 11, color: "#94A3B8", fontWeight: "600", marginBottom: 8 }}>
-                {hero.count} {hero.count === 1 ? "activo" : "activos"}
-                {hero.lastGlobal ? ` · Última actualización: ${formatShortDate(hero.lastGlobal)}` : ""}
-              </Text>
-            )}
 
             {/* Indicadores: Invertido / Ganancia / Rentabilidad */}
             <StatsRow
@@ -1251,7 +1233,7 @@ const submitContribution = useCallback(() => {
                 { key: "invertido", label: "INVERTIDO", value: formatMoney(hero.totalInvested, currency) },
                 {
                   key: "ganancia",
-                  label: "GANANCIA",
+                  label: "RESULTADO",
                   value: `${hero.totalPnL >= 0 ? "+" : "−"}${formatMoney(Math.abs(hero.totalPnL), currency)}`,
                   color: hero.totalPnL >= 0 ? colors.success : colors.danger,
                 },
@@ -1474,45 +1456,14 @@ const submitContribution = useCallback(() => {
         {assets.length > 0 && allocation.slices.length > 0 && (
           <>
             <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  backgroundColor: "#F1F5F9",
-                  borderRadius: 12,
-                  padding: 4,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => setDistributionView("actual")}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 9,
-                    alignItems: "center",
-                    backgroundColor: distributionView === "actual" ? "white" : "transparent",
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: distributionView === "actual" ? colors.primary : "#64748B" }}>
-                    Actual
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setDistributionView("objetivo")}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 9,
-                    alignItems: "center",
-                    backgroundColor: distributionView === "objetivo" ? "white" : "transparent",
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: distributionView === "objetivo" ? colors.primary : "#64748B" }}>
-                    Objetivo
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <SegmentedTabs<"actual" | "objetivo">
+                options={[
+                  { key: "actual", label: "Actual" },
+                  { key: "objetivo", label: "Objetivo" },
+                ]}
+                value={distributionView}
+                onChange={setDistributionView}
+              />
             </View>
 
             {distributionView === "actual" && (
@@ -1799,45 +1750,14 @@ const submitContribution = useCallback(() => {
         {mainTab === "rentabilidad" && (
           <>
         <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              backgroundColor: "#F1F5F9",
-              borderRadius: 12,
-              padding: 4,
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setRentView("tabla")}
-              style={{
-                flex: 1,
-                paddingVertical: 8,
-                borderRadius: 9,
-                alignItems: "center",
-                backgroundColor: rentView === "tabla" ? "white" : "transparent",
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: "800", color: rentView === "tabla" ? colors.primary : "#64748B" }}>
-                Tabla
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setRentView("grafica")}
-              style={{
-                flex: 1,
-                paddingVertical: 8,
-                borderRadius: 9,
-                alignItems: "center",
-                backgroundColor: rentView === "grafica" ? "white" : "transparent",
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: "800", color: rentView === "grafica" ? colors.primary : "#64748B" }}>
-                Gráfica
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <SegmentedTabs<"tabla" | "grafica">
+            options={[
+              { key: "tabla", label: "Tabla" },
+              { key: "grafica", label: "Gráfica" },
+            ]}
+            value={rentView}
+            onChange={setRentView}
+          />
         </View>
 
         {rentView === "grafica" && (
@@ -2657,38 +2577,14 @@ const submitContribution = useCallback(() => {
         </TouchableOpacity>
       </Modal>
 
-      {/* -- Modal de filtro por tipo -- */}
-      <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)}>
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
-          activeOpacity={1}
-          onPress={() => setFiltersOpen(false)}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-            <View style={{ backgroundColor: "white", borderRadius: 28, paddingVertical: 8, paddingHorizontal: 12, width: 280 }}>
-              <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textAlign: "center", paddingVertical: 14 }}>
-                FILTRAR POR TIPO
-              </Text>
-              {(["all", "crypto", "etf", "stock", "fund", "cash", "custom"] as const).map((t) => {
-                const active = typeFilter === t;
-                return (
-                  <TouchableOpacity
-                    key={t}
-                    onPress={() => { setTypeFilter(t); setFiltersOpen(false); }}
-                    activeOpacity={0.8}
-                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}
-                  >
-                    <Text style={{ fontSize: 14, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#0F172A" }}>
-                      {t === "all" ? "Todos" : typeLabel(t)}
-                    </Text>
-                    {active && <Ionicons name="checkmark" size={18} color={colors.primary} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+      {/* -- Modal de filtros -- */}
+      <InvestmentsFiltersModal
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        filters={filters}
+        onApply={setFilters}
+        baseAssets={searchedAssets}
+      />
 
       {/* -- Modal de acciones -- */}
       <Modal visible={fabOpen} transparent animationType="fade" onRequestClose={() => setFabOpen(false)}>

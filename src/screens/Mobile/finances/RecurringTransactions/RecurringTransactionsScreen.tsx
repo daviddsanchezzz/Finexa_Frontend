@@ -406,7 +406,6 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
       {/* View toggle */}
       <View style={{ marginBottom: 12 }}>
         <SegmentedTabs<"list" | "calendar">
-          variant="solid"
           dense
           options={[{ key: "list", label: "Lista" }, { key: "calendar", label: "Calendario" }]}
           value={view}

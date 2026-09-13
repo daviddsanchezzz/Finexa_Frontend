@@ -14,6 +14,7 @@ import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
 import SkeletonBox from "../../../components/SkeletonBox";
 import SegmentedTabs from "../../../components/SegmentedTabs";
+import HeroBalanceCard from "../../../components/HeroBalanceCard";
 import WalletIcon from "../../../components/WalletIcon";
 import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
@@ -647,6 +648,7 @@ export default function NetWorthScreen({ navigation }: any) {
 
       <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
         <SegmentedTabs<MainTab>
+          dense
           options={[
             { key: "composicion", label: "Composición" },
             { key: "evolucion", label: "Evolución" },
@@ -670,88 +672,77 @@ export default function NetWorthScreen({ navigation }: any) {
         </View>
       ) : (
         <>
-          {/* ── Hero fijo (no scrollea) ── */}
+          {/* ── Hero fijo (no scrollea) — mismo lenguaje visual que Inicio/Inversiones/Viajes ── */}
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-            <View style={{ backgroundColor: colors.primary, borderRadius: 20, padding: 16 }}>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6 }}>
-                Patrimonio neto
-              </Text>
-              <Text style={{ color: "white", fontSize: 32, fontWeight: "800", marginTop: 3 }}>
-                {fmt(netWorth)}
-              </Text>
-
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 6 }}>
-                <Text style={{ fontSize: 14, fontWeight: "700", color: netTrend.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                  {netTrend.periodDelta >= 0 ? "+" : "−"}{fmt(Math.abs(netTrend.periodDelta))} este mes
-                </Text>
-                {Math.abs(netTrend.pctChange) > 0.05 && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: "rgba(255,255,255,0.14)",
-                      borderRadius: 999,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      gap: 3,
-                    }}
-                  >
-                    <Ionicons
-                      name={netTrend.pctChange >= 0 ? "arrow-up" : "arrow-down"}
-                      size={11}
-                      color={netTrend.pctChange >= 0 ? "#86EFAC" : "#FCA5A5"}
-                    />
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: netTrend.pctChange >= 0 ? "#86EFAC" : "#FCA5A5" }}>
-                      {Math.abs(netTrend.pctChange).toFixed(1)}%
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {mainTab === "composicion" && (
+            <HeroBalanceCard
+              label="Patrimonio neto"
+              value={fmt(netWorth)}
+              footer={
                 <>
-                  <DistributionBar cash={cashTotal} savings={savingsTotal} invest={investTotal} debt={debtTotal} />
-
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    {legendItems.map((s) => (
-                      <View key={s.label} style={{ alignItems: "center" }}>
-                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: s.color, marginBottom: 3 }} />
-                        <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 9.5 }}>{s.label}</Text>
-                        <Text style={{ color: s.textColor, fontSize: 12, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
-                        <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 9.5, marginTop: 1 }}>
-                          {distributionTotal > 0 ? ((s.value / distributionTotal) * 100).toFixed(0) + "%" : "—"}
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                    <Text style={{ fontSize: 11.5, fontWeight: "600", color: netTrend.periodDelta >= 0 ? "#86EFAC" : "#FCA5A5" }}>
+                      {netTrend.periodDelta >= 0 ? "+" : "−"}{fmt(Math.abs(netTrend.periodDelta))} este mes
+                    </Text>
+                    {Math.abs(netTrend.pctChange) > 0.05 && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: "rgba(255,255,255,0.10)",
+                          borderRadius: 999,
+                          paddingHorizontal: 6,
+                          paddingVertical: 1.5,
+                          gap: 2,
+                        }}
+                      >
+                        <Ionicons
+                          name={netTrend.pctChange >= 0 ? "arrow-up" : "arrow-down"}
+                          size={8}
+                          color={netTrend.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)"}
+                        />
+                        <Text style={{ fontSize: 9.5, fontWeight: "700", color: netTrend.pctChange >= 0 ? "rgba(134,239,172,0.85)" : "rgba(252,165,165,0.85)" }}>
+                          {Math.abs(netTrend.pctChange).toFixed(1)}%
                         </Text>
                       </View>
-                    ))}
+                    )}
                   </View>
+
+                  {mainTab === "composicion" && (
+                    <View style={{ alignSelf: "stretch" }}>
+                      <DistributionBar cash={cashTotal} savings={savingsTotal} invest={investTotal} debt={debtTotal} />
+
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        {legendItems.map((s) => (
+                          <View key={s.label} style={{ alignItems: "center" }}>
+                            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: s.color, marginBottom: 3 }} />
+                            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 9.5 }}>{s.label}</Text>
+                            <Text style={{ color: s.textColor, fontSize: 12, fontWeight: "700", marginTop: 1 }}>{fmt(s.value)}</Text>
+                            <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 9.5, marginTop: 1 }}>
+                              {distributionTotal > 0 ? ((s.value / distributionTotal) * 100).toFixed(0) + "%" : "—"}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
                 </>
-              )}
-            </View>
+              }
+            />
           </View>
 
           {mainTab === "composicion" ? (
             <>
-              {/* ── Ver por + info ── */}
-              <View style={{ paddingHorizontal: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600" }}>Ver por</Text>
-                  <SegmentedTabs<ViewBy>
-                    variant="underline"
-                    compact
-                    options={[
-                      { key: "cartera", label: "Cartera" },
-                      { key: "tipo", label: "Tipo" },
-                    ]}
-                    value={viewBy}
-                    onChange={setViewBy}
-                  />
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Ionicons name="information-circle-outline" size={14} color="#94A3B8" />
-                  <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
-                    {debtTotal > 0 ? `${wallets.length} cuentas` : "Sin deudas"}
-                  </Text>
-                </View>
+              {/* ── Cartera / Tipo ── */}
+              <View style={{ marginBottom: 10 }}>
+                <SegmentedTabs<ViewBy>
+                  variant="underline"
+                  options={[
+                    { key: "cartera", label: "Cartera" },
+                    { key: "tipo", label: "Tipo" },
+                  ]}
+                  value={viewBy}
+                  onChange={setViewBy}
+                />
               </View>
 
               {/* ── Secciones con scroll ── */}

@@ -944,7 +944,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
         )}
 
         {/* ── TABS ── */}
-        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: tab === "summary" ? 18 : 12, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+        <View style={{ flexDirection: "row", marginTop: tab === "summary" ? 4 : 4, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
           {([
             { key: "summary"  as TripTab, label: "Resumen" },
             { key: "planning" as TripTab, label: "Planificación" },

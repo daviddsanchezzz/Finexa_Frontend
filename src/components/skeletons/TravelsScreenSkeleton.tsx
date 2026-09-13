@@ -42,46 +42,58 @@ function PillSkeleton({ width }: { width: number }) {
 export function TravelsScreenSkeleton() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
+      {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
         <SkeletonBox width={24} height={24} borderRadius={12} />
         <SkeletonBox width={88} height={26} borderRadius={8} style={{ flex: 1 }} />
-        <SkeletonBox width={92} height={36} borderRadius={16} />
+        <SkeletonBox width={84} height={36} borderRadius={16} />
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+      {/* Buscador */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+        <SkeletonBox width="100%" height={38} borderRadius={13} style={{ backgroundColor: "#F3F4F6" }} />
+      </View>
+
+      {/* Hero card — mismo lenguaje visual que Inicio/Inversiones */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
         <View
           style={{
             borderRadius: 16,
-            paddingHorizontal: 18,
-            paddingVertical: 14,
-            backgroundColor: "#0F4BDA",
-            overflow: "hidden",
+            paddingVertical: 16,
+            paddingHorizontal: 16,
+            alignItems: "center",
+            backgroundColor: "#003cc5",
           }}
         >
-          <View style={{ alignItems: "flex-end", marginBottom: 10 }}>
-            <SkeletonBox width={56} height={22} borderRadius={999} style={{ backgroundColor: "rgba(255,255,255,0.18)" }} />
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-            <SkeletonBox width={132} height={34} borderRadius={8} style={{ backgroundColor: "rgba(255,255,255,0.22)" }} />
-            <SkeletonBox width={54} height={14} borderRadius={6} style={{ backgroundColor: "rgba(255,255,255,0.16)" }} />
-          </View>
-          <SkeletonBox width={"68%"} height={14} borderRadius={6} style={{ marginTop: 10, backgroundColor: "rgba(255,255,255,0.16)" }} />
+          <SkeletonBox width={120} height={11} borderRadius={5} style={{ backgroundColor: "rgba(255,255,255,0.35)" }} />
+          <SkeletonBox width={150} height={28} borderRadius={7} style={{ backgroundColor: "rgba(255,255,255,0.28)", marginTop: 8 }} />
+          <SkeletonBox width={110} height={11} borderRadius={5} style={{ backgroundColor: "rgba(255,255,255,0.2)", marginTop: 8 }} />
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-        <SkeletonBox width="100%" height={46} borderRadius={16} style={{ backgroundColor: "white" }} />
+      {/* Indicadores: Viajes / Países / Tu mundo */}
+      <View style={{ paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", marginBottom: 14 }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+            <SkeletonBox width={54} height={10} borderRadius={4} />
+            <SkeletonBox width={40} height={14} borderRadius={5} style={{ marginTop: 6 }} />
+          </View>
+        ))}
       </View>
 
-      <View style={{ marginHorizontal: 20, marginBottom: 14, backgroundColor: "#EEF2FF", borderRadius: 14, padding: 3, flexDirection: "row", gap: 4 }}>
-        <SkeletonBox width="49%" height={34} borderRadius={11} style={{ backgroundColor: "white" }} />
-        <SkeletonBox width="49%" height={34} borderRadius={11} style={{ backgroundColor: "transparent" }} />
+      {/* Toggle Lista / Calendario (light dense) */}
+      <View style={{ marginHorizontal: 20, marginBottom: 14, backgroundColor: "#E5E7EB", borderRadius: 11, padding: 2, flexDirection: "row", gap: 4 }}>
+        <SkeletonBox width="49%" height={30} borderRadius={9} style={{ backgroundColor: "white" }} />
+        <SkeletonBox width="49%" height={30} borderRadius={9} style={{ backgroundColor: "transparent" }} />
       </View>
 
-      <View style={{ marginHorizontal: 20, flexDirection: "row", marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", gap: 20 }}>
-        <SkeletonBox width={46} height={15} borderRadius={6} />
-        <SkeletonBox width={74} height={15} borderRadius={6} />
-        <SkeletonBox width={34} height={15} borderRadius={6} />
+      {/* Tabs: Estado / Continente / Año (underline, ancho completo) */}
+      <View style={{ flexDirection: "row", marginBottom: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", paddingBottom: 10 }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+            <SkeletonBox width={i === 0 ? 44 : i === 1 ? 68 : 32} height={12} borderRadius={5} />
+          </View>
+        ))}
       </View>
 
       <View style={{ paddingHorizontal: 20, flexDirection: "row", gap: 8, marginBottom: 16 }}>
