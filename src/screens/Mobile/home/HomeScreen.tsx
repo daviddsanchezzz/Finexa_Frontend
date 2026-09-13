@@ -20,6 +20,7 @@ import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkel
 import { exportTransactionsCsv } from "../../../utils/csvExport";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
+import NetWorthBreakdownModal from "../../../components/NetWorthBreakdownModal";
 
 export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -30,6 +31,7 @@ export default function HomeScreen({ navigation }: any) {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [rentabilidadModalVisible, setRentabilidadModalVisible] = useState(false);
+  const [netWorthBreakdownVisible, setNetWorthBreakdownVisible] = useState(false);
   const [filtersModalVisible, setFiltersModalVisible] = useState(false);
   const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const [searchQuery, setSearchQuery] = useState("");
@@ -169,7 +171,10 @@ export default function HomeScreen({ navigation }: any) {
     dateFrom ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const effectivePeriodTo =
     dateTo ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString();
-  const { profit: totalInvestment } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
+  const { profit: totalInvestment, isLoading: investmentProfitLoading } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
+  const periodSavings = totalIncome - totalExpense;
+  const rawNetWorthAdjustments = netWorth.periodDelta - periodSavings - totalInvestment;
+  const netWorthAdjustments = Math.abs(rawNetWorthAdjustments) < 0.005 ? 0 : rawNetWorthAdjustments;
 
   const balancePeriodLabel = (() => {
     const from = new Date(effectivePeriodFrom);
@@ -207,7 +212,7 @@ export default function HomeScreen({ navigation }: any) {
   // Un único gate de carga: si esperásemos solo a `loading` (transacciones),
   // Patrimonio neto (que depende de useNetWorthTrend, más lento) aparecía
   // de golpe después de que el resto del contenido ya estuviera pintado.
-  const isLoading = loading || netWorth.isLoading;
+  const isLoading = loading || netWorth.isLoading || investmentProfitLoading;
 
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
@@ -328,7 +333,7 @@ export default function HomeScreen({ navigation }: any) {
             <HeroBalanceCard
               label="Patrimonio neto"
               value={`${formatEuro(netWorth.current)} €`}
-              onPress={() => navigation.navigate("NetWorth")}
+              onPress={() => setNetWorthBreakdownVisible(true)}
               style={{ marginBottom: 10 }}
               footer={
                 <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
@@ -489,6 +494,21 @@ export default function HomeScreen({ navigation }: any) {
       <InvestmentMonthReturnModal
         visible={rentabilidadModalVisible}
         onClose={() => setRentabilidadModalVisible(false)}
+      />
+
+      <NetWorthBreakdownModal
+        visible={netWorthBreakdownVisible}
+        onClose={() => setNetWorthBreakdownVisible(false)}
+        onOpenDetails={() => {
+          setNetWorthBreakdownVisible(false);
+          navigation.navigate("NetWorth");
+        }}
+        current={netWorth.current}
+        periodDelta={netWorth.periodDelta}
+        periodLabel={netWorth.periodLabel}
+        savings={periodSavings}
+        investmentResult={totalInvestment}
+        adjustments={netWorthAdjustments}
       />
 
       <HomeFiltersModal

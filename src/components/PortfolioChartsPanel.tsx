@@ -20,6 +20,10 @@ export type PortfolioTimelinePoint = {
   totalCurrentValue?: number; // compat
   equity: number;
   netContributions: number;
+  externalFlow?: number;
+  result?: number;
+  dailyReturn?: number | null;
+  twr?: number;
 };
 
 type TabKey = "value" | "perf" | "contrib" | "dd";
@@ -638,6 +642,10 @@ export default function PortfolioChartsPanel({
       date: p.date,
       equity: Number(p.equity ?? p.totalCurrentValue ?? 0),
       netContributions: Number(p.netContributions ?? 0),
+      externalFlow: Number(p.externalFlow ?? 0),
+      result: Number(p.result ?? (Number(p.equity ?? p.totalCurrentValue ?? 0) - Number(p.netContributions ?? 0))),
+      dailyReturn: p.dailyReturn == null ? null : Number(p.dailyReturn),
+      twr: Number(p.twr ?? 0),
     }));
   }, [points]);
 
@@ -647,13 +655,16 @@ export default function PortfolioChartsPanel({
   const last = safe[safe.length - 1];
   const lastProfit = last ? last.equity - last.netContributions : 0;
 
-  // Perf (simple robusta): profit relativo al baseline
+  // TWR del rango: encadena retornos diarios neutralizados por flujos.
   const perfSeries = useMemo(() => {
     if (safe.length === 0) return [];
-    const profit = safe.map((p) => p.equity - p.netContributions);
-    const p0 = profit[0] ?? 0;
-    const baseline = Math.max(1, Math.abs(p0), safe[0]?.equity || 0);
-    return safe.map((p, i) => ({ date: p.date, value: ((profit[i] - p0) / baseline) * 100 }));
+    let growthFactor = 1;
+    return safe.map((point, index) => {
+      if (index > 0 && point.dailyReturn != null && Number.isFinite(point.dailyReturn)) {
+        growthFactor *= 1 + point.dailyReturn;
+      }
+      return { date: point.date, value: (growthFactor - 1) * 100 };
+    });
   }, [safe]);
 
   const contribSeries = useMemo(() => safe.map((p) => ({ date: p.date, value: p.netContributions })), [safe]);

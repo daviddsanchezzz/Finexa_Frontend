@@ -37,6 +37,7 @@ interface SummaryAssetFromApi {
   invested: number;
   currentValue: number;
   pnl: number;
+  returnPct?: number | null;
   lastValuationDate: string | null;
 }
 
@@ -44,6 +45,8 @@ interface SummaryFromApi {
   totalInvested: number;
   totalCurrentValue: number;
   totalPnL: number;
+  returnPct?: number | null;
+  asOf?: string;
   assets: SummaryAssetFromApi[];
 }
 
@@ -52,16 +55,20 @@ type PortfolioTimelinePoint = {
   totalCurrentValue?: number; // compat
   equity: number;
   netContributions: number;
+  externalFlow: number;
+  result: number;
+  dailyReturn: number | null;
+  twr: number;
 };
 
 type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
-const rangeToDays: Record<RangeKey, number> = {
+const rangeToDays: Record<RangeKey, number | "all"> = {
   "1M": 30,
   "3M": 90,
   "6M": 180,
   "1Y": 365,
-  ALL: 365,
+  ALL: "all",
 };
 
 const palette = [
@@ -493,12 +500,14 @@ const fetchSnapshots = async () => {
 
   const fetchSummary = async () => {
     const res = await api.get("/investments/summary");
-    setSummary(res.data || null);
+    const data = (res.data || null) as SummaryFromApi | null;
+    setSummary(data);
+    return data;
   };
 
-  const fetchTimeline = async (rk: RangeKey) => {
+  const fetchTimeline = async (rk: RangeKey, asOf?: string) => {
     const days = rangeToDays[rk];
-    const res = await api.get(`/investments/timeline?days=${days}`);
+    const res = await api.get("/investments/timeline", { params: { days, ...(asOf ? { asOf } : {}) } });
     const pts = (res.data?.points || []) as any[];
 
     setTimeline(
@@ -507,6 +516,10 @@ const fetchSnapshots = async () => {
         totalCurrentValue: p.totalCurrentValue,
         equity: Number(p.equity ?? p.totalCurrentValue ?? 0),
         netContributions: Number(p.netContributions ?? 0),
+        externalFlow: Number(p.externalFlow ?? 0),
+        result: Number(p.result ?? (Number(p.equity ?? p.totalCurrentValue ?? 0) - Number(p.netContributions ?? 0))),
+        dailyReturn: p.dailyReturn == null ? null : Number(p.dailyReturn),
+        twr: Number(p.twr ?? 0),
       }))
     );
   };
@@ -526,7 +539,8 @@ const fetchSnapshots = async () => {
       setTimelineLoading(true);
         setSnapshotsLoading(true);
 
-      await Promise.all([fetchSummary(), fetchTimeline(range), fetchSnapshots(), fetchArchived()]);
+      const summaryData = await fetchSummary();
+      await Promise.all([fetchTimeline(range, summaryData?.asOf), fetchSnapshots(), fetchArchived()]);
     } catch (e) {
       console.error("❌ Error cargando investments desktop:", e);
       setSummary(null);
@@ -561,7 +575,8 @@ const fetchSnapshots = async () => {
         .filter(Boolean)
         .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
 
-    return { totalInvested, totalCurrentValue, totalPnL, lastGlobal };
+    const returnPct = summary?.returnPct == null ? null : Number(summary.returnPct);
+    return { totalInvested, totalCurrentValue, totalPnL, returnPct, lastGlobal };
   }, [summary]);
 
   const assetsLite: InvestmentAssetLite[] = useMemo(() => {
@@ -753,8 +768,8 @@ const fetchSnapshots = async () => {
 
           <KpiCard
             title="% P/L"
-            value={loading ? "—" : formatPct(hero.totalPnL, hero.totalInvested)}
-            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>Rentabilidad sobre invertido</Text>}
+            value={loading ? "—" : hero.returnPct == null ? "—" : `${hero.returnPct >= 0 ? "+" : ""}${(hero.returnPct * 100).toFixed(2).replace(".", ",")}%`}
+            subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>Rentabilidad TWR</Text>}
             icon="trending-up-outline"
             tone={pnlTone(hero.totalPnL) as any}
             px={px}
@@ -980,7 +995,9 @@ const fetchSnapshots = async () => {
 
                       <Td flex={GRID.pct} align="right" px={px}>
                         <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: pnlColor }]}>
-                          {formatPct(a.pnl || 0, a.invested || 0)}
+                          {a.returnPct == null
+                            ? formatPct(a.pnl || 0, a.invested || 0)
+                            : `${(Number(a.returnPct) * 100).toFixed(2).replace(".", ",")}%`}
                         </Text>
                       </Td>
 

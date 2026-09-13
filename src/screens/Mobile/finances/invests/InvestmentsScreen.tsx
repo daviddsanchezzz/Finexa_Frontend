@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import Svg, { Path, Line, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, G, Path, Line, Rect, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
 import SegmentedTabs from "../../../../components/SegmentedTabs";
@@ -73,13 +73,17 @@ interface SummaryAssetFromApi {
   invested: number;
   currentValue: number;
   pnl: number;
+  returnPct?: number | null;
   lastValuationDate: string | null;
+  description?: string | null;
 }
 
 interface SummaryFromApi {
   totalInvested: number;
   totalCurrentValue: number;
   totalPnL: number;
+  returnPct?: number | null;
+  asOf?: string;
   assets: SummaryAssetFromApi[];
 }
 
@@ -113,6 +117,10 @@ type TimelinePoint = {
   totalCurrentValue: number;
   equity: number;
   netContributions: number;
+  externalFlow: number;
+  result: number;
+  dailyReturn: number | null;
+  twr: number;
 };
 
 const assetTypeIcon = (type: InvestmentAssetType) => {
@@ -215,7 +223,11 @@ const toneColor = (v: number) => (v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#6474
 const toneBg   = (v: number) => (v > 0 ? "#DCFCE7" : v < 0 ? "#FEE2E2" : "#E5E7EB");
 
 type InvestmentOperationType =
-  | "buy" | "sell" | "transfer_in" | "transfer_out" | "swap_in" | "swap_out";
+  | "buy" | "sell" | "transfer_in" | "transfer_out" | "swap_in" | "swap_out"
+  | "dividend" | "fee";
+
+type OperationFilter = "all" | "buy" | "sell";
+type RentRange = "1m" | "3m" | "6m" | "ytd" | "1a" | "all";
 
 type AllOperationFromApi = {
   id: number;
@@ -225,6 +237,16 @@ type AllOperationFromApi = {
   amount: number;
   quantity?: string | null;
   fee?: number | null;
+  description?: string | null;
+  walletId?: number | null;
+  wallet?: { id?: number; name?: string | null } | null;
+  transaction?: {
+    fromWalletId?: number | null;
+    toWalletId?: number | null;
+    fromWallet?: { name?: string | null } | null;
+    toWallet?: { name?: string | null } | null;
+  } | null;
+  swapGroupId?: string | number | null;
   createdAt?: string | null;
 };
 
@@ -234,6 +256,8 @@ function opLabel(t: InvestmentOperationType) {
     case "sell":         return "Venta";
     case "transfer_in":  return "Aportación";
     case "transfer_out": return "Retirada";
+    case "dividend":     return "Dividendo";
+    case "fee":          return "Comisión";
     case "swap_in":
     case "swap_out":     return "Swap";
     default:             return "Operación";
@@ -242,22 +266,26 @@ function opLabel(t: InvestmentOperationType) {
 
 function opTypeColor(t: InvestmentOperationType) {
   switch (t) {
-    case "buy":          return { color: "#16A34A", bg: "#DCFCE7" };
-    case "sell":         return { color: "#DC2626", bg: "#FEE2E2" };
-    case "transfer_in":  return { color: "#2563EB", bg: "#EEF2FF" };
-    case "transfer_out": return { color: "#EA580C", bg: "#FEF3C7" };
+    case "buy":          return { color: colors.primary, bg: "#EEF2FF" };
+    case "sell":         return { color: "#7C3AED", bg: "#F3E8FF" };
+    case "transfer_in":  return { color: "#0F766E", bg: "#CCFBF1" };
+    case "transfer_out": return { color: "#D97706", bg: "#FEF3C7" };
+    case "dividend":     return { color: colors.success, bg: "#DCFCE7" };
+    case "fee":          return { color: "#64748B", bg: "#F1F5F9" };
     default:             return { color: "#64748B", bg: "#F1F5F9" };
   }
 }
 
-function opSignedAmount(op: AllOperationFromApi) {
-  const a = Math.abs(Number(op.amount || 0));
-  const fee = Math.abs(Number(op.fee || 0));
-  const sign =
-    op.type === "sell" || op.type === "transfer_out" || op.type === "swap_out"
-      ? -1
-      : 1;
-  return sign * a - fee;
+function opTypeIcon(t: InvestmentOperationType): keyof typeof Ionicons.glyphMap {
+  switch (t) {
+    case "buy":          return "arrow-down-outline";
+    case "sell":         return "arrow-up-outline";
+    case "transfer_in":  return "add-circle-outline";
+    case "transfer_out": return "remove-circle-outline";
+    case "dividend":     return "cash-outline";
+    case "fee":          return "receipt-outline";
+    default:              return "swap-horizontal-outline";
+  }
 }
 
 export default function InvestmentsHomeScreen({ navigation }: any) {
@@ -286,10 +314,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [monthPopup, setMonthPopup] = useState<{
     label: string;
     entries: Array<{ year: number; row: MonthlyRentRow }>;
+    isAnnual?: boolean;
   } | null>(null);
-  const [rentRange, setRentRange] = useState<"3m" | "6m" | "1a">("1a");
-  const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number }>(null);
-  const [barTooltip, setBarTooltip] = useState<null | { label: string; profit: number; isCurrent?: boolean }>(null);
+  const [rentRange, setRentRange] = useState<RentRange>("1a");
+  const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number; returnPct: number }>(null);
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getInvestmentsDataVersion());
   const [planLoading, setPlanLoading] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
@@ -305,17 +333,21 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [contributionPlan, setContributionPlan] = useState<{ amount: number; rows: Array<{ assetName: string; amount: number }> } | null>(null);
   const [allOperations, setAllOperations] = useState<AllOperationFromApi[]>([]);
   const [allOperationsLoading, setAllOperationsLoading] = useState(false);
+  const [operationFilter, setOperationFilter] = useState<OperationFilter>("all");
+  const [selectedOperation, setSelectedOperation] = useState<AllOperationFromApi | null>(null);
   const allOperationsFetchedRef = useRef(false);
 
   const { width: SCREEN_W } = useWindowDimensions();
 
   const donutSize = useMemo(() => {
-    const target = Math.floor(SCREEN_W * 0.50);
-    return Math.max(132, Math.min(176, target));
+    // Un 22 % más pequeño que la versión anterior para que la leyenda
+    // empiece a verse en el primer viewport incluso en móviles compactos.
+    const target = Math.floor(SCREEN_W * 0.39);
+    return Math.max(104, Math.min(138, target));
   }, [SCREEN_W]);
 
   const donutStroke = useMemo(
-    () => Math.max(12, Math.min(16, Math.round(donutSize * 0.10))),
+    () => Math.max(10, Math.min(14, Math.round(donutSize * 0.10))),
     [donutSize]
   );
 
@@ -324,9 +356,12 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
       setLoading(true);
       setFetchError(false);
       const res = await api.get("/investments/summary");
-      setSummary(res.data || null);
+      const data = (res.data || null) as SummaryFromApi | null;
+      setSummary(data);
+      return data;
     } catch {
       setFetchError(true);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -402,16 +437,20 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
     }
   };
 
-  const fetchTimeline = async () => {
+  const fetchTimeline = async (asOf?: string) => {
     try {
       setTimelineLoading(true);
-      const res = await api.get("/investments/timeline", { params: { days: 365 } });
+      const res = await api.get("/investments/timeline", { params: { days: "all", ...(asOf ? { asOf } : {}) } });
       const points = Array.isArray(res.data?.points) ? res.data.points : [];
       const mapped: TimelinePoint[] = points.map((p: any) => ({
         date: String(p.date),
         totalCurrentValue: Number(p.totalCurrentValue ?? p.equity ?? 0),
         equity: Number(p.equity ?? p.totalCurrentValue ?? 0),
         netContributions: Number(p.netContributions ?? 0),
+        externalFlow: Number(p.externalFlow ?? 0),
+        result: Number(p.result ?? (Number(p.equity ?? p.totalCurrentValue ?? 0) - Number(p.netContributions ?? 0))),
+        dailyReturn: p.dailyReturn == null ? null : Number(p.dailyReturn),
+        twr: Number(p.twr ?? 0),
       }));
       setTimeline(mapped);
     } catch {
@@ -525,14 +564,14 @@ const submitContribution = useCallback(() => {
         lastFetchedInvalidationVersion.current = invalidationVersion;
         // Fase 1 (crítica): solo summary para primer paint rápido
         fetchSummary()
-          .finally(() => {
+          .then((summaryData) => {
             // Fase 2 (background): datos secundarios
             fetchSnapshots();
             fetchCurrentMonthReturn();
             fetchArchived();
             fetchExposure();
             fetchTargets();
-            fetchTimeline();
+            fetchTimeline(summaryData?.asOf);
           });
       }
     }, [invalidationVersion])
@@ -542,7 +581,9 @@ const submitContribution = useCallback(() => {
     const totalInvested = summary?.totalInvested || 0;
     const totalCurrentValue = summary?.totalCurrentValue || 0;
     const totalPnL = summary?.totalPnL || 0;
-    const pct = totalInvested ? (totalPnL / totalInvested) * 100 : 0;
+    const pct = summary?.returnPct != null
+      ? Number(summary.returnPct) * 100
+      : totalInvested ? (totalPnL / totalInvested) * 100 : 0;
     const lastGlobal =
       (summary?.assets || [])
         .map((a) => a.lastValuationDate)
@@ -850,8 +891,11 @@ const submitContribution = useCallback(() => {
       const last = months[months.length - 1];
       const cashflowNet = months.reduce((s, r) => s + r.cashflowNet, 0);
       const profit = months.reduce((s, r) => s + r.profit, 0);
-      const returnPct = first?.startValue != null && first.startValue > 0
-        ? profit / first.startValue
+      const validReturns = months
+        .map((month) => month.returnPct)
+        .filter((value): value is number => value != null && Number.isFinite(value));
+      const returnPct = validReturns.length
+        ? validReturns.reduce((factor, value) => factor * (1 + value), 1) - 1
         : null;
       return {
         year: y,
@@ -893,9 +937,21 @@ const submitContribution = useCallback(() => {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     if (allPoints.length < 2) return null;
 
-    const days = rentRange === "3m" ? 90 : rentRange === "6m" ? 180 : 365;
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const monthly = allPoints.filter((p) => new Date(p.date).getTime() >= cutoff);
+    const now = new Date();
+    const cutoff = (() => {
+      if (rentRange === "all") return null;
+      if (rentRange === "ytd") return new Date(now.getFullYear(), 0, 1).getTime();
+      const days = rentRange === "1m" ? 30 : rentRange === "3m" ? 90 : rentRange === "6m" ? 180 : 365;
+      return now.getTime() - days * 24 * 60 * 60 * 1000;
+    })();
+
+    let monthly = allPoints;
+    if (cutoff != null) {
+      const firstInside = allPoints.findIndex((p) => new Date(p.date).getTime() >= cutoff);
+      if (firstInside > 0) monthly = allPoints.slice(firstInside - 1);
+      else if (firstInside === 0) monthly = allPoints;
+      else monthly = allPoints.slice(-1);
+    }
     if (monthly.length < 2) return null;
 
     const W = Math.max(200, SCREEN_W - 72);
@@ -949,10 +1005,29 @@ const submitContribution = useCallback(() => {
     const lastEquity = Number(last?.equity || 0);
     const lastNc = Number(last?.netContributions || 0);
     const startEquity = Number(first?.equity || 0);
-    const startNc = Number(first?.netContributions || 0);
-    const periodCashflow = lastNc - startNc;
-    const gain = (lastEquity - startEquity) - periodCashflow;
-    const gainPct = startEquity > 0 ? (gain / startEquity) * 100 : 0;
+    const startResult = Number(first?.result ?? (startEquity - Number(first?.netContributions || 0)));
+    const gain = Number(last?.result ?? (lastEquity - lastNc)) - startResult;
+
+    // La API entrega el retorno diario neutralizado por flujos externos. El
+    // periodo y la curva acumulada se obtienen encadenando esos retornos.
+    let periodGrowthFactor = 1;
+    const returnValues = monthly.map((point, index) => {
+      if (index > 0 && point.dailyReturn != null && Number.isFinite(point.dailyReturn)) {
+        periodGrowthFactor *= 1 + point.dailyReturn;
+      }
+      return (periodGrowthFactor - 1) * 100;
+    });
+    const gainPct = returnValues[returnValues.length - 1] ?? 0;
+    const returnRawMin = Math.min(0, ...returnValues);
+    const returnRawMax = Math.max(0, ...returnValues);
+    const returnRawSpan = Math.max(1, returnRawMax - returnRawMin);
+    const returnMin = returnRawMin - returnRawSpan * 0.12;
+    const returnMax = returnRawMax + returnRawSpan * 0.12;
+    const returnSpan = Math.max(1, returnMax - returnMin);
+    const mapReturnY = (v: number) => padT + (1 - (v - returnMin) / returnSpan) * innerH;
+    const returnPts = returnValues.map((value, i) => ({ x: padL + i * stepX, y: mapReturnY(value), value }));
+    const returnLabelValues = Array.from(new Set([returnRawMax, 0, returnRawMin].map((v) => Number(v.toFixed(1)))))
+      .sort((a, b) => b - a);
 
     return {
       W, H, padL, bottomY,
@@ -966,22 +1041,12 @@ const submitContribution = useCallback(() => {
       firstDate: monthly[0]?.date ?? "",
       lastDate: monthly[monthly.length - 1]?.date ?? "",
       lastEquity, lastNc, startEquity, gain, gainPct,
+      returnPath: toPath(returnPts),
+      returnPts,
+      returnValues,
+      returnYLabels: returnLabelValues.map((value) => ({ y: mapReturnY(value), value })),
     };
   }, [timeline, rentRange, SCREEN_W]);
-
-  const monthlyProfitBars = useMemo(() => {
-    const months = [...snapshotsForRent].sort(
-      (a, b) => new Date(a.monthStart).getTime() - new Date(b.monthStart).getTime()
-    );
-    if (!months.length) return [];
-    const takeN = rentRange === "3m" ? 3 : rentRange === "6m" ? 6 : 12;
-    return months.slice(-takeN).map((m) => ({
-      key: m.monthStart,
-      label: new Date(m.monthStart).toLocaleDateString("es-ES", { month: "short" }),
-      profit: Number(m.profit || 0),
-      isCurrent: currentMonthReturn != null && m.monthStart === currentMonthReturn.monthStart,
-    }));
-  }, [snapshotsForRent, rentRange, currentMonthReturn]);
 
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
@@ -1016,7 +1081,8 @@ const submitContribution = useCallback(() => {
     try {
       setSyncingMetadata(true);
       await api.post("/investments/metadata/sync-all");
-      await Promise.all([fetchExposure(), fetchSummary(), fetchTargets(), fetchTimeline()]);
+      const summaryData = await fetchSummary();
+      await Promise.all([fetchExposure(), fetchTargets(), fetchTimeline(summaryData?.asOf)]);
       Alert.alert("Composición actualizada", "Se ha lanzado la sincronización para todos los assets.");
     } catch (e: any) {
       const msg = e?.response?.data?.message || "No se pudo sincronizar la composición.";
@@ -1030,7 +1096,8 @@ const submitContribution = useCallback(() => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     allOperationsFetchedRef.current = false;
-    await Promise.all([fetchSummary(), fetchSnapshots(), fetchCurrentMonthReturn(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline(), fetchAllOperations(true)]);
+    const summaryData = await fetchSummary();
+    await Promise.all([fetchSnapshots(), fetchCurrentMonthReturn(), fetchArchived(), fetchExposure(), fetchTargets(), fetchTimeline(summaryData?.asOf), fetchAllOperations(true)]);
     setRefreshing(false);
   }, [fetchAllOperations]);
 
@@ -1081,9 +1148,14 @@ const submitContribution = useCallback(() => {
     return m;
   }, [summary]);
 
+  const filteredOperations = useMemo(
+    () => operationFilter === "all" ? allOperations : allOperations.filter((op) => op.type === operationFilter),
+    [allOperations, operationFilter]
+  );
+
   const operationsByMonth = useMemo(() => {
     const groups = new Map<string, { label: string; ops: AllOperationFromApi[] }>();
-    allOperations.forEach((op) => {
+    filteredOperations.forEach((op) => {
       const d = new Date(op.date || op.createdAt || 0);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       if (!groups.has(key)) {
@@ -1093,7 +1165,9 @@ const submitContribution = useCallback(() => {
       groups.get(key)!.ops.push(op);
     });
     return [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  }, [allOperations]);
+  }, [filteredOperations]);
+
+  const compactReturn = `${hero.pct >= 0 ? "+" : "−"}${Math.abs(hero.pct).toFixed(2).replace(".", ",")}%`;
 
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
@@ -1211,41 +1285,85 @@ const submitContribution = useCallback(() => {
           onTouchEnd={handleWebTouchEnd}
         >
 
-          {/* -- Hero (fijo, no scrollea) — mismo lenguaje visual que el Patrimonio neto de Inicio -- */}
-          <View className="px-5">
-            <HeroBalanceCard
-              label="Valor actual total"
-              value={formatMoney(hero.totalCurrentValue, currency)}
-              style={{ marginBottom: 8 }}
-              footer={
-                hero.count > 0 ? (
-                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }}>
-                    {hero.count} {hero.count === 1 ? "activo" : "activos"}
-                    {hero.lastGlobal ? ` · Última actualización: ${formatShortDate(hero.lastGlobal)}` : ""}
-                  </Text>
-                ) : undefined
-              }
-            />
+          {/* Cartera conserva el resumen completo. */}
+          {mainTab === "cartera" && (
+            <View className="px-5">
+              <HeroBalanceCard
+                label="Valor actual total"
+                value={formatMoney(hero.totalCurrentValue, currency)}
+                style={{ marginBottom: 8 }}
+                footer={
+                  hero.count > 0 ? (
+                    <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }}>
+                      {hero.count} {hero.count === 1 ? "activo" : "activos"}
+                      {hero.lastGlobal ? ` · Última actualización: ${formatShortDate(hero.lastGlobal)}` : ""}
+                    </Text>
+                  ) : undefined
+                }
+              />
 
-            {/* Indicadores: Invertido / Ganancia / Rentabilidad */}
-            <StatsRow
-              items={[
-                { key: "invertido", label: "INVERTIDO", value: formatMoney(hero.totalInvested, currency) },
-                {
-                  key: "ganancia",
-                  label: "RESULTADO",
-                  value: `${hero.totalPnL >= 0 ? "+" : "−"}${formatMoney(Math.abs(hero.totalPnL), currency)}`,
-                  color: hero.totalPnL >= 0 ? colors.success : colors.danger,
-                },
-                {
-                  key: "rentabilidad",
-                  label: "RENTABILIDAD",
-                  value: `${hero.pct >= 0 ? "+" : "−"}${Math.abs(hero.pct).toFixed(2).replace(".", ",")}%`,
-                  color: hero.pct >= 0 ? colors.success : colors.danger,
-                },
-              ]}
-            />
-          </View>
+              <StatsRow
+                items={[
+                  { key: "invertido", label: "INVERTIDO", value: formatMoney(hero.totalInvested, currency) },
+                  {
+                    key: "ganancia",
+                    label: "RESULTADO",
+                    value: `${hero.totalPnL >= 0 ? "+" : "−"}${formatMoney(Math.abs(hero.totalPnL), currency)}`,
+                    color: hero.totalPnL >= 0 ? colors.success : colors.danger,
+                  },
+                  {
+                    key: "rentabilidad",
+                    label: "RENTABILIDAD",
+                    value: compactReturn,
+                    color: hero.pct >= 0 ? colors.success : colors.danger,
+                  },
+                ]}
+              />
+            </View>
+          )}
+
+          {mainTab !== "cartera" && (
+            <View style={{ paddingHorizontal: 20 }}>
+              <View
+                style={{
+                  height: 48,
+                  borderRadius: 15,
+                  backgroundColor: "white",
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  paddingHorizontal: 10,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  shadowColor: "#0F172A",
+                  shadowOpacity: 0.05,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 3 },
+                  elevation: 1,
+                }}
+              >
+                <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 3 }}>
+                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.35 }}>VALOR ACTUAL</Text>
+                  <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.75} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+                    {formatMoney(hero.totalCurrentValue, currency)}
+                  </Text>
+                </View>
+                <View style={{ width: 1, height: 25, backgroundColor: "#E5E7EB" }} />
+                <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 3 }}>
+                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.35 }}>RESULTADO</Text>
+                  <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.72} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: hero.totalPnL >= 0 ? colors.success : colors.danger, fontVariant: ["tabular-nums"] }}>
+                    {hero.totalPnL >= 0 ? "+" : "−"}{formatMoney(Math.abs(hero.totalPnL), currency)}
+                  </Text>
+                </View>
+                <View style={{ width: 1, height: 25, backgroundColor: "#E5E7EB" }} />
+                <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 3 }}>
+                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.35 }}>RENTABILIDAD</Text>
+                  <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.75} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: hero.pct >= 0 ? colors.success : colors.danger, fontVariant: ["tabular-nums"] }}>
+                    {compactReturn}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* -- Tabs -- */}
           <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginTop: 12 }}>
@@ -1277,7 +1395,9 @@ const submitContribution = useCallback(() => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 120, paddingTop: 14 }}
             scrollEventThrottle={16}
-            onScroll={(e) => { if (Platform.OS === "web") webScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
+            onScroll={(event) => {
+              if (Platform.OS === "web") webScrollAtTop.current = event.nativeEvent.contentOffset.y <= 0;
+            }}
             refreshControl={Platform.OS !== "web" ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
           >
         {/* == TAB: CARTERA == */}
@@ -1308,7 +1428,9 @@ const submitContribution = useCallback(() => {
             </View>
           ) : (
             visibleAssets.map((a) => {
-              const pctText = formatPct(a.pnl || 0, a.invested || 0);
+              const pctText = a.returnPct == null
+                ? formatPct(a.pnl || 0, a.invested || 0)
+                : `${(Number(a.returnPct) * 100).toFixed(2)}%`;
               const badge = pnlBadge(a.pnl);
               const typeColor = assetTypeColor(a.type);
               const typeBg = assetTypeSoftBg(a.type);
@@ -1519,13 +1641,13 @@ const submitContribution = useCallback(() => {
                     >
                       <Text style={{ fontSize: 12, fontWeight: "700", color: donutMode === mode ? colors.primary : "#6B7280" }}>
                         {mode === "asset"
-                          ? "Activo"
+                          ? "Activos"
                           : mode === "type"
                           ? "Tipo"
                           : mode === "country"
-                          ? "Región"
+                          ? "Regiones"
                           : mode === "sector"
-                          ? "Sector"
+                          ? "Sectores"
                           : "Compañía"}
                       </Text>
                     </TouchableOpacity>
@@ -1533,7 +1655,7 @@ const submitContribution = useCallback(() => {
                 </ScrollView>
 
               {/* Donut */}
-              <View style={{ alignItems: "center", marginTop: 14 }}>
+              <View style={{ alignItems: "center", marginTop: 8 }}>
                 <DonutPro
                   slices={activeAllocation.slices}
                   size={donutSize}
@@ -1550,7 +1672,7 @@ const submitContribution = useCallback(() => {
 
               {/* Leyenda */}
               {legendOpen && (
-                <View style={{ marginTop: 12 }}>
+                <View style={{ marginTop: 8 }}>
                   {activeAllocation.slices.map((s) => {
                     const isActive = (selectedSlice?.id ?? null) === s.id;
                     const isOtros = s.label === "Otros";
@@ -1570,7 +1692,7 @@ const submitContribution = useCallback(() => {
                             flexDirection: "row",
                             alignItems: "center",
                             justifyContent: "space-between",
-                            paddingVertical: 10,
+                            paddingVertical: 8,
                             borderBottomWidth: 1,
                             borderBottomColor: "#F1F5F9",
                             opacity: selectedSliceId != null && !isOtros ? (isActive ? 1 : 0.55) : 1,
@@ -1674,34 +1796,78 @@ const submitContribution = useCallback(() => {
               </View>
 
               <View style={{ marginTop: 12 }}>
-                {(targets?.items || []).map((it) => (
-                  <View
-                    key={`target-${it.assetId}`}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 10,
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#F1F5F9",
-                      gap: 10,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                {(targets?.items || []).map((it) => {
+                  const targetPct = Number(it.targetPct || 0);
+                  const actualPct = Number(it.actualPct || 0);
+                  const deviation = actualPct - targetPct;
+                  const isOnTarget = Math.abs(deviation) < 0.05;
+                  const deviationText = isOnTarget
+                    ? "En objetivo"
+                    : `${deviation > 0 ? "+" : "−"}${Math.abs(deviation).toFixed(1).replace(".", ",")} pp ${deviation > 0 ? "sobre" : "bajo"} objetivo`;
+
+                  return (
+                    <View
+                      key={`target-${it.assetId}`}
+                      style={{
+                        paddingVertical: 11,
+                        borderBottomWidth: 1,
+                        borderBottomColor: "#F1F5F9",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
                         {it.assetAbbreviation?.trim() || it.assetName}
                       </Text>
-                    </View>
-                    <View style={{ alignItems: "flex-end" }}>
-                      <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A" }}>
-                        {Number(it.targetPct || 0).toFixed(2).replace(".", ",")}%
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginTop: 3 }}>
+                        Objetivo {targetPct.toFixed(1).replace(".", ",")} % · Actual {actualPct.toFixed(1).replace(".", ",")} %
                       </Text>
-                      <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginTop: 1 }}>
-                        Actual {Number(it.actualPct || 0).toFixed(2).replace(".", ",")}%
+                      <Text
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: "800",
+                          color: isOnTarget ? colors.success : deviation > 0 ? "#D97706" : colors.primary,
+                          marginTop: 3,
+                        }}
+                      >
+                        {deviationText}
                       </Text>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
+
+              {(targets?.items || []).length > 0 && (
+                <TouchableOpacity
+                  onPress={() => runContribution(500)}
+                  disabled={planLoading}
+                  activeOpacity={0.82}
+                  style={{
+                    marginTop: 14,
+                    padding: 12,
+                    borderRadius: 14,
+                    backgroundColor: "#F0FDF4",
+                    borderWidth: 1,
+                    borderColor: "#BBF7D0",
+                    opacity: planLoading ? 0.7 : 1,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#DCFCE7", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                      <Ionicons name="leaf-outline" size={16} color="#15803D" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12.5, fontWeight: "900", color: "#14532D" }}>Reequilibrar con 500 €</Text>
+                      <Text style={{ fontSize: 10.5, fontWeight: "600", color: "#4D7C5B", marginTop: 2 }}>
+                        Prioriza los activos infraponderados sin vender.
+                      </Text>
+                    </View>
+                    {planLoading ? (
+                      <ActivityIndicator size="small" color="#15803D" />
+                    ) : (
+                      <Ionicons name="arrow-forward" size={16} color="#15803D" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
 
               <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
                 <TouchableOpacity
@@ -1749,7 +1915,7 @@ const submitContribution = useCallback(() => {
         {/* == TAB: RENTABILIDAD == */}
         {mainTab === "rentabilidad" && (
           <>
-        <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 10 }}>
+        <View style={{ paddingHorizontal: 20, marginTop: 2, marginBottom: 10 }}>
           <SegmentedTabs<"tabla" | "grafica">
             options={[
               { key: "tabla", label: "Tabla" },
@@ -1761,6 +1927,60 @@ const submitContribution = useCallback(() => {
         </View>
 
         {rentView === "grafica" && (
+          <>
+          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Rentabilidad</Text>
+
+            <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
+              {([
+                { key: "1m", label: "1M" },
+                { key: "3m", label: "3M" },
+                { key: "6m", label: "6M" },
+                { key: "ytd", label: "YTD" },
+                { key: "1a", label: "1A" },
+                { key: "all", label: "TODO" },
+              ] as const).map((range) => {
+                const active = rentRange === range.key;
+                return (
+                  <TouchableOpacity
+                    key={range.key}
+                    onPress={() => {
+                      setRentRange(range.key);
+                      setLineTooltip(null);
+                    }}
+                    activeOpacity={0.8}
+                    style={{ flex: 1, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: active ? "white" : "transparent" }}
+                  >
+                    <Text style={{ fontSize: 10.5, fontWeight: "900", color: active ? colors.primary : "#64748B" }}>{range.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {timelineLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 20 }} />
+            ) : performanceChart ? (
+              <View style={{ alignItems: "center", paddingTop: 16 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.5 }}>RESULTADO DEL PERIODO</Text>
+                <Text style={{ fontSize: 28, fontWeight: "900", color: performanceChart.gain >= 0 ? colors.success : colors.danger, marginTop: 3, fontVariant: ["tabular-nums"] }}>
+                  {performanceChart.gain >= 0 ? "+" : "−"}{formatMoney(Math.abs(performanceChart.gain), currency)}
+                </Text>
+                <Text style={{ fontSize: 16, fontWeight: "800", color: performanceChart.gainPct >= 0 ? colors.success : colors.danger, marginTop: 1 }}>
+                  {performanceChart.gainPct >= 0 ? "+" : "−"}{Math.abs(performanceChart.gainPct).toFixed(2).replace(".", ",")} %
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>Capital aportado </Text>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#334155" }}>{formatMoney(performanceChart.lastNc, currency)}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#CBD5E1" }}>  ·  </Text>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>Valor actual </Text>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#334155" }}>{formatMoney(performanceChart.lastEquity, currency)}</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={{ textAlign: "center", color: "#94A3B8", fontSize: 12, fontWeight: "600", paddingVertical: 18 }}>Sin datos suficientes para este periodo.</Text>
+            )}
+          </View>
+
           <Animated.View
             style={{
               opacity: rentAnim,
@@ -1774,64 +1994,9 @@ const submitContribution = useCallback(() => {
               ],
             }}
           >
-            <View style={{ paddingHorizontal: 20, marginTop: -2, marginBottom: 10 }}>
-              <View style={{ flexDirection: "row", gap: 8, justifyContent: "flex-end" }}>
-                {([
-                  { key: "3m", label: "3M" },
-                  { key: "6m", label: "6M" },
-                  { key: "1a", label: "1A" },
-                ] as const).map((r) => (
-                  <TouchableOpacity
-                    key={r.key}
-                    onPress={() => {
-                      setRentRange(r.key);
-                      setLineTooltip(null);
-                      setBarTooltip(null);
-                    }}
-                    style={{
-                      paddingHorizontal: 10,
-                      height: 30,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: rentRange === r.key ? colors.primary : "#E5E7EB",
-                      backgroundColor: rentRange === r.key ? "#EEF2FF" : "white",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: "900", color: rentRange === r.key ? colors.primary : "#64748B" }}>
-                      {r.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Stats strip */}
-            {performanceChart && (
-              <View style={{ flexDirection: "row", marginHorizontal: 20, marginBottom: 10, gap: 8 }}>
-                <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>Valor cartera</Text>
-                  <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{formatMoney(performanceChart.lastEquity, currency)}</Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>Valor inicial</Text>
-                  <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>{formatMoney(performanceChart.startEquity, currency)}</Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: performanceChart.gain >= 0 ? "#DCFCE7" : "#FEE2E2", borderRadius: 16, padding: 12 }}>
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: performanceChart.gain >= 0 ? "#16A34A" : "#DC2626", marginBottom: 3 }}>Ganancia</Text>
-                  <Text style={{ fontSize: 13, fontWeight: "900", color: performanceChart.gain >= 0 ? "#16A34A" : "#DC2626" }}>
-                    {performanceChart.gain >= 0 ? "+" : ""}{formatMoney(performanceChart.gain, currency)}
-                  </Text>
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: performanceChart.gain >= 0 ? "#16A34A" : "#DC2626" }}>
-                    {performanceChart.gainPct >= 0 ? "+" : ""}{performanceChart.gainPct.toFixed(2).replace(".", ",")}%
-                  </Text>
-                </View>
-              </View>
-            )}
-
             {/* Gráfica evolución */}
             <View style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Valor y capital aportado</Text>
               {timelineLoading ? (
                 <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Cargando gráfica...</Text>
               ) : performanceChart ? (
@@ -1870,14 +2035,30 @@ const submitContribution = useCallback(() => {
                           date: performanceChart.monthly[closest]?.date ?? "",
                           equity: Number(performanceChart.monthly[closest]?.equity || 0),
                           net: Number(performanceChart.monthly[closest]?.netContributions || 0),
+                          returnPct: Number(performanceChart.returnValues[closest] || 0),
                         });
                       }}
                     />
 
                     {/* Dot en punto seleccionado */}
-                    {lineTooltip && (
-                      <Line x1={lineTooltip.x} y1={14} x2={lineTooltip.x} y2={performanceChart.bottomY} stroke={colors.primary} strokeWidth={1} strokeDasharray="3 3" />
-                    )}
+                    {lineTooltip && (() => {
+                      const selectedIndex = performanceChart.eqPts.reduce(
+                        (closest, point, index) =>
+                          Math.abs(point.x - lineTooltip.x) < Math.abs(performanceChart.eqPts[closest].x - lineTooltip.x)
+                            ? index
+                            : closest,
+                        0
+                      );
+                      const equityPoint = performanceChart.eqPts[selectedIndex];
+                      const contributedPoint = performanceChart.ncPts[selectedIndex];
+                      return (
+                        <G>
+                          <Line x1={equityPoint.x} y1={14} x2={equityPoint.x} y2={performanceChart.bottomY} stroke={colors.primary} strokeWidth={1} strokeDasharray="3 3" />
+                          <Circle cx={equityPoint.x} cy={equityPoint.y} r={4} fill={colors.primary} stroke="white" strokeWidth={2} />
+                          <Circle cx={contributedPoint.x} cy={contributedPoint.y} r={3.5} fill="#94A3B8" stroke="white" strokeWidth={2} />
+                        </G>
+                      );
+                    })()}
                     {/* X labels */}
                     <SvgText x={performanceChart.padL} y={performanceChart.H - 4} fontSize="10" fill="#94A3B8">
                       {new Date(performanceChart.firstDate).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })}
@@ -1889,28 +2070,30 @@ const submitContribution = useCallback(() => {
 
                   {/* Tooltip */}
                   {lineTooltip ? (
-                    <View style={{ marginTop: 8, borderRadius: 12, padding: 10, backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB" }}>
-                      <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginBottom: 6 }}>
-                        {new Date(lineTooltip.date).toLocaleDateString("es-ES", { month: "long", year: "numeric" })}
-                      </Text>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                        <View>
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8" }}>Valor</Text>
-                          <Text style={{ fontSize: 12, fontWeight: "900", color: colors.primary }}>{formatMoney(lineTooltip.equity, currency)}</Text>
+                    (() => {
+                      const result = lineTooltip.equity - lineTooltip.net;
+                      const returnPct = lineTooltip.returnPct;
+                      const tone = result >= 0 ? colors.success : colors.danger;
+                      const rows = [
+                        { label: "Valor", value: formatMoney(lineTooltip.equity, currency), color: colors.primary },
+                        { label: "Aportado", value: formatMoney(lineTooltip.net, currency), color: "#475569" },
+                        { label: "Resultado", value: `${result >= 0 ? "+" : "−"}${formatMoney(Math.abs(result), currency)}`, color: tone },
+                        { label: "Rentabilidad", value: `${returnPct >= 0 ? "+" : "−"}${Math.abs(returnPct).toFixed(2).replace(".", ",")} %`, color: tone },
+                      ];
+                      return (
+                        <View style={{ marginTop: 8, borderRadius: 12, padding: 12, backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB" }}>
+                          <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>
+                            {new Date(lineTooltip.date).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                          </Text>
+                          {rows.map((row) => (
+                            <View key={row.label} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 }}>
+                              <Text style={{ fontSize: 11.5, fontWeight: "600", color: "#64748B" }}>{row.label}</Text>
+                              <Text style={{ fontSize: 11.5, fontWeight: "900", color: row.color }}>{row.value}</Text>
+                            </View>
+                          ))}
                         </View>
-                        <View>
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8" }}>Aportado</Text>
-                          <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B" }}>{formatMoney(lineTooltip.net, currency)}</Text>
-                        </View>
-                        <View>
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8" }}>Ganancia</Text>
-                          {(() => {
-                            const g = lineTooltip.equity - lineTooltip.net;
-                            return <Text style={{ fontSize: 12, fontWeight: "900", color: g >= 0 ? "#16A34A" : "#DC2626" }}>{g >= 0 ? "+" : ""}{formatMoney(g, currency)}</Text>;
-                          })()}
-                        </View>
-                      </View>
-                    </View>
+                      );
+                    })()
                   ) : null}
 
                   {/* Leyenda */}
@@ -1920,8 +2103,8 @@ const submitContribution = useCallback(() => {
                       <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>Valor cartera</Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <View style={{ width: 14, height: 2, borderRadius: 99, backgroundColor: "#CBD5E1" }} />
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>Aportado neto</Text>
+                      <View style={{ width: 14, height: 2, borderTopWidth: 2, borderStyle: "dashed", borderColor: "#94A3B8" }} />
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>Capital aportado</Text>
                     </View>
                   </View>
                 </>
@@ -1930,89 +2113,58 @@ const submitContribution = useCallback(() => {
               )}
             </View>
 
-            <View style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, paddingTop: 16, paddingHorizontal: 12, paddingBottom: 12 }}>
-              {!monthlyProfitBars.length ? (
-                <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Sin datos mensuales.</Text>
-              ) : (() => {
-                const BAR_AREA = 90;
-                const maxAbs = Math.max(1, ...monthlyProfitBars.map((b) => Math.abs(b.profit)));
-                return (
-                  <>
-                    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, height: BAR_AREA * 2 + 1 }}>
-                      {/* Línea cero absoluta */}
-                      <View style={{ position: "absolute", left: 0, right: 0, top: BAR_AREA, height: 1, backgroundColor: "#E2E8F0" }} />
-
-                      {monthlyProfitBars.map((b) => {
-                        const positive = b.profit >= 0;
-                        const barH = Math.max(4, Math.round((Math.abs(b.profit) / maxAbs) * BAR_AREA));
-                        const color = positive ? "#16A34A" : "#DC2626";
-                        const isSelected = barTooltip?.label === b.label.replace(".", "");
-                        return (
-                          <TouchableOpacity
-                            key={b.key}
-                            activeOpacity={0.8}
-                            onPress={() => setBarTooltip(isSelected ? null : { label: b.label.replace(".", ""), profit: b.profit, isCurrent: b.isCurrent })}
-                            style={{ flex: 1, height: BAR_AREA * 2 + 1, alignItems: "center", justifyContent: "center" }}
-                          >
-                            <View style={{
-                              position: "absolute",
-                              width: "80%",
-                              height: barH,
-                              borderRadius: 6,
-                              backgroundColor: isSelected ? color : (positive ? "#86EFAC" : "#FCA5A5"),
-                              top: positive ? BAR_AREA - barH : BAR_AREA + 1,
-                              opacity: b.isCurrent ? 0.6 : 1,
-                              borderWidth: b.isCurrent ? 1.5 : 0,
-                              borderColor: color,
-                              borderStyle: "dashed",
-                            }} />
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-
-                    {/* Labels mes */}
-                    <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
-                      {monthlyProfitBars.map((b) => {
-                        const isSelected = barTooltip?.label === b.label.replace(".", "");
-                        return (
-                          <Text key={b.key} style={{ flex: 1, textAlign: "center", fontSize: 10, fontWeight: "700", color: isSelected ? "#0F172A" : "#94A3B8" }}>
-                            {b.label.replace(".", "")}{b.isCurrent ? "*" : ""}
-                          </Text>
-                        );
-                      })}
-                    </View>
-
-                    {monthlyProfitBars.some((b) => b.isCurrent) && (
-                      <Text style={{ fontSize: 10, fontWeight: "600", color: "#94A3B8", marginTop: 4 }}>
-                        * mes en curso, hasta hoy
-                      </Text>
-                    )}
-
-                    {/* Tooltip */}
-                    {barTooltip && (
-                      <View style={{ marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#475569" }}>
-                          {barTooltip.label}{barTooltip.isCurrent ? " (en curso)" : ""}
-                        </Text>
-                        <Text style={{ fontSize: 13, fontWeight: "900", color: barTooltip.profit >= 0 ? "#16A34A" : "#DC2626" }}>
-                          {barTooltip.profit >= 0 ? "+" : ""}{formatMoney(barTooltip.profit, currency)}
-                        </Text>
-                      </View>
-                    )}
-                  </>
-                );
-              })()}
+            <View style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Rentabilidad acumulada</Text>
+                {performanceChart && (
+                  <Text style={{ fontSize: 12, fontWeight: "900", color: performanceChart.gainPct >= 0 ? colors.success : colors.danger }}>
+                    Cartera {performanceChart.gainPct >= 0 ? "+" : "−"}{Math.abs(performanceChart.gainPct).toFixed(2).replace(".", ",")} %
+                  </Text>
+                )}
               </View>
+
+              {performanceChart ? (
+                <Svg width={performanceChart.W} height={performanceChart.H}>
+                  {performanceChart.returnYLabels.map((label) => (
+                    <G key={`return-${label.value}`}>
+                      <Line
+                        x1={performanceChart.padL}
+                        y1={label.y}
+                        x2={performanceChart.W - 10}
+                        y2={label.y}
+                        stroke={Math.abs(label.value) < 0.05 ? "#CBD5E1" : "#F1F5F9"}
+                        strokeWidth={Math.abs(label.value) < 0.05 ? 1.5 : 1}
+                      />
+                      <SvgText x={0} y={label.y + 4} fontSize="9" fill="#94A3B8" fontWeight="700">
+                        {label.value > 0 ? "+" : ""}{label.value.toFixed(1).replace(".", ",")}%
+                      </SvgText>
+                    </G>
+                  ))}
+                  <Path d={performanceChart.returnPath} stroke={colors.primary} strokeWidth={2.8} fill="none" />
+                  <SvgText x={performanceChart.padL} y={performanceChart.H - 4} fontSize="10" fill="#94A3B8">
+                    {new Date(performanceChart.firstDate).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })}
+                  </SvgText>
+                  <SvgText x={performanceChart.W - performanceChart.padL - 10} y={performanceChart.H - 4} fontSize="10" fill="#94A3B8">
+                    {new Date(performanceChart.lastDate).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })}
+                  </SvgText>
+                </Svg>
+              ) : (
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Sin datos suficientes para la gráfica.</Text>
+              )}
+            </View>
           </Animated.View>
+          </>
         )}
 
         {rentView === "tabla" && snapshotsForRent.length > 0 && (() => {
-          const years = [...rentYearRows].map((r) => r.year).sort((a, b) => b - a).slice(0, 4);
+          const years = [...rentYearRows].map((r) => r.year).sort((a, b) => a - b);
           const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-          const isSingleYear = years.length === 1;
-          const colW = isSingleYear ? 100 : 88;
-          const rowLabelW = isSingleYear ? 120 : 100;
+          const rowLabelW = 112;
+          const availableYearsWidth = Math.max(104, SCREEN_W - 40 - rowLabelW);
+          const colW = Math.max(104, availableYearsWidth / Math.max(years.length, 1));
+          const headerH = 40;
+          const totalH = 50;
+          const monthH = 46;
 
           const monthCellByYear = new Map<number, Map<number, MonthlyRentRow>>();
           years.forEach((y) => {
@@ -2039,17 +2191,38 @@ const submitContribution = useCallback(() => {
             return { color: "#64748B", bg: "#F1F5F9" };
           };
 
+          const annualRow = (year: number): MonthlyRentRow | null => {
+            const row = rentYearRows.find((item) => item.year === year);
+            if (!row) return null;
+            return {
+              monthStart: `${year}-01-01T00:00:00.000Z`,
+              currency: row.currency,
+              startValue: row.startValue,
+              endValue: row.endValue,
+              cashflowNet: row.cashflowNet,
+              profit: row.profit,
+              returnPct: row.returnPct,
+            };
+          };
+
+          const openAllAnnualDetails = () => {
+            const entries = years
+              .map((year) => ({ year, row: annualRow(year) }))
+              .filter((entry): entry is { year: number; row: MonthlyRentRow } => entry.row !== null);
+            if (entries.length) setMonthPopup({ label: "Total año", entries, isAnnual: true });
+          };
+
           return (
-            <>
-              {/* Toggle métrica */}
-              <View style={{ paddingHorizontal: 20, marginTop: 4, marginBottom: 12, flexDirection: "row", justifyContent: "flex-end" }}>
+            <View style={{ marginHorizontal: 20, marginTop: 2, marginBottom: 12, backgroundColor: "white", borderRadius: 22, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+              {/* Unidad de toda la matriz */}
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: 10, paddingTop: 8, paddingBottom: 7 }}>
                 <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
                   {([{ key: "pct", label: "%" }, { key: "eur", label: "€" }] as const).map((m) => (
                     <TouchableOpacity
                       key={m.key}
                       onPress={() => setRentTableMetric(m.key)}
                       style={{
-                        paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10,
+                        width: 38, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center",
                         backgroundColor: rentTableMetric === m.key ? "white" : "transparent",
                       }}
                     >
@@ -2061,23 +2234,47 @@ const submitContribution = useCallback(() => {
                 </View>
               </View>
 
-              <View style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: "white", borderRadius: 22, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-                <ScrollView horizontal={!isSingleYear} showsHorizontalScrollIndicator={false} contentContainerStyle={isSingleYear ? { flexGrow: 1 } : undefined}>
-                  <View style={isSingleYear ? { minWidth: "100%" } : undefined}>
+              {/* La columna de meses queda fuera del scroll: permanece fija. */}
+              <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
+                <View style={{ width: rowLabelW, zIndex: 2, backgroundColor: "white", borderRightWidth: 1, borderRightColor: "#E5E7EB" }}>
+                  <View style={{ height: headerH, justifyContent: "center", paddingLeft: 14, backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+                    <Text style={{ fontSize: 10.5, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.4 }}>MES</Text>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.65}
+                    onPress={openAllAnnualDetails}
+                    style={{ height: totalH, justifyContent: "center", paddingLeft: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>Total año</Text>
+                  </TouchableOpacity>
+                  {monthNames.map((label, monthIndex) => (
+                    <TouchableOpacity
+                      key={`month-label-${monthIndex}`}
+                      activeOpacity={0.65}
+                      onPress={() => {
+                        const entries = years
+                          .map((year) => ({ year, row: monthCellByYear.get(year)?.get(monthIndex) }))
+                          .filter((entry): entry is { year: number; row: MonthlyRentRow } => entry.row != null);
+                        if (entries.length) setMonthPopup({ label, entries });
+                      }}
+                      style={{ height: monthH, justifyContent: "center", paddingLeft: 14, borderBottomWidth: monthIndex < 11 ? 1 : 0, borderBottomColor: "#F1F5F9" }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: "#475569" }}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
-                    {/* Header: Mes | año año … */}
-                    <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9", backgroundColor: "#F8FAFC" }}>
-                      <Text style={{ width: rowLabelW, fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.4 }}>MES</Text>
-                      {years.map((y) => (
-                        <Text key={`yh-${y}`} style={{ width: isSingleYear ? undefined : colW, flex: isSingleYear ? 1 : undefined, fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.4, textAlign: "right" }}>
-                          {y}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} style={{ flex: 1 }}>
+                  <View style={{ minWidth: "100%" }}>
+                    <View style={{ height: headerH, flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+                      {years.map((year) => (
+                        <Text key={`year-header-${year}`} style={{ width: colW, paddingRight: 14, fontSize: 10.5, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.4, textAlign: "right" }}>
+                          {year}
                         </Text>
                       ))}
                     </View>
 
-                    {/* Fila total */}
-                    <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-                      <Text style={{ width: rowLabelW, fontSize: 13, fontWeight: "800", color: "#0F172A" }}>Total año</Text>
+                    <View style={{ height: totalH, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
                       {years.map((y) => {
                         const yr = rentYearRows.find((r) => r.year === y);
                         const value = rentTableMetric === "pct" ? (yr?.returnPct ?? null) : (yr?.profit ?? null);
@@ -2085,7 +2282,16 @@ const submitContribution = useCallback(() => {
                         const { color, bg } = pillColors(value);
                         const hasData = value != null && Number.isFinite(value);
                         return (
-                          <View key={`total-${y}`} style={{ width: isSingleYear ? undefined : colW, flex: isSingleYear ? 1 : undefined, alignItems: "flex-end" }}>
+                          <TouchableOpacity
+                            key={`total-${y}`}
+                            disabled={!hasData}
+                            activeOpacity={0.65}
+                            onPress={() => {
+                              const row = annualRow(y);
+                              if (row) setMonthPopup({ label: "Total año", entries: [{ year: y, row }], isAnnual: true });
+                            }}
+                            style={{ width: colW, height: totalH, paddingRight: 14, alignItems: "flex-end", justifyContent: "center" }}
+                          >
                             {hasData ? (
                               <View style={{ backgroundColor: bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
                                 <Text style={{ fontSize: 13, fontWeight: "900", color }}>{formatCell(value, rentTableMetric, ccy)}</Text>
@@ -2093,38 +2299,14 @@ const submitContribution = useCallback(() => {
                             ) : (
                               <Text style={{ fontSize: 12, fontWeight: "700", color: "#CBD5E1" }}>—</Text>
                             )}
-                          </View>
+                          </TouchableOpacity>
                         );
                       })}
                     </View>
 
-                    {/* Filas de meses */}
                     {monthNames.map((mLabel, mIdx) => {
-                      const hasAnyData = years.some((y) => {
-                        const row = monthCellByYear.get(y)?.get(mIdx) ?? null;
-                        const v = rentTableMetric === "pct" ? row?.returnPct : row?.profit;
-                        return v != null && Number.isFinite(v);
-                      });
                       return (
-                        <TouchableOpacity
-                          key={`m-${mIdx}`}
-                          activeOpacity={hasAnyData ? 0.65 : 1}
-                          onPress={() => {
-                            const entries = years
-                              .map((y) => ({ year: y, row: monthCellByYear.get(y)?.get(mIdx) }))
-                              .filter((e): e is { year: number; row: MonthlyRentRow } => e.row != null);
-                            if (entries.length) setMonthPopup({ label: mLabel, entries });
-                          }}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingHorizontal: 16,
-                            paddingVertical: 13,
-                            borderBottomWidth: mIdx < monthNames.length - 1 ? 1 : 0,
-                            borderBottomColor: "#F8FAFC",
-                          }}
-                        >
-                          <Text style={{ width: rowLabelW, fontSize: 13, fontWeight: "600", color: "#475569" }}>{mLabel}</Text>
+                        <View key={`month-row-${mIdx}`} style={{ height: monthH, flexDirection: "row", alignItems: "center", borderBottomWidth: mIdx < 11 ? 1 : 0, borderBottomColor: "#F1F5F9" }}>
                           {years.map((y) => {
                             const row = monthCellByYear.get(y)?.get(mIdx) ?? null;
                             const value = rentTableMetric === "pct" ? (row?.returnPct ?? null) : (row?.profit ?? null);
@@ -2133,20 +2315,26 @@ const submitContribution = useCallback(() => {
                             const hasData = value != null && Number.isFinite(value);
                             const isCurrent = isCurrentMonthCell(row);
                             return (
-                              <View key={`cell-${y}-${mIdx}`} style={{ width: isSingleYear ? undefined : colW, flex: isSingleYear ? 1 : undefined, alignItems: "flex-end" }}>
+                              <TouchableOpacity
+                                key={`cell-${y}-${mIdx}`}
+                                disabled={!row}
+                                activeOpacity={0.65}
+                                onPress={() => row && setMonthPopup({ label: mLabel, entries: [{ year: y, row }] })}
+                                style={{ width: colW, height: monthH, paddingRight: 14, alignItems: "flex-end", justifyContent: "center" }}
+                              >
                                 <Text style={{ fontSize: 12, fontWeight: "800", color: hasData ? color : "#CBD5E1", opacity: isCurrent ? 0.65 : 1 }}>
                                   {formatCell(value, rentTableMetric, ccy)}{isCurrent ? " •" : ""}
                                 </Text>
-                              </View>
+                              </TouchableOpacity>
                             );
                           })}
-                        </TouchableOpacity>
+                        </View>
                       );
                     })}
                   </View>
                 </ScrollView>
               </View>
-            </>
+            </View>
           );
         })()}
 
@@ -2228,19 +2416,37 @@ const submitContribution = useCallback(() => {
         {/* == TAB: OPERACIONES == */}
         {mainTab === "operaciones" && (
           <View style={{ paddingHorizontal: 20 }}>
+            {!allOperationsLoading && allOperations.length > 0 && (
+              <View style={{ marginBottom: 12 }}>
+                <SegmentedTabs<OperationFilter>
+                  options={[
+                    { key: "all", label: "Todas" },
+                    { key: "buy", label: "Compras" },
+                    { key: "sell", label: "Ventas" },
+                  ]}
+                  value={operationFilter}
+                  onChange={setOperationFilter}
+                />
+              </View>
+            )}
+
             {allOperationsLoading ? (
               <View style={{ alignItems: "center", paddingTop: 40 }}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={{ color: "#94A3B8", marginTop: 10, fontSize: 13, fontWeight: "600" }}>Cargando operaciones...</Text>
               </View>
-            ) : allOperations.length === 0 ? (
+            ) : filteredOperations.length === 0 ? (
               <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
                 <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
                   <Ionicons name="swap-horizontal-outline" size={30} color="#94A3B8" />
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>Sin operaciones</Text>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>
+                  {allOperations.length === 0 ? "Sin operaciones" : "Sin operaciones de este tipo"}
+                </Text>
                 <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8", textAlign: "center" }}>
-                  Añade una operación desde el botón + Añadir.
+                  {allOperations.length === 0
+                    ? "Añade una operación desde el botón + Añadir."
+                    : "Prueba con otro filtro para ver más movimientos."}
                 </Text>
               </View>
             ) : (
@@ -2262,16 +2468,16 @@ const submitContribution = useCallback(() => {
                       {ops.map((op, idx) => {
                         const asset = assetMapForOps.get(op.assetId);
                         const assetName = asset?.abbreviation?.trim() || asset?.name || `Activo #${op.assetId}`;
-                        const signed = opSignedAmount(op);
                         const { color, bg } = opTypeColor(op.type);
-                        const dateStr = new Date(op.date || op.createdAt || 0).toLocaleDateString("es-ES", {
-                          day: "2-digit", month: "short",
-                        });
+                        const operationDate = new Date(op.date || op.createdAt || 0);
+                        const dateStr = Number.isNaN(operationDate.getTime())
+                          ? "Sin fecha"
+                          : operationDate.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
                         return (
                           <TouchableOpacity
                             key={op.id}
                             activeOpacity={0.75}
-                            onPress={() => navigation.navigate("InvestmentDetail", { assetId: op.assetId })}
+                            onPress={() => setSelectedOperation(op)}
                             style={{
                               flexDirection: "row",
                               alignItems: "center",
@@ -2283,30 +2489,20 @@ const submitContribution = useCallback(() => {
                             }}
                           >
                             <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
-                              <Ionicons
-                                name={
-                                  op.type === "buy" || op.type === "transfer_in" ? "arrow-down-outline"
-                                  : op.type === "sell" || op.type === "transfer_out" ? "arrow-up-outline"
-                                  : "swap-horizontal-outline"
-                                }
-                                size={17}
-                                color={color}
-                              />
+                              <Ionicons name={opTypeIcon(op.type)} size={17} color={color} />
                             </View>
                             <View style={{ flex: 1, gap: 2 }}>
                               <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
                                 {assetName}
                               </Text>
-                              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: bg }}>
-                                  <Text style={{ fontSize: 10, fontWeight: "800", color }}>{opLabel(op.type)}</Text>
-                                </View>
-                                <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8" }}>{dateStr}</Text>
-                              </View>
+                              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>
+                                {opLabel(op.type)} · {dateStr}
+                              </Text>
                             </View>
-                            <Text style={{ fontSize: 13, fontWeight: "900", color: signed >= 0 ? "#16A34A" : "#DC2626" }}>
-                              {signed >= 0 ? "+" : ""}{formatMoney(signed, asset?.currency ?? "EUR")}
+                            <Text style={{ fontSize: 13.5, fontWeight: "900", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+                              {formatMoney(Math.abs(Number(op.amount || 0)), asset?.currency ?? "EUR")}
                             </Text>
+                            <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
                           </TouchableOpacity>
                         );
                       })}
@@ -2321,6 +2517,102 @@ const submitContribution = useCallback(() => {
           </ScrollView>
         </Animated.View>
       )}
+
+      {/* -- Detalle de operación: ledger, no rendimiento -- */}
+      <Modal
+        visible={selectedOperation !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedOperation(null)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
+          activeOpacity={1}
+          onPress={() => setSelectedOperation(null)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            {selectedOperation && (() => {
+              const op = selectedOperation;
+              const asset = assetMapForOps.get(op.assetId);
+              const assetName = asset?.abbreviation?.trim() || asset?.name || `Activo #${op.assetId}`;
+              const operationCurrency = asset?.currency ?? "EUR";
+              const quantity = Number(op.quantity);
+              const hasQuantity = Number.isFinite(quantity) && quantity !== 0;
+              const unitPrice = hasQuantity ? Math.abs(Number(op.amount || 0)) / Math.abs(quantity) : null;
+              const operationDate = new Date(op.date || op.createdAt || 0);
+              const dateText = Number.isNaN(operationDate.getTime())
+                ? "—"
+                : operationDate.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+              const platform =
+                op.wallet?.name ||
+                op.transaction?.fromWallet?.name ||
+                op.transaction?.toWallet?.name ||
+                asset?.description?.trim() ||
+                "—";
+              const details = [
+                { label: "Importe", value: formatMoney(Math.abs(Number(op.amount || 0)), operationCurrency) },
+                { label: "Fecha", value: dateText },
+                { label: "Precio por unidad", value: unitPrice == null ? "—" : formatMoney(unitPrice, operationCurrency) },
+                { label: "Participaciones / unidades", value: hasQuantity ? String(op.quantity).replace(".", ",") : "—" },
+                { label: "Comisión", value: op.fee != null ? formatMoney(Math.abs(Number(op.fee || 0)), operationCurrency) : "—" },
+                { label: "Plataforma / cuenta", value: platform },
+                { label: "Notas", value: op.description?.trim() || "—" },
+              ];
+
+              return (
+                <View style={{ backgroundColor: "white", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28 }}>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>{assetName}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: opTypeColor(op.type).color, marginTop: 3 }}>{opLabel(op.type)}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setSelectedOperation(null)}
+                      style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+                    >
+                      <Ionicons name="close" size={15} color="#64748B" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
+                    {details.map((detail, index) => (
+                      <View
+                        key={detail.label}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          paddingVertical: 10,
+                          borderBottomWidth: index < details.length - 1 ? 1 : 0,
+                          borderBottomColor: "#F1F5F9",
+                          gap: 18,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>{detail.label}</Text>
+                        <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", color: "#0F172A", textAlign: "right" }}>{detail.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {!(["dividend", "fee"] as InvestmentOperationType[]).includes(op.type) && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedOperation(null);
+                        navigation.navigate("InvestmentOperation", { assetId: op.assetId, operationData: op });
+                      }}
+                      activeOpacity={0.82}
+                      style={{ marginTop: 16, height: 42, borderRadius: 12, backgroundColor: "#EEF2FF", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}
+                    >
+                      <Ionicons name="create-outline" size={15} color={colors.primary} />
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: colors.primary }}>Editar operación</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })()}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── Popup detalle mes ── */}
       <Modal
@@ -2342,7 +2634,7 @@ const submitContribution = useCallback(() => {
                 <Text style={{ fontSize: 17, fontWeight: "900", color: "#0F172A" }}>
                   {monthPopup?.label}
                   {monthPopup?.entries.length === 1 ? ` · ${monthPopup.entries[0].year}` : ""}
-                  {monthPopup?.entries.length === 1 && currentMonthReturn && monthPopup.entries[0].row.monthStart === currentMonthReturn.monthStart
+                  {!monthPopup?.isAnnual && monthPopup?.entries.length === 1 && currentMonthReturn && monthPopup.entries[0].row.monthStart === currentMonthReturn.monthStart
                     ? " (en curso)" : ""}
                 </Text>
                 <TouchableOpacity
@@ -2357,7 +2649,7 @@ const submitContribution = useCallback(() => {
                 const ccy = row.currency ?? currency;
                 const signed = (v: number | null) =>
                   v == null || !Number.isFinite(v) ? "-"
-                    : `${v >= 0 ? "+" : ""}${formatMoney(Math.abs(v), ccy)}`;
+                    : `${v >= 0 ? "+" : "−"}${formatMoney(Math.abs(v), ccy)}`;
                 const neutral = (v: number | null) =>
                   v == null || !Number.isFinite(v) ? "-" : formatMoney(v, ccy);
                 const pct = (v: number | null) =>
@@ -2372,7 +2664,7 @@ const submitContribution = useCallback(() => {
                     {(monthPopup?.entries.length ?? 0) > 1 && (
                       <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B", marginBottom: 8, marginTop: idx > 0 ? 14 : 0 }}>
                         {year}
-                        {currentMonthReturn && row.monthStart === currentMonthReturn.monthStart ? " (en curso)" : ""}
+                        {!monthPopup?.isAnnual && currentMonthReturn && row.monthStart === currentMonthReturn.monthStart ? " (en curso)" : ""}
                       </Text>
                     )}
 

@@ -25,7 +25,7 @@ import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSk
 import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
-import { formatEuro as formatEuroBase, formatEuroInt } from "../../../utils/currency";
+import { formatEuro as formatEuroBase } from "../../../utils/currency";
 import { getComparison } from "../../../utils/comparison";
 
 type RangeType = "week" | "month" | "year" | "all";
@@ -262,7 +262,6 @@ export default function StatsScreen({ navigation }: any) {
 
   const capitalizeLabel = (label: string) => (label ? label.charAt(0).toUpperCase() + label.slice(1) : label);
   const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
-  const formatEuroCompact = (n: number) => `${formatEuroInt(n)} €`;
 
   const isYearMode = rangeType === "year";
 
