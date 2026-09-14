@@ -3,21 +3,28 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
   Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import AppHeader from "../../../../components/AppHeader";
 import api from "../../../../api/api";
-import { colors } from "../../../../theme/theme";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import { CRYPTO_PRESETS, getCryptoLogoUrl } from "../../../../constants/bankPresets";
 import PresetPickerCard from "../../../../components/PresetPickerCard";
+import {
+  CreationFlow,
+  EditingActionRow,
+  EditingForm,
+  FormCurrencyPicker,
+  FormError,
+  FormMoneyField,
+  FormNumberField,
+  FormOptionCard,
+  FormSection,
+  FormSegmentedControl,
+  FormTextField,
+} from "../../../../components/creation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income"; // ✅ solo dos valores
@@ -26,22 +33,20 @@ type RiskOrNull = InvestmentRiskType | null; // ✅ o ninguno
 const TYPE_OPTIONS: {
   key: InvestmentAssetType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { key: "crypto", label: "Crypto", icon: "logo-bitcoin" },
-  { key: "etf", label: "ETF", icon: "pie-chart-outline" },
-  { key: "stock", label: "Acción", icon: "trending-up-outline" },
-  { key: "fund", label: "Fondo", icon: "briefcase-outline" },
-  { key: "custom", label: "Custom", icon: "shapes-outline" },
+  { key: "crypto", label: "Crypto" },
+  { key: "etf", label: "ETF" },
+  { key: "stock", label: "Acción" },
+  { key: "fund", label: "Fondo" },
+  { key: "custom", label: "Custom" },
 ];
 
 const RISK_OPTIONS: {
   key: InvestmentRiskType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { key: "variable_income", label: "Renta variable", icon: "trending-up-outline" },
-  { key: "fixed_income", label: "Renta fija", icon: "shield-checkmark-outline" },
+  { key: "variable_income", label: "Renta variable" },
+  { key: "fixed_income", label: "Renta fija" },
 ];
 
 interface AssetFromApi {
@@ -88,6 +93,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [archiveConfirming, setArchiveConfirming] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [isArchived, setIsArchived] = useState(false);
@@ -104,11 +110,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [currency, setCurrency] = useState("EUR");
 
   const [initialInvestedText, setInitialInvestedText] = useState<string>("");
-
-  const title = useMemo(
-    () => (isEdit ? "Editar inversión" : "Nueva inversión"),
-    [isEdit]
-  );
 
   const initialInvestedNumber = useMemo(
     () => parseAmount(initialInvestedText),
@@ -243,6 +244,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
     }
 
     try {
+      setSaveError(null);
       setSaving(true);
 
       if (isEdit) {
@@ -259,7 +261,8 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       const msg =
         e?.response?.data?.message ||
         (isEdit ? "No se pudo actualizar la inversión." : "No se pudo crear la inversión.");
-      Alert.alert("Error", String(msg));
+      if (isEdit) Alert.alert("Error", String(msg));
+      else setSaveError(String(msg));
     } finally {
       setSaving(false);
     }
@@ -350,650 +353,359 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
 
   const clearRisk = () => setRiskType(null);
 
+  if (!isEdit) {
+    const quantityError = !quantityText.trim()
+      ? null
+      : quantityNumber === null
+        ? "Introduce un número válido."
+        : quantityNumber < 0
+          ? "Las participaciones no pueden ser negativas."
+          : null;
+    const initialInvestedError = !initialInvestedText.trim()
+      ? null
+      : initialInvestedNumber === null
+        ? "Introduce un importe válido."
+        : initialInvestedNumber < 0
+          ? "El importe aportado no puede ser negativo."
+          : null;
+    const currencyError = isValidCurrencyCode(currency.trim() || "EUR")
+      ? null
+      : "Usa un código ISO de tres letras, por ejemplo EUR.";
+
+    return (
+      <CreationFlow
+        title="Nueva inversión"
+        submitLabel="Crear inversión"
+        onClose={() => navigation.goBack()}
+        onSubmit={onSave}
+        isSubmitting={saving}
+        submitError={saveError}
+        steps={[
+          {
+            id: "asset",
+            title: "El activo",
+            description: "Identifica el producto y dónde lo tienes contratado.",
+            isValid: !!name.trim() && !currencyError,
+            content: ({ showErrors }) => (
+              <View style={{ gap: 22 }}>
+                <FormSection>
+                  <FormTextField
+                    label="Nombre"
+                    required
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                    error={!name.trim() ? "Introduce un nombre para la inversión." : null}
+                    showError={showErrors}
+                  />
+
+                  <View>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 7 }}>Tipo de activo</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", margin: -4 }}>
+                      {TYPE_OPTIONS.map((option) => (
+                        <View key={option.key} style={{ width: "50%", padding: 4 }}>
+                          <FormOptionCard
+                            label={option.label}
+                            selected={type === option.key}
+                            onPress={() => onSelectType(option.key)}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  {type === "crypto" ? (
+                    <View>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 4 }}>
+                        Criptomoneda
+                      </Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
+                      >
+                        {CRYPTO_PRESETS.map((preset) => (
+                          <PresetPickerCard
+                            key={preset.key}
+                            logoUrl={getCryptoLogoUrl(preset.symbol)}
+                            label={preset.name}
+                            selected={identificator.trim().toLowerCase() === preset.symbol}
+                            onPress={() => {
+                              setIdentificator(preset.symbol.toUpperCase());
+                              if (!name.trim()) setName(preset.name);
+                            }}
+                          />
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : null}
+
+                  <FormTextField
+                    label="Abreviación"
+                    value={abbreviation}
+                    onChangeText={setAbbreviation}
+                    returnKeyType="next"
+                  />
+
+                  <FormTextField
+                    label={identifierLabel}
+                    value={identificator}
+                    onChangeText={setIdentificator}
+                    autoCapitalize="characters"
+                    returnKeyType="next"
+                  />
+
+                  <FormSegmentedControl<InvestmentRiskType>
+                    label="Clase de activo"
+                    value={riskType}
+                    options={RISK_OPTIONS.map((option) => ({ value: option.key, label: option.label }))}
+                    onChange={setRiskType}
+                    onClear={clearRisk}
+                  />
+
+                  <FormCurrencyPicker value={currency} onChange={setCurrency} required />
+                </FormSection>
+              </View>
+            ),
+          },
+          {
+            id: "position",
+            title: "Tu posición",
+            description: "Añade lo que ya tenías antes de empezar a usar Spendly.",
+            isValid: !quantityError && !initialInvestedError,
+            content: ({ showErrors }) => (
+              <View style={{ gap: 22 }}>
+                <FormSection>
+                  <FormTextField
+                    label="Broker"
+                    value={description}
+                    onChangeText={setDescription}
+                    returnKeyType="next"
+                  />
+                  <FormNumberField
+                    label="Participaciones"
+                    value={quantityText}
+                    onChangeText={setQuantityText}
+                    error={quantityError}
+                    showError={showErrors}
+                    returnKeyType="next"
+                  />
+                  <FormMoneyField
+                    label="Aportado previamente"
+                    value={initialInvestedText}
+                    onChangeText={setInitialInvestedText}
+                    currency={currency.trim().toUpperCase() || "EUR"}
+                    error={initialInvestedError}
+                    showError={showErrors}
+                    hint="Las nuevas aportaciones se registrarán después como operaciones."
+                    returnKeyType="done"
+                  />
+                </FormSection>
+
+                <FormSection
+                  title="DATOS EXTERNOS"
+                  description="Solo si utilizas una fuente automática de información del activo."
+                >
+                  <FormTextField
+                    label="Proveedor de datos"
+                    value={provider}
+                    onChangeText={setProvider}
+                    autoCapitalize="none"
+                    returnKeyType="next"
+                  />
+                  <FormTextField
+                    label="URL de metadata"
+                    value={metadataUrl}
+                    onChangeText={setMetadataUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                  />
+                </FormSection>
+              </View>
+            ),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pb-3">
-        <AppHeader
-          title={title}
-          showProfile={false}
-          showDatePicker={false}
-          showBack={true}
-        />
-      </View>
+      <EditingForm
+        title="Editar inversión"
+        onClose={() => navigation.goBack()}
+        onSubmit={onSave}
+        isLoading={loading}
+        isSubmitting={saving}
+        isValid={canSave}
+      >
+        <View style={{ gap: 28 }}>
+          <FormSection title="EL ACTIVO">
+            <FormTextField
+              label="Nombre"
+              required
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              returnKeyType="next"
+              error={!name.trim() ? "Introduce un nombre para la inversión." : null}
+            />
 
-      {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="text-gray-400 mt-3 text-sm">Cargando…</Text>
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1 px-5"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 30 }}
-        >
-          {/* HERO CARD */}
-          <View
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 24,
-              padding: 18,
-              marginBottom: 12,
-            }}
-          >
-            <View className="flex-row items-center">
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.16)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="sparkles-outline" size={18} color="white" />
-              </View>
-
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>
-                  {isEdit ? "Configura tu inversión" : "Crea una inversión"}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: "rgba(255,255,255,0.7)",
-                    marginTop: 2,
-                  }}
-                >
-                  Selecciónala al hacer una transferencia a tu wallet de inversión.
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* FORM CARD */}
-          <View
-            className="rounded-3xl mb-3"
-            style={{
-              backgroundColor: "white",
-              padding: 14,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            {/* NAME */}
-            <Text className="text-[11px] text-gray-400">Nombre</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="text-outline" size={16} color="#64748B" />
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder='Ej: Bitcoin, VWCE, "Mi cartera bonos"'
-                placeholderTextColor="#9CA3AF"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-            </View>
-
-            {/* DESCRIPTION */}
-            <Text className="text-[11px] text-gray-400 mt-4">Abreviación (opcional)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="pricetag-outline" size={16} color="#64748B" />
-              <TextInput
-                value={abbreviation}
-                onChangeText={setAbbreviation}
-                placeholder="Ej: MSCI World, BTC, Polar Tech"
-                placeholderTextColor="#9CA3AF"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-            </View>
-
-            <Text className="text-[11px] text-gray-400 mt-4">{identifierLabel} (opcional)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="document-text-outline" size={16} color="#64748B" />
-              <TextInput
-                value={identificator}
-                onChangeText={setIdentificator}
-                placeholder={type === "fund" ? "Ej: IE00B4L5Y983" : type === "crypto" ? "Ej: BTC" : "Ej: ticker o referencia"}
-                placeholderTextColor="#9CA3AF"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-              {!!identificator.trim() && (
-                <TouchableOpacity
-                  onPress={() => setIdentificator("")}
-                  style={{ padding: 6, borderRadius: 10 }}
-                  activeOpacity={0.9}
-                >
-                  <Ionicons name="close" size={16} color="#94A3B8" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <Text className="text-[11px] text-gray-400 mt-4">Participaciones (opcional)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="layers-outline" size={16} color="#64748B" />
-              <TextInput
-                value={quantityText}
-                onChangeText={setQuantityText}
-                placeholder="Ej: 2,5"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-              {quantityText.trim() && quantityNumber === null ? (
-                <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>
-                  inválido
-                </Text>
-              ) : null}
-            </View>
-
-            <Text className="text-[11px] text-gray-400 mt-4">Broker (opcional)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="business-outline" size={16} color="#64748B" />
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Ej: Trade Republic, MyInvestor, Binance…"
-                placeholderTextColor="#9CA3AF"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-            </View>
-
-            <Text className="text-[11px] text-gray-400 mt-4">Provider metadata (opcional)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="server-outline" size={16} color="#64748B" />
-              <TextInput
-                value={provider}
-                onChangeText={setProvider}
-                placeholder="Ej: polar, fidelity, vanguard"
-                placeholderTextColor="#9CA3AF"
-                autoCapitalize="none"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-            </View>
-
-            <Text className="text-[11px] text-gray-400 mt-4">Metadata URL (opcional)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="link-outline" size={16} color="#64748B" />
-              <TextInput
-                value={metadataUrl}
-                onChangeText={setMetadataUrl}
-                placeholder="https://..."
-                placeholderTextColor="#9CA3AF"
-                autoCapitalize="none"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "600",
-                }}
-              />
-            </View>
-
-            {/* TYPE */}
-            <Text className="text-[11px] text-gray-400 mt-4">Tipo</Text>
-            <View className="flex-row flex-wrap mt-2" style={{ gap: 8 }}>
-              {TYPE_OPTIONS.map((opt) => {
-                const active = type === opt.key;
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    onPress={() => onSelectType(opt.key)}
-                    activeOpacity={0.9}
-                    style={{
-                      paddingVertical: 8,
-                      paddingHorizontal: 10,
-                      borderRadius: 14,
-                      backgroundColor: active ? "#EEF2FF" : "#F3F4F6",
-                      borderWidth: 1,
-                      borderColor: active ? colors.primary : "#E5E7EB",
-                      flexDirection: "row",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={14}
-                      color={active ? colors.primary : "#64748B"}
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 7 }}>Tipo de activo</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", margin: -4 }}>
+                {TYPE_OPTIONS.map((option) => (
+                  <View key={option.key} style={{ width: "50%", padding: 4 }}>
+                    <FormOptionCard
+                      label={option.label}
+                      selected={type === option.key}
+                      onPress={() => onSelectType(option.key)}
                     />
-                    <Text
-                      style={{
-                        marginLeft: 6,
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: active ? colors.primary : "#64748B",
-                      }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                  </View>
+                ))}
+              </View>
             </View>
 
-            {/* CRIPTOMONEDA (solo si el tipo es Crypto) — elegir una rellena Nombre y Símbolo */}
-            {type === "crypto" && (
-              <>
-                <Text className="text-[11px] text-gray-400 mt-4">Elegir criptomoneda (opcional)</Text>
+            {type === "crypto" ? (
+              <View>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 4 }}>Criptomoneda</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 12, paddingVertical: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
                 >
-                  {CRYPTO_PRESETS.map((preset) => {
-                    const logoUrl = getCryptoLogoUrl(preset.symbol);
-                    const selected = identificator.trim().toLowerCase() === preset.symbol;
-                    return (
-                      <PresetPickerCard
-                        key={preset.key}
-                        logoUrl={logoUrl}
-                        label={preset.name}
-                        selected={selected}
-                        onPress={() => {
-                          setIdentificator(preset.symbol.toUpperCase());
-                          if (!name.trim()) setName(preset.name);
-                        }}
-                      />
-                    );
-                  })}
-                </ScrollView>
-              </>
-            )}
-
-            {/* RISK TYPE */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
-              <Text className="text-[11px] text-gray-400">Riesgo</Text>
-
-              {riskType !== null ? (
-                <TouchableOpacity onPress={clearRisk} activeOpacity={0.9} style={{ flexDirection: "row", gap: 6 }}>
-                  <Ionicons name="close-circle-outline" size={16} color="#94A3B8" />
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8" }}>Quitar</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            <View className="flex-row flex-wrap mt-2" style={{ gap: 8 }}>
-              {RISK_OPTIONS.map((opt) => {
-                const active = riskType === opt.key;
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    onPress={() => setRiskType(opt.key)}
-                    activeOpacity={0.9}
-                    style={{
-                      paddingVertical: 8,
-                      paddingHorizontal: 10,
-                      borderRadius: 14,
-                      backgroundColor: active ? "#ECFDF5" : "#F3F4F6",
-                      borderWidth: 1,
-                      borderColor: active ? "#10B981" : "#E5E7EB",
-                      flexDirection: "row",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={14}
-                      color={active ? "#059669" : "#64748B"}
-                    />
-                    <Text
-                      style={{
-                        marginLeft: 6,
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: active ? "#059669" : "#64748B",
+                  {CRYPTO_PRESETS.map((preset) => (
+                    <PresetPickerCard
+                      key={preset.key}
+                      logoUrl={getCryptoLogoUrl(preset.symbol)}
+                      label={preset.name}
+                      selected={identificator.trim().toLowerCase() === preset.symbol}
+                      onPress={() => {
+                        setIdentificator(preset.symbol.toUpperCase());
+                        if (!name.trim()) setName(preset.name);
                       }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
 
-            <Text className="text-[11px] text-gray-400 mt-3 leading-4">
-              Selecciona renta fija o renta variable, o déjalo sin definir.
-            </Text>
+            <FormTextField
+              label="Abreviación"
+              value={abbreviation}
+              onChangeText={setAbbreviation}
+              returnKeyType="next"
+            />
+            <FormTextField
+              label={identifierLabel}
+              value={identificator}
+              onChangeText={setIdentificator}
+              autoCapitalize="characters"
+              returnKeyType="next"
+            />
+            <FormSegmentedControl<InvestmentRiskType>
+              label="Clase de activo"
+              value={riskType}
+              options={RISK_OPTIONS.map((option) => ({ value: option.key, label: option.label }))}
+              onChange={setRiskType}
+              onClear={clearRisk}
+            />
+            <FormCurrencyPicker value={currency} onChange={setCurrency} required />
+          </FormSection>
 
-            {/* CURRENCY */}
-            <Text className="text-[11px] text-gray-400 mt-4">Divisa</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="cash-outline" size={16} color="#64748B" />
-              <TextInput
-                value={currency}
-                onChangeText={(v) => setCurrency(v.toUpperCase())}
-                placeholder="EUR"
-                placeholderTextColor="#9CA3AF"
-                autoCapitalize="characters"
-                maxLength={3}
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "700",
-                }}
-              />
-              {!isValidCurrencyCode(currency.trim() || "EUR") ? (
-                <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>
-                  ISO
-                </Text>
-              ) : null}
-            </View>
+          <FormSection title="TU POSICIÓN">
+            <FormTextField
+              label="Broker"
+              value={description}
+              onChangeText={setDescription}
+              returnKeyType="next"
+            />
+            <FormNumberField
+              label="Participaciones"
+              value={quantityText}
+              onChangeText={setQuantityText}
+              error={quantityText.trim() && quantityNumber === null ? "Introduce un número válido." : quantityNumber !== null && quantityNumber < 0 ? "Las participaciones no pueden ser negativas." : null}
+              returnKeyType="next"
+            />
+            <FormMoneyField
+              label="Aportado previamente"
+              value={initialInvestedText}
+              onChangeText={setInitialInvestedText}
+              currency={currency.trim().toUpperCase() || "EUR"}
+              error={initialInvestedText.trim() && initialInvestedNumber === null ? "Introduce un importe válido." : initialInvestedNumber !== null && initialInvestedNumber < 0 ? "El importe aportado no puede ser negativo." : null}
+              hint="Las nuevas aportaciones se registran como operaciones."
+              returnKeyType="done"
+            />
+          </FormSection>
 
-            {/* APORTADO PREVIO */}
-            <Text className="text-[11px] text-gray-400 mt-4">Aportado previo (antes de usar la app)</Text>
-            <View
-              className="flex-row items-center mt-1 rounded-2xl"
-              style={{
-                backgroundColor: "#F9FAFB",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <Ionicons name="arrow-down-circle-outline" size={16} color="#64748B" />
-              <TextInput
-                value={initialInvestedText}
-                onChangeText={setInitialInvestedText}
-                placeholder="Ej: 2500"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-                style={{
-                  marginLeft: 10,
-                  flex: 1,
-                  color: "#111827",
-                  fontWeight: "700",
-                }}
-              />
-              {initialInvestedText.trim() && initialInvestedNumber === null ? (
-                <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>
-                  inválido
-                </Text>
-              ) : null}
-            </View>
-
-            <Text className="text-[11px] text-gray-400 mt-3 leading-4">
-              Esto es lo que ya habías aportado antes de empezar con la app. Las aportaciones nuevas
-              las registrarás como transferencias a tu wallet de inversión.
-            </Text>
-          </View>
-
-          {/* ACTIONS */}
-          <TouchableOpacity
-            onPress={onSave}
-            disabled={!canSave || saving}
-            className="flex-row items-center justify-center py-3 rounded-2xl"
-            style={{
-              backgroundColor: !canSave || saving ? "#E5E7EB" : colors.primary,
-            }}
-            activeOpacity={0.9}
+          <FormSection
+            title="DATOS EXTERNOS"
+            description="Fuente automática de información del activo."
           >
-            {saving ? (
-              <ActivityIndicator color={!canSave ? "#64748B" : "white"} />
-            ) : (
-              <Ionicons name="checkmark-outline" size={18} color="white" />
-            )}
-            <Text
-              className="text-sm font-semibold ml-2"
-              style={{ color: !canSave || saving ? "#64748B" : "white" }}
-            >
-              {isEdit ? "Guardar cambios" : "Crear inversión"}
-            </Text>
-          </TouchableOpacity>
+            <FormTextField
+              label="Proveedor de datos"
+              value={provider}
+              onChangeText={setProvider}
+              autoCapitalize="none"
+              returnKeyType="next"
+            />
+            <FormTextField
+              label="URL de metadata"
+              value={metadataUrl}
+              onChangeText={setMetadataUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+          </FormSection>
 
-          {isEdit ? (
-            <>
+          <FormSection title="OTRAS ACCIONES">
+            <View style={{ borderTopWidth: 1, borderTopColor: "#E8EDF3" }}>
               {isArchived ? (
-                // — DESARCHIVAR —
                 unarchiveConfirming ? (
-                  <View
-                    className="rounded-2xl mt-2"
-                    style={{ backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0", padding: 14 }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: "700", color: "#14532D", marginBottom: 4 }}>
-                      ¿Restaurar esta inversión?
+                  <View style={{ paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#E8EDF3" }}>
+                    <Text style={{ fontSize: 13.5, lineHeight: 19, fontWeight: "600", color: "#475569" }}>
+                      Volverá a aparecer en tu cartera.
                     </Text>
-                    <Text style={{ fontSize: 12, color: "#166534", marginBottom: 12, lineHeight: 17 }}>
-                      Volverá a aparecer en tu cartera y en el gráfico.
-                    </Text>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        onPress={() => setUnarchiveConfirming(false)}
-                        disabled={saving}
-                        activeOpacity={0.9}
-                        style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Cancelar</Text>
+                    <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 22, marginTop: 11 }}>
+                      <TouchableOpacity onPress={() => setUnarchiveConfirming(false)} disabled={saving} hitSlop={8}>
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={onUnarchive}
-                        disabled={saving}
-                        activeOpacity={0.9}
-                        style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: "#16A34A", flexDirection: "row", justifyContent: "center", gap: 6 }}
-                      >
-                        {saving ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="arrow-up-circle-outline" size={15} color="white" />}
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }}>Sí, restaurar</Text>
+                      <TouchableOpacity onPress={onUnarchive} disabled={saving} hitSlop={8}>
+                        <Text style={{ fontSize: 13, fontWeight: "800", color: "#16A34A" }}>Restaurar</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    onPress={onUnarchive}
-                    disabled={saving}
-                    className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
-                    style={{ backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0" }}
-                    activeOpacity={0.9}
-                  >
-                    <Ionicons name="arrow-up-circle-outline" size={18} color="#16A34A" />
-                    <Text className="text-sm font-semibold ml-2" style={{ color: "#16A34A" }}>Restaurar inversión</Text>
-                  </TouchableOpacity>
+                  <EditingActionRow label="Restaurar inversión" onPress={onUnarchive} disabled={saving} />
                 )
               ) : archiveConfirming ? (
-                <View
-                  className="rounded-2xl mt-2"
-                  style={{
-                    backgroundColor: "#FFFBEB",
-                    borderWidth: 1,
-                    borderColor: "#FDE68A",
-                    padding: 14,
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
-                    ¿Archivar esta inversión?
+                <View style={{ paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#E8EDF3" }}>
+                  <Text style={{ fontSize: 13.5, lineHeight: 19, fontWeight: "600", color: "#475569" }}>
+                    La inversión dejará de aparecer en tu cartera. Su última valoración debe ser 0.
                   </Text>
-                  <Text style={{ fontSize: 12, color: "#B45309", marginBottom: 12, lineHeight: 17 }}>
-                    Desaparecerá de tu cartera. Su última valoración debe ser 0.
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => setArchiveConfirming(false)}
-                      disabled={saving}
-                      activeOpacity={0.9}
-                      style={{
-                        flex: 1, alignItems: "center", paddingVertical: 9,
-                        borderRadius: 12, backgroundColor: "#F3F4F6",
-                        borderWidth: 1, borderColor: "#E5E7EB",
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>Cancelar</Text>
+                  <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 22, marginTop: 11 }}>
+                    <TouchableOpacity onPress={() => setArchiveConfirming(false)} disabled={saving} hitSlop={8}>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={onArchive}
-                      disabled={saving}
-                      activeOpacity={0.9}
-                      style={{
-                        flex: 1, alignItems: "center", paddingVertical: 9,
-                        borderRadius: 12, backgroundColor: "#D97706",
-                        flexDirection: "row", justifyContent: "center", gap: 6,
-                      }}
-                    >
-                      {saving ? (
-                        <ActivityIndicator size="small" color="white" />
-                      ) : (
-                        <Ionicons name="archive-outline" size={15} color="white" />
-                      )}
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }}>Sí, archivar</Text>
+                    <TouchableOpacity onPress={onArchive} disabled={saving} hitSlop={8}>
+                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#B45309" }}>Archivar</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity
-                  onPress={onArchive}
-                  disabled={saving}
-                  className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
-                  style={{
-                    backgroundColor: "#FFFBEB",
-                    borderWidth: 1,
-                    borderColor: "#FDE68A",
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <Ionicons name="archive-outline" size={18} color="#D97706" />
-                  <Text className="text-sm font-semibold ml-2" style={{ color: "#D97706" }}>
-                    Archivar inversión
-                  </Text>
-                </TouchableOpacity>
+                <EditingActionRow label="Archivar inversión" onPress={onArchive} disabled={saving} />
               )}
 
-              {(archiveError || unarchiveError) ? (
-                <View
-                  style={{
-                    marginTop: 8, paddingHorizontal: 12, paddingVertical: 8,
-                    borderRadius: 12, backgroundColor: "#FEF2F2",
-                    borderWidth: 1, borderColor: "#FECACA",
-                    flexDirection: "row", alignItems: "center", gap: 8,
-                  }}
-                >
-                  <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
-                  <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", flex: 1 }}>
-                    {archiveError || unarchiveError}
-                  </Text>
-                </View>
-              ) : null}
+              <EditingActionRow label="Eliminar inversión" onPress={onDelete} disabled={saving} destructive />
+            </View>
 
-              <TouchableOpacity
-                onPress={onDelete}
-                disabled={saving}
-                className="flex-row items-center justify-center py-3 rounded-2xl mt-2"
-                style={{
-                  backgroundColor: "#FEF2F2",
-                  borderWidth: 1,
-                  borderColor: "#FECACA",
-                }}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="trash-outline" size={18} color="#DC2626" />
-                <Text className="text-sm font-semibold ml-2" style={{ color: "#DC2626" }}>
-                  Eliminar inversión
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
-        </ScrollView>
-      )}
-    </SafeAreaView>
+            <FormError message={archiveError || unarchiveError} />
+          </FormSection>
+        </View>
+      </EditingForm>
   );
 }
