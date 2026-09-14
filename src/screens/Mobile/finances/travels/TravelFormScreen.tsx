@@ -20,6 +20,7 @@ import { Image } from "react-native";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { CountrySelect } from "../../../../components/CountrySelect";
 import { appAlert } from "../../../../utils/appAlert";
+import { continentFromCountryCode } from "../../../../utils/countryContinent";
 
 type TripStatus = "seen" | "planning" | "wishlist";
 
@@ -681,6 +682,7 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
         name: name.trim(),
         countryStays: validStays.map((s) => ({
           country: s.countryCode,
+          continent: continentFromCountryCode(s.countryCode),
           startDate: s.startDate ? s.startDate.toISOString() : undefined,
           endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),
@@ -935,6 +937,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         name: tripName.trim(),
         countryStays: stays.map((s) => ({
           country: s.countryCode,
+          continent: continentFromCountryCode(s.countryCode),
           startDate: s.startDate ? s.startDate.toISOString() : undefined,
           endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),

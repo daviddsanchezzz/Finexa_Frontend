@@ -15,14 +15,25 @@ import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../
 
 export type NetWorthFilterType = "day" | "week" | "month" | "year" | "all" | "custom";
 
+export interface NetWorthWallet {
+  id: number;
+  name: string;
+  emoji?: string | null;
+  balance: number;
+}
+
 export interface NetWorthTrend {
   isLoading: boolean;
   // Patrimonio actual real: suma en vivo del balance de todas las carteras.
   current: number;
+  // Carteras que forman exactamente el patrimonio actual mostrado.
+  wallets: NetWorthWallet[];
   // current - patrimonio al cierre del periodo anterior, según el filtro de
   // fecha activo en Home (año -> cierre del año pasado, mes -> cierre del
   // mes pasado, semana/día -> patrimonio al empezar esa semana/día).
   periodDelta: number;
+  // Ingresos menos gastos dentro del mismo periodo de comparación.
+  periodSavings: number;
   // Texto para el card: "este año" / "este mes" / "esta semana" / "hoy".
   periodLabel: string;
   // periodDelta relativo al patrimonio de referencia, en %.
@@ -80,7 +91,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
 
   const walletsQuery = useQuery({
     queryKey: ["netWorthWallets", txVersion],
-    queryFn: async () => (await api.get("/wallets")).data as { balance: number }[],
+    queryFn: async () => (await api.get("/wallets")).data as NetWorthWallet[],
     staleTime: 1000 * 30,
   });
 
@@ -88,7 +99,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
 
   return useMemo(() => {
     if (!seriesQuery.data || !walletsQuery.data) {
-      return { isLoading, current: 0, periodDelta: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [], monthsByYear: {}, globalSummaryList: [] };
+      return { isLoading, current: 0, wallets: [], periodDelta: 0, periodSavings: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [], monthsByYear: {}, globalSummaryList: [] };
     }
 
     const now = new Date();
@@ -122,18 +133,21 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
 
     let baseline = 0;
     let periodLabel = "este mes";
+    let periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     if (filterType === "year") {
       const finishedYears = globalSummaryList.filter((y) => y.year < currentYear);
       const lastYear = finishedYears[finishedYears.length - 1];
       baseline = lastYear ? lastYear.finalAmount : 0;
       periodLabel = "este año";
+      periodStart = new Date(now.getFullYear(), 0, 1);
     } else if (filterType === "week") {
-      baseline = current - netflowSince(getWeekStart(now));
+      periodStart = getWeekStart(now);
+      baseline = current - netflowSince(periodStart);
       periodLabel = "esta semana";
     } else if (filterType === "day") {
-      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      baseline = current - netflowSince(dayStart);
+      periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      baseline = current - netflowSince(periodStart);
       periodLabel = "hoy";
     } else {
       // month, all y custom -> comparar con el último mes cerrado.
@@ -143,6 +157,7 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
     }
 
     const periodDelta = current - baseline;
+    const periodSavings = netflowSince(periodStart);
     const pctChange = baseline !== 0 ? (periodDelta / Math.abs(baseline)) * 100 : 0;
 
     const sparkline = wealthSeries
@@ -150,6 +165,6 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       .map((p) => ({ label: p.label, value: p.finalAmount }));
     sparkline.push({ label: "Hoy", value: current });
 
-    return { isLoading, current, periodDelta, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
+    return { isLoading, current, wallets: walletsQuery.data, periodDelta, periodSavings, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
   }, [seriesQuery.data, walletsQuery.data, isLoading, filterType]);
 }

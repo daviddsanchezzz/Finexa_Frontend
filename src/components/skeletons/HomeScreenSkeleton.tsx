@@ -60,7 +60,7 @@ export function HomeScreenSkeleton() {
       {/* Balance del periodo */}
       <View style={{ alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <SkeletonBox width={100} height={10} borderRadius={5} />
-        <SkeletonBox width={130} height={22} borderRadius={7} />
+        <SkeletonBox width={90} height={16} borderRadius={6} />
       </View>
 
       {/* Indicadores: Ingresos / Gastos / Rentabilidad */}

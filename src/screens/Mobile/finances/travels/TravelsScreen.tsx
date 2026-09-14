@@ -23,6 +23,7 @@ import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsS
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { tripDateKey } from "../../../../utils/tripDates";
 import { formatEuro as formatEuroCore } from "../../../../utils/currency";
+import { continentFromCountryCode, type CountryContinent } from "../../../../utils/countryContinent";
 
 type TripStatus = "wishlist" | "planning" | "seen";
 type BoardMode = "status" | "continent" | "year";
@@ -176,6 +177,16 @@ function tripCountriesLabel(trip: { destination?: string | null; countryStays?: 
   return codes.length > 0 ? codes.map((c) => countryNameEsFromISO2(c)).join(", ") : "—";
 }
 
+function tripContinentKeys(trip: TripFromApi): CountryContinent[] {
+  const fromCountries = tripCountryCodes(trip)
+    .map(continentFromCountryCode)
+    .filter((continent): continent is CountryContinent => continent !== null);
+  if (fromCountries.length > 0) return Array.from(new Set(fromCountries));
+
+  const stored = String(trip.continent || "").trim().toLowerCase() as CountryContinent;
+  return stored && stored !== ("unknown" as CountryContinent) ? [stored] : [];
+}
+
 function compareWishlistTrips(a: TripUI, b: TripUI) {
   const countryA = tripCountryCodes(a)[0];
   const countryB = tripCountryCodes(b)[0];
@@ -274,8 +285,15 @@ function continentLabel(c?: string | null) {
   if (v === "antarctica") return "Antártida";
   return c ? c : "Sin continente";
 }
-function uniqueCountryCount(trips: TripUI[]) {
-  return new Set(trips.map((t) => (t.destination || "").trim().toUpperCase()).filter(Boolean)).size;
+function uniqueCountryCount(trips: TripUI[], continent?: string) {
+  const codes = trips.flatMap(tripCountryCodes);
+  const filtered = !continent
+    ? codes
+    : codes.filter((code) => {
+        const derived = continentFromCountryCode(code);
+        return continent === "unknown" ? derived === null : derived === continent;
+      });
+  return new Set(filtered).size;
 }
 function tripDurationDays(t: TripUI) {
   if (!isValidISODate(t.startDate) || !isValidISODate(t.endDate)) return null;
@@ -379,10 +397,13 @@ export default function TripsHomeScreen({ navigation }: any) {
     if (boardMode === "continent") {
       const seenTrips = filteredTrips.filter(t => t.status === "seen");
       const key = (continentSelected || "unknown").toLowerCase();
-      const group = seenTrips.filter(t => ((t.continent || "unknown").toLowerCase().trim() || "unknown") === key)
+      const group = seenTrips.filter((trip) => {
+        const continents = tripContinentKeys(trip);
+        return key === "unknown" ? continents.length === 0 : continents.includes(key as CountryContinent);
+      })
         .sort((a, b) => new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime());
       const st = continentStatsMap.get(key);
-      const visited = st?.visitedCountries ?? uniqueCountryCount(group);
+      const visited = uniqueCountryCount(group, key);
       const total   = st?.totalCountries ?? 0;
       const pct     = st?.pct ?? (total > 0 ? Math.round((visited / total) * 100) : 0);
       const label   = total > 0 ? `${visited}/${total} países · ${pct}%` : `${visited} países`;

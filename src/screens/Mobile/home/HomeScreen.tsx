@@ -20,7 +20,7 @@ import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkel
 import { exportTransactionsCsv } from "../../../utils/csvExport";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
-import NetWorthBreakdownModal from "../../../components/NetWorthBreakdownModal";
+import NetWorthCompositionModal from "../../../components/NetWorthCompositionModal";
 
 export default function HomeScreen({ navigation }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -31,7 +31,7 @@ export default function HomeScreen({ navigation }: any) {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [rentabilidadModalVisible, setRentabilidadModalVisible] = useState(false);
-  const [netWorthBreakdownVisible, setNetWorthBreakdownVisible] = useState(false);
+  const [netWorthCompositionVisible, setNetWorthCompositionVisible] = useState(false);
   const [filtersModalVisible, setFiltersModalVisible] = useState(false);
   const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,10 +171,11 @@ export default function HomeScreen({ navigation }: any) {
     dateFrom ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const effectivePeriodTo =
     dateTo ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString();
-  const { profit: totalInvestment, isLoading: investmentProfitLoading } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
-  const periodSavings = totalIncome - totalExpense;
-  const rawNetWorthAdjustments = netWorth.periodDelta - periodSavings - totalInvestment;
-  const netWorthAdjustments = Math.abs(rawNetWorthAdjustments) < 0.005 ? 0 : rawNetWorthAdjustments;
+  const {
+    profit: totalInvestment,
+    hasAssets: hasInvestmentAssets,
+    isLoading: investmentProfitLoading,
+  } = useInvestmentPeriodProfit(effectivePeriodFrom, effectivePeriodTo);
 
   const balancePeriodLabel = (() => {
     const from = new Date(effectivePeriodFrom);
@@ -333,7 +334,7 @@ export default function HomeScreen({ navigation }: any) {
             <HeroBalanceCard
               label="Patrimonio neto"
               value={`${formatEuro(netWorth.current)} €`}
-              onPress={() => setNetWorthBreakdownVisible(true)}
+              onPress={() => setNetWorthCompositionVisible(true)}
               style={{ marginBottom: 10 }}
               footer={
                 <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
@@ -371,7 +372,7 @@ export default function HomeScreen({ navigation }: any) {
               <Text className="text-gray-500 text-[11px] font-semibold">
                 {balancePeriodLabel}
               </Text>
-              <Text className="text-[#0F172A] text-[21px] font-extrabold" style={{ marginTop: -1 }}>
+              <Text className="text-[#0F172A] text-[18px] font-extrabold" style={{ marginTop: 1, fontVariant: ["tabular-nums"] }}>
                 {formatEuro(totalBalance)} €
               </Text>
             </View>
@@ -381,13 +382,13 @@ export default function HomeScreen({ navigation }: any) {
               items={[
                 { key: "ingresos", label: "INGRESOS", value: `${formatEuro(totalIncome)} €`, color: colors.success },
                 { key: "gastos", label: "GASTOS", value: `${formatEuro(totalExpense)} €`, color: colors.danger },
-                {
+                ...(hasInvestmentAssets ? [{
                   key: "rentabilidad",
                   label: "RENTABILIDAD",
                   value: `${totalInvestment >= 0 ? "+" : "−"}${formatEuro(Math.abs(totalInvestment))} €`,
                   color: totalInvestment >= 0 ? colors.success : colors.danger,
                   onPress: () => setRentabilidadModalVisible(true),
-                },
+                }] : []),
               ]}
             />
 
@@ -491,24 +492,22 @@ export default function HomeScreen({ navigation }: any) {
         }}
       />
 
-      <InvestmentMonthReturnModal
-        visible={rentabilidadModalVisible}
-        onClose={() => setRentabilidadModalVisible(false)}
-      />
+      {hasInvestmentAssets && (
+        <InvestmentMonthReturnModal
+          visible={rentabilidadModalVisible}
+          onClose={() => setRentabilidadModalVisible(false)}
+        />
+      )}
 
-      <NetWorthBreakdownModal
-        visible={netWorthBreakdownVisible}
-        onClose={() => setNetWorthBreakdownVisible(false)}
+      <NetWorthCompositionModal
+        visible={netWorthCompositionVisible}
+        onClose={() => setNetWorthCompositionVisible(false)}
         onOpenDetails={() => {
-          setNetWorthBreakdownVisible(false);
+          setNetWorthCompositionVisible(false);
           navigation.navigate("NetWorth");
         }}
         current={netWorth.current}
-        periodDelta={netWorth.periodDelta}
-        periodLabel={netWorth.periodLabel}
-        savings={periodSavings}
-        investmentResult={totalInvestment}
-        adjustments={netWorthAdjustments}
+        wallets={netWorth.wallets}
       />
 
       <HomeFiltersModal

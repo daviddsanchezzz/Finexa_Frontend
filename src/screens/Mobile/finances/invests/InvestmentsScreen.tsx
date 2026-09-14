@@ -16,8 +16,9 @@ import {
   TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "@react-navigation/native";
-import Svg, { Circle, G, Path, Line, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, G, Path, Line, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
 import SegmentedTabs from "../../../../components/SegmentedTabs";
@@ -40,6 +41,7 @@ import { formatEuro } from "../../../../utils/currency";
 import { useUIStore } from "../../../../store/uiStore";
 import { findCryptoPresetBySymbol, getCryptoLogoUrl } from "../../../../constants/bankPresets";
 import WalletIcon from "../../../../components/WalletIcon";
+import InvestmentOperationDetailsModal from "../../../../components/InvestmentOperationDetailsModal";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -241,6 +243,8 @@ type AllOperationFromApi = {
   walletId?: number | null;
   wallet?: { id?: number; name?: string | null } | null;
   transaction?: {
+    description?: string | null;
+    wallet?: { name?: string | null } | null;
     fromWalletId?: number | null;
     toWalletId?: number | null;
     fromWallet?: { name?: string | null } | null;
@@ -248,6 +252,13 @@ type AllOperationFromApi = {
   } | null;
   swapGroupId?: string | number | null;
   createdAt?: string | null;
+  asset?: {
+    id: number;
+    name: string;
+    abbreviation?: string | null;
+    currency?: string | null;
+    description?: string | null;
+  } | null;
 };
 
 function opLabel(t: InvestmentOperationType) {
@@ -318,6 +329,7 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   } | null>(null);
   const [rentRange, setRentRange] = useState<RentRange>("1a");
   const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number; returnPct: number }>(null);
+  const lineTooltipIndexRef = useRef<number | null>(null);
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getInvestmentsDataVersion());
   const [planLoading, setPlanLoading] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
@@ -1048,6 +1060,32 @@ const submitContribution = useCallback(() => {
     };
   }, [timeline, rentRange, SCREEN_W]);
 
+  const selectPerformancePoint = useCallback((locationX: number) => {
+    if (!performanceChart?.eqPts.length) return;
+    let closest = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+    performanceChart.eqPts.forEach((point, index) => {
+      const distance = Math.abs(point.x - locationX);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = index;
+      }
+    });
+    if (lineTooltipIndexRef.current === closest) return;
+
+    lineTooltipIndexRef.current = closest;
+    const point = performanceChart.eqPts[closest];
+    setLineTooltip({
+      x: point.x,
+      y: point.y,
+      date: performanceChart.monthly[closest]?.date ?? "",
+      equity: Number(performanceChart.monthly[closest]?.equity || 0),
+      net: Number(performanceChart.monthly[closest]?.netContributions || 0),
+      returnPct: Number(performanceChart.returnValues[closest] || 0),
+    });
+    if (Platform.OS !== "web") void Haptics.selectionAsync();
+  }, [performanceChart]);
+
   const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -1147,6 +1185,10 @@ const submitContribution = useCallback(() => {
     (summary?.assets ?? []).forEach((a) => m.set(a.id, a));
     return m;
   }, [summary]);
+
+  const resolveOperationAsset = useCallback((op: AllOperationFromApi) => {
+    return op.asset || assetMapForOps.get(op.assetId) || null;
+  }, [assetMapForOps]);
 
   const filteredOperations = useMemo(
     () => operationFilter === "all" ? allOperations : allOperations.filter((op) => op.type === operationFilter),
@@ -1780,7 +1822,12 @@ const submitContribution = useCallback(() => {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Distribucion deseada</Text>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A" }}>Distribución objetivo</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8", marginTop: 2 }}>
+                    Compara el peso actual con el deseado
+                  </Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("InvestmentTargetAllocation")}
                   activeOpacity={0.85}
@@ -1789,47 +1836,91 @@ const submitContribution = useCallback(() => {
                     borderRadius: 10,
                     paddingHorizontal: 12,
                     paddingVertical: 7,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 5,
                   }}
                 >
+                  <Ionicons name="create-outline" size={13} color={colors.primary} />
                   <Text style={{ fontSize: 12, fontWeight: "900", color: colors.primary }}>Editar</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={{ marginTop: 12 }}>
-                {(targets?.items || []).map((it) => {
+              <View style={{ marginTop: 16 }}>
+                {(targets?.items || []).map((it, index, targetItems) => {
                   const targetPct = Number(it.targetPct || 0);
                   const actualPct = Number(it.actualPct || 0);
                   const deviation = actualPct - targetPct;
                   const isOnTarget = Math.abs(deviation) < 0.05;
+                  const statusColor = isOnTarget ? colors.success : deviation > 0 ? "#C66A08" : colors.primary;
+                  const statusBackground = isOnTarget ? "#DCFCE7" : deviation > 0 ? "#FFF7E8" : "#EEF2FF";
                   const deviationText = isOnTarget
                     ? "En objetivo"
-                    : `${deviation > 0 ? "+" : "−"}${Math.abs(deviation).toFixed(1).replace(".", ",")} pp ${deviation > 0 ? "sobre" : "bajo"} objetivo`;
+                    : `${deviation > 0 ? "+" : "−"}${Math.abs(deviation).toFixed(1).replace(".", ",")} pp`;
+                  const actualWidth = `${Math.max(0, Math.min(100, actualPct))}%` as any;
+                  const targetLeft = `${Math.max(0, Math.min(99.5, targetPct))}%` as any;
+                  const typeColor = assetTypeColor(it.assetType);
+                  const typeBackground = assetTypeSoftBg(it.assetType);
+                  const targetAsset = assets.find((asset) => asset.id === it.assetId);
+                  const cryptoPreset = targetAsset?.type === "crypto"
+                    ? findCryptoPresetBySymbol(targetAsset.identificator)
+                    : undefined;
 
                   return (
                     <View
                       key={`target-${it.assetId}`}
                       style={{
                         paddingVertical: 11,
-                        borderBottomWidth: 1,
-                        borderBottomColor: "#F1F5F9",
+                        borderBottomWidth: index === targetItems.length - 1 ? 0 : 1,
+                        borderBottomColor: "#E8EDF4",
                       }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
-                        {it.assetAbbreviation?.trim() || it.assetName}
-                      </Text>
-                      <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginTop: 3 }}>
-                        Objetivo {targetPct.toFixed(1).replace(".", ",")} % · Actual {actualPct.toFixed(1).replace(".", ",")} %
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 11.5,
-                          fontWeight: "800",
-                          color: isOnTarget ? colors.success : deviation > 0 ? "#D97706" : colors.primary,
-                          marginTop: 3,
-                        }}
-                      >
-                        {deviationText}
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <View
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 9,
+                            backgroundColor: cryptoPreset ? "#FFFFFF" : typeBackground,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginRight: 9,
+                          }}
+                        >
+                          {cryptoPreset ? (
+                            <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={20} />
+                          ) : (
+                            <Ionicons name={assetTypeIcon(it.assetType) as any} size={16} color={typeColor} />
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                            {it.assetAbbreviation?.trim() || it.assetName}
+                          </Text>
+                          <Text style={{ fontSize: 10.5, fontWeight: "600", color: "#64748B", marginTop: 2 }} numberOfLines={1}>
+                            <Text style={{ color: statusColor, fontWeight: "800" }}>{actualPct.toFixed(1).replace(".", ",")} %</Text>
+                            {" actual  ·  "}{targetPct.toFixed(1).replace(".", ",")} % objetivo
+                          </Text>
+                        </View>
+                        <View style={{ backgroundColor: statusBackground, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 }}>
+                          <Text style={{ fontSize: 10.5, fontWeight: "900", color: statusColor }}>{deviationText}</Text>
+                        </View>
+                      </View>
+
+                      <View style={{ height: 6, borderRadius: 999, backgroundColor: "#E2E8F0", position: "relative", marginTop: 8 }}>
+                        <View style={{ width: actualWidth, height: 6, borderRadius: 999, backgroundColor: statusColor }} />
+                        <View
+                          style={{
+                            position: "absolute",
+                            left: targetLeft,
+                            top: -3,
+                            width: 2,
+                            height: 12,
+                            borderRadius: 1,
+                            backgroundColor: "#0F172A",
+                          }}
+                        />
+                      </View>
                     </View>
                   );
                 })}
@@ -1929,8 +2020,6 @@ const submitContribution = useCallback(() => {
         {rentView === "grafica" && (
           <>
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-            <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Rentabilidad</Text>
-
             <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
               {([
                 { key: "1m", label: "1M" },
@@ -1946,6 +2035,7 @@ const submitContribution = useCallback(() => {
                     key={range.key}
                     onPress={() => {
                       setRentRange(range.key);
+                      lineTooltipIndexRef.current = null;
                       setLineTooltip(null);
                     }}
                     activeOpacity={0.8}
@@ -1968,13 +2058,6 @@ const submitContribution = useCallback(() => {
                 <Text style={{ fontSize: 16, fontWeight: "800", color: performanceChart.gainPct >= 0 ? colors.success : colors.danger, marginTop: 1 }}>
                   {performanceChart.gainPct >= 0 ? "+" : "−"}{Math.abs(performanceChart.gainPct).toFixed(2).replace(".", ",")} %
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>Capital aportado </Text>
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#334155" }}>{formatMoney(performanceChart.lastNc, currency)}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#CBD5E1" }}>  ·  </Text>
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>Valor actual </Text>
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#334155" }}>{formatMoney(performanceChart.lastEquity, currency)}</Text>
-                </View>
               </View>
             ) : (
               <Text style={{ textAlign: "center", color: "#94A3B8", fontSize: 12, fontWeight: "600", paddingVertical: 18 }}>Sin datos suficientes para este periodo.</Text>
@@ -1995,7 +2078,13 @@ const submitContribution = useCallback(() => {
             }}
           >
             {/* Gráfica evolución */}
-            <View style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}>
+            <View
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
+              onResponderMove={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
+              style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}
+            >
               <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Valor y capital aportado</Text>
               {timelineLoading ? (
                 <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Cargando gráfica...</Text>
@@ -2015,31 +2104,6 @@ const submitContribution = useCallback(() => {
                     {/* Líneas */}
                     <Path d={performanceChart.ncPath} stroke="#CBD5E1" strokeWidth={2} fill="none" strokeDasharray="5 4" />
                     <Path d={performanceChart.eqPath} stroke={colors.primary} strokeWidth={2.8} fill="none" />
-                    {/* Hit area — rect único, busca punto más cercano en X */}
-                    <Rect
-                      x={performanceChart.padL} y={14}
-                      width={performanceChart.W - performanceChart.padL - 10}
-                      height={performanceChart.bottomY - 14}
-                      fill="transparent"
-                      onPress={(e: any) => {
-                        const touchX = e?.nativeEvent?.locationX ?? 0;
-                        let closest = 0;
-                        let minDist = Infinity;
-                        performanceChart.eqPts.forEach((pt: any, i: number) => {
-                          const d = Math.abs(pt.x - touchX);
-                          if (d < minDist) { minDist = d; closest = i; }
-                        });
-                        const pt = performanceChart.eqPts[closest];
-                        setLineTooltip({
-                          x: pt.x, y: pt.y,
-                          date: performanceChart.monthly[closest]?.date ?? "",
-                          equity: Number(performanceChart.monthly[closest]?.equity || 0),
-                          net: Number(performanceChart.monthly[closest]?.netContributions || 0),
-                          returnPct: Number(performanceChart.returnValues[closest] || 0),
-                        });
-                      }}
-                    />
-
                     {/* Dot en punto seleccionado */}
                     {lineTooltip && (() => {
                       const selectedIndex = performanceChart.eqPts.reduce(
@@ -2113,7 +2177,13 @@ const submitContribution = useCallback(() => {
               )}
             </View>
 
-            <View style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}>
+            <View
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
+              onResponderMove={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
+              style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}
+            >
               <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
                 <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Rentabilidad acumulada</Text>
                 {performanceChart && (
@@ -2122,6 +2192,17 @@ const submitContribution = useCallback(() => {
                   </Text>
                 )}
               </View>
+
+              {lineTooltip ? (
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: "800", color: "#0F172A" }}>
+                    {new Date(lineTooltip.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                  </Text>
+                  <Text style={{ fontSize: 11.5, fontWeight: "900", color: lineTooltip.returnPct >= 0 ? colors.success : colors.danger }}>
+                    {lineTooltip.returnPct >= 0 ? "+" : "−"}{Math.abs(lineTooltip.returnPct).toFixed(2).replace(".", ",")}%
+                  </Text>
+                </View>
+              ) : null}
 
               {performanceChart ? (
                 <Svg width={performanceChart.W} height={performanceChart.H}>
@@ -2141,6 +2222,22 @@ const submitContribution = useCallback(() => {
                     </G>
                   ))}
                   <Path d={performanceChart.returnPath} stroke={colors.primary} strokeWidth={2.8} fill="none" />
+                  {lineTooltip && (() => {
+                    const selectedIndex = performanceChart.eqPts.reduce(
+                      (closest, point, index) =>
+                        Math.abs(point.x - lineTooltip.x) < Math.abs(performanceChart.eqPts[closest].x - lineTooltip.x)
+                          ? index
+                          : closest,
+                      0
+                    );
+                    const point = performanceChart.returnPts[selectedIndex];
+                    return (
+                      <G>
+                        <Line x1={point.x} y1={14} x2={point.x} y2={performanceChart.bottomY} stroke={colors.primary} strokeWidth={1} strokeDasharray="3 3" />
+                        <Circle cx={point.x} cy={point.y} r={4} fill={colors.primary} stroke="white" strokeWidth={2} />
+                      </G>
+                    );
+                  })()}
                   <SvgText x={performanceChart.padL} y={performanceChart.H - 4} fontSize="10" fill="#94A3B8">
                     {new Date(performanceChart.firstDate).toLocaleDateString("es-ES", { month: "short", year: "2-digit" })}
                   </SvgText>
@@ -2466,7 +2563,7 @@ const submitContribution = useCallback(() => {
                       }}
                     >
                       {ops.map((op, idx) => {
-                        const asset = assetMapForOps.get(op.assetId);
+                        const asset = resolveOperationAsset(op);
                         const assetName = asset?.abbreviation?.trim() || asset?.name || `Activo #${op.assetId}`;
                         const { color, bg } = opTypeColor(op.type);
                         const operationDate = new Date(op.date || op.createdAt || 0);
@@ -2518,101 +2615,17 @@ const submitContribution = useCallback(() => {
         </Animated.View>
       )}
 
-      {/* -- Detalle de operación: ledger, no rendimiento -- */}
-      <Modal
-        visible={selectedOperation !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedOperation(null)}
-      >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
-          activeOpacity={1}
-          onPress={() => setSelectedOperation(null)}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-            {selectedOperation && (() => {
-              const op = selectedOperation;
-              const asset = assetMapForOps.get(op.assetId);
-              const assetName = asset?.abbreviation?.trim() || asset?.name || `Activo #${op.assetId}`;
-              const operationCurrency = asset?.currency ?? "EUR";
-              const quantity = Number(op.quantity);
-              const hasQuantity = Number.isFinite(quantity) && quantity !== 0;
-              const unitPrice = hasQuantity ? Math.abs(Number(op.amount || 0)) / Math.abs(quantity) : null;
-              const operationDate = new Date(op.date || op.createdAt || 0);
-              const dateText = Number.isNaN(operationDate.getTime())
-                ? "—"
-                : operationDate.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
-              const platform =
-                op.wallet?.name ||
-                op.transaction?.fromWallet?.name ||
-                op.transaction?.toWallet?.name ||
-                asset?.description?.trim() ||
-                "—";
-              const details = [
-                { label: "Importe", value: formatMoney(Math.abs(Number(op.amount || 0)), operationCurrency) },
-                { label: "Fecha", value: dateText },
-                { label: "Precio por unidad", value: unitPrice == null ? "—" : formatMoney(unitPrice, operationCurrency) },
-                { label: "Participaciones / unidades", value: hasQuantity ? String(op.quantity).replace(".", ",") : "—" },
-                { label: "Comisión", value: op.fee != null ? formatMoney(Math.abs(Number(op.fee || 0)), operationCurrency) : "—" },
-                { label: "Plataforma / cuenta", value: platform },
-                { label: "Notas", value: op.description?.trim() || "—" },
-              ];
-
-              return (
-                <View style={{ backgroundColor: "white", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28 }}>
-                  <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-                    <View style={{ flex: 1, paddingRight: 12 }}>
-                      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>{assetName}</Text>
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: opTypeColor(op.type).color, marginTop: 3 }}>{opLabel(op.type)}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => setSelectedOperation(null)}
-                      style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
-                    >
-                      <Ionicons name="close" size={15} color="#64748B" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={{ borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
-                    {details.map((detail, index) => (
-                      <View
-                        key={detail.label}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          paddingVertical: 10,
-                          borderBottomWidth: index < details.length - 1 ? 1 : 0,
-                          borderBottomColor: "#F1F5F9",
-                          gap: 18,
-                        }}
-                      >
-                        <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>{detail.label}</Text>
-                        <Text style={{ flex: 1, fontSize: 12.5, fontWeight: "800", color: "#0F172A", textAlign: "right" }}>{detail.value}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {!(["dividend", "fee"] as InvestmentOperationType[]).includes(op.type) && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSelectedOperation(null);
-                        navigation.navigate("InvestmentOperation", { assetId: op.assetId, operationData: op });
-                      }}
-                      activeOpacity={0.82}
-                      style={{ marginTop: 16, height: 42, borderRadius: 12, backgroundColor: "#EEF2FF", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}
-                    >
-                      <Ionicons name="create-outline" size={15} color={colors.primary} />
-                      <Text style={{ fontSize: 13, fontWeight: "900", color: colors.primary }}>Editar operación</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })()}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+      {/* -- Detalle de operación compartido con el detalle del activo -- */}
+      <InvestmentOperationDetailsModal
+        operation={selectedOperation}
+        asset={selectedOperation ? resolveOperationAsset(selectedOperation) : null}
+        fallbackCurrency="EUR"
+        onClose={() => setSelectedOperation(null)}
+        onEdit={(operation) => {
+          setSelectedOperation(null);
+          navigation.navigate("InvestmentOperation", { assetId: operation.assetId, operationData: operation });
+        }}
+      />
 
       {/* ── Popup detalle mes ── */}
       <Modal

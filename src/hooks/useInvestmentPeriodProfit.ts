@@ -8,6 +8,10 @@ interface SnapshotRow {
   profit: number | null;
 }
 
+interface InvestmentAsset {
+  id: number;
+}
+
 // Suma el profit de los snapshots mensuales de inversión (meses cerrados,
 // vía /investments/snapshots) más el mes en curso calculado en vivo (vía
 // /investments/snapshots/current — mismo dato que "Septiembre (en curso)"
@@ -42,7 +46,14 @@ export function useInvestmentPeriodProfit(fromISO: string, toISO: string) {
     staleTime: 1000 * 60,
   });
 
-  const isLoading = closedQuery.isLoading || currentQuery.isLoading;
+  const assetsQuery = useQuery({
+    queryKey: ["investmentAssets", invalidationVersion],
+    queryFn: async () => (await api.get("/investments/assets")).data as InvestmentAsset[],
+    staleTime: 1000 * 60,
+  });
+
+  const isLoading = closedQuery.isLoading || currentQuery.isLoading || assetsQuery.isLoading;
+  const hasAssets = (assetsQuery.data?.length ?? 0) > 0;
 
   const profit = useMemo(() => {
     const closed = closedQuery.data ?? [];
@@ -59,5 +70,5 @@ export function useInvestmentPeriodProfit(fromISO: string, toISO: string) {
     }, 0);
   }, [closedQuery.data, currentQuery.data, fromISO, toISO]);
 
-  return { profit, isLoading };
+  return { profit, hasAssets, isLoading };
 }

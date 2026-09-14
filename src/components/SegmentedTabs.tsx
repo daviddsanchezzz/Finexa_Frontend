@@ -8,22 +8,21 @@ import { colors } from "../theme/theme";
 //   Cartera/Tipo).
 // - "solid": pista gris muy sutil con píldora azul brand + texto blanco en
 //   el activo — usado en las pestañas principales de Estadísticas (Resumen/
-//   Gastos/Ingresos). Pasa `dense` para una versión algo más baja/compacta
-//   de este mismo estilo (punto medio, no extrema), para sitios con menos
-//   espacio vertical.
+//   Gastos/Ingresos).
 // - "underline": sin píldora ni pista — cada pestaña se marca con texto azul
 //   en negrita + una línea inferior azul cuando está activa; el resto queda
 //   en gris sobre una línea inferior tenue compartida. Pensado para tabs de
 //   sección dentro de una pantalla de detalle (p.ej. Cartera/Distribución/
 //   Rentabilidad/Operaciones).
-// `compact` reduce el ancho (se ajusta al contenido en vez de ocupar todo el
-// espacio disponible) — independiente de `dense`, que solo reduce alto/tipografía.
+// Todos los selectores usan por defecto la altura compacta de Patrimonio neto.
+// `compact` reduce además el ancho (se ajusta al contenido en vez de ocupar
+// todo el espacio disponible).
 export default function SegmentedTabs<T extends string>({
   options,
   value,
   onChange,
   compact = false,
-  dense = false,
+  dense = true,
   variant = "light",
 }: {
   options: { key: T; label: string }[];

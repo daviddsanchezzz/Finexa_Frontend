@@ -22,6 +22,8 @@ import { formatEuro } from "../../../utils/currency";
 import { getTransactionsDataVersion } from "../../../utils/transactionsInvalidation";
 import { getNetWorthCache, setNetWorthCache } from "../../../utils/netWorthCache";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
+import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
+import NetWorthBreakdownModal from "../../../components/NetWorthBreakdownModal";
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -515,9 +517,16 @@ export default function NetWorthScreen({ navigation }: any) {
   const [selectedTableYear, setSelectedTableYear] = useState(currentYearNow);
   const [expandedMonth, setExpandedMonth] = useState<number | null>(null);
   const [expandedGlobalYear, setExpandedGlobalYear] = useState<number | null>(null);
+  const [breakdownVisible, setBreakdownVisible] = useState(false);
 
   const netTrend = useNetWorthTrend();
   const netTrendYear = useNetWorthTrend("year");
+  const now = new Date();
+  const currentMonthFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const currentMonthTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+  const { profit: currentInvestmentResult } = useInvestmentPeriodProfit(currentMonthFrom, currentMonthTo);
+  const rawCurrentAdjustments = netTrend.periodDelta - netTrend.periodSavings - currentInvestmentResult;
+  const currentAdjustments = Math.abs(rawCurrentAdjustments) < 0.005 ? 0 : rawCurrentAdjustments;
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -677,6 +686,7 @@ export default function NetWorthScreen({ navigation }: any) {
             <HeroBalanceCard
               label="Patrimonio neto"
               value={fmt(netWorth)}
+              onPress={() => setBreakdownVisible(true)}
               footer={
                 <>
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
@@ -999,6 +1009,21 @@ export default function NetWorthScreen({ navigation }: any) {
           )}
         </>
       )}
+
+      <NetWorthBreakdownModal
+        visible={breakdownVisible}
+        onClose={() => setBreakdownVisible(false)}
+        onOpenDetails={() => {
+          setBreakdownVisible(false);
+          setMainTab("evolucion");
+        }}
+        current={netTrend.current}
+        periodDelta={netTrend.periodDelta}
+        periodLabel={netTrend.periodLabel}
+        savings={netTrend.periodSavings}
+        investmentResult={currentInvestmentResult}
+        adjustments={currentAdjustments}
+      />
     </SafeAreaView>
   );
 }
