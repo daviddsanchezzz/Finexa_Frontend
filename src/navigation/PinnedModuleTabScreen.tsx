@@ -8,5 +8,5 @@ import { getPinnedModuleScreen } from "./pinnedModuleRegistry";
 export default function PinnedModuleTabScreen(props: any) {
   const { pinnedKey } = usePinnedFinanceModule();
   const ScreenComponent = getPinnedModuleScreen(pinnedKey);
-  return <ScreenComponent {...props} />;
+  return <ScreenComponent {...props} isPinnedModuleTab />;
 }

@@ -69,7 +69,7 @@ function formatDate(value?: string | null) {
   });
 }
 
-export default function ProjectsScreen({ navigation }: any) {
+export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }: any) {
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [filter, setFilter] = useState<ProjectFilter>('all');
@@ -117,7 +117,7 @@ export default function ProjectsScreen({ navigation }: any) {
           title="Proyectos"
           showProfile={false}
           showDatePicker={false}
-          showBack={true}
+          showBack={!isPinnedModuleTab}
         />
       </View>
 

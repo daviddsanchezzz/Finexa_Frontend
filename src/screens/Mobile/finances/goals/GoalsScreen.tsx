@@ -50,7 +50,7 @@ const mockGoals: Goal[] = [
   },
 ];
 
-export default function GoalsHomeScreen({ navigation }: any) {
+export default function GoalsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const goals = mockGoals; // luego aquí meterás datos del backend
 
   const summary = useMemo(() => {
@@ -89,7 +89,7 @@ export default function GoalsHomeScreen({ navigation }: any) {
           title="Objetivos"
           showProfile={false}
           showDatePicker={false}
-          showBack={true}
+          showBack={!isPinnedModuleTab}
         />
       </View>
 

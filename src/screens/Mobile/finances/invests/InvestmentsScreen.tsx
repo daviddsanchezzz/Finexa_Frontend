@@ -42,6 +42,7 @@ import { useUIStore } from "../../../../store/uiStore";
 import { findCryptoPresetBySymbol, getCryptoLogoUrl } from "../../../../constants/bankPresets";
 import WalletIcon from "../../../../components/WalletIcon";
 import InvestmentOperationDetailsModal from "../../../../components/InvestmentOperationDetailsModal";
+import ChartTooltip from "../../../../components/ChartTooltip";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -299,7 +300,7 @@ function opTypeIcon(t: InvestmentOperationType): keyof typeof Ionicons.glyphMap 
   }
 }
 
-export default function InvestmentsHomeScreen({ navigation }: any) {
+export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const { isDark, colors: t } = useTheme();
   const showToast = useUIStore((s) => s.showToast);
   const [summary, setSummary] = useState<SummaryFromApi | null>(null);
@@ -330,6 +331,10 @@ export default function InvestmentsHomeScreen({ navigation }: any) {
   const [rentRange, setRentRange] = useState<RentRange>("1a");
   const [lineTooltip, setLineTooltip] = useState<null | { x: number; y: number; date: string; equity: number; net: number; returnPct: number }>(null);
   const lineTooltipIndexRef = useRef<number | null>(null);
+  const dismissPerformanceTooltip = useCallback(() => {
+    lineTooltipIndexRef.current = null;
+    setLineTooltip(null);
+  }, []);
   const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getInvestmentsDataVersion());
   const [planLoading, setPlanLoading] = useState(false);
   const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
@@ -1155,6 +1160,7 @@ const submitContribution = useCallback(() => {
   }, [pullAnim, PULL_MAX]);
 
   const handleWebTouchEnd = useCallback(async () => {
+    dismissPerformanceTooltip();
     if (Platform.OS !== "web") return;
     const delta = currentPullY.current;
     currentPullY.current = 0;
@@ -1165,7 +1171,7 @@ const submitContribution = useCallback(() => {
       webRefreshingRef.current = false;
     }
     Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
-  }, [pullAnim, onRefresh, PULL_THRESHOLD]);
+  }, [dismissPerformanceTooltip, pullAnim, onRefresh, PULL_THRESHOLD]);
 
   const fabActions = useMemo(() => [
     { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
@@ -1212,14 +1218,18 @@ const submitContribution = useCallback(() => {
   const compactReturn = `${hero.pct >= 0 ? "+" : "−"}${Math.abs(hero.pct).toFixed(2).replace(".", ",")}%`;
 
   return (
-    <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
+    <SafeAreaView
+      className="flex-1 bg-background"
+      style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}
+      onTouchEnd={dismissPerformanceTooltip}
+    >
       {/* -- Header -- */}
       <View className="px-5 pb-2">
         <AppHeader
           title="Inversiones"
           showProfile={false}
           showDatePicker={false}
-          showBack={true}
+          showBack={!isPinnedModuleTab}
           rightElement={<AddButton label="Añadir" onPress={() => setFabOpen(true)} />}
         />
 
@@ -2083,6 +2093,7 @@ const submitContribution = useCallback(() => {
               onMoveShouldSetResponder={() => true}
               onResponderGrant={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
               onResponderMove={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
+              onTouchEnd={(event) => event.stopPropagation()}
               style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}
             >
               <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Valor y capital aportado</Text>
@@ -2090,6 +2101,7 @@ const submitContribution = useCallback(() => {
                 <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>Cargando gráfica...</Text>
               ) : performanceChart ? (
                 <>
+                  <View style={{ position: "relative" }}>
                   <Svg width={performanceChart.W} height={performanceChart.H}>
                     {/* Y-axis reference lines */}
                     {performanceChart.yLabels.map((lbl, i) => (
@@ -2132,44 +2144,56 @@ const submitContribution = useCallback(() => {
                     </SvgText>
                   </Svg>
 
-                  {/* Tooltip */}
-                  {lineTooltip ? (
-                    (() => {
-                      const result = lineTooltip.equity - lineTooltip.net;
-                      const returnPct = lineTooltip.returnPct;
-                      const tone = result >= 0 ? colors.success : colors.danger;
-                      const rows = [
-                        { label: "Valor", value: formatMoney(lineTooltip.equity, currency), color: colors.primary },
-                        { label: "Aportado", value: formatMoney(lineTooltip.net, currency), color: "#475569" },
-                        { label: "Resultado", value: `${result >= 0 ? "+" : "−"}${formatMoney(Math.abs(result), currency)}`, color: tone },
-                        { label: "Rentabilidad", value: `${returnPct >= 0 ? "+" : "−"}${Math.abs(returnPct).toFixed(2).replace(".", ",")} %`, color: tone },
-                      ];
-                      return (
-                        <View style={{ marginTop: 8, borderRadius: 12, padding: 12, backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E5E7EB" }}>
-                          <Text style={{ fontSize: 12, fontWeight: "900", color: "#0F172A", marginBottom: 6 }}>
-                            {new Date(lineTooltip.date).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
-                          </Text>
-                          {rows.map((row) => (
-                            <View key={row.label} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 }}>
-                              <Text style={{ fontSize: 11.5, fontWeight: "600", color: "#64748B" }}>{row.label}</Text>
-                              <Text style={{ fontSize: 11.5, fontWeight: "900", color: row.color }}>{row.value}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      );
-                    })()
-                  ) : null}
+                  {lineTooltip ? (() => {
+                    const tooltipWidth = 184;
+                    const tooltipLeft = Math.min(
+                      Math.max(lineTooltip.x - tooltipWidth / 2, 0),
+                      Math.max(performanceChart.W - tooltipWidth, 0)
+                    );
+                    const pointerLeft = Math.min(
+                      Math.max(lineTooltip.x - tooltipLeft, 12),
+                      tooltipWidth - 12
+                    );
+                    const result = lineTooltip.equity - lineTooltip.net;
+                    const tone = result >= 0 ? colors.success : colors.danger;
 
-                  {/* Leyenda */}
-                  <View style={{ marginTop: 10, flexDirection: "row", gap: 16 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <View style={{ width: 14, height: 3, borderRadius: 99, backgroundColor: colors.primary }} />
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>Valor cartera</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <View style={{ width: 14, height: 2, borderTopWidth: 2, borderStyle: "dashed", borderColor: "#94A3B8" }} />
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B" }}>Capital aportado</Text>
-                    </View>
+                    return (
+                      <ChartTooltip
+                        title={new Date(lineTooltip.date).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                        pointerLeft={pointerLeft}
+                        style={{
+                          position: "absolute",
+                          width: tooltipWidth,
+                          left: tooltipLeft,
+                          top: -102,
+                          zIndex: 20,
+                          elevation: 6,
+                        }}
+                        rows={[
+                          {
+                            label: "Valor cartera",
+                            color: colors.primary,
+                            formattedValue: formatMoney(lineTooltip.equity, currency),
+                          },
+                          {
+                            label: "Aportado",
+                            color: "#94A3B8",
+                            formattedValue: formatMoney(lineTooltip.net, currency),
+                          },
+                          {
+                            label: "Resultado",
+                            color: tone,
+                            formattedValue: `${result >= 0 ? "+" : "−"}${formatMoney(Math.abs(result), currency)}`,
+                          },
+                          {
+                            label: "Rentabilidad",
+                            color: tone,
+                            formattedValue: `${lineTooltip.returnPct >= 0 ? "+" : "−"}${Math.abs(lineTooltip.returnPct).toFixed(2).replace(".", ",")} %`,
+                          },
+                        ]}
+                      />
+                    );
+                  })() : null}
                   </View>
                 </>
               ) : (
@@ -2182,6 +2206,7 @@ const submitContribution = useCallback(() => {
               onMoveShouldSetResponder={() => true}
               onResponderGrant={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
               onResponderMove={(event) => selectPerformancePoint(event.nativeEvent.locationX - 16)}
+              onTouchEnd={(event) => event.stopPropagation()}
               style={{ backgroundColor: t.surface, borderRadius: 24, marginHorizontal: 20, marginBottom: 10, borderWidth: 1, borderColor: t.border, padding: 16 }}
             >
               <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>

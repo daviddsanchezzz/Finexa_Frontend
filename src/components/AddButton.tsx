@@ -12,7 +12,7 @@ interface Props {
 }
 
 // Botón "añadir nuevo" único de toda la app — botón azul de marca con
-// icono + texto y el mismo radio de esquina que HeroBalanceCard.
+// icono + texto y un radio compacto compartido.
 // Sustituye a los ~5 patrones distintos que había (círculo bg-primary/10,
 // pill gris sin color de marca, FAB en #0F172A, enlace de texto suelto...).
 export default function AddButton({ label, onPress, icon = "add", disabled = false, style }: Props) {
@@ -27,17 +27,17 @@ export default function AddButton({ label, onPress, icon = "add", disabled = fal
           alignItems: "center",
           gap: 4,
           backgroundColor: colors.primary,
-          paddingVertical: 9,
-          paddingHorizontal: 16,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
           opacity: disabled ? 0.5 : 1,
         },
         style,
         // Es una regla visual común: ni siquiera un `style` puntual debe
         // convertir de nuevo estos botones en píldoras.
-        { borderRadius: radii.card },
+        { borderRadius: radii.input },
       ]}
     >
-      <Ionicons name={icon} size={15} color="white" />
+      <Ionicons name={icon} size={14} color="white" />
       <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>{label}</Text>
     </TouchableOpacity>
   );

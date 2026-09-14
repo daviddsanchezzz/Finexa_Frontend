@@ -41,7 +41,7 @@ interface Debt {
 
 type FilterType = "active" | "paid" | "all";
 
-export default function DebtsHomeScreen({ navigation }: any) {
+export default function DebtsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FilterType>("active");
@@ -120,7 +120,7 @@ export default function DebtsHomeScreen({ navigation }: any) {
           title="Deudas"
           showProfile={false}
           showDatePicker={false}
-          showBack={true}
+          showBack={!isPinnedModuleTab}
         />
       </View>
 

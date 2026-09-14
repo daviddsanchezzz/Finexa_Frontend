@@ -266,7 +266,7 @@ function CalendarView({
   );
 }
 
-export default function RecurringTransactionsScreen({ navigation }: any) {
+export default function RecurringTransactionsScreen({ navigation, isPinnedModuleTab = false }: any) {
   const [transactions, setTransactions] = useState<RecurringTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -399,7 +399,7 @@ export default function RecurringTransactionsScreen({ navigation }: any) {
           title="Transacciones recurrentes"
           showProfile={false}
           showDatePicker={false}
-          showBack={true}
+          showBack={!isPinnedModuleTab}
         />
       </View>
 

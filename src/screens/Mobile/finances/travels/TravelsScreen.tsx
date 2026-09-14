@@ -17,6 +17,7 @@ import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import SegmentedTabs from "../../../../components/SegmentedTabs";
 import AddButton from "../../../../components/AddButton";
+import AppHeader from "../../../../components/AppHeader";
 import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
@@ -302,7 +303,7 @@ function tripDurationDays(t: TripUI) {
 }
 
 /* ─── Screen ─── */
-export default function TripsHomeScreen({ navigation }: any) {
+export default function TripsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const [boardMode, setBoardMode]           = useState<BoardMode>("status");
   const [q, setQ]                           = useState("");
   const [statusSelected, setStatusSelected] = useState<TripStatus>("planning");
@@ -503,12 +504,14 @@ export default function TripsHomeScreen({ navigation }: any) {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
 
       {/* ── Header ── */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={{ flex: 1, fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Viajes</Text>
-        <AddButton label="Añadir" onPress={() => navigation.navigate("TripForm")} />
+      <View className="px-5 pb-2">
+        <AppHeader
+          title="Viajes"
+          showProfile={false}
+          showDatePicker={false}
+          showBack={!isPinnedModuleTab}
+          rightElement={<AddButton label="Añadir" onPress={() => navigation.navigate("TripForm")} />}
+        />
       </View>
 
         {/* ── Buscador ── */}

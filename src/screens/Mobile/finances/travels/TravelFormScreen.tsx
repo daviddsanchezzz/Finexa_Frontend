@@ -1,5 +1,5 @@
 ﻿// src/screens/Trips/TravelFormScreen.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -429,6 +429,97 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
   );
 }
 
+const WHEEL_ITEM_HEIGHT = 44;
+const MONTH_WHEEL_VALUES = Array.from({ length: 12 }, (_, month) =>
+  capitalize(new Date(2020, month, 1).toLocaleDateString("es-ES", { month: "long" }))
+);
+const YEAR_WHEEL_VALUES = Array.from({ length: 201 }, (_, index) => String(1900 + index));
+
+function DateWheelColumn({
+  label,
+  values,
+  selectedIndex,
+  visible,
+  onSelect,
+}: {
+  label: string;
+  values: string[];
+  selectedIndex: number;
+  visible: boolean;
+  onSelect: (index: number) => void;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    const frame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: selectedIndex * WHEEL_ITEM_HEIGHT, animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedIndex, visible]);
+
+  const selectNearest = (offsetY: number) => {
+    const nextIndex = Math.max(0, Math.min(values.length - 1, Math.round(offsetY / WHEEL_ITEM_HEIGHT)));
+    onSelect(nextIndex);
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ fontSize: 10.5, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.6, marginBottom: 7 }}>
+        {label}
+      </Text>
+      <View style={{ height: WHEEL_ITEM_HEIGHT * 3, overflow: "hidden", borderRadius: 14, backgroundColor: "#F8FAFC" }}>
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: WHEEL_ITEM_HEIGHT,
+            left: 5,
+            right: 5,
+            height: WHEEL_ITEM_HEIGHT,
+            borderRadius: 11,
+            backgroundColor: "#E8EEFF",
+            borderWidth: 1,
+            borderColor: "#D8E2FF",
+          }}
+        />
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={WHEEL_ITEM_HEIGHT}
+          decelerationRate="fast"
+          nestedScrollEnabled
+          contentContainerStyle={{ paddingVertical: WHEEL_ITEM_HEIGHT }}
+          onMomentumScrollEnd={(event) => selectNearest(event.nativeEvent.contentOffset.y)}
+          onScrollEndDrag={(event) => selectNearest(event.nativeEvent.contentOffset.y)}
+        >
+          {values.map((value, index) => (
+            <TouchableOpacity
+              key={`${label}-${value}`}
+              onPress={() => {
+                onSelect(index);
+                scrollRef.current?.scrollTo({ y: index * WHEEL_ITEM_HEIGHT, animated: true });
+              }}
+              activeOpacity={0.7}
+              style={{ height: WHEEL_ITEM_HEIGHT, alignItems: "center", justifyContent: "center" }}
+            >
+              <Text
+                style={{
+                  fontSize: index === selectedIndex ? 15 : 14,
+                  fontWeight: index === selectedIndex ? "900" : "600",
+                  color: index === selectedIndex ? colors.primary : "#94A3B8",
+                }}
+              >
+                {value}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
+  );
+}
+
 /** One shared start/end date range applied to every country stay — for when splitting dates per country isn't worth the bother. */
 function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChangeStays: (next: StayDraft[]) => void }) {
   const overallStart = useMemo(() => {
@@ -447,9 +538,23 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
   const [rangeStart, setRangeStart] = useState<Date | null>(overallStart);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(overallEnd);
   const [calDate, setCalDate] = useState(() => overallStart ?? new Date());
+  const [monthYearPickerVisible, setMonthYearPickerVisible] = useState(false);
+  const [jumpMonth, setJumpMonth] = useState(() => (overallStart ?? new Date()).getMonth());
+  const [jumpYear, setJumpYear] = useState(() => (overallStart ?? new Date()).getFullYear());
   const calYear = calDate.getFullYear();
   const calMonth = calDate.getMonth();
   const calCells = useMemo(() => getCalCells(calYear, calMonth), [calYear, calMonth]);
+
+  const openMonthYearPicker = () => {
+    setJumpMonth(calMonth);
+    setJumpYear(calYear);
+    setMonthYearPickerVisible(true);
+  };
+
+  const jumpToMonth = () => {
+    setCalDate(new Date(jumpYear, jumpMonth, 1));
+    setMonthYearPickerVisible(false);
+  };
 
   const handleCalDay = (day: number) => {
     const date = new Date(calYear, calMonth, day);
@@ -508,9 +613,18 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
           >
             <Ionicons name="chevron-back" size={16} color="#374151" />
           </TouchableOpacity>
-          <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>
-            {capitalize(new Date(calYear, calMonth).toLocaleDateString("es-ES", { month: "long", year: "numeric" }))}
-          </Text>
+          <TouchableOpacity
+            onPress={openMonthYearPicker}
+            activeOpacity={0.65}
+            accessibilityRole="button"
+            accessibilityLabel="Elegir mes y año"
+            style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 5 }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>
+              {capitalize(new Date(calYear, calMonth).toLocaleDateString("es-ES", { month: "long", year: "numeric" }))}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color="#64748B" />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setCalDate(new Date(calYear, calMonth + 1, 1))}
             style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
@@ -585,6 +699,68 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
           <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(rangeEnd)}</Text>
         </View>
       </View>
+
+      <Modal
+        visible={monthYearPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMonthYearPickerVisible(false)}
+      >
+        <Pressable
+          onPress={() => setMonthYearPickerVisible(false)}
+          style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.42)", justifyContent: "center", paddingHorizontal: 24 }}
+        >
+          <Pressable
+            onPress={(event) => event.stopPropagation()}
+            style={{ backgroundColor: "white", borderRadius: 24, padding: 20 }}
+          >
+            <Text style={{ fontSize: 19, fontWeight: "900", color: "#0F172A" }}>Ir a mes y año</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B", marginTop: 4, marginBottom: 16 }}>
+              Desliza para elegir el mes y el año.
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <DateWheelColumn
+                label="MES"
+                values={MONTH_WHEEL_VALUES}
+                selectedIndex={jumpMonth}
+                visible={monthYearPickerVisible}
+                onSelect={setJumpMonth}
+              />
+              <DateWheelColumn
+                label="AÑO"
+                values={YEAR_WHEEL_VALUES}
+                selectedIndex={jumpYear - 1900}
+                visible={monthYearPickerVisible}
+                onSelect={(index) => setJumpYear(1900 + index)}
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={jumpToMonth}
+              activeOpacity={0.75}
+              style={{
+                height: 46,
+                borderRadius: 14,
+                backgroundColor: colors.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                marginTop: 18,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: "900", color: "white" }}>Ir a la fecha</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setMonthYearPickerVisible(false)}
+              activeOpacity={0.7}
+              style={{ alignItems: "center", paddingTop: 12, paddingBottom: 2 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: "800", color: "#94A3B8" }}>Cancelar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

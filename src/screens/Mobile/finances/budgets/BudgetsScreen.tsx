@@ -80,7 +80,7 @@ const getPeriodLabel = (period: PeriodType) => {
   }
 };
 
-export default function BudgetsHomeScreen({ navigation }: any) {
+export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
 
   const [loading, setLoading] = useState(true);
@@ -162,7 +162,7 @@ export default function BudgetsHomeScreen({ navigation }: any) {
           title="Presupuestos"
           showProfile={false}
           showDatePicker={false}
-          showBack={true}
+          showBack={!isPinnedModuleTab}
         />
       </View>
 

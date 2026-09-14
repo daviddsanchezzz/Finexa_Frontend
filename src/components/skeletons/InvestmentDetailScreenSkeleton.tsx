@@ -13,31 +13,19 @@ function StatSkeleton() {
   );
 }
 
-function InfoRowSkeleton({ wide = false }: { wide?: boolean }) {
+function InfoRowSkeleton() {
   return (
     <View
       style={{
         paddingVertical: 13,
         borderBottomWidth: 1,
         borderBottomColor: "#E8EDF4",
-        gap: wide ? 9 : 0,
       }}
     >
-      {wide ? (
-        <>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <SkeletonBox width={15} height={15} borderRadius={4} />
-            <SkeletonBox width={96} height={10} borderRadius={4} />
-          </View>
-          <SkeletonBox width="78%" height={13} borderRadius={5} />
-        </>
-      ) : (
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <SkeletonBox width={15} height={15} borderRadius={4} style={{ marginRight: 8 }} />
-          <SkeletonBox width={96} height={10} borderRadius={4} />
-          <SkeletonBox width={74} height={12} borderRadius={5} style={{ marginLeft: "auto" }} />
-        </View>
-      )}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <SkeletonBox width={76} height={10} borderRadius={4} />
+        <SkeletonBox width={92} height={12} borderRadius={5} style={{ marginLeft: "auto" }} />
+      </View>
     </View>
   );
 }
@@ -77,12 +65,20 @@ export default function InvestmentDetailScreenSkeleton() {
       </View>
 
       <View style={{ paddingHorizontal: 16, paddingTop: 15 }}>
-        <SkeletonBox width={146} height={15} borderRadius={5} />
-        <SkeletonBox width={72} height={9} borderRadius={4} style={{ marginTop: 6, marginBottom: 7 }} />
-        <InfoRowSkeleton wide />
-        <InfoRowSkeleton />
-        <InfoRowSkeleton />
-        <InfoRowSkeleton />
+        <SkeletonBox width={74} height={9} borderRadius={4} style={{ marginBottom: 13 }} />
+        <View style={{ flexDirection: "row", marginBottom: 23 }}>
+          {[0, 1, 2].map((index) => (
+            <View key={index} style={{ flex: 1, alignItems: "center", borderLeftWidth: index ? 1 : 0, borderLeftColor: "#E8EDF4" }}>
+              <SkeletonBox width={68} height={15} borderRadius={5} />
+              <SkeletonBox width={76} height={9} borderRadius={4} style={{ marginTop: 6 }} />
+            </View>
+          ))}
+        </View>
+
+        <SkeletonBox width={96} height={9} borderRadius={4} style={{ marginBottom: 10 }} />
+        <SkeletonBox width="78%" height={15} borderRadius={5} />
+        <SkeletonBox width="58%" height={15} borderRadius={5} style={{ marginTop: 6 }} />
+        <SkeletonBox width="48%" height={10} borderRadius={4} style={{ marginTop: 8, marginBottom: 7 }} />
         <InfoRowSkeleton />
         <InfoRowSkeleton />
       </View>

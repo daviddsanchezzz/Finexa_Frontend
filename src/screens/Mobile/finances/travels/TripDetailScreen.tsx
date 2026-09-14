@@ -23,6 +23,7 @@ import { tripDateKey } from "../../../../utils/tripDates";
 import { appAlert } from "../../../../utils/appAlert";
 import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
 import { TripDetailScreenSkeleton } from "../../../../components/skeletons/TripDetailScreenSkeleton";
+import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import { formatEuro as formatEuroCore } from "../../../../utils/currency";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
@@ -319,16 +320,12 @@ export default function TripDetailScreen({ route, navigation }: any) {
     ]);
   };
 
-  const handleTripMenu = () => {
-    if (!trip) return;
-    appAlert(trip.name, undefined, [
-      { text: "Editar viaje", onPress: () => navigation.navigate("TripForm", { editTrip: trip }) },
-      { text: "Compañeros de viaje", onPress: () => navigation.navigate("TripCompanions", { tripId: trip.id, tripName: trip.name }) },
-      { text: "Compartir viaje", onPress: () => setExportModalVisible(true) },
-      { text: "Eliminar viaje", style: "destructive", onPress: handleDeleteTrip },
-      { text: "Cancelar", style: "cancel" },
-    ]);
-  };
+  const tripMenuActions = trip ? [
+    { label: "Editar viaje", onPress: () => navigation.navigate("TripForm", { editTrip: trip }) },
+    { label: "Compañeros de viaje", onPress: () => navigation.navigate("TripCompanions", { tripId: trip.id, tripName: trip.name }) },
+    { label: "Compartir viaje", onPress: () => setExportModalVisible(true) },
+    { label: "Eliminar viaje", style: "destructive" as const, onPress: handleDeleteTrip },
+  ] : [];
 
   const fetchTrip = async (silent = false) => {
     if (!tripId) return;
@@ -749,12 +746,13 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: statusStyle.color }}>
                   <Text style={{ fontSize: 11, fontWeight: "700", color: statusStyle.textColor }}>{statusStyle.label}</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={handleTripMenu}
-                  style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.28)", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Ionicons name="ellipsis-horizontal" size={18} color="white" />
-                </TouchableOpacity>
+                <OverflowMenuButton
+                  title={trip.name}
+                  actions={tripMenuActions}
+                  iconColor="white"
+                  accessibilityLabel="Acciones del viaje"
+                  buttonStyle={{ backgroundColor: "rgba(0,0,0,0.28)" }}
+                />
               </View>
             </View>
           );
@@ -933,12 +931,12 @@ export default function TripDetailScreen({ route, navigation }: any) {
                 })}
               </View>
             ) : (
-              <TouchableOpacity
-                onPress={handleTripMenu}
-                style={{ width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" }}
-              >
-                <Ionicons name="ellipsis-horizontal" size={18} color="white" />
-              </TouchableOpacity>
+              <OverflowMenuButton
+                title={trip.name}
+                actions={tripMenuActions}
+                iconColor="white"
+                accessibilityLabel="Acciones del viaje"
+              />
             )}
           </View>
         )}

@@ -23,11 +23,14 @@ import SegmentedTabs from "../../../../components/SegmentedTabs";
 import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
+import { appAlert } from "../../../../utils/appAlert";
 
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line } from "react-native-svg";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { formatEuro } from "../../../../utils/currency";
 import InvestmentOperationDetailsModal from "../../../../components/InvestmentOperationDetailsModal";
+import OverflowMenuButton from "../../../../components/OverflowMenuButton";
+import ChartTooltip from "../../../../components/ChartTooltip";
 import InvestmentDetailScreenSkeleton from "../../../../components/skeletons/InvestmentDetailScreenSkeleton";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
@@ -63,6 +66,9 @@ type AssetMetadataPayload = {
   assetId: number;
   isin?: string | null;
   manager?: string | null;
+  benchmark?: string | null;
+  distributionPolicy?: string | null;
+  ter?: number | string | null;
   syncedAt?: string | null;
   cryptoCategory?: string | null;
   source?: string | null;
@@ -81,7 +87,6 @@ type CompositionPayload = {
 interface SeriesPoint {
   date: string;
   value: number;
-  unitPrice?: number | null;
   currency?: string;
   invested?: number;
   result?: number;
@@ -96,6 +101,7 @@ interface SummaryAsset {
   invested: number;
   currentValue: number;
   pnl: number;
+  averagePurchasePrice?: number | null;
   lastValuationDate: string | null;
 }
 
@@ -105,6 +111,7 @@ type ValuationFromApi = {
   investmentAssetId?: number;
   date: string;
   value: number;
+  unitPrice?: number | null;
   currency?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -346,6 +353,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState<InvestmentOperationFromApi | null>(null);
 
+  const dismissChartTooltip = useCallback(() => {
+    selectedChartIndexRef.current = null;
+    setSelectedChartIndex(null);
+  }, []);
+
   type ActionTarget = { kind: "valuation"; item: ValuationFromApi } | null;
   const [actionTarget, setActionTarget] = useState<ActionTarget>(null);
 
@@ -455,6 +467,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   }, []);
 
   const handleWebTouchEnd = useCallback(async (e: any) => {
+    dismissChartTooltip();
     if (Platform.OS !== "web" || webRefreshing) return;
     const endY = e.nativeEvent?.changedTouches?.[0]?.pageY ?? 0;
     if (webScrollAtTop.current && endY - webTouchStartY.current > 80) {
@@ -462,7 +475,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       await onRefresh();
       setWebRefreshing(false);
     }
-  }, [webRefreshing, onRefresh]);
+  }, [dismissChartTooltip, webRefreshing, onRefresh]);
 
   const handleDeleteValuation = (id: number) => {
     if (Platform.OS === "web") {
@@ -498,6 +511,54 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
         },
       },
     ]);
+  };
+
+  const handleArchiveAsset = () => {
+    appAlert(
+      "Archivar inversión",
+      "Dejará de aparecer en tu cartera activa. Para archivarla, su última valoración debe ser 0.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Archivar",
+          onPress: async () => {
+            try {
+              await api.patch(`/investments/assets/${assetId}/archive`);
+              assetDataCache.delete(assetId);
+              markInvestmentsDirty();
+              navigation.goBack();
+            } catch (error: any) {
+              const message = error?.response?.data?.message || "No se pudo archivar la inversión.";
+              appAlert("No se pudo archivar", String(message));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAsset = () => {
+    appAlert(
+      "Eliminar inversión",
+      "Se ocultará la inversión, pero no se borrarán tus transacciones históricas.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.delete(`/investments/assets/${assetId}`);
+              assetDataCache.delete(assetId);
+              markInvestmentsDirty();
+              navigation.goBack();
+            } catch {
+              appAlert("Error", "No se pudo eliminar la inversión.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const stats = useMemo(() => {
@@ -626,25 +687,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
         ? stats.currentValue / quantity
         : null;
 
-    const purchases = operationsRows.filter((operation) => operation.type === "buy");
-    const purchased = purchases.reduce(
-      (total, operation) => {
-        const units = Math.abs(Number(operation.quantity || 0));
-        if (!Number.isFinite(units) || units <= 0) return total;
-        return {
-          units: total.units + units,
-          cost: total.cost + Math.abs(Number(operation.amount || 0)) + Math.abs(Number(operation.fee || 0)),
-        };
-      },
-      { units: 0, cost: 0 }
-    );
-    const purchasesCoverPosition = !hasQuantity || purchased.units + 1e-6 >= quantity;
-    const averagePurchasePrice = purchased.units > 0 && purchasesCoverPosition
-      ? purchased.cost / purchased.units
-      : null;
-
-    return { quantity, hasQuantity, unitPrice, averagePurchasePrice };
-  }, [asset?.quantity, operationsRows, stats.currentValue, valuationsRows]);
+    return { quantity, hasQuantity, unitPrice };
+  }, [asset?.quantity, stats.currentValue, valuationsRows]);
 
   const operationsByMonth = useMemo(() => {
     const groups = new Map<string, { label: string; ops: InvestmentOperationFromApi[] }>();
@@ -685,7 +729,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" onTouchEnd={dismissChartTooltip}>
       {/* -- HEADER -- */}
       <View className="px-5 pb-3">
         <AppHeader
@@ -697,17 +741,27 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             asset ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <AddButton label="Añadir" onPress={() => setQuickAddOpen(true)} />
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("InvestmentForm", { assetId })}
-                  activeOpacity={0.8}
-                  accessibilityLabel="Editar inversión"
-                  style={{
-                    width: 30, height: 36,
-                    alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="ellipsis-horizontal" size={19} color="#64748B" />
-                </TouchableOpacity>
+                <OverflowMenuButton
+                  title={asset.abbreviation?.trim() || asset.name}
+                  actions={[
+                    {
+                      label: "Editar",
+                      onPress: () => navigation.navigate("InvestmentForm", { assetId }),
+                    },
+                    {
+                      label: "Archivar",
+                      onPress: handleArchiveAsset,
+                    },
+                    {
+                      label: "Eliminar",
+                      style: "destructive",
+                      onPress: handleDeleteAsset,
+                    },
+                  ]}
+                  iconSize={19}
+                  accessibilityLabel="Acciones de la inversión"
+                  buttonStyle={{ width: 30, height: 36 }}
+                />
               </View>
             ) : undefined
           }
@@ -840,41 +894,26 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   onMoveShouldSetResponder={() => true}
                   onResponderGrant={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
                   onResponderMove={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
+                  onTouchEnd={(event) => event.stopPropagation()}
                   style={{
                     marginTop: 14, backgroundColor: "white",
                     borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB",
                     paddingVertical: 14, paddingHorizontal: 12,
                   }}
                 >
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                  <View style={{ marginBottom: 10 }}>
                     <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>
                       Valor y capital aportado
                     </Text>
                   </View>
 
-                  {selectedChartIndex !== null && chart.mapped[Math.min(selectedChartIndex, chart.mapped.length - 1)] ? (() => {
-                    const point = chart.mapped[Math.min(selectedChartIndex, chart.mapped.length - 1)];
-                    return (
-                      <View style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 }}>
-                        <Text style={{ fontSize: 11.5, fontWeight: "900", color: "#0F172A", marginBottom: 4 }}>
-                          {formatDate(point.date)}
-                        </Text>
-                        <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#64748B" }}>
-                          Valor {formatMoney(Number(point.value || 0), currency)} · Aportado {formatMoney(Number(point.invested || 0), currency)}
-                        </Text>
-                        <Text style={{ fontSize: 10.5, fontWeight: "800", color: pnlMeta(Number(point.result || 0)).color, marginTop: 2 }}>
-                          Resultado {Number(point.result || 0) >= 0 ? "+" : ""}{formatMoney(Number(point.result || 0), currency)}
-                        </Text>
-                      </View>
-                    );
-                  })() : null}
-
-                  <Svg
-                    width="100%"
-                    height={chart.H}
-                    viewBox={`0 0 ${chart.W} ${chart.H}`}
-                    preserveAspectRatio="none"
-                  >
+                  <View style={{ position: "relative" }}>
+                    <Svg
+                      width="100%"
+                      height={chart.H}
+                      viewBox={`0 0 ${chart.W} ${chart.H}`}
+                      preserveAspectRatio="none"
+                    >
                     <Defs>
                       <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
                         <Stop offset="0" stopColor={colors.primary} stopOpacity="0.18" />
@@ -923,7 +962,52 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                       cy={chart.mapped[chart.mapped.length - 1].y}
                       r="4" fill={colors.primary}
                     />
-                  </Svg>
+                    </Svg>
+
+                    {selectedChartIndex !== null && chart.mapped[Math.min(selectedChartIndex, chart.mapped.length - 1)] ? (() => {
+                      const point = chart.mapped[Math.min(selectedChartIndex, chart.mapped.length - 1)];
+                      const tooltipWidth = 184;
+                      const selectedX = chartLayoutWidth > 0 ? (point.x / chart.W) * chartLayoutWidth : 0;
+                      const tooltipLeft = Math.min(
+                        Math.max(selectedX - tooltipWidth / 2, 0),
+                        Math.max(chartLayoutWidth - tooltipWidth, 0)
+                      );
+                      const pointerLeft = Math.min(Math.max(selectedX - tooltipLeft, 12), tooltipWidth - 12);
+                      const result = Number(point.result || 0);
+
+                      return (
+                        <ChartTooltip
+                          title={formatDate(point.date)}
+                          pointerLeft={pointerLeft}
+                          style={{
+                            position: "absolute",
+                            width: tooltipWidth,
+                            left: tooltipLeft,
+                            top: -78,
+                            zIndex: 20,
+                            elevation: 6,
+                          }}
+                          rows={[
+                            {
+                              label: "Valor cartera",
+                              color: colors.primary,
+                              formattedValue: formatMoney(Number(point.value || 0), currency),
+                            },
+                            {
+                              label: "Aportado",
+                              color: "#94A3B8",
+                              formattedValue: formatMoney(Number(point.invested || 0), currency),
+                            },
+                            {
+                              label: "Resultado",
+                              color: pnlMeta(result).color,
+                              formattedValue: `${result >= 0 ? "+" : ""}${formatMoney(result, currency)}`,
+                            },
+                          ]}
+                        />
+                      );
+                    })() : null}
+                  </View>
 
                   <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
                     <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
@@ -933,16 +1017,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                       {formatMonth(chart.mapped[chart.mapped.length - 1].date)}
                     </Text>
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 12 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <View style={{ width: 14, height: 3, borderRadius: 2, backgroundColor: colors.primary }} />
-                      <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#64748B" }}>Valor cartera</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <View style={{ width: 14, borderTopWidth: 2, borderStyle: "dashed", borderColor: "#94A3B8" }} />
-                      <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#64748B" }}>Capital aportado</Text>
-                    </View>
-                  </View>
                 </View>
 
                 <View
@@ -950,6 +1024,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   onMoveShouldSetResponder={() => true}
                   onResponderGrant={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
                   onResponderMove={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
+                  onTouchEnd={(event) => event.stopPropagation()}
                   style={{
                     marginTop: 12, backgroundColor: "white",
                     borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB",
@@ -1022,83 +1097,126 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
           {/* -- INFORMACIÓN -- */}
           {sectionTab === "info" && (
-          <View
-            style={{
-              marginBottom: 12,
-            }}
-          >
-            <View style={{ marginBottom: 10, paddingHorizontal: 2 }}>
-              <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>Ficha técnica</Text>
-            </View>
-
-            <View
-              style={{
-                paddingHorizontal: 2,
-              }}
-            >
-              {(() => {
-                const quantity = Number(asset.quantity ?? 0);
-                const hasQuantity = Number.isFinite(quantity) && quantity > 0;
-                const unitPrice = hasQuantity ? stats.currentValue / quantity : null;
-                const isin = metadata?.isin?.trim() || (asset.type !== "crypto" ? asset.identificator?.trim() : "");
-                return [
-                { label: "Nombre completo", value: asset.name, icon: "text-outline" as const, fullWidth: true },
-                { label: "Tipo", value: typeLabel(asset.type), icon: "pricetag-outline" as const },
-                { label: "Clase de activo", value: riskLabel(asset.riskType), icon: riskIcon(asset.riskType) },
+          <View style={{ marginBottom: 20 }}>
+            {(() => {
+              const isin = metadata?.isin?.trim() || (asset.type !== "crypto" ? asset.identificator?.trim() : "");
+              const manager = metadata?.manager?.trim();
+              const benchmark = metadata?.benchmark?.trim();
+              const distributionPolicy = metadata?.distributionPolicy?.trim();
+              const ter = typeof metadata?.ter === "number" && Number.isFinite(metadata.ter)
+                ? `${metadata.ter.toLocaleString("es-ES", { maximumFractionDigits: 4 })} %`
+                : typeof metadata?.ter === "string" && metadata.ter.trim()
+                  ? metadata.ter.trim().includes("%")
+                    ? metadata.ter.trim()
+                    : `${metadata.ter.trim()} %`
+                  : "";
+              const positionMetrics = [
                 {
                   label: "Participaciones",
-                  value: hasQuantity
-                    ? quantity.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+                  value: positionDetails.hasQuantity
+                    ? positionDetails.quantity.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 6 })
                     : "—",
-                  icon: "layers-outline" as const,
                 },
-                ...(unitPrice != null ? [{
+                ...(positionDetails.unitPrice != null ? [{
                   label: asset.type === "fund" ? "Valor liquidativo" : "Precio actual",
-                  value: formatMoney(unitPrice, currency),
-                  icon: "analytics-outline" as const,
+                  value: formatMoney(positionDetails.unitPrice, currency),
                 }] : []),
-                { label: "Moneda", value: asset.currency, icon: "cash-outline" as const },
-                ...(asset.description?.trim() ? [{ label: "Broker", value: asset.description.trim(), icon: "business-outline" as const }] : []),
-                ...(isin ? [{ label: "ISIN", value: isin, icon: "bookmark-outline" as const }] : []),
-                ...(asset.type === "crypto" && asset.identificator?.trim() ? [{ label: "Símbolo", value: asset.identificator.trim(), icon: "bookmark-outline" as const }] : []),
-                ];
-              })().map((row, idx, arr) => (
+                ...(summaryRow?.averagePurchasePrice != null ? [{
+                  label: "Precio medio",
+                  value: formatMoney(Number(summaryRow.averagePurchasePrice), currency),
+                }] : []),
+                ...(asset.description?.trim() ? [{ label: "Broker", value: asset.description.trim() }] : []),
+              ];
+              const technicalRows = [
+                ...(manager ? [{ label: "Gestora", value: manager }] : []),
+                ...(benchmark ? [{ label: "Índice", value: benchmark }] : []),
+                ...(distributionPolicy ? [{ label: "Distribución", value: distributionPolicy }] : []),
+                ...(ter ? [{ label: "TER", value: ter }] : []),
+                ...(isin ? [{ label: "ISIN", value: isin }] : []),
+                ...(asset.type === "crypto" && asset.identificator?.trim()
+                  ? [{ label: "Símbolo", value: asset.identificator.trim() }]
+                  : []),
+              ];
+
+              const renderTechnicalRows = (rows: Array<{ label: string; value: string }>) => rows.map((row, index) => (
                 <View
                   key={row.label}
                   style={{
-                    flexDirection: row.fullWidth ? "column" : "row",
-                    alignItems: row.fullWidth ? "flex-start" : "center",
-                    justifyContent: row.fullWidth ? "flex-start" : "space-between",
-                    paddingHorizontal: 0,
-                    paddingVertical: 13,
-                    borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
-                    borderBottomColor: "#F1F5F9",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    minHeight: 43,
+                    borderBottomWidth: index < rows.length - 1 ? 1 : 0,
+                    borderBottomColor: "#E8EDF4",
+                    gap: 16,
                   }}
                 >
-                  {row.fullWidth ? (
-                    <>
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                        <Ionicons name={row.icon} size={15} color={colors.primary} style={{ width: 24 }} />
-                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>{row.label}</Text>
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A", lineHeight: 18 }}>
-                        {row.value}
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 }}>
-                        <Ionicons name={row.icon} size={15} color={colors.primary} style={{ width: 24 }} />
-                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>{row.label}</Text>
-                      </View>
-                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
-                      {row.value}
-                    </Text>
-                    </>
-                  )}
+                  <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>{row.label}</Text>
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: "#0F172A", textAlign: "right" }} numberOfLines={2}>
+                    {row.value}
+                  </Text>
                 </View>
-              ))}
-            </View>
+              ));
+
+              return (
+                <View
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor: "#E2E8F0",
+                    borderRadius: 20,
+                    overflow: "hidden",
+                  }}
+                >
+                  <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: 18 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B", letterSpacing: 0.55, marginBottom: 17 }}>
+                      TU POSICIÓN
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "stretch" }}>
+                      {positionMetrics.map((metric, index) => (
+                        <View
+                          key={metric.label}
+                          style={{
+                            flex: 1,
+                            alignItems: "center",
+                            justifyContent: "flex-start",
+                            paddingHorizontal: 8,
+                            borderLeftWidth: index > 0 ? 1 : 0,
+                            borderLeftColor: "#E8EDF4",
+                          }}
+                        >
+                          <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A", textAlign: "center" }} numberOfLines={1}>
+                            {metric.value}
+                          </Text>
+                          <Text style={{ fontSize: 10.5, fontWeight: "600", color: "#94A3B8", textAlign: "center", marginTop: 4 }} numberOfLines={2}>
+                            {metric.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={{ height: 1, backgroundColor: "#E8EDF4", marginHorizontal: 14 }} />
+
+                  <View style={{ paddingHorizontal: 14, paddingTop: 17, paddingBottom: technicalRows.length ? 5 : 18 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B", letterSpacing: 0.55 }}>
+                      SOBRE EL ACTIVO
+                    </Text>
+                    <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", lineHeight: 22, marginTop: 11 }}>
+                      {asset.name}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginTop: 5 }}>
+                      {typeLabel(asset.type)} · {riskLabel(asset.riskType)} · {asset.currency}
+                    </Text>
+                    {technicalRows.length ? (
+                      <View style={{ borderTopWidth: 1, borderTopColor: "#E8EDF4", marginTop: 14 }}>
+                        {renderTechnicalRows(technicalRows)}
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })()}
           </View>
           )}
 

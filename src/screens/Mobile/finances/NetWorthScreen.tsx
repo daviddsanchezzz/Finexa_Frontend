@@ -504,7 +504,7 @@ const EVO_RANGES: { key: EvoRange; label: string }[] = [
 ];
 
 // ── Screen ────────────────────────────────────────────
-export default function NetWorthScreen({ navigation }: any) {
+export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }: any) {
   const { isDark, colors: t } = useTheme();
   const initialCache = getNetWorthCache<NetWorthData>();
   const [data, setData] = useState<NetWorthData | null>(initialCache.data);
@@ -649,7 +649,7 @@ export default function NetWorthScreen({ navigation }: any) {
       <View style={{ paddingHorizontal: 20, paddingBottom: 4 }}>
         <AppHeader
           title="Patrimonio neto"
-          showBack={true}
+          showBack={!isPinnedModuleTab}
           showProfile={false}
           showDatePicker={false}
         />

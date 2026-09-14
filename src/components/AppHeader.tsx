@@ -133,8 +133,10 @@ export default function AppHeader({
           <Text
             className="text-[22px] font-bold text-text"
             numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
             ellipsizeMode="tail"
-            style={{ flex: 1 }}
+            style={{ flex: 1, flexShrink: 1 }}
           >
             {title}
           </Text>

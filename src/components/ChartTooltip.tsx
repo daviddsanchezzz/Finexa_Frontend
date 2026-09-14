@@ -7,7 +7,8 @@ const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 export interface ChartTooltipRow {
   label: string;
   color: string;
-  value: number;
+  value?: number;
+  formattedValue?: string;
 }
 
 // Tooltip flotante compartido por GroupedBarChart y TrendChart — mismo
@@ -32,6 +33,7 @@ export default function ChartTooltip({
 }) {
   return (
     <View
+      pointerEvents="none"
       style={[
         {
           backgroundColor: "white",
@@ -64,7 +66,7 @@ export default function ChartTooltip({
             style={{ fontSize: 12.5, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"], flexShrink: 0 }}
             numberOfLines={1}
           >
-            {formatEuro(Math.abs(r.value))}
+            {r.formattedValue ?? formatEuro(Math.abs(r.value ?? 0))}
           </Text>
         </View>
       ))}
