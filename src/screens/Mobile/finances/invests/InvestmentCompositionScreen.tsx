@@ -13,7 +13,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
-import { colors } from "../../../../theme/theme";
+import { colors, radii } from "../../../../theme/theme";
+import ModalHeader from "../../../../components/ModalHeader";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import {
   numToInputStr,
@@ -66,7 +67,6 @@ const pctSum = (rows: Array<{ pct: string }>) =>
 
 function PctRow({
   row,
-  placeholder,
   onChange,
   onDelete,
   suggestions = [],
@@ -75,7 +75,6 @@ function PctRow({
   onPickSuggestion,
 }: {
   row: RegionRow | SectorRow;
-  placeholder: string;
   onChange: (id: string, field: "name" | "pct", val: string) => void;
   onDelete: (id: string) => void;
   suggestions?: PctSuggestion[];
@@ -92,21 +91,19 @@ function PctRow({
             flex: 1,
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: "#F8FAFC",
-            borderRadius: 12,
+            backgroundColor: "#FFFFFF",
+            borderRadius: radii.input,
             borderWidth: 1,
-            borderColor: showSuggestions && suggestions.length > 0 ? colors.primary : "#E5E7EB",
-            paddingHorizontal: 10,
-            height: 40,
+            borderColor: showSuggestions && suggestions.length > 0 ? colors.primary : "#E2E8F0",
+            paddingHorizontal: 12,
+            height: 44,
           }}
         >
           <TextInput
             value={row.name}
             onChangeText={(v) => onChange(row.id, "name", v)}
             onFocus={() => onFocus?.(row.id)}
-            placeholder={placeholder}
-            placeholderTextColor="#9CA3AF"
-            style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#0F172A" }}
+            style={{ flex: 1, fontSize: 15, fontWeight: "600", color: "#0F172A" }}
           />
         </View>
 
@@ -115,22 +112,20 @@ function PctRow({
           <View
             style={{
               width: 58,
-              backgroundColor: "#F8FAFC",
-              borderRadius: 12,
+              backgroundColor: "#FFFFFF",
+              borderRadius: radii.input,
               borderWidth: 1,
-              borderColor: "#E5E7EB",
+              borderColor: "#E2E8F0",
               paddingHorizontal: 8,
-              height: 40,
+              height: 44,
               justifyContent: "center",
             }}
           >
             <TextInput
               value={row.pct}
               onChangeText={(v) => onChange(row.id, "pct", v)}
-              placeholder="0"
-              placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
-              style={{ fontSize: 13, fontWeight: "800", color: "#0F172A", textAlign: "right" }}
+              style={{ fontSize: 15, fontWeight: "600", color: "#0F172A", textAlign: "right" }}
             />
           </View>
           <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>%</Text>
@@ -220,12 +215,12 @@ function HoldingRowComp({
         <View
           style={{
             flex: 1,
-            backgroundColor: "#F8FAFC",
-            borderRadius: 12,
+            backgroundColor: "#FFFFFF",
+            borderRadius: radii.input,
             borderWidth: 1,
-            borderColor: showSuggestions && suggestions.length > 0 ? colors.primary : "#E5E7EB",
-            paddingHorizontal: 10,
-            height: 40,
+            borderColor: showSuggestions && suggestions.length > 0 ? colors.primary : "#E2E8F0",
+            paddingHorizontal: 12,
+            height: 44,
             justifyContent: "center",
           }}
         >
@@ -233,9 +228,7 @@ function HoldingRowComp({
             value={row.name}
             onChangeText={(v) => onChange(row.id, "name", v)}
             onFocus={() => onFocusName(row.id)}
-            placeholder="Empresa / activo"
-            placeholderTextColor="#9CA3AF"
-            style={{ fontSize: 13, fontWeight: "700", color: "#0F172A" }}
+            style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}
           />
         </View>
 
@@ -243,20 +236,18 @@ function HoldingRowComp({
         <View
           style={{
             width: 64,
-            backgroundColor: "#F8FAFC",
-            borderRadius: 12,
+            backgroundColor: "#FFFFFF",
+            borderRadius: radii.input,
             borderWidth: 1,
-            borderColor: "#E5E7EB",
+            borderColor: "#E2E8F0",
             paddingHorizontal: 8,
-            height: 40,
+            height: 44,
             justifyContent: "center",
           }}
         >
           <TextInput
             value={row.ticker}
             onChangeText={(v) => onChange(row.id, "ticker", v.toUpperCase())}
-            placeholder="TICK"
-            placeholderTextColor="#9CA3AF"
             autoCapitalize="characters"
             style={{ fontSize: 12, fontWeight: "800", color: "#0F172A", textAlign: "center" }}
           />
@@ -267,22 +258,20 @@ function HoldingRowComp({
           <View
             style={{
               width: 58,
-              backgroundColor: "#F8FAFC",
-              borderRadius: 12,
+              backgroundColor: "#FFFFFF",
+              borderRadius: radii.input,
               borderWidth: 1,
-              borderColor: "#E5E7EB",
+              borderColor: "#E2E8F0",
               paddingHorizontal: 8,
-              height: 40,
+              height: 44,
               justifyContent: "center",
             }}
           >
             <TextInput
               value={row.weight}
               onChangeText={(v) => onChange(row.id, "weight", v)}
-              placeholder="0"
-              placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
-              style={{ fontSize: 13, fontWeight: "800", color: "#0F172A", textAlign: "right" }}
+              style={{ fontSize: 15, fontWeight: "600", color: "#0F172A", textAlign: "right" }}
             />
           </View>
           <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }}>%</Text>
@@ -614,39 +603,20 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* ── Header ── */}
-      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 12 }}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{ marginRight: 8 }}
+      <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+        <ModalHeader
+          title="Composición"
+          onClose={() => navigation.goBack()}
+          rightLabel="Guardar"
+          onRightPress={handleSave}
+          rightLoading={saving}
+        />
+        <Text
+          style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600", textAlign: "center", marginTop: 2 }}
+          numberOfLines={1}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 22, fontWeight: "700", color: colors.ink }} numberOfLines={1}>
-            Composición
-          </Text>
-          <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600", marginTop: 1 }} numberOfLines={1}>
-            {assetName}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.8}
-          style={{
-            flexDirection: "row", alignItems: "center", gap: 6,
-            paddingHorizontal: 16, paddingVertical: 9,
-            borderRadius: 14, backgroundColor: colors.primary,
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {saving
-            ? <ActivityIndicator size="small" color="white" />
-            : <Ionicons name="checkmark-outline" size={15} color="white" />
-          }
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "white" }}>Guardar</Text>
-        </TouchableOpacity>
+          {assetName}
+        </Text>
       </View>
 
       {loading ? (
@@ -729,7 +699,6 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
                   <PctRow
                     key={r.id}
                     row={r}
-                    placeholder="Ej: Estados Unidos"
                     onChange={changeRegion}
                     onDelete={(id) => setRegions((p) => p.filter((x) => x.id !== id))}
                     suggestions={activeRegionSuggestions}
@@ -780,7 +749,6 @@ export default function InvestmentCompositionScreen({ navigation, route }: any) 
                   <PctRow
                     key={s.id}
                     row={s}
-                    placeholder="Ej: Tecnología"
                     onChange={changeSector}
                     onDelete={(id) => setSectors((p) => p.filter((x) => x.id !== id))}
                     suggestions={activeSectorSuggestions}

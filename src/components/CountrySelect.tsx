@@ -4,18 +4,19 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
   TextInput,
   Dimensions,
   FlatList,
-  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import countries from "world-countries";
 import { textStyles } from "../theme/typography";
+import { colors } from "../theme/theme";
+import { FormSelect } from "./creation";
 
 type CountryItem = { cca2: string; name: string; nameEn?: string };
 
@@ -42,31 +43,10 @@ function norm(s: string) {
 }
 
 function useUiScaleMobile() {
-  const { width } = Dimensions.get("window");
+  const { width, height } = Dimensions.get("window");
   const s = Math.max(0.92, Math.min(1.08, width / 390));
   const px = (n: number) => Math.round(n * s);
-  return { px, width };
-}
-
-function Chip({ label, icon, px }: { label: string; icon: keyof typeof Ionicons.glyphMap; px: (n: number) => number }) {
-  return (
-    <View
-      style={{
-        paddingHorizontal: px(12),
-        paddingVertical: px(7),
-        borderRadius: 999,
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: "rgba(148,163,184,0.18)",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: px(6),
-      }}
-    >
-      <Ionicons name={icon} size={px(14)} color="#475569" />
-      <Text style={{ fontSize: px(12), fontWeight: "900", color: "#334155" }}>{label}</Text>
-    </View>
-  );
+  return { px, width, height };
 }
 
 function FlagBadge({ code, size = 18 }: { code?: string | null; size?: number }) {
@@ -87,7 +67,11 @@ export function CountrySelect({
   onChange: (x: { name: string; code: string }) => void;
   placeholder?: string;
 }) {
-  const { px, width } = useUiScaleMobile();
+  const { px, height: winHeight } = useUiScaleMobile();
+  // % heights no siempre se resuelven bien en RN Web (dependen de que toda la
+  // cadena de ancestros tenga alto definido); un máximo en px es fiable en
+  // todas las plataformas.
+  const sheetMaxHeight = Math.round(winHeight * 0.82);
 
   const list = useMemo(() => buildCountries(), []);
   const [open, setOpen] = useState(false);
@@ -114,27 +98,30 @@ export function CountrySelect({
     return idx;
   }, [filtered, selectedCode]);
 
+  const insets = useSafeAreaInsets();
+
   const close = useCallback(() => {
     setOpen(false);
     setQ("");
   }, []);
 
+  const listRef = useRef<FlatList<CountryItem> | null>(null);
+
   const openModal = useCallback(() => {
     setOpen(true);
   }, []);
 
-  const listRef = useRef<FlatList<CountryItem> | null>(null);
+  const handleModalShow = useCallback(() => {
+    if (selectedIndex > 2) {
+      requestAnimationFrame(() => {
+        try {
+          listRef.current?.scrollToIndex({ index: Math.max(0, selectedIndex - 2), animated: false });
+        } catch {}
+      });
+    }
+  }, [selectedIndex]);
 
-  const modalWidth = useMemo(() => {
-    if (Platform.OS === "web") return Math.min(720, Math.round(width * 0.92));
-    return Math.round(width * 0.92);
-  }, [width]);
-
-  const modalMaxHeight = useMemo(() => {
-    // mobile: almost fullscreen sheet-like
-    if (Platform.OS !== "web") return undefined;
-    return 520;
-  }, []);
+  const ROW_HEIGHT = px(11) * 2 + px(22) + 1; // padding vertical + flag height + separator
 
   const renderRow = ({ item }: { item: CountryItem }) => {
     const active = selectedCode === item.cca2 || selectedLabel === item.name;
@@ -147,398 +134,136 @@ export function CountrySelect({
         }}
         style={({ pressed, hovered }: any) => [
           {
-            marginHorizontal: px(10),
-            marginTop: px(8),
-            paddingHorizontal: px(14),
-            paddingVertical: px(12),
-            borderBottomWidth: 1,
-            borderBottomColor: "transparent",
-            backgroundColor: active ? "rgba(37,99,235,0.08)" : "#FFFFFF",
-            borderRadius: px(18),
-            borderWidth: 1,
-            borderColor: active ? "rgba(37,99,235,0.16)" : "rgba(148,163,184,0.12)",
-            opacity: pressed ? 0.95 : 1,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: px(20),
+            paddingVertical: px(11),
+            gap: px(12),
+            backgroundColor: "#FFFFFF",
+            opacity: pressed ? 0.6 : 1,
           },
-          Platform.OS === "web" && hovered ? { backgroundColor: active ? "rgba(37,99,235,0.10)" : "#F8FAFC" } : null,
+          Platform.OS === "web" && hovered ? { backgroundColor: "#F8FAFC" } : null,
         ]}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: px(12) }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: px(10), flex: 1 }}>
-            <View
-              style={{
-                width: px(34),
-                height: px(34),
-                borderRadius: px(12),
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: active ? "rgba(37,99,235,0.14)" : "#F8FAFC",
-                borderWidth: 1,
-                borderColor: active ? "rgba(37,99,235,0.18)" : "rgba(148,163,184,0.12)",
-              }}
-            >
-              <FlagBadge code={item.cca2} size={px(18)} />
-            </View>
+        <FlagBadge code={item.cca2} size={px(22)} />
 
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  textStyles.body,
-                  { fontSize: px(13), fontWeight: active ? "900" : "800", color: "#0F172A" },
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-              {!!item.nameEn && item.nameEn !== item.name && (
-                <Text style={[textStyles.caption, { marginTop: px(2), fontWeight: "800", color: "#94A3B8" }]} numberOfLines={1}>
-                  {item.nameEn}
-                </Text>
-              )}
-            </View>
-          </View>
-
-          <View
-            style={{
-              paddingHorizontal: px(10),
-              paddingVertical: px(6),
-              borderRadius: 999,
-              backgroundColor: active ? "rgba(37,99,235,0.12)" : "#F8FAFC",
-              borderWidth: 1,
-              borderColor: active ? "rgba(37,99,235,0.18)" : "rgba(148,163,184,0.12)",
-            }}
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[textStyles.body, { fontSize: px(15), fontWeight: "600", color: "#0F172A" }]}
+            numberOfLines={1}
           >
-            <Text style={{ fontSize: px(11), fontWeight: "900", color: active ? "#2563EB" : "#334155" }}>
-              {item.cca2}
+            {item.name}
+          </Text>
+          {!!item.nameEn && item.nameEn !== item.name && (
+            <Text style={[textStyles.caption, { marginTop: px(1), fontWeight: "500", color: "#94A3B8" }]} numberOfLines={1}>
+              {item.nameEn}
             </Text>
-          </View>
+          )}
         </View>
+
+        <Text style={{ fontSize: px(12), fontWeight: "600", color: "#94A3B8" }}>{item.cca2}</Text>
+
+        {active ? <Ionicons name="checkmark" size={px(19)} color={colors.primary} /> : null}
       </Pressable>
     );
   };
 
   return (
     <>
-      {/* Trigger (works for web + mobile) */}
-      <Pressable
-        onPress={openModal}
-        style={({ hovered, pressed }: any) => [
-          {
-            minHeight: px(44),
-            borderRadius: px(16),
-            borderWidth: 1,
-            borderColor: selectedCode ? "rgba(37,99,235,0.30)" : "rgba(148,163,184,0.22)",
-            backgroundColor: selectedCode ? "rgba(37,99,235,0.06)" : "#FFFFFF",
-            paddingHorizontal: px(12),
-            paddingVertical: px(10),
-            flexDirection: "row",
-            alignItems: "center",
-            gap: px(10),
-            opacity: pressed ? 0.96 : 1,
-          },
-          Platform.OS === "web" && hovered ? { backgroundColor: "#F8FAFC" } : null,
-        ]}
-      >
-        <View
-          style={{
-            width: px(34),
-            height: px(34),
-            borderRadius: px(12),
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: selectedCode ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.06)",
-            borderWidth: 1,
-            borderColor: selectedCode ? "rgba(37,99,235,0.18)" : "rgba(0,0,0,0.06)",
-          }}
-        >
-          {selectedCode ? <FlagBadge code={selectedCode} size={px(18)} /> : <Ionicons name="flag-outline" size={px(16)} color="#64748B" />}
-        </View>
+      {/* Trigger: mismo componente FormSelect que "Divisa" en el resto de formularios.
+          Sin label propia: todos los usos de CountrySelect ya ponen su propia
+          etiqueta ("País", "Añadir otro país"...) justo encima. */}
+      <FormSelect value={selectedLabel || placeholder} onPress={openModal} />
 
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: px(11), fontWeight: "900", color: "#94A3B8" }}>País</Text>
-          <Text
-            style={[
-              textStyles.body,
-              {
-                marginTop: px(2),
-                fontSize: px(13),
-                fontWeight: "900",
-                color: selectedLabel || selectedCode ? "#0F172A" : "#94A3B8",
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {selectedLabel || placeholder}
-          </Text>
-        </View>
-
-        {!!selectedCode && (
-          <View
-            style={{
-              paddingHorizontal: px(10),
-              paddingVertical: px(6),
-              borderRadius: 999,
-              backgroundColor: "rgba(255,255,255,0.85)",
-              borderWidth: 1,
-              borderColor: "rgba(0,0,0,0.08)",
-            }}
-          >
-            <Text style={{ fontSize: px(11), fontWeight: "900", color: "#0F172A" }}>{selectedCode}</Text>
-          </View>
-        )}
-
-        <Ionicons name="chevron-down-outline" size={px(18)} color="#64748B" />
-      </Pressable>
-
-      {/* Modal (desktop centered, mobile bottom-sheet like) */}
-      <Modal visible={open} transparent animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={close}>
-        <Pressable
-          onPress={close}
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(2,6,23,0.55)",
-            justifyContent: Platform.OS === "web" ? "center" : "flex-end",
-            alignItems: "center",
-            padding: Platform.OS === "web" ? px(24) : px(12),
-          }}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={{ width: "100%", alignItems: "center" }}
-          >
+      {/* Modal: hoja inferior estilo iOS, igual que el resto de menús de la app */}
+      <Modal visible={open} transparent animationType="slide" onRequestClose={close} statusBarTranslucent onShow={handleModalShow}>
+        <Pressable onPress={close} style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" }}>
             <Pressable
               onPress={() => {}}
               style={{
-                width: modalWidth,
-                maxWidth: "100%",
-                borderTopLeftRadius: px(24),
-                borderTopRightRadius: px(24),
-                borderBottomLeftRadius: px(22),
-                borderBottomRightRadius: px(22),
+                width: "100%",
+                maxHeight: sheetMaxHeight,
+                borderTopLeftRadius: px(20),
+                borderTopRightRadius: px(20),
                 backgroundColor: "#FFFFFF",
-                borderWidth: 1,
-                borderColor: "rgba(229,231,235,0.95)",
                 overflow: "hidden",
-                shadowColor: "#000",
-                shadowOpacity: 0.16,
-                shadowRadius: px(22),
-                shadowOffset: { width: 0, height: px(14) },
-                // mobile: give it a sheet feel
-                ...(Platform.OS !== "web"
-                  ? {
-                      marginBottom: px(10),
-                    }
-                  : null),
               }}
             >
-              {Platform.OS !== "web" && (
-                <View style={{ alignItems: "center", paddingTop: px(10), paddingBottom: px(2), backgroundColor: "#FFFFFF" }}>
-                  <View style={{ width: px(38), height: px(4), borderRadius: 999, backgroundColor: "#CBD5E1" }} />
-                </View>
-              )}
+              <View style={{ alignItems: "center", paddingTop: px(10), paddingBottom: px(4) }}>
+                <View style={{ width: px(36), height: px(4), borderRadius: 999, backgroundColor: "#E2E8F0" }} />
+              </View>
 
               {/* Header */}
               <View
                 style={{
-                  paddingHorizontal: px(16),
-                  paddingTop: px(14),
-                  paddingBottom: px(14),
-                  borderBottomWidth: 1,
-                  borderBottomColor: "#EEF2F7",
-                  backgroundColor: "#FFFFFF",
                   flexDirection: "row",
-                  justifyContent: "space-between",
                   alignItems: "center",
-                  gap: px(12),
+                  justifyContent: "space-between",
+                  paddingHorizontal: px(16),
+                  paddingTop: px(6),
+                  paddingBottom: px(12),
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: px(10), flex: 1 }}>
-                  <View
-                    style={{
-                      width: px(36),
-                      height: px(36),
-                      borderRadius: px(12),
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "rgba(37,99,235,0.10)",
-                      borderWidth: 1,
-                      borderColor: "rgba(37,99,235,0.18)",
-                    }}
-                  >
-                    <Ionicons name="flag-outline" size={px(18)} color="#2563EB" />
-                  </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={[textStyles.body, { fontSize: px(14), fontWeight: "900", color: "#0F172A" }]}>
-                    Seleccionar país
-                  </Text>
-                </View>
-              </View>
-
                 <TouchableOpacity
-                  activeOpacity={0.9}
                   onPress={close}
-                  style={{
-                    width: px(38),
-                    height: px(38),
-                    borderRadius: px(12),
-                    borderWidth: 1,
-                    borderColor: "#E2E8F0",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#FFFFFF",
-                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ width: px(64), alignItems: "flex-start" }}
                 >
-                  <Ionicons name="close" size={px(18)} color="#334155" />
+                  <Ionicons name="close" size={px(22)} color="#334155" />
                 </TouchableOpacity>
+                <Text style={[textStyles.body, { fontSize: px(16), fontWeight: "700", color: "#0F172A" }]}>
+                  Seleccionar país
+                </Text>
+                <View style={{ width: px(64) }} />
               </View>
 
-              {/* Search (now works on mobile too) */}
-              <View style={{ padding: px(14), backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#EEF2F7" }}>
+              {/* Búsqueda */}
+              <View style={{ paddingHorizontal: px(16), paddingBottom: px(10) }}>
                 <View
                   style={{
-                    minHeight: px(48),
-                    borderRadius: px(18),
-                    borderWidth: 1,
-                    borderColor: "rgba(148,163,184,0.18)",
-                    backgroundColor: "#FFFFFF",
                     flexDirection: "row",
                     alignItems: "center",
+                    gap: px(8),
+                    height: px(40),
+                    borderRadius: px(12),
+                    backgroundColor: "#F1F5F9",
                     paddingHorizontal: px(12),
-                    gap: px(10),
                   }}
                 >
-                  <View
-                    style={{
-                      width: px(34),
-                      height: px(34),
-                      borderRadius: px(12),
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "rgba(148,163,184,0.12)",
-                    }}
-                  >
-                    <Ionicons name="search-outline" size={px(16)} color="#64748B" />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <TextInput
-                      value={q}
-                      onChangeText={setQ}
-                      placeholder="Buscar país…"
-                      placeholderTextColor="#94A3B8"
-                      autoCorrect={false}
-                      autoCapitalize="none"
-                      style={{
-                        width: "100%",
-                        fontWeight: "900",
-                        fontSize: px(14),
-                        color: "#0F172A",
-                        paddingVertical: 0,
-                      }}
-                    />
-                  </View>
-
+                  <Ionicons name="search" size={px(16)} color="#94A3B8" />
+                  <TextInput
+                    value={q}
+                    onChangeText={setQ}
+                    placeholder="Buscar país"
+                    placeholderTextColor="#94A3B8"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    style={{ flex: 1, fontSize: px(15), color: "#0F172A", paddingVertical: 0 }}
+                  />
                   {!!q && (
-                    <TouchableOpacity activeOpacity={0.9} onPress={() => setQ("")} style={{ padding: px(2) }}>
-                      <Ionicons name="close-circle" size={px(18)} color="#94A3B8" />
+                    <TouchableOpacity onPress={() => setQ("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close-circle" size={px(16)} color="#94A3B8" />
                     </TouchableOpacity>
                   )}
                 </View>
-
-                {!!selectedCode && (
-                  <View style={{ marginTop: px(12), flexDirection: "row", gap: px(8), flexWrap: "wrap" }}>
-                    <Chip label={`Seleccionado: ${selectedCode}`} icon="checkmark-circle-outline" px={px} />
-                  </View>
-                )}
-
-                {!!selectedIndex && selectedIndex > 8 && Platform.OS !== "web" && (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => {
-                      try {
-                        listRef.current?.scrollToIndex({ index: Math.max(0, selectedIndex - 2), animated: true });
-                      } catch {}
-                    }}
-                    style={{
-                      marginTop: px(10),
-                      height: px(40),
-                      borderRadius: px(14),
-                      borderWidth: 1,
-                      borderColor: "rgba(148,163,184,0.22)",
-                      backgroundColor: "white",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexDirection: "row",
-                      gap: px(8),
-                    }}
-                  >
-                    <Ionicons name="locate-outline" size={px(16)} color="#0F172A" />
-                    <Text style={{ fontSize: px(12), fontWeight: "900", color: "#0F172A" }}>Ir al seleccionado</Text>
-                  </TouchableOpacity>
-                )}
               </View>
 
-              {/* List (FlatList perf for mobile, scroll view ok on web too) */}
-              {Platform.OS === "web" ? (
-                <ScrollView style={{ maxHeight: modalMaxHeight ?? 420, backgroundColor: "#FBFDFF" }} showsVerticalScrollIndicator>
-                  {filtered.map((c) => (
-                    <View key={c.cca2}>{renderRow({ item: c } as any)}</View>
-                  ))}
-                  <View style={{ height: px(10) }} />
-                </ScrollView>
-              ) : (
-                <FlatList
-                  ref={(r) => (listRef.current = r)}
-                  data={filtered}
-                  keyExtractor={(item) => item.cca2}
-                  renderItem={renderRow}
-                  keyboardShouldPersistTaps="handled"
-                  style={{ maxHeight: 420, backgroundColor: "#FBFDFF" }}
-                  contentContainerStyle={{ paddingBottom: px(10) }}
-                  initialNumToRender={24}
-                  windowSize={10}
-                  getItemLayout={(_, index) => ({
-                    length: px(12) * 2 + px(34), // approximate row height; safe enough for scrollToIndex
-                    offset: (px(12) * 2 + px(34)) * index,
-                    index,
-                  })}
-                />
-              )}
-
-              {!!selectedCode && (
-                <View
-                  style={{
-                    paddingHorizontal: px(14),
-                    paddingTop: px(10),
-                    paddingBottom: px(14),
-                    borderTopWidth: 1,
-                    borderTopColor: "#EEF2F7",
-                    backgroundColor: "#FFFFFF",
-                    alignItems: "flex-end",
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: px(8),
-                      paddingHorizontal: px(12),
-                      paddingVertical: px(8),
-                      borderRadius: 999,
-                      backgroundColor: "rgba(37,99,235,0.08)",
-                      borderWidth: 1,
-                      borderColor: "rgba(37,99,235,0.14)",
-                    }}
-                  >
-                    <FlagBadge code={selectedCode} size={px(16)} />
-                    <Text style={{ fontSize: px(12), fontWeight: "900", color: "#2563EB" }}>{selectedCode}</Text>
-                  </View>
-                </View>
-              )}
+              <FlatList
+                ref={(r) => { listRef.current = r; }}
+                data={filtered}
+                keyExtractor={(item) => item.cca2}
+                renderItem={renderRow}
+                keyboardShouldPersistTaps="handled"
+                ItemSeparatorComponent={() => (
+                  <View style={{ height: 1, backgroundColor: "#F1F5F9", marginLeft: px(52) }} />
+                )}
+                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, px(12)) }}
+                initialNumToRender={24}
+                windowSize={10}
+                getItemLayout={(_, index) => ({ length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index })}
+                onScrollToIndexFailed={() => {}}
+              />
             </Pressable>
-          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
     </>

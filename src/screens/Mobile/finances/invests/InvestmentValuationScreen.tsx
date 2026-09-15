@@ -1,23 +1,18 @@
 // src/screens/Investments/InvestmentValuationScreen.tsx
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import AppHeader from "../../../../components/AppHeader";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import { formatEuro } from "../../../../utils/currency";
+import {
+  EditingForm,
+  FormMoneyField,
+  FormSection,
+  FormSelect,
+} from "../../../../components/creation";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -258,232 +253,98 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
     }
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pb-3">
-        <AppHeader title={isEditing ? "Editar valoración" : "Añadir valoración"} showProfile={false} showDatePicker={false} showBack />
-      </View>
+  const submitLabel = isLockedToAsset
+    ? isEditing ? "Guardar cambios" : "Guardar valor"
+    : `Guardar ${selectedMultiRows.length || ""} valoración${selectedMultiRows.length === 1 ? "" : "es"}`.trim();
 
-      {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="text-gray-400 mt-3 text-sm">Cargando...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1 px-5"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 30 }}
-        >
-          <View
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 24,
-              padding: 18,
-              marginBottom: 12,
+  return (
+    <EditingForm
+      title={isEditing ? "Editar valoración" : "Añadir valoración"}
+      onClose={() => navigation.goBack()}
+      onSubmit={onSave}
+      submitLabel={submitLabel}
+      isLoading={loading}
+      isSubmitting={saving}
+      isValid={canSave && visibleAssets.length > 0}
+    >
+      <View style={{ gap: 18 }}>
+        <FormSection>
+          <FormSelect
+            label="Fecha"
+            required
+            value={date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
+            onPress={() => setShowDatePicker(true)}
+          />
+          <CrossPlatformDateTimePicker
+            isVisible={showDatePicker}
+            mode="date"
+            date={date}
+            onConfirm={(d) => {
+              setShowDatePicker(false);
+              setDate(d);
             }}
-          >
-            <View className="flex-row items-center">
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.16)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="calendar-outline" size={18} color="white" />
-              </View>
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>Valoración</Text>
-                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
-                  {isLockedToAsset
-                    ? "Guarda el valor total de esta inversión para una fecha concreta."
-                    : "Guarda valoraciones de varios activos a la vez en una sola fecha."}
+            onCancel={() => setShowDatePicker(false)}
+          />
+        </FormSection>
+
+        {isLockedToAsset ? (
+          <FormSection title="LA INVERSIÓN">
+            {visibleAssets[0] ? (
+              <View>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: colors.ink }} numberOfLines={1}>
+                  {visibleAssets[0].abbreviation?.trim() || visibleAssets[0].name}
+                </Text>
+                <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
+                  Divisa: {visibleAssets[0].currency}
                 </Text>
               </View>
-            </View>
-          </View>
-
-          <View
-            className="rounded-3xl mb-3"
-            style={{
-              backgroundColor: "white",
-              padding: 14,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text className="text-[11px] text-gray-400">Fecha</Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="py-2 flex-row justify-between items-center border-b border-gray-200 mb-2"
-              activeOpacity={0.8}
-            >
-              <Text className="text-[15px] text-black">
-                {date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
+            ) : (
+              <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600" }}>
+                No se encontró el activo preseleccionado.
               </Text>
-              <Ionicons name="calendar-outline" size={19} color="black" />
-            </TouchableOpacity>
+            )}
 
-            <CrossPlatformDateTimePicker
-              isVisible={showDatePicker}
-              mode="date"
-              date={date}
-              onConfirm={(d) => {
-                setShowDatePicker(false);
-                setDate(d);
-              }}
-              onCancel={() => setShowDatePicker(false)}
+            <FormMoneyField
+              label="Valor total"
+              required
+              value={valueText}
+              onChangeText={setValueText}
+              currency={selectedAsset?.currency ?? "EUR"}
+              error={valueText.trim() && parsedValue === null ? "Introduce un valor válido." : null}
+              showError
             />
-
-            {isLockedToAsset ? (
-              <>
-                <Text className="text-[11px] text-gray-400 mt-4">Inversión</Text>
-                {visibleAssets[0] ? (
-                  <View
-                    style={{
-                      marginTop: 8,
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 16,
-                      backgroundColor: "#EEF2FF",
-                      borderWidth: 1,
-                      borderColor: colors.primary,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#111827" }} numberOfLines={1}>
-                      {visibleAssets[0].abbreviation?.trim() || visibleAssets[0].name}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>
-                      Divisa: {visibleAssets[0].currency}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text className="text-gray-400 mt-3 text-sm">No se encontró el activo preseleccionado.</Text>
-                )}
-
-                <Text className="text-[11px] text-gray-400 mt-4">Valor total</Text>
-                <View
-                  className="flex-row items-center mt-1 rounded-2xl"
-                  style={{
-                    backgroundColor: "#F9FAFB",
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    paddingHorizontal: 12,
-                    paddingVertical: 10,
-                  }}
-                >
-                  <Ionicons name="cash-outline" size={16} color="#64748B" />
-                  <TextInput
-                    value={valueText}
-                    onChangeText={setValueText}
-                    placeholder="Ej: 3100,50"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="decimal-pad"
-                    style={{ marginLeft: 10, flex: 1, color: "#111827", fontWeight: "700" }}
-                  />
-                  {valueText.trim() && parsedValue === null ? (
-                    <Text style={{ fontSize: 11, color: "#DC2626", fontWeight: "700" }}>inválido</Text>
-                  ) : null}
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={{ marginTop: 14 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      paddingBottom: 8,
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#E5E7EB",
-                    }}
-                  >
-                    <Text style={{ flex: 1.5, fontSize: 11, fontWeight: "800", color: "#64748B" }}>Activo</Text>
-                    <Text style={{ width: 56, fontSize: 11, fontWeight: "800", color: "#64748B", textAlign: "center" }}>Divisa</Text>
-                    <Text style={{ width: 110, fontSize: 11, fontWeight: "800", color: "#64748B", textAlign: "right" }}>Valor</Text>
-                  </View>
-
-                  {visibleAssets.map((a, idx) => {
-                    const raw = multiValues[a.id] ?? "";
-                    const parsed = parseAmount(raw);
-                    const invalid = raw.trim().length > 0 && (parsed === null || parsed < 0);
-                    return (
-                      <View
-                        key={a.id}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          paddingVertical: 10,
-                          borderBottomWidth: idx === visibleAssets.length - 1 ? 0 : 1,
-                          borderBottomColor: "#F1F5F9",
-                        }}
-                      >
-                        <Text style={{ flex: 1.5, fontSize: 12, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
-                          {a.abbreviation?.trim() || a.name}
-                        </Text>
-                        <Text style={{ width: 56, fontSize: 12, fontWeight: "700", color: "#64748B", textAlign: "center" }}>
-                          {a.currency}
-                        </Text>
-                        <View style={{ width: 110, alignItems: "flex-end" }}>
-                          <TextInput
-                            value={raw}
-                            onChangeText={(txt) => setMultiValues((prev) => ({ ...prev, [a.id]: txt }))}
-                            placeholder="-"
-                            placeholderTextColor="#9CA3AF"
-                            keyboardType="decimal-pad"
-                            style={{
-                              width: 110,
-                              textAlign: "right",
-                              fontSize: 12,
-                              fontWeight: "800",
-                              color: invalid ? "#DC2626" : "#0F172A",
-                              backgroundColor: "#F8FAFC",
-                              borderRadius: 10,
-                              borderWidth: 1,
-                              borderColor: invalid ? "#FCA5A5" : "#E5E7EB",
-                              paddingHorizontal: 10,
-                              paddingVertical: 7,
-                            }}
-                          />
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-
-            <Text className="text-[11px] text-gray-400 mt-3 leading-4">
-              Consejo: usa el valor total que te muestra el broker para la fecha elegida. Si repites la misma fecha y activo, se sobreescribe.
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={onSave}
-            disabled={!canSave || saving || visibleAssets.length === 0}
-            className="flex-row items-center justify-center py-3 rounded-2xl"
-            style={{
-              backgroundColor: !canSave || saving || visibleAssets.length === 0 ? "#E5E7EB" : colors.primary,
-            }}
-            activeOpacity={0.9}
+          </FormSection>
+        ) : (
+          <FormSection
+            title="VALORACIONES"
+            description="Introduce el valor total de cada activo para la fecha elegida. Deja en blanco los que no quieras actualizar."
           >
-            {saving ? (
-              <ActivityIndicator color={!canSave ? "#64748B" : "white"} />
-            ) : (
-              <Ionicons name="checkmark-outline" size={18} color="white" />
-            )}
-            <Text
-              className="text-sm font-semibold ml-2"
-              style={{ color: !canSave || saving || visibleAssets.length === 0 ? "#64748B" : "white" }}
-            >
-              {isLockedToAsset ? "Guardar valor" : `Guardar ${selectedMultiRows.length || ""} valoración${selectedMultiRows.length === 1 ? "" : "es"}`.trim()}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+            <View style={{ gap: 14 }}>
+              {visibleAssets.map((a) => {
+                const raw = multiValues[a.id] ?? "";
+                const parsed = parseAmount(raw);
+                const invalid = raw.trim().length > 0 && (parsed === null || parsed < 0);
+                return (
+                  <FormMoneyField
+                    key={a.id}
+                    label={a.abbreviation?.trim() || a.name}
+                    value={raw}
+                    onChangeText={(txt) => setMultiValues((prev) => ({ ...prev, [a.id]: txt }))}
+                    currency={a.currency}
+                    error={invalid ? "Valor inválido." : null}
+                    showError
+                  />
+                );
+              })}
+            </View>
+          </FormSection>
+        )}
+
+        <Text style={{ fontSize: 11.5, lineHeight: 16, color: "#94A3B8" }}>
+          Consejo: usa el valor total que te muestra el broker para la fecha elegida. Si repites la misma fecha y
+          activo, se sobreescribe.
+        </Text>
+      </View>
+    </EditingForm>
   );
 }

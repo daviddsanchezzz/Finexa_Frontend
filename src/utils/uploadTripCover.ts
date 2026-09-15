@@ -73,3 +73,7 @@ export function pickAndUploadAccommodationCover(): Promise<string | null> {
 export function pickAndUploadWonderPhoto(): Promise<string | null> {
   return pickAndUploadImage("wonder-photos");
 }
+
+export function pickAndUploadAvatar(): Promise<string | null> {
+  return pickAndUploadImage("avatars");
+}

@@ -151,7 +151,7 @@ export function FormSelect({
   required = false,
   error,
 }: {
-  label: string;
+  label?: string;
   value: string;
   onPress: () => void;
   required?: boolean;
@@ -159,9 +159,11 @@ export function FormSelect({
 }) {
   return (
     <View>
-      <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>
-        {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
-      </Text>
+      {label ? (
+        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>
+          {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
+        </Text>
+      ) : null}
       <TouchableOpacity
         onPress={() => {
           Keyboard.dismiss();

@@ -1,13 +1,13 @@
 ﻿import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../../context/AuthContext";
 import { colors } from "../../../theme/theme";
 import { useFriends } from "../../../hooks/useFriends";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
-import { avatarColorForId, initialsFromName } from "../../../utils/avatarColor";
 import IconCircleButton from "../../../components/IconCircleButton";
+import UserAvatar from "../../../components/UserAvatar";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
@@ -74,20 +74,8 @@ export default function ProfileScreen({ navigation }: any) {
           }}
         />
 
-        <View
-          className="w-20 h-20 rounded-full mb-3 mt-4 items-center justify-center overflow-hidden"
-          style={{ backgroundColor: user ? avatarColorForId(user.id) : "#E5E7EB" }}
-        >
-          {user?.avatar ? (
-            <Image
-              source={{ uri: user.avatar }}
-              className="w-full h-full rounded-full"
-            />
-          ) : (
-            <Text style={{ color: "white", fontSize: 28, fontWeight: "800" }}>
-              {initialsFromName(user?.name || "Usuario")}
-            </Text>
-          )}
+        <View className="mb-3 mt-4">
+          <UserAvatar user={user} size={80} fontSize={28} />
         </View>
 
         <Text className="text-xl font-bold text-text">{user?.name || "Usuario"}</Text>

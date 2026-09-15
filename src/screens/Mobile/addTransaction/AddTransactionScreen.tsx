@@ -54,7 +54,7 @@ const TYPE_LABEL_ES: Record<string, string> = {
 
 function formatBalance(n: number) {
   const value = typeof n === "number" && isFinite(n) ? n : 0;
-  return `${formatEuro(Math.round(value)).replace(/,00$/, "")} €`;
+  return `${formatEuro(value)} €`;
 }
 
 //---------------------------------------
@@ -216,11 +216,9 @@ export default function AddScreen({ navigation }: any) {
   };
 
   const sectionLabelStyle: TextStyle = {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: "700",
-    color: "#94A3B8",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
+    color: "#64748B",
     marginBottom: 6,
   };
 

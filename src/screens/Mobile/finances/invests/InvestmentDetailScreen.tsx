@@ -753,11 +753,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   title={asset.abbreviation?.trim() || asset.name}
                   actions={[
                     {
-                      label: "Añadir valoración",
+                      label: "Valorar",
                       onPress: () => navigation.navigate("InvestmentValuation", { assetId }),
                     },
                     {
-                      label: "Añadir composición",
+                      label: "Editar composición",
                       onPress: () =>
                         navigation.navigate("InvestmentComposition", {
                           assetId,

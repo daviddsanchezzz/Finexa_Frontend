@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -21,6 +20,15 @@ import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDat
 import { CountrySelect } from "../../../../components/CountrySelect";
 import { appAlert } from "../../../../utils/appAlert";
 import { continentFromCountryCode } from "../../../../utils/countryContinent";
+import {
+  CreationFlow,
+  EditingActionRow,
+  EditingForm,
+  FormMoneyField,
+  FormSection,
+  FormSegmentedControl,
+  FormTextField,
+} from "../../../../components/creation";
 
 type TripStatus = "seen" | "planning" | "wishlist";
 
@@ -138,13 +146,6 @@ function getCalCells(year: number, month: number): (number | null)[] {
 function capitalize(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
-const COMPANION_OPTIONS = [
-  { id: "solo",   label: "Solo",    icon: "person-outline" as const },
-  { id: "pareja", label: "Pareja",  icon: "heart-outline" as const },
-  { id: "familia",label: "Familia", icon: "people-outline" as const },
-  { id: "amigos", label: "Amigos",  icon: "people-circle-outline" as const },
-];
-
 type TripDateMode = "per_country" | "single_range";
 
 function detectTripDateMode(stays: StayDraft[]): TripDateMode {
@@ -322,14 +323,14 @@ function TripRouteEditor({ stays, onChangeStays }: { stays: StayDraft[]; onChang
                   onPress={() => { setDatePickerTarget({ index, field: "start" }); setDatePickerVisible(true); }}
                   style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#E5E7EB" }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>DESDE</Text>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>Desde</Text>
                   <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(stay.startDate)}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => { setDatePickerTarget({ index, field: "end" }); setDatePickerVisible(true); }}
                   style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 12, padding: 10, borderWidth: 1, borderColor: "#E5E7EB" }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>HASTA</Text>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 3 }}>Hasta</Text>
                   <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(stay.endDate)}</Text>
                 </Pressable>
               </View>
@@ -691,11 +692,11 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
 
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
-          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>INICIO</Text>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>Inicio</Text>
           <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(rangeStart)}</Text>
         </View>
         <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
-          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>FIN</Text>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#94A3B8", marginBottom: 4 }}>Fin</Text>
           <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{formatOptionalShortDate(rangeEnd)}</Text>
         </View>
       </View>
@@ -721,14 +722,14 @@ function SingleRangeEditor({ stays, onChangeStays }: { stays: StayDraft[]; onCha
 
             <View style={{ flexDirection: "row", gap: 12 }}>
               <DateWheelColumn
-                label="MES"
+                label="Mes"
                 values={MONTH_WHEEL_VALUES}
                 selectedIndex={jumpMonth}
                 visible={monthYearPickerVisible}
                 onSelect={setJumpMonth}
               />
               <DateWheelColumn
-                label="AÑO"
+                label="Año"
                 values={YEAR_WHEEL_VALUES}
                 selectedIndex={jumpYear - 1900}
                 visible={monthYearPickerVisible}
@@ -892,26 +893,14 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: "800", color: "#0F172A" }}>Editar viaje</Text>
-        <TouchableOpacity
-          onPress={handleDelete}
-          disabled={deleting || saving}
-          style={{ padding: 4 }}
-        >
-          {deleting
-            ? <ActivityIndicator size="small" color="#EF4444" />
-            : <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          }
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }} showsVerticalScrollIndicator={false}>
+    <EditingForm
+      title="Editar viaje"
+      onClose={() => navigation.goBack()}
+      onSubmit={handleSave}
+      isSubmitting={saving}
+      isValid={!!name.trim()}
+    >
+      <View style={{ gap: 20 }}>
         {/* Foto de portada */}
         <TouchableOpacity
           onPress={async () => {
@@ -949,103 +938,62 @@ function EditTripForm({ editTrip, navigation }: { editTrip: TripFromApi; navigat
           )}
         </TouchableOpacity>
 
-        {/* Nombre */}
-        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 8 }}>NOMBRE DEL VIAJE</Text>
-          <TextInput
+        <FormSection>
+          <FormTextField
+            label="Nombre del viaje"
+            required
             value={name}
             onChangeText={setName}
-            placeholder="Ej. Navidad en Praga"
-            placeholderTextColor="#94A3B8"
-            style={{ fontSize: 18, fontWeight: "800", color: "#0F172A", paddingVertical: 0 }}
+            autoCapitalize="words"
+            error={!name.trim() ? "Añade un nombre para el viaje." : null}
+          />
+        </FormSection>
+
+        <View>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={sectionLabelStyle}>{stays.length > 1 ? "Ruta y fechas" : "Destino y fechas"}</Text>
+            {stays.length > 1 && <Text style={sectionLabelStyle}>{totalDays} días en total</Text>}
+          </View>
+          <View style={{ marginTop: 8 }}>
+            <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
+          </View>
+        </View>
+
+        <View>
+          <Text style={{ ...sectionLabelStyle, marginBottom: 8 }}>Añadir otro país</Text>
+          <CountrySelect
+            valueName=""
+            valueCode={null}
+            onChange={({ name: n, code }: any) => { if (code) addCountryStay(code, n); }}
           />
         </View>
 
-        {/* Ruta y fechas */}
-        <View style={{ gap: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 2 }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>
-              {stays.length > 1 ? "RUTA Y FECHAS" : "DESTINO Y FECHAS"}
-            </Text>
-            {stays.length > 1 && (
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
-            )}
+        <FormSection>
+          <FormSegmentedControl<TripStatus>
+            label="Estado"
+            value={status}
+            options={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
+            onChange={(next) => { setStatus(next); setStatusManuallyChanged(true); }}
+          />
+        </FormSection>
+
+        <FormSection>
+          <FormMoneyField
+            label="Presupuesto estimado"
+            currency="€"
+            value={budgetText}
+            onChangeText={setBudgetText}
+            keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+          />
+        </FormSection>
+
+        <FormSection title="Otras acciones">
+          <View style={{ borderTopWidth: 1, borderTopColor: "#E8EDF3" }}>
+            <EditingActionRow label="Eliminar viaje" onPress={handleDelete} disabled={saving || deleting} destructive />
           </View>
-
-          <TripDatesEditor stays={stays} onChangeStays={updateStays} initialMode={dateMode} />
-
-          <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>AÑADIR OTRO PAÍS</Text>
-            <CountrySelect
-              valueName=""
-              valueCode={null}
-              onChange={({ name: n, code }: any) => { if (code) addCountryStay(code, n); }}
-            />
-          </View>
-        </View>
-
-        {/* Estado */}
-        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>ESTADO</Text>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {statusOptions.map(o => {
-              const active = status === o.value;
-              return (
-                <TouchableOpacity
-                  key={o.value}
-                  onPress={() => {
-                    setStatus(o.value);
-                    setStatusManuallyChanged(true);
-                  }}
-                  style={{
-                    flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: "center",
-                    backgroundColor: active ? colors.primary : "#F8FAFC",
-                    borderWidth: 1, borderColor: active ? colors.primary : "#E5E7EB",
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "white" : "#64748B" }}>{o.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Presupuesto */}
-        <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-          <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>PRESUPUESTO ESTIMADO</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>€</Text>
-            <TextInput
-              value={budgetText}
-              onChangeText={setBudgetText}
-              placeholder="0"
-              placeholderTextColor="#CBD5E1"
-              keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
-              style={{ flex: 1, fontSize: 18, fontWeight: "800", color: "#0F172A", paddingVertical: 0 }}
-            />
-          </View>
-        </View>
-
-        {/* Guardar */}
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving || deleting}
-          activeOpacity={0.9}
-          style={{
-            height: 52, borderRadius: 16, backgroundColor: colors.primary,
-            alignItems: "center", justifyContent: "center",
-            opacity: saving || deleting ? 0.7 : 1,
-          }}
-        >
-          {saving
-            ? <ActivityIndicator size="small" color="white" />
-            : <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Guardar cambios</Text>
-          }
-        </TouchableOpacity>
-
-        <View style={{ height: 16 }} />
-      </ScrollView>
-    </SafeAreaView>
+        </FormSection>
+      </View>
+    </EditingForm>
   );
 }
 
@@ -1057,12 +1005,11 @@ export default function TripFormScreen({ route, navigation }: any) {
   return <CreateTripWizard navigation={navigation} />;
 }
 
+const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: "#64748B" };
+
 function CreateTripWizard({ navigation }: { navigation: any }) {
-  const [step, setStep]               = useState<1 | 2 | 3 | 4>(1);
   const [stays, setStays]             = useState<StayDraft[]>([]);
-  const [travelers, setTravelers]     = useState(1);
   const [tripName, setTripName]       = useState("");
-  const [companion, setCompanion]     = useState<string | null>(null);
   const [budgetText, setBudgetText]     = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -1121,310 +1068,16 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
         coverImageUrl: coverImageUrl ?? undefined,
       });
       setCreatedTrip({ id: res.data.id, name: res.data.name });
-      setStep(4);
     } catch { appAlert("Error", "No se pudo crear el viaje."); }
     finally { setSaving(false); }
   };
 
-  const progress = (step - 1) / 3;
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
-      {/* Progress bar */}
-      <View style={{ height: 3, backgroundColor: "#EEF2FF" }}>
-        <View style={{ height: 3, backgroundColor: colors.primary, width: `${progress * 100}%` }} />
-      </View>
-
-      {/* ── PASO 1: ¿A dónde vas? ── */}
-      {step === 1 && (
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
-              <Ionicons name="close" size={22} color="#64748B" />
-            </TouchableOpacity>
-            <View style={{ flexDirection: "row", gap: 6 }}>
-              {[1,2,3].map(n => (
-                <View key={n} style={{ width: n === step ? 20 : 6, height: 6, borderRadius: 3, backgroundColor: n === step ? colors.primary : "#E2E8F0" }} />
-              ))}
-            </View>
-          </View>
-
-          <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¿A dónde vas?</Text>
-          <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: -14 }}>
-            Puedes elegir más de un país si tu viaje pasa por varios.
-          </Text>
-
-          {/* Países seleccionados */}
-          {stays.length > 0 && (
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8 }}>
-                SELECCIONADOS · {stays.length}
-              </Text>
-              {stays.map((s, index) => (
-                <View
-                  key={s.countryCode}
-                  style={{
-                    flexDirection: "row", alignItems: "center", gap: 10,
-                    backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#EEF2F7",
-                    paddingHorizontal: 14, paddingVertical: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 20 }}>{flagEmojiFromISO2(s.countryCode)}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{(s.countryCode || "").toUpperCase()}</Text>
-                  <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }}>
-                    {countryNameEs(s.countryCode) || s.countryName}
-                  </Text>
-                  <TouchableOpacity onPress={() => removeCountryAt(index)} style={{ padding: 4 }}>
-                    <Ionicons name="close" size={18} color="#94A3B8" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Country select */}
-          <View>
-            <Text style={{ fontSize: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.8, marginBottom: 10 }}>
-              {stays.length > 0 ? "AÑADIR OTRO PAÍS" : "PAÍS"}
-            </Text>
-            <CountrySelect
-              valueName=""
-              valueCode={null}
-              onChange={({ name: n, code }: any) => {
-                if (!code) return;
-                addCountry(code, n);
-                if (!tripName) setTripName(n);
-              }}
-            />
-          </View>
-
-          {/* Continuar */}
-          <TouchableOpacity
-            onPress={() => {
-              if (stays.length === 0) {
-                appAlert("Selecciona un destino", "Elige a dónde quieres viajar.");
-                return;
-              }
-              setStep(2);
-            }}
-            activeOpacity={0.9}
-            style={{
-              height: 52, borderRadius: 16, backgroundColor: colors.primary,
-              alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Continuar</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 20 }} />
-        </ScrollView>
-      )}
-
-      {/* ── PASO 2: Ruta y fechas ── */}
-      {step === 2 && (
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-          {/* Header */}
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TouchableOpacity onPress={() => setStep(1)} style={{ padding: 4, marginRight: 12 }}>
-              <Ionicons name="chevron-back" size={22} color={colors.primary} />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Ruta y fechas</Text>
-              <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
-                {stays.length > 1 ? "Ordena los países y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino")}
-              </Text>
-            </View>
-            <View style={{ flexDirection: "row", gap: 6 }}>
-              {[1,2,3].map(n => (
-                <View key={n} style={{ width: n === step ? 20 : 6, height: 6, borderRadius: 3, backgroundColor: n === step ? colors.primary : "#E2E8F0" }} />
-              ))}
-            </View>
-          </View>
-
-          {totalDays != null && stays.length > 1 && (
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
-          )}
-
-          <TripDatesEditor stays={stays} onChangeStays={updateStays} />
-
-          {/* Viajeros */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB", padding: 14 }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>VIAJEROS</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
-                {travelers} {travelers === 1 ? "viajero" : "viajeros"}
-              </Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                <TouchableOpacity
-                  onPress={() => setTravelers(t => Math.max(1, t - 1))}
-                  style={{ width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }}
-                >
-                  <Ionicons name="remove" size={18} color="#374151" />
-                </TouchableOpacity>
-                <Text style={{ fontSize: 18, fontWeight: "900", color: "#0F172A", minWidth: 22, textAlign: "center" }}>{travelers}</Text>
-                <TouchableOpacity
-                  onPress={() => setTravelers(t => t + 1)}
-                  style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
-                >
-                  <Ionicons name="add" size={18} color="white" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Continuar */}
-          <TouchableOpacity
-            onPress={() => setStep(3)}
-            activeOpacity={0.9}
-            style={{ height: 52, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Continuar</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 20 }} />
-        </ScrollView>
-      )}
-
-      {/* ── PASO 3: Últimos detalles ── */}
-      {step === 3 && (
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TouchableOpacity onPress={() => setStep(2)} style={{ padding: 4, marginRight: 12 }}>
-              <Ionicons name="chevron-back" size={22} color={colors.primary} />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 22, fontWeight: "900", color: "#0F172A" }}>Últimos detalles</Text>
-            </View>
-            <View style={{ flexDirection: "row", gap: 6 }}>
-              {[1,2,3].map(n => (
-                <View key={n} style={{ width: n === step ? 20 : 6, height: 6, borderRadius: 3, backgroundColor: n === step ? colors.primary : "#E2E8F0" }} />
-              ))}
-            </View>
-          </View>
-
-          {/* Foto de portada */}
-          <TouchableOpacity
-            onPress={async () => {
-              if (uploadingCover) return;
-              setUploadingCover(true);
-              try {
-                const url = await pickAndUploadTripCover();
-                if (url) setCoverImageUrl(url);
-              } finally {
-                setUploadingCover(false);
-              }
-            }}
-            activeOpacity={0.85}
-            style={{
-              height: 160, borderRadius: 20, overflow: "hidden",
-              borderWidth: coverImageUrl ? 0 : 2, borderStyle: "dashed",
-              borderColor: "#CBD5E1", backgroundColor: "#F8FAFC",
-              alignItems: "center", justifyContent: "center",
-            }}
-          >
-            {coverImageUrl ? (
-              <>
-                <Image source={{ uri: coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-                <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Ionicons name="camera-outline" size={12} color="white" />
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar</Text>
-                </View>
-              </>
-            ) : uploadingCover ? (
-              <ActivityIndicator size="large" color={colors.primary} />
-            ) : (
-              <View style={{ alignItems: "center", gap: 8 }}>
-                <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
-                  <Ionicons name="camera-outline" size={24} color={colors.primary} />
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
-                <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galería</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Nombre */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 8 }}>NOMBRE DEL VIAJE</Text>
-            <TextInput
-              value={tripName}
-              onChangeText={setTripName}
-              placeholder="Ej. Vacaciones en Sicilia"
-              placeholderTextColor="#CBD5E1"
-              style={{ fontSize: 18, fontWeight: "800", color: "#0F172A", paddingVertical: 0 }}
-              autoFocus
-            />
-          </View>
-
-          {/* ¿Con quién viajas? */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 12 }}>¿CON QUIÉN VIAJAS?</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {COMPANION_OPTIONS.map(o => {
-                const active = companion === o.id;
-                return (
-                  <TouchableOpacity
-                    key={o.id}
-                    onPress={() => setCompanion(active ? null : o.id)}
-                    activeOpacity={0.8}
-                    style={{
-                      flexDirection: "row", alignItems: "center", gap: 6,
-                      paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
-                      backgroundColor: active ? colors.primary : "#F8FAFC",
-                      borderWidth: 1, borderColor: active ? colors.primary : "#E5E7EB",
-                    }}
-                  >
-                    <Ionicons name={o.icon} size={14} color={active ? "white" : "#64748B"} />
-                    <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "white" : "#374151" }}>{o.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Presupuesto */}
-          <View style={{ backgroundColor: "white", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#EEF2F7" }}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 10 }}>PRESUPUESTO ESTIMADO</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: "#E5E7EB" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#94A3B8", marginRight: 6 }}>€</Text>
-              <TextInput
-                value={budgetText}
-                onChangeText={setBudgetText}
-                placeholder="450"
-                placeholderTextColor="#CBD5E1"
-                keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
-                style={{ flex: 1, fontSize: 18, fontWeight: "800", color: "#0F172A", paddingVertical: 0 }}
-              />
-            </View>
-          </View>
-
-          {/* Crear */}
-          <TouchableOpacity
-            onPress={handleCreate}
-            disabled={saving}
-            activeOpacity={0.9}
-            style={{
-              height: 54, borderRadius: 16, backgroundColor: colors.primary,
-              alignItems: "center", justifyContent: "center",
-              opacity: saving ? 0.7 : 1,
-            }}
-          >
-            {saving
-              ? <ActivityIndicator size="small" color="white" />
-              : <Text style={{ fontSize: 15, fontWeight: "800", color: "white" }}>Crear viaje</Text>
-            }
-          </TouchableOpacity>
-
-          <View style={{ height: 20 }} />
-        </ScrollView>
-      )}
-
-      {/* ── PASO 4: ¡Viaje creado! ── */}
-      {step === 4 && (
+  // Pantalla de éxito tras crear: no es un paso más del formulario, así que
+  // se muestra aparte en cuanto el viaje queda creado.
+  if (createdTrip) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 24 }}>
-          {/* Check */}
           <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: "#DCFCE7", alignItems: "center", justifyContent: "center" }}>
             <Ionicons name="checkmark" size={46} color="#16A34A" />
           </View>
@@ -1432,11 +1085,10 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           <View style={{ alignItems: "center", gap: 6 }}>
             <Text style={{ fontSize: 26, fontWeight: "900", color: "#0F172A" }}>¡Viaje creado!</Text>
             <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center" }}>
-              {(createdTrip?.name ?? tripName)} ya está en tu lista de viajes
+              {createdTrip.name} ya está en tu lista de viajes
             </Text>
           </View>
 
-          {/* Preview card */}
           {stays.length > 0 && (
             <View style={{
               width: "100%", backgroundColor: "#F8FAFC", borderRadius: 20, padding: 16,
@@ -1449,25 +1101,17 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                 ))}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>{createdTrip?.name ?? tripName}</Text>
+                <Text style={{ fontSize: 16, fontWeight: "800", color: "#0F172A" }}>{createdTrip.name}</Text>
                 <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: 3 }}>
                   {totalDays ? `${totalDays} días` : "—"}
-                  {travelers > 1 ? ` · ${travelers} viajeros` : ""}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* Botones */}
           <View style={{ width: "100%", gap: 10 }}>
             <TouchableOpacity
-              onPress={() => {
-                if (createdTrip?.id) {
-                  navigation.replace("TripDetail", { tripId: createdTrip.id });
-                } else {
-                  navigation.goBack();
-                }
-              }}
+              onPress={() => navigation.replace("TripDetail", { tripId: createdTrip.id })}
               activeOpacity={0.9}
               style={{ height: 52, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
             >
@@ -1483,8 +1127,149 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
             </TouchableOpacity>
           </View>
         </View>
-      )}
-    </SafeAreaView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <CreationFlow
+      title="Nuevo viaje"
+      submitLabel="Crear viaje"
+      onClose={() => navigation.goBack()}
+      onSubmit={handleCreate}
+      isSubmitting={saving}
+      steps={[
+        {
+          id: "destination",
+          title: "¿A dónde vas?",
+          description: "Puedes elegir más de un país si tu viaje pasa por varios.",
+          isValid: stays.length > 0,
+          content: () => (
+            <View style={{ gap: 20 }}>
+              {stays.length > 0 && (
+                <View style={{ gap: 8 }}>
+                  <Text style={sectionLabelStyle}>Seleccionados · {stays.length}</Text>
+                  {stays.map((s, index) => (
+                    <View
+                      key={s.countryCode}
+                      style={{
+                        flexDirection: "row", alignItems: "center", gap: 10,
+                        backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#EEF2F7",
+                        paddingHorizontal: 14, paddingVertical: 12,
+                      }}
+                    >
+                      <Text style={{ fontSize: 20 }}>{flagEmojiFromISO2(s.countryCode)}</Text>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>{(s.countryCode || "").toUpperCase()}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", flex: 1 }}>
+                        {countryNameEs(s.countryCode) || s.countryName}
+                      </Text>
+                      <TouchableOpacity onPress={() => removeCountryAt(index)} style={{ padding: 4 }}>
+                        <Ionicons name="close" size={18} color="#94A3B8" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <View>
+                <Text style={{ ...sectionLabelStyle, marginBottom: 10 }}>
+                  {stays.length > 0 ? "Añadir otro país" : "País"}
+                </Text>
+                <CountrySelect
+                  valueName=""
+                  valueCode={null}
+                  onChange={({ name: n, code }: any) => {
+                    if (!code) return;
+                    addCountry(code, n);
+                    if (!tripName) setTripName(n);
+                  }}
+                />
+              </View>
+            </View>
+          ),
+        },
+        {
+          id: "route",
+          title: "Ruta y fechas",
+          description: stays.length > 1 ? "Ordena los países y asigna fechas a cada tramo" : (selectedCountryLabel || "Tu destino"),
+          content: () => (
+            <View style={{ gap: 16 }}>
+              {totalDays != null && stays.length > 1 && (
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>{totalDays} días en total</Text>
+              )}
+              <TripDatesEditor stays={stays} onChangeStays={updateStays} />
+            </View>
+          ),
+        },
+        {
+          id: "details",
+          title: "Últimos detalles",
+          isValid: !!tripName.trim(),
+          content: ({ showErrors }) => (
+            <View style={{ gap: 18 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (uploadingCover) return;
+                  setUploadingCover(true);
+                  try {
+                    const url = await pickAndUploadTripCover();
+                    if (url) setCoverImageUrl(url);
+                  } finally {
+                    setUploadingCover(false);
+                  }
+                }}
+                activeOpacity={0.85}
+                style={{
+                  height: 160, borderRadius: 20, overflow: "hidden",
+                  borderWidth: coverImageUrl ? 0 : 2, borderStyle: "dashed",
+                  borderColor: "#CBD5E1", backgroundColor: "#F8FAFC",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                {coverImageUrl ? (
+                  <>
+                    <Image source={{ uri: coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                    <View style={{ position: "absolute", bottom: 10, right: 10, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Ionicons name="camera-outline" size={12} color="white" />
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: "white" }}>Cambiar</Text>
+                    </View>
+                  </>
+                ) : uploadingCover ? (
+                  <ActivityIndicator size="large" color={colors.primary} />
+                ) : (
+                  <View style={{ alignItems: "center", gap: 8 }}>
+                    <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name="camera-outline" size={24} color={colors.primary} />
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#64748B" }}>Añadir foto de portada</Text>
+                    <Text style={{ fontSize: 12, color: "#94A3B8" }}>Toca para elegir de tu galería</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <FormSection>
+                <FormTextField
+                  label="Nombre del viaje"
+                  required
+                  value={tripName}
+                  onChangeText={setTripName}
+                  autoCapitalize="words"
+                  error={!tripName.trim() ? "Añade un nombre para el viaje." : null}
+                  showError={showErrors}
+                />
+                <FormMoneyField
+                  label="Presupuesto estimado"
+                  currency="€"
+                  value={budgetText}
+                  onChangeText={setBudgetText}
+                  keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+                />
+              </FormSection>
+            </View>
+          ),
+        },
+      ]}
+    />
   );
 }
 

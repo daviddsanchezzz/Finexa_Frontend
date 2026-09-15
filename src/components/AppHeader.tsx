@@ -7,7 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../context/AuthContext";
-import { avatarColorForId, initialsFromName } from "../utils/avatarColor";
+import UserAvatar from "./UserAvatar";
 
 interface Props {
   onOpenDateModal?: () => void;
@@ -71,22 +71,23 @@ export default function AppHeader({
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => navigation.navigate("Profile")}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: user ? avatarColorForId(user.id) : "#F3F4F6",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 6,
-            }}
+            style={{ marginRight: 6 }}
           >
             {user ? (
-              <Text style={{ color: "white", fontSize: 13, fontWeight: "800" }}>
-                {initialsFromName(user.name)}
-              </Text>
+              <UserAvatar user={user} size={36} fontSize={13} />
             ) : (
-              <Ionicons name="person-outline" size={18} color={colors.text} />
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: "#F3F4F6",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="person-outline" size={18} color={colors.text} />
+              </View>
             )}
           </TouchableOpacity>
         )}

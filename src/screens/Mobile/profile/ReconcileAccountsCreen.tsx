@@ -149,112 +149,106 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
             </Text>
           </View>
 
-          {/* Filas tipo tarjeta */}
+          {/* Filas tipo tarjeta, compactas */}
           {wallets.map((wallet) => {
             const teorico = wallet.balance || 0;
             const real = parseEuroInput(realValues[wallet.id]);
             const diff = real - teorico;
+            const focused = focusedWalletId === wallet.id;
 
-            const diffColorBg =
-              diff === 0
-                ? "bg-gray-100"
-                : diff > 0
-                ? "bg-green-100"
-                : "bg-red-100";
+            const addTransaction = () => {
+              const isIncome = diff > 0;
+              const roundedAmount = round2(Math.abs(diff));
 
-            const diffColorText =
-              diff === 0
-                ? "text-gray-700"
-                : diff > 0
-                ? "text-green-700"
-                : "text-red-700";
+              navigation.navigate("Add", {
+                prefillData: {
+                  type: isIncome ? "income" : "expense",
+                  amount: roundedAmount,
+                  description: "",
+                  date: new Date().toISOString(),
+                  walletId: wallet.id,
+                  categoryId: null,
+                  subcategoryId: null,
+                  recurrence: null,
+                },
+              });
+            };
 
             return (
               <View
                 key={wallet.id}
-                className="mx-4 mb-4 bg-white rounded-2xl border border-[#E5E7EB] px-4 py-3"
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 8,
+                  backgroundColor: "white",
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                }}
               >
-                {/* Línea 1: wallet + nombre + dif */}
-                <View className="flex-row items-center justify-between mb-2">
-                  <View className="flex-row items-center flex-shrink">
-                    <View style={{ marginRight: 8 }}>
-                      <WalletIcon emoji={wallet.emoji} size={22} />
-                    </View>
-                    <Text
-                      className="text-[15px] font-semibold text-text"
-                      numberOfLines={1}
-                    >
-                      {wallet.name}
-                    </Text>
-                  </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <WalletIcon emoji={wallet.emoji} size={20} />
 
-                  <View className={`px-2 py-1 rounded-full ${diffColorBg}`}>
-                    <Text
-                      className={`text-[12px] font-semibold ${diffColorText}`}
-                    >
-                      {diff > 0 ? "+" : diff < 0 ? "−" : ""}
-                      {formatEuro(Math.abs(diff))}
-                    </Text>
-                  </View>
-                </View>
+                  <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
+                    {wallet.name}
+                  </Text>
 
-                {/* Línea 2: Teórico y Real */}
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1 mr-3">
-                    <Text className="text-[11px] text-gray-500 mb-1">
-                      Teórico
-                    </Text>
-                    <Text className="text-[15px] font-semibold text-gray-800">
-                      {formatEuro(teorico)}
-                    </Text>
-                  </View>
-
-                  <View className="flex-1">
-                    <Text className="text-[11px] text-gray-500 mb-1 text-right">
-                      Real
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setFocusedWalletId(wallet.id)}
-                      activeOpacity={0.85}
-                      className={`px-3 py-2 rounded-xl ${focusedWalletId === wallet.id ? "bg-blue-50 border border-blue-300" : "bg-gray-100 border border-transparent"}`}
-                    >
-                      <Text className={`text-[15px] text-right ${realValues[wallet.id] ? "text-gray-900" : "text-gray-400"}`}>
-                        {realValues[wallet.id] || "0,00"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* ➕ Botón añadir transacción */}
-                {diff !== 0 && (
                   <TouchableOpacity
-                    onPress={() => {
-                      const isIncome = diff > 0;
-                      const roundedAmount = round2(Math.abs(diff));
-
-                      const prefillData = {
-                        type: isIncome ? "income" : "expense",
-                        amount: roundedAmount,
-                        description: "",
-                        date: new Date().toISOString(),
-                        walletId: wallet.id,
-                        categoryId: null,
-                        subcategoryId: null,
-                        recurrence: null,
-                      };
-
-                      navigation.navigate("Add", { prefillData });
+                    onPress={() => setFocusedWalletId(wallet.id)}
+                    activeOpacity={0.85}
+                    style={{
+                      minWidth: 84,
+                      height: 34,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      justifyContent: "center",
+                      backgroundColor: focused ? "#EFF6FF" : "#F1F5F9",
+                      borderWidth: focused ? 1 : 0,
+                      borderColor: colors.primary,
                     }}
-                    className="mt-3 py-2 bg-primary/10 rounded-xl items-center"
-                    activeOpacity={0.8}
                   >
-                    <Text className="text-primary font-semibold text-[14px]">
-                      Añadir transacción (
-                      {diff > 0 ? "+" : diff < 0 ? "−" : ""}
-                      {formatEuro(Math.abs(diff))})
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        textAlign: "right",
+                        color: realValues[wallet.id] ? "#0F172A" : "#94A3B8",
+                      }}
+                    >
+                      {realValues[wallet.id] || "0,00"}
                     </Text>
                   </TouchableOpacity>
-                )}
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginTop: 4,
+                    paddingLeft: 30,
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: "#94A3B8" }}>Teórico {formatEuro(teorico)}</Text>
+
+                  {diff !== 0 ? (
+                    <TouchableOpacity
+                      onPress={addTransaction}
+                      activeOpacity={0.75}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: "800", color: diff > 0 ? "#16A34A" : "#DC2626" }}>
+                        {diff > 0 ? "+" : "−"}{formatEuro(Math.abs(diff))}
+                      </Text>
+                      <Ionicons name="add-circle" size={13} color={colors.primary} />
+                    </TouchableOpacity>
+                  ) : (
+                    <Ionicons name="checkmark-circle" size={13} color="#94A3B8" />
+                  )}
+                </View>
               </View>
             );
           })}
