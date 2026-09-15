@@ -1,9 +1,9 @@
+import AppSwitch from "../../../components/AppSwitch";
 import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
-  Switch,
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
@@ -284,12 +284,10 @@ function ModuleRow({ module: m, enabled, pinned, saving, switchingPin, isLast, c
         {saving ? (
           <ActivityIndicator size={20} color={colors.primary} />
         ) : (
-          <Switch
+          <AppSwitch accessibilityLabel={`Mostrar ${m.title}`}
             value={enabled}
             onValueChange={onToggleEnabled}
             disabled={pinned}
-            trackColor={{ false: "#E5E7EB", true: colors.primary }}
-            thumbColor="white"
           />
         )}
       </View>

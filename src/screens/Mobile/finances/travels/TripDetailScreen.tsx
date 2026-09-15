@@ -1,3 +1,4 @@
+import AppSwitch from "../../../../components/AppSwitch";
 // src/screens/finances/travels/TripDetailScreen.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -8,7 +9,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
-  Switch,
   Alert,
   Linking,
   Platform,
@@ -1083,7 +1083,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "600" }}>Incluir gastos</Text>
-              <Switch value={includeExpenses} onValueChange={setIncludeExpenses} />
+              <AppSwitch accessibilityLabel="Incluir gastos" value={includeExpenses} onValueChange={setIncludeExpenses} />
             </View>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity

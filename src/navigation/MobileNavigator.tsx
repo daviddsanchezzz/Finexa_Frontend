@@ -68,7 +68,6 @@ export type RootStackParamList = {
   Wonders: undefined;
   WonderDetail: { wonderKey: string };
   TripCompanions: { tripId: number; tripName?: string };
-  Appearance: undefined;
   Account: undefined;
   HelpCenter: undefined;
   AboutFinexa: undefined;
@@ -461,12 +460,6 @@ export default function MobileNavigator() {
             }
           />
 
-          <Stack.Screen
-            name="Appearance"
-            getComponent={() =>
-              require("../screens/Mobile/profile/AppearanceScreen").default
-            }
-          />
 
           <Stack.Screen
             name="Account"

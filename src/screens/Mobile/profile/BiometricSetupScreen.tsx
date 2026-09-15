@@ -1,8 +1,8 @@
+import AppSwitch from "../../../components/AppSwitch";
 import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  Switch,
   TouchableOpacity,
   Alert,
   ScrollView,
@@ -147,12 +147,10 @@ export default function BiometricSetupScreen({ navigation }: any) {
                 {enabled ? "Activado" : "Desactivado"}
               </Text>
             </View>
-            <Switch
+            <AppSwitch accessibilityLabel="Activar acceso biométrico"
               value={enabled}
               onValueChange={toggle}
               disabled={!available || loading}
-              trackColor={{ false: "#E5E7EB", true: colors.primary }}
-              thumbColor="white"
             />
           </View>
         </View>

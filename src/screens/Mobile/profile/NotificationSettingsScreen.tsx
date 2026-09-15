@@ -1,9 +1,9 @@
+import AppSwitch from "../../../components/AppSwitch";
 import { useState, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
-  Switch,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
@@ -363,11 +363,9 @@ function NotificationRow({
       {saving ? (
         <ActivityIndicator size={20} color={colors.primary} />
       ) : (
-        <Switch
+        <AppSwitch accessibilityLabel={title}
           value={value}
           onValueChange={onToggle}
-          trackColor={{ false: "#E5E7EB", true: colors.primary }}
-          thumbColor="white"
         />
       )}
     </View>

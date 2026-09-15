@@ -8,7 +8,7 @@ import { colors } from "../../../theme/theme";
 import { useQuickAddToken } from "../../../hooks/useQuickAddToken";
 import { appAlert } from "../../../utils/appAlert";
 
-const BASE_URL = "https://finexa-david.netlify.app/";
+const BASE_URL = "https://appfinexa.com/";
 
 export default function QuickAddSettingsScreen(_: any) {
   const { token, isLoading, regenerate, isRegenerating } = useQuickAddToken();

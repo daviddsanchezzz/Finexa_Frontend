@@ -33,7 +33,6 @@ export default function ProfileScreen({ navigation }: any) {
       title: "Preferencias",
       items: [
         { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
-        { label: "Apariencia", icon: "sunny-outline", navigate: "Appearance" },
       ],
     },
     {

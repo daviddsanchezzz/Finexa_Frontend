@@ -21,8 +21,10 @@ import { exportTransactionsCsv } from "../../../utils/csvExport";
 import { colors } from "../../../theme/theme";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 import NetWorthCompositionModal from "../../../components/NetWorthCompositionModal";
+import { useHomePreferences } from "../../../hooks/useHomePreferences";
 
 export default function HomeScreen({ navigation }: any) {
+  const { showInvestmentReturn, isLoading: preferencesLoading } = useHomePreferences();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -213,7 +215,7 @@ export default function HomeScreen({ navigation }: any) {
   // Un único gate de carga: si esperásemos solo a `loading` (transacciones),
   // Patrimonio neto (que depende de useNetWorthTrend, más lento) aparecía
   // de golpe después de que el resto del contenido ya estuviera pintado.
-  const isLoading = loading || netWorth.isLoading || investmentProfitLoading;
+  const isLoading = loading || netWorth.isLoading || investmentProfitLoading || preferencesLoading;
 
   return (
     <SafeAreaView className="flex-1 bg-background" style={Platform.OS === "web" ? { overflow: "hidden" } : undefined}>
@@ -368,6 +370,7 @@ export default function HomeScreen({ navigation }: any) {
               }
             />
 
+            {showInvestmentReturn && (
             <View className="items-center mb-2">
               <Text className="text-gray-500 text-[11px] font-semibold">
                 {balancePeriodLabel}
@@ -376,13 +379,19 @@ export default function HomeScreen({ navigation }: any) {
                 {formatEuro(totalBalance)} €
               </Text>
             </View>
+            )}
 
             {/* Indicadores */}
             <StatsRow
               items={[
                 { key: "ingresos", label: "INGRESOS", value: `${formatEuro(totalIncome)} €`, color: colors.success },
                 { key: "gastos", label: "GASTOS", value: `${formatEuro(totalExpense)} €`, color: colors.danger },
-                ...(hasInvestmentAssets ? [{
+                ...(!showInvestmentReturn ? [{
+                  key: "balance",
+                  label: "BALANCE",
+                  value: `${formatEuro(totalBalance)} €`,
+                  color: "#0F172A",
+                }] : hasInvestmentAssets ? [{
                   key: "rentabilidad",
                   label: "RENTABILIDAD",
                   value: `${totalInvestment >= 0 ? "+" : "−"}${formatEuro(Math.abs(totalInvestment))} €`,

@@ -1,5 +1,6 @@
+import AppSwitch from "../../../../components/AppSwitch";
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Switch, PanResponder, Pressable, Platform } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, PanResponder, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -471,7 +472,7 @@ export default function WonderDetailScreen() {
           }}
         >
           <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>Marcar como visitada</Text>
-          <Switch value={visited} onValueChange={setVisited} trackColor={{ false: "#E5E7EB", true: colors.primary }} />
+          <AppSwitch accessibilityLabel="Marcar como visitada" value={visited} onValueChange={setVisited} />
         </View>
 
         {visited && (
