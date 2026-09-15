@@ -467,7 +467,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                     label="Gestora"
                     value={provider}
                     onChangeText={setProvider}
-                    placeholder="Fidelity, Vanguard..."
                     autoCapitalize="words"
                     autoCorrect={false}
                     returnKeyType="done"
@@ -603,7 +602,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               label="Gestora"
               value={provider}
               onChangeText={setProvider}
-              placeholder="Fidelity, Vanguard..."
               autoCapitalize="words"
               autoCorrect={false}
               returnKeyType="done"

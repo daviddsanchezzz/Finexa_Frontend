@@ -55,6 +55,7 @@ export interface FormTextFieldProps extends Omit<TextInputProps, "value" | "onCh
   showError?: boolean;
   required?: boolean;
   suffix?: string;
+  minHeight?: number;
 }
 
 export function FormTextField({
@@ -68,6 +69,7 @@ export function FormTextField({
   required = false,
   suffix,
   multiline,
+  minHeight,
   onBlur,
   ...inputProps
 }: FormTextFieldProps) {

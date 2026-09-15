@@ -352,7 +352,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   const [sectionTab, setSectionTab] = useState<"info" | "evolution" | "composition" | "records">("info");
   const [recordsTab, setRecordsTab] = useState<"operations" | "valuations">("operations");
   const [compositionTab, setCompositionTab] = useState<"regions" | "sectors" | "holdings">("regions");
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState<InvestmentOperationFromApi | null>(null);
 
   const dismissChartTooltip = useCallback(() => {
@@ -746,10 +745,25 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           rightElement={
             asset ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <AddButton label="Añadir" onPress={() => setQuickAddOpen(true)} />
+                <AddButton
+                  label="Añadir"
+                  onPress={() => navigation.navigate("InvestmentOperation", { assetId })}
+                />
                 <OverflowMenuButton
                   title={asset.abbreviation?.trim() || asset.name}
                   actions={[
+                    {
+                      label: "Añadir valoración",
+                      onPress: () => navigation.navigate("InvestmentValuation", { assetId }),
+                    },
+                    {
+                      label: "Añadir composición",
+                      onPress: () =>
+                        navigation.navigate("InvestmentComposition", {
+                          assetId,
+                          assetName: asset?.name ?? "",
+                        }),
+                    },
                     {
                       label: "Editar",
                       onPress: () => navigation.navigate("InvestmentForm", { assetId }),
@@ -1473,124 +1487,6 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           navigation.navigate("InvestmentOperation", { operationData: operation, assetId });
         }}
       />
-
-      {/* -- Modal: quick add -- */}
-      <Modal
-        visible={quickAddOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setQuickAddOpen(false)}
-      >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
-          activeOpacity={1}
-          onPress={() => setQuickAddOpen(false)}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-            <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 26,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                width: 280,
-                shadowColor: "#000",
-                shadowOpacity: 0.15,
-                shadowRadius: 20,
-                shadowOffset: { width: 0, height: 8 },
-                elevation: 10,
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textAlign: "center", paddingVertical: 14 }}>
-                NUEVA ACCIÓN
-              </Text>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => {
-                  setQuickAddOpen(false);
-                  navigation.navigate("InvestmentValuation", { assetId });
-                }}
-                style={{
-                  flexDirection: "row", alignItems: "center", gap: 14,
-                  paddingVertical: 15, paddingHorizontal: 12,
-                  borderRadius: 18, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#F1F5F9",
-                }}
-              >
-                <View
-                  style={{
-                    width: 40, height: 40, borderRadius: 14,
-                    backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                </View>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir valoración</Text>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => {
-                  setQuickAddOpen(false);
-                  navigation.navigate("InvestmentOperation", { assetId });
-                }}
-                style={{
-                  flexDirection: "row", alignItems: "center", gap: 14,
-                  paddingVertical: 15, paddingHorizontal: 12,
-                  borderRadius: 18, borderBottomWidth: 1, borderColor: "#F1F5F9",
-                }}
-              >
-                <View
-                  style={{
-                    width: 40, height: 40, borderRadius: 14,
-                    backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="swap-horizontal-outline" size={18} color={colors.primary} />
-                </View>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir Operación</Text>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => {
-                  setQuickAddOpen(false);
-                  navigation.navigate("InvestmentComposition", {
-                    assetId,
-                    assetName: asset?.name ?? "",
-                  });
-                }}
-                style={{
-                  flexDirection: "row", alignItems: "center", gap: 14,
-                  paddingVertical: 15, paddingHorizontal: 12,
-                  borderRadius: 18, borderBottomWidth: 1, borderColor: "#F1F5F9",
-                }}
-              >
-                <View
-                  style={{
-                    width: 40, height: 40, borderRadius: 14,
-                    backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
-                </View>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>Añadir Composición</Text>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setQuickAddOpen(false)}
-                activeOpacity={0.7}
-                style={{ alignItems: "center", paddingVertical: 16 }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
 
       {/* -- Modal: detalle de valoración -- */}
       <Modal

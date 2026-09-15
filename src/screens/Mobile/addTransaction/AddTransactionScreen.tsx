@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
@@ -28,6 +27,7 @@ import { matchWalletByCard } from "../../../utils/quickAdd";
 import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyboard";
 import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
 import WalletIcon from "../../../components/WalletIcon";
+import { FormTextField } from "../../../components/creation";
 
 // Mismas categorías que la pestaña "Gastos" de un viaje (TripExpensesSection).
 const TRIP_EXPENSE_CATEGORIES = [
@@ -81,42 +81,32 @@ function SelectCard({
       disabled={disabled}
       activeOpacity={0.85}
       style={{
-        width: 104,
+        minWidth: 84,
         paddingVertical: 8,
-        paddingHorizontal: 4,
+        paddingHorizontal: 10,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: selected ? "#93C5FD" : "#E5E7EB",
-        backgroundColor: selected ? "#EFF6FF" : "#FFFFFF",
+        borderColor: selected ? colors.primary : "#E2E8F0",
+        backgroundColor: selected ? "#EEF3FF" : "#FFFFFF",
         alignItems: "center",
         justifyContent: "center",
         marginRight: 8,
         opacity: disabled ? 0.4 : 1,
       }}
     >
-      <View
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: 8,
-          backgroundColor: selected ? "#DBEAFE" : "#F3F4F6",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 4,
-        }}
-      >
-        <WalletIcon emoji={emoji} size={14} />
+      <View style={{ marginBottom: 4 }}>
+        <WalletIcon emoji={emoji} size={18} />
       </View>
       <Text
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
-        style={{ fontSize: 10.5, fontWeight: "700", color: "#0F172A", textAlign: "center" }}
+        style={{ fontSize: 12.5, fontWeight: "700", color: selected ? colors.primary : "#475569", textAlign: "center" }}
       >
         {label}
       </Text>
       {subLabel != null && (
-        <Text numberOfLines={1} style={{ fontSize: 9.5, color: "#94A3B8", marginTop: 2 }}>
+        <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: "600", color: "#94A3B8", marginTop: 2 }}>
           {subLabel}
         </Text>
       )}
@@ -133,8 +123,9 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
       onPress={onPress}
       activeOpacity={0.85}
       style={{
-        width: 104,
-        minHeight: 64,
+        minWidth: 84,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
         borderRadius: 12,
         borderWidth: 1.5,
         borderStyle: "dashed",
@@ -142,15 +133,14 @@ function CreateCard({ label, onPress }: { label: string; onPress: () => void }) 
         alignItems: "center",
         justifyContent: "center",
         marginRight: 8,
-        paddingHorizontal: 4,
       }}
     >
-      <Ionicons name="add" size={14} color={colors.primary} />
+      <Ionicons name="add" size={16} color={colors.primary} />
       <Text
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
-        style={{ fontSize: 10.5, fontWeight: "700", color: colors.primary, marginTop: 2, textAlign: "center" }}
+        style={{ fontSize: 12.5, fontWeight: "700", color: colors.primary, marginTop: 2, textAlign: "center" }}
       >
         {label}
       </Text>
@@ -303,21 +293,24 @@ export default function AddScreen({ navigation }: any) {
     if (isEditing || prefillData) return;
     if (wallets.length === 0) return;
 
+    // Las carteras de inversión no son un origen válido: solo pueden ser
+    // destino de un traspaso (aportación a una inversión).
+    const nonInvestmentWallets = wallets.filter((w) => w.kind !== "investment");
+
     if (type === "transfer") {
-      if (!selectedWalletFrom || selectedWalletFrom.id !== wallets[0].id) {
-        setSelectedWalletFrom(wallets[0]);
+      const firstFrom = nonInvestmentWallets[0] || null;
+      if (!selectedWalletFrom || selectedWalletFrom.id !== firstFrom?.id) {
+        setSelectedWalletFrom(firstFrom);
       }
 
-      if (wallets.length > 1) {
-        if (!selectedWalletTo || selectedWalletTo.id !== wallets[1].id) {
-          setSelectedWalletTo(wallets[1]);
-        }
-      } else {
-        setSelectedWalletTo(null);
+      const firstTo = wallets.find((w) => w.id !== firstFrom?.id) || null;
+      if (!selectedWalletTo || selectedWalletTo.id !== firstTo?.id) {
+        setSelectedWalletTo(firstTo);
       }
     } else {
-      if (!selectedWallet || selectedWallet.id !== wallets[0].id) {
-        setSelectedWallet(wallets[0]);
+      const first = nonInvestmentWallets[0] || null;
+      if (!selectedWallet || selectedWallet.id !== first?.id) {
+        setSelectedWallet(first);
       }
     }
   }, [wallets, type, isEditing, prefillData]);
@@ -735,25 +728,32 @@ export default function AddScreen({ navigation }: any) {
                   className="mb-4"
                   contentContainerStyle={{ paddingRight: 12 }}
                 >
-                  {wallets.map((wallet) => (
-                    <SelectCard
-                      key={`from-${wallet.id}`}
-                      emoji={wallet.emoji}
-                      label={wallet.name}
-                      subLabel={formatBalance(wallet.balance)}
-                      selected={selectedWalletFrom?.id === wallet.id}
-                      onPress={() => {
-                        setSelectedWalletFrom(wallet);
-                        if (selectedWalletTo?.id === wallet.id) {
-                          const next = wallets.find((w) => w.id !== wallet.id);
-                          setSelectedWalletTo(next || null);
+                  {wallets.map((wallet) => {
+                    // Una cartera de inversión no puede ser origen de un traspaso:
+                    // retirar de una inversión se hace desde "Vender" en la propia inversión.
+                    const isInvestmentWallet = wallet.kind === "investment";
 
-                          // si cambia TO por evitar conflicto, limpia asset si ya no es investment
-                          if ((next as any)?.kind !== "investment") setSelectedInvestmentAsset(null);
-                        }
-                      }}
-                    />
-                  ))}
+                    return (
+                      <SelectCard
+                        key={`from-${wallet.id}`}
+                        emoji={wallet.emoji}
+                        label={wallet.name}
+                        subLabel={formatBalance(wallet.balance)}
+                        selected={selectedWalletFrom?.id === wallet.id}
+                        disabled={isInvestmentWallet}
+                        onPress={() => {
+                          setSelectedWalletFrom(wallet);
+                          if (selectedWalletTo?.id === wallet.id) {
+                            const next = wallets.find((w) => w.id !== wallet.id);
+                            setSelectedWalletTo(next || null);
+
+                            // si cambia TO por evitar conflicto, limpia asset si ya no es investment
+                            if ((next as any)?.kind !== "investment") setSelectedInvestmentAsset(null);
+                          }
+                        }}
+                      />
+                    );
+                  })}
                 </ScrollView>
 
                 <Text style={sectionLabelStyle}>Hacia</Text>
@@ -864,6 +864,7 @@ export default function AddScreen({ navigation }: any) {
                       label={wallet.name}
                       subLabel={formatBalance(wallet.balance)}
                       selected={selectedWallet?.id === wallet.id}
+                      disabled={wallet.kind === "investment"}
                       onPress={() => setSelectedWallet(wallet)}
                     />
                   ))}
@@ -973,29 +974,12 @@ export default function AddScreen({ navigation }: any) {
               </>
             )}
 
-            {/* DESCRIPCIÓN — fila compacta de una sola línea, tocarla edita directamente */}
-            <Text style={sectionLabelStyle}>Descripción</Text>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "#FFFFFF",
-                borderWidth: 1,
-                borderColor: "#E5E7EB",
-                borderRadius: 14,
-                height: 54,
-                paddingHorizontal: 14,
-                marginBottom: 10,
-              }}
-            >
-              <TextInput
+            {/* DESCRIPCIÓN */}
+            <View style={{ marginBottom: 10 }}>
+              <FormTextField
+                label="Descripción"
                 value={description}
                 onChangeText={setDescription}
-                placeholderTextColor="#94A3B8"
-                style={[
-                  { flex: 1, fontSize: 14, color: "#0F172A", padding: 0 },
-                  Platform.OS === "web" && ({ outlineStyle: "none" } as any),
-                ]}
                 onFocus={closeCalc}
               />
             </View>

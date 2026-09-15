@@ -58,6 +58,8 @@ export default function TransactionsList({
   const bg = backgroundColor ?? (isDark ? t.surface : t.background);
   const [selectedTx, setSelectedTx] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
+  const [investmentOp, setInvestmentOp] = React.useState<any | null>(null);
+  const [loadingInvestmentOp, setLoadingInvestmentOp] = React.useState(false);
   const isRecurringOccurrence = (tx: any) => !!tx?.parentId; // instancia generada
 
   // Modal alcance borrado recurrente (reutiliza RecurringScopeModal)
@@ -147,10 +149,78 @@ export default function TransactionsList({
     });
   };
 
+  // Traspaso ligado a una inversión: compra (cash → wallet inversión),
+  // venta (wallet inversión → cash) o traspaso entre activos (ambos lados
+  // son wallet de inversión; hoy no se genera desde el backend, pero se
+  // contempla por si acaso).
+  type InvestmentOpKind = "buy" | "sell" | "swap" | null;
+
+  const investmentOpKind = (tx: any): InvestmentOpKind => {
+    if (tx.type !== "transfer" || !tx.investmentAsset) return null;
+    const fromIsInvestment = tx.fromWallet?.kind === "investment";
+    const toIsInvestment = tx.toWallet?.kind === "investment";
+    if (fromIsInvestment && toIsInvestment) return "swap";
+    if (toIsInvestment) return "buy";
+    if (fromIsInvestment) return "sell";
+    return null;
+  };
+
+  const isInvestmentContribution = (tx: any) => investmentOpKind(tx) !== null;
+
+  const INVESTMENT_OP_LABEL: Record<Exclude<InvestmentOpKind, null>, string> = {
+    buy: "Compra",
+    sell: "Venta",
+    swap: "Traspaso",
+  };
+
+  const INVESTMENT_OP_EMOJI: Record<Exclude<InvestmentOpKind, null>, string> = {
+    buy: "📈",
+    sell: "📉",
+    swap: "🔁",
+  };
+
+  const INVESTMENT_OP_BG: Record<Exclude<InvestmentOpKind, null>, string> = {
+    buy: "bg-green-100",
+    sell: "bg-red-100",
+    swap: "bg-blue-100",
+  };
+
+  const investmentAssetLabel = (tx: any) =>
+    tx.investmentAsset?.abbreviation?.trim() || tx.investmentAsset?.name || "";
+
+  // Al abrir el detalle de una operación de inversión, busca la operación
+  // enlazada (participaciones, comisión...) para mostrarla y para poder
+  // editarla desde la pantalla de operaciones en vez de la de transacciones.
+  React.useEffect(() => {
+    if (!modalVisible || !selectedTx || !isInvestmentContribution(selectedTx)) {
+      setInvestmentOp(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingInvestmentOp(true);
+    api
+      .get("/investments/operations", { params: { assetId: selectedTx.investmentAsset.id } })
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : res.data?.operations ?? [];
+        const match = list.find((op: any) => op.transactionId === selectedTx.id) ?? null;
+        setInvestmentOp(match);
+      })
+      .catch(() => {
+        if (!cancelled) setInvestmentOp(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingInvestmentOp(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [modalVisible, selectedTx]);
+
   // DESCRIPCIÓN SECUNDARIA
   const getSecondaryText = (tx: any) => {
-    if (tx.type === "transfer" && tx.investmentAsset) {
-      return tx.investmentAsset.abbreviation?.trim() || tx.investmentAsset.name;
+    if (isInvestmentContribution(tx)) {
+      return `Desde ${tx.fromWallet?.name} · ${tx.toWallet?.name}`;
     }
 
     const subcategory = tx.subcategory?.name?.trim();
@@ -246,6 +316,15 @@ export default function TransactionsList({
 
   // ICONO PRINCIPAL SEGÚN TIPO
   const renderIcon = (tx: any) => {
+    const opKind = investmentOpKind(tx);
+    if (opKind) {
+      return (
+        <View className={`w-9 h-9 ${INVESTMENT_OP_BG[opKind]} rounded-lg items-center justify-center`}>
+          <Text className="text-[18px]">{INVESTMENT_OP_EMOJI[opKind]}</Text>
+        </View>
+      );
+    }
+
     if (tx.type === "transfer") {
       return (
         <View className="w-9 h-9 bg-blue-100 rounded-lg items-center justify-center">
@@ -342,7 +421,9 @@ export default function TransactionsList({
 
                         <View className="ml-3" style={{ flex: 1 }}>
                           <Text className="text-[16px] font-semibold text-text" numberOfLines={1}>
-                            {tx.type === "transfer"
+                            {investmentOpKind(tx)
+                              ? `${INVESTMENT_OP_LABEL[investmentOpKind(tx)!]} · ${investmentAssetLabel(tx)}`
+                              : tx.type === "transfer"
                               ? `${tx.fromWallet?.name} → ${tx.toWallet?.name}`
                               : tx.category?.name || "Sin categoría"}
                           </Text>
@@ -449,7 +530,11 @@ export default function TransactionsList({
                 )}
 
                 {/* TÍTULO */}
-                {selectedTx.type === "transfer" ? (
+                {investmentOpKind(selectedTx) ? (
+                  <Text className="text-[17px] font-semibold text-black">
+                    {INVESTMENT_OP_LABEL[investmentOpKind(selectedTx)!]} · {investmentAssetLabel(selectedTx)}
+                  </Text>
+                ) : selectedTx.type === "transfer" ? (
                   <Text className="text-[17px] font-semibold text-black">
                     {selectedTx.fromWallet?.name} → {selectedTx.toWallet?.name}
                   </Text>
@@ -514,6 +599,46 @@ export default function TransactionsList({
                         {selectedTx.toWallet?.name}
                       </Text>
                     </View>
+
+                    {isInvestmentContribution(selectedTx) && (
+                      <View className="flex-row justify-between">
+                        <Text className="text-gray-500">Activo</Text>
+                        <Text className="font-medium text-text">
+                          {investmentAssetLabel(selectedTx)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {loadingInvestmentOp && (
+                      <Text className="text-gray-400 text-[13px]">Cargando datos de la inversión…</Text>
+                    )}
+
+                    {investmentOp?.quantity != null && Number(investmentOp.quantity) > 0 && (
+                      <>
+                        <View className="flex-row justify-between">
+                          <Text className="text-gray-500">Participaciones</Text>
+                          <Text className="font-medium text-text">
+                            {Number(investmentOp.quantity).toLocaleString("es-ES", { maximumFractionDigits: 6 })}
+                          </Text>
+                        </View>
+
+                        <View className="flex-row justify-between">
+                          <Text className="text-gray-500">Precio unitario</Text>
+                          <Text className="font-medium text-text">
+                            {formatEuro(Number(selectedTx.amount) / Number(investmentOp.quantity))} €
+                          </Text>
+                        </View>
+                      </>
+                    )}
+
+                    {investmentOp?.fee != null && Number(investmentOp.fee) > 0 && (
+                      <View className="flex-row justify-between">
+                        <Text className="text-gray-500">Comisión</Text>
+                        <Text className="font-medium text-text">
+                          {formatEuro(Number(investmentOp.fee))} €
+                        </Text>
+                      </View>
+                    )}
                   </>
                 ) : selectedTx.wallet ? (
                   <View className="flex-row justify-between">
@@ -524,7 +649,7 @@ export default function TransactionsList({
                   </View>
                 ) : null}
 
-                {selectedTx.description && (
+                {!isInvestmentContribution(selectedTx) && selectedTx.description && (
                   <View style={{ marginTop: 10 }}>
                     <Text className="text-gray-500 mb-1">Descripción</Text>
                     <Text className="font-medium text-text">
@@ -541,9 +666,21 @@ export default function TransactionsList({
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={() => {
+                    if (isInvestmentContribution(selectedTx)) {
+                      if (!investmentOp) return; // aún cargando los datos de la operación
+                      const tx = selectedTx;
+                      closeModal();
+                      navigation.navigate("InvestmentOperation", {
+                        assetId: tx.investmentAsset.id,
+                        operationData: investmentOp,
+                      });
+                      return;
+                    }
                     closeModal();
                     navigation.navigate("Add", { editData: selectedTx });
                   }}
+                  disabled={isInvestmentContribution(selectedTx) && (loadingInvestmentOp || !investmentOp)}
+                  style={{ opacity: isInvestmentContribution(selectedTx) && (loadingInvestmentOp || !investmentOp) ? 0.5 : 1 }}
                   className="flex-1 bg-gray-100 py-3 rounded-full"
                 >
                   <Text className="text-center text-black font-semibold">

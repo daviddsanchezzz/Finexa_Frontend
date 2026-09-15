@@ -2,25 +2,29 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import ModalHeader from "../../../../components/ModalHeader";
+import WalletIcon from "../../../../components/WalletIcon";
+import NumericCalculatorKeyboard from "../../../../components/NumericCalculatorKeyboard";
 import { markInvestmentsDirty } from "../../../../utils/investmentsInvalidation";
 import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDateTimePicker";
 import { formatEuro } from "../../../../utils/currency";
-import { isLogoUrl } from "../../../../constants/bankPresets";
+import { getCryptoLogoUrl } from "../../../../constants/bankPresets";
+import { FormTextField } from "../../../../components/creation";
 
 type OperationMode = "buy" | "sell" | "swap";
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -29,6 +33,7 @@ type InvestmentAssetLite = {
   id: number;
   name: string;
   abbreviation?: string | null;
+  identificator?: string | null;
   type: InvestmentAssetType;
   active?: boolean;
 };
@@ -43,6 +48,34 @@ type WalletLite = {
   active?: boolean;
   position?: number | null;
 };
+
+const OP_COLORS: Record<OperationMode, string> = {
+  buy: "#16A34A",
+  sell: "#DC2626",
+  swap: "#2563EB",
+};
+
+const OP_LABEL_ES: Record<OperationMode, string> = {
+  buy: "compra",
+  sell: "venta",
+  swap: "traspaso",
+};
+
+const sectionLabelStyle = {
+  fontSize: 12,
+  fontWeight: "700" as const,
+  color: "#64748B",
+  marginBottom: 5,
+};
+
+function RequiredLabel({ text }: { text: string }) {
+  return (
+    <Text style={sectionLabelStyle}>
+      {text}
+      <Text style={{ color: colors.error }}> *</Text>
+    </Text>
+  );
+}
 
 const parseAmount = (s: string) => {
   const v = (s || "").replace(/\./g, "").replace(",", ".");
@@ -69,6 +102,16 @@ function formatMoney(n: any, currency = "EUR") {
 
 const assetLabel = (a: InvestmentAssetLite) => a.abbreviation?.trim() || a.name;
 
+const assetTypeLabel = (t: InvestmentAssetType) => {
+  switch (t) {
+    case "crypto": return "Crypto";
+    case "stock":  return "Acción";
+    case "etf":    return "ETF";
+    case "fund":   return "Fondo";
+    default:       return "Otro";
+  }
+};
+
 const iconForType = (t: InvestmentAssetType): keyof typeof Ionicons.glyphMap => {
   switch (t) {
     case "crypto": return "logo-bitcoin";
@@ -79,64 +122,75 @@ const iconForType = (t: InvestmentAssetType): keyof typeof Ionicons.glyphMap => 
   }
 };
 
-// ── Chip ────────────────────────────────────────────────────────────────────
-const chipBase = {
-  minHeight: 30,
-  paddingHorizontal: 14,
-  paddingVertical: 8,
-  borderRadius: 9999,
-  borderWidth: 1,
-  justifyContent: "center" as const,
-  alignItems: "center" as const,
-  marginRight: 8,
-};
-const chipActive = { backgroundColor: "#e0f2fe", borderColor: "#3b82f6" };
-const chipInactive = { borderColor: "#d1d5db" };
+// Logo real para crypto (si el símbolo tiene icono conocido); icono de
+// respaldo por tipo de activo en cualquier otro caso.
+function AssetIcon({ asset, size = 16, color }: { asset: InvestmentAssetLite; size?: number; color: string }) {
+  const symbol = asset.identificator?.trim().toLowerCase();
+  const [failed, setFailed] = useState(false);
 
-function Chip({
-  label, active, disabled, onPress, icon,
+  if (asset.type === "crypto" && symbol && !failed) {
+    return (
+      <Image
+        source={{ uri: getCryptoLogoUrl(symbol) }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return <Ionicons name={iconForType(asset.type)} size={size} color={color} />;
+}
+
+// ── Tarjeta de selección (cartera / activo) — logo/icono + texto, compacta ──
+function OptionCard({
+  icon,
+  label,
+  subLabel,
+  selected,
+  disabled,
+  onPress,
 }: {
-  label: string; active?: boolean; disabled?: boolean;
-  onPress?: () => void; icon?: keyof typeof Ionicons.glyphMap;
+  icon?: React.ReactNode;
+  label: string;
+  subLabel?: string;
+  selected: boolean;
+  disabled?: boolean;
+  onPress: () => void;
 }) {
   return (
     <TouchableOpacity
       onPress={disabled ? undefined : onPress}
-      activeOpacity={0.8}
-      style={[chipBase, active ? chipActive : chipInactive, disabled ? { opacity: 0.35 } : null]}
+      disabled={disabled}
+      activeOpacity={0.85}
+      style={{
+        minWidth: 84,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: selected ? colors.primary : "#E2E8F0",
+        backgroundColor: selected ? "#EEF3FF" : "#FFFFFF",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 8,
+        opacity: disabled ? 0.4 : 1,
+      }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {icon ? <Ionicons name={icon} size={14} color={active ? "#1d4ed8" : "#6b7280"} style={{ marginRight: 5 }} /> : null}
-        <Text style={{ fontSize: 15, color: active ? "#1d4ed8" : "#111827", fontWeight: active ? "600" : "400" }}>
-          {label}
+      {icon ? <View style={{ marginBottom: 4 }}>{icon}</View> : null}
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ fontSize: 12.5, fontWeight: "700", color: selected ? colors.primary : "#475569", textAlign: "center" }}
+      >
+        {label}
+      </Text>
+      {subLabel != null && (
+        <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: "600", color: "#94A3B8", marginTop: 2 }}>
+          {subLabel}
         </Text>
-      </View>
+      )}
     </TouchableOpacity>
-  );
-}
-
-// ── Inline text input row (participaciones, fee, nota) ──────────────────────
-function FieldRow({ label, value, onChange, placeholder, icon, right }: {
-  label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; icon?: keyof typeof Ionicons.glyphMap; right?: string;
-}) {
-  return (
-    <View style={{ marginBottom: 24 }}>
-      <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 8 }}>
-        {icon ? <Ionicons name={icon} size={16} color="#d1d5db" style={{ marginRight: 8 }} /> : null}
-        <TextInput
-          value={value}
-          onChangeText={(t) => onChange(t.replace(".", ","))}
-          placeholder={placeholder ?? "0,0000"}
-          placeholderTextColor="#d1d5db"
-          inputMode="decimal"
-          style={{ flex: 1, fontSize: 15, color: "#111827" }}
-          returnKeyType="done"
-        />
-        {right ? <Text style={{ fontSize: 14, color: "#9CA3AF", marginLeft: 6 }}>{right}</Text> : null}
-      </View>
-    </View>
   );
 }
 
@@ -147,6 +201,9 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   const editData: any | undefined = route?.params?.operationData;
   const isEditing = !!editData;
   const isSwapEdit = isEditing && !!editData?.swapGroupId;
+
+  const saveBarHeight = 74;
+  const scrollRef = useRef<ScrollView>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -162,6 +219,8 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   const [toAsset,        setToAsset]        = useState<InvestmentAssetLite | null>(null);
 
   const [amount,      setAmount]      = useState("");
+  const [calcVisible, setCalcVisible] = useState(false);
+  const [calcExpression, setCalcExpression] = useState("");
   const [fee,         setFee]         = useState("");
   const [description, setDescription] = useState("");
   const [date,        setDate]        = useState<Date>(new Date());
@@ -170,8 +229,6 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   const [quantity,    setQuantity]    = useState("");
   const [quantityOut, setQuantityOut] = useState("");
   const [quantityIn,  setQuantityIn]  = useState("");
-
-  const amountRef = useRef<TextInput>(null);
 
   // ── data ──────────────────────────────────────────────────────────────────
   const fetchAssets = useCallback(async () => {
@@ -372,20 +429,29 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
   }, [assets.length, fromAsset, selectedAsset, selectedWallet, wallets]);
 
   // ── wallet label ──────────────────────────────────────────────────────────
-  const walletLabel = mode === "buy" ? "Cartera origen (cash)" : "Cartera destino (cash)";
+  const walletLabel = mode === "buy" ? "Cartera origen" : "Cartera destino";
+
+  const openCalc = () => {
+    Keyboard.dismiss();
+    setCalcVisible(true);
+  };
+
+  const closeCalc = () => {
+    setCalcVisible(false);
+    setCalcExpression("");
+  };
+
+  const saveLabel = `${isEditing ? "Actualizar" : "Guardar"} ${OP_LABEL_ES[mode]}`;
 
   // ── UI ────────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       {/* HEADER */}
-      <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
         <ModalHeader
           title={isEditing ? "Editar operación" : "Añadir operación"}
           onClose={() => navigation.goBack()}
-          rightLabel="Guardar"
-          onRightPress={handleSubmit}
-          rightDisabled={!canSave}
-          rightLoading={saving}
+          closeLabel="Cancelar"
         />
       </View>
 
@@ -394,16 +460,29 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
           <ScrollView
+            ref={scrollRef}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }}
+            contentContainerStyle={{
+              paddingBottom: (calcVisible ? 310 : 20) + saveBarHeight,
+              paddingHorizontal: 20,
+            }}
           >
             {/* TABS */}
-            <View style={{ marginTop: 24, marginBottom: 24, flexDirection: "row", backgroundColor: "#f3f4f6", borderRadius: 16, padding: 4 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                backgroundColor: "#F3F4F6",
+                borderRadius: 14,
+                padding: 3,
+                marginTop: 14,
+                marginBottom: 14,
+              }}
+            >
               {([
-                { label: "Comprar",    value: "buy",  bg: "rgba(34,197,94,0.12)"  },
-                { label: "Vender",     value: "sell", bg: "rgba(239,68,68,0.12)"  },
-                { label: "Transferir", value: "swap", bg: "rgba(37,99,235,0.12)"  },
+                { label: "Comprar",    value: "buy"  },
+                { label: "Vender",     value: "sell" },
+                { label: "Transferir", value: "swap" },
               ] as const).map((tab) => {
                 const active = mode === tab.value;
                 return (
@@ -412,12 +491,21 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
                     onPress={() => !isEditing && onChangeMode(tab.value)}
                     activeOpacity={isEditing ? 1 : 0.8}
                     style={{
-                      flex: 1, paddingVertical: 10, borderRadius: 14, alignItems: "center",
-                      backgroundColor: active ? tab.bg : "transparent",
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: active ? "#FFFFFF" : "transparent",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      shadowColor: active ? "#0F172A" : "transparent",
+                      shadowOpacity: active ? 0.08 : 0,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 1 },
+                      elevation: active ? 1 : 0,
                       opacity: isEditing && !active ? 0.35 : 1,
                     }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: active ? "600" : "400", color: active ? "#111827" : "#9CA3AF" }}>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: active ? OP_COLORS[tab.value] : "#9CA3AF" }}>
                       {tab.label}
                     </Text>
                   </TouchableOpacity>
@@ -425,175 +513,270 @@ export default function InvestmentOperationScreen({ navigation, route }: any) {
               })}
             </View>
 
-            {/* AMOUNT */}
-            <View style={{ width: "100%", alignItems: "center", marginBottom: 32, marginTop: 8 }}>
+            {/* IMPORTE */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={openCalc}
+              style={{ alignItems: "center", marginBottom: 26, marginTop: 6 }}
+            >
               {mode === "swap" && (
-                <Text style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 4 }}>Importe (venta = compra)</Text>
+                <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600", marginBottom: 4 }}>
+                  Importe (venta = compra)
+                </Text>
               )}
-              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%" }}>
-                <TextInput
-                  ref={amountRef}
-                  value={amount}
-                  onChangeText={(t) => setAmount(t.replace(".", ","))}
-                  placeholder="0"
-                  placeholderTextColor="#D1D5DB"
-                  keyboardType="decimal-pad"
+              {!!calcExpression && (
+                <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", marginBottom: 2 }}>
+                  {calcExpression}
+                </Text>
+              )}
+              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
+                <Text
                   style={{
-                    fontSize: 48, fontWeight: "700", color: "#0F172A", letterSpacing: -1,
-                    textAlign: "center", minWidth: 60, maxWidth: 260,
+                    fontSize: 46,
+                    fontWeight: "700",
+                    color: amount ? "#0F172A" : "#D1D5DB",
+                    letterSpacing: -1,
+                    fontVariant: ["tabular-nums"],
                   }}
-                  returnKeyType="done"
+                >
+                  {amount || "0,00"}
+                </Text>
+                <FontAwesome5
+                  name="euro-sign"
+                  size={22}
+                  color="#94A3B8"
+                  style={{ marginLeft: 6, marginBottom: 7 }}
                 />
-                <Text style={{ fontSize: 32, fontWeight: "600", color: "#94A3B8", marginLeft: 4, marginBottom: 6 }}>€</Text>
               </View>
-              <Text style={{ marginTop: 6, fontSize: 11, color: "#CBD5E1", fontWeight: "600" }}>toca para editar</Text>
-            </View>
+            </TouchableOpacity>
 
             {/* WALLET */}
             {mode !== "swap" ? (
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>{walletLabel}</Text>
+              <>
+                <RequiredLabel text={walletLabel} />
                 {walletError ? (
-                  <Text style={{ fontSize: 13, color: "#b45309" }}>{walletError}</Text>
+                  <Text style={{ fontSize: 13, color: "#b45309", marginBottom: 14 }}>{walletError}</Text>
                 ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingRight: 12 }}
+                    style={{ marginBottom: 14 }}
+                  >
                     {wallets.map((w) => (
-                      <Chip
+                      <OptionCard
                         key={w.id}
-                        label={`${w.emoji && !isLogoUrl(w.emoji) ? w.emoji : "👛"} ${w.name}${w.balance != null ? ` · ${formatMoney(w.balance, w.currency || "EUR")}` : ""}`}
-                        active={selectedWallet?.id === w.id}
+                        icon={<WalletIcon emoji={w.emoji} size={18} />}
+                        label={w.name}
+                        subLabel={w.balance != null ? formatMoney(w.balance, w.currency || "EUR") : undefined}
+                        selected={selectedWallet?.id === w.id}
                         onPress={() => setSelectedWallet(w)}
                       />
                     ))}
                   </ScrollView>
                 )}
-              </View>
+              </>
             ) : null}
 
             {/* ASSETS */}
             {mode === "swap" ? (
               <>
-                <View style={{ marginBottom: 24 }}>
-                  <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Activo venta</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {assets.map((a) => (
-                      <Chip
-                        key={a.id}
-                        label={assetLabel(a)}
-                        icon={iconForType(a.type)}
-                        active={fromAsset?.id === a.id}
-                        onPress={() => { setFromAsset(a); if (toAsset?.id === a.id) setToAsset(null); }}
-                      />
-                    ))}
-                  </ScrollView>
-                </View>
+                <RequiredLabel text="Activo venta" />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: 12 }}
+                  style={{ marginBottom: 14 }}
+                >
+                  {assets.map((a) => (
+                    <OptionCard
+                      key={a.id}
+                      icon={<AssetIcon asset={a} color={fromAsset?.id === a.id ? colors.primary : "#64748B"} />}
+                      label={assetLabel(a)}
+                      subLabel={assetTypeLabel(a.type)}
+                      selected={fromAsset?.id === a.id}
+                      onPress={() => { setFromAsset(a); if (toAsset?.id === a.id) setToAsset(null); }}
+                    />
+                  ))}
+                </ScrollView>
 
-                <View style={{ marginBottom: 24 }}>
-                  <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Activo compra</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {assets.map((a) => (
-                      <Chip
-                        key={a.id}
-                        label={assetLabel(a)}
-                        icon={iconForType(a.type)}
-                        active={toAsset?.id === a.id}
-                        disabled={fromAsset?.id === a.id}
-                        onPress={() => { if (fromAsset?.id !== a.id) setToAsset(a); }}
-                      />
-                    ))}
-                  </ScrollView>
-                </View>
+                <RequiredLabel text="Activo compra" />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: 12 }}
+                  style={{ marginBottom: 14 }}
+                >
+                  {assets.map((a) => (
+                    <OptionCard
+                      key={a.id}
+                      icon={<AssetIcon asset={a} color={toAsset?.id === a.id ? colors.primary : "#64748B"} />}
+                      label={assetLabel(a)}
+                      subLabel={assetTypeLabel(a.type)}
+                      selected={toAsset?.id === a.id}
+                      disabled={fromAsset?.id === a.id}
+                      onPress={() => { if (fromAsset?.id !== a.id) setToAsset(a); }}
+                    />
+                  ))}
+                </ScrollView>
               </>
             ) : (
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Activo</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <>
+                <RequiredLabel text="Activo" />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: 12 }}
+                  style={{ marginBottom: 14 }}
+                >
                   {assets.map((a) => (
-                    <Chip
+                    <OptionCard
                       key={a.id}
+                      icon={<AssetIcon asset={a} color={selectedAsset?.id === a.id ? colors.primary : "#64748B"} />}
                       label={assetLabel(a)}
-                      icon={iconForType(a.type)}
-                      active={selectedAsset?.id === a.id}
+                      subLabel={assetTypeLabel(a.type)}
+                      selected={selectedAsset?.id === a.id}
                       onPress={() => setSelectedAsset(a)}
                     />
                   ))}
                 </ScrollView>
-              </View>
+              </>
             )}
 
             {/* PARTICIPACIONES */}
             {mode === "swap" ? (
-              <>
-                <FieldRow
-                  label="Participaciones vendidas (opcional)"
+              <View style={{ gap: 14, marginBottom: 14 }}>
+                <FormTextField
+                  label="Participaciones vendidas"
                   value={quantityOut}
-                  onChange={setQuantityOut}
-                  placeholder="0,0000"
-                  icon="arrow-up-outline"
+                  onChangeText={(t) => setQuantityOut(t.replace(".", ","))}
+                  inputMode="decimal"
+                  onFocus={closeCalc}
+                  returnKeyType="done"
                 />
-                <FieldRow
-                  label="Participaciones compradas (opcional)"
+                <FormTextField
+                  label="Participaciones compradas"
                   value={quantityIn}
-                  onChange={setQuantityIn}
-                  placeholder="0,0000"
-                  icon="arrow-down-outline"
+                  onChangeText={(t) => setQuantityIn(t.replace(".", ","))}
+                  inputMode="decimal"
+                  onFocus={closeCalc}
+                  returnKeyType="done"
                 />
-              </>
+              </View>
             ) : (
-              <FieldRow
-                label="Participaciones (opcional)"
-                value={quantity}
-                onChange={setQuantity}
-                placeholder="0,0000"
-                icon="calculator-outline"
-              />
+              <View style={{ marginBottom: 14 }}>
+                <FormTextField
+                  label="Participaciones"
+                  value={quantity}
+                  onChangeText={(t) => setQuantity(t.replace(".", ","))}
+                  inputMode="decimal"
+                  onFocus={closeCalc}
+                  returnKeyType="done"
+                />
+              </View>
             )}
 
-            {/* FEE */}
-            <FieldRow
-              label="Comisión (opcional)"
-              value={fee}
-              onChange={setFee}
-              placeholder="0,00"
-              icon="pricetag-outline"
-              right="€"
-            />
-
-            {/* FECHA */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Fecha</Text>
-              <TouchableOpacity
-                onPress={() => setShowDate(true)}
-                style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 8 }}
-              >
-                <Text style={{ fontSize: 15, color: "#111827" }}>
-                  {date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}{" "}
-                  {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </Text>
-                <Ionicons name="calendar-outline" size={18} color="#9CA3AF" />
-              </TouchableOpacity>
-              <CrossPlatformDateTimePicker
-                isVisible={showDate}
-                mode="datetime"
-                date={date}
-                onConfirm={(d) => { setShowDate(false); setDate(d); }}
-                onCancel={() => setShowDate(false)}
+            {/* COMISIÓN */}
+            <View style={{ marginBottom: 14 }}>
+              <FormTextField
+                label="Comisión"
+                value={fee}
+                onChangeText={(t) => setFee(t.replace(".", ","))}
+                inputMode="decimal"
+                suffix="€"
+                onFocus={closeCalc}
+                returnKeyType="done"
               />
             </View>
 
-            {/* NOTA */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 8 }}>Descripción</Text>
-              <TextInput
+            {/* DESCRIPCIÓN */}
+            <View style={{ marginBottom: 14 }}>
+              <FormTextField
+                label="Descripción"
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Añadir nota"
-                placeholderTextColor="#d1d5db"
-                multiline
-                style={{ fontSize: 15, color: "#111827", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingBottom: 8 }}
+                onFocus={closeCalc}
+                returnKeyType="done"
               />
             </View>
+
+            {/* FECHA */}
+            <Text style={sectionLabelStyle}>Fecha y hora</Text>
+            <TouchableOpacity
+              onPress={() => { closeCalc(); setShowDate(true); }}
+              activeOpacity={0.85}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: "#FFFFFF",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 14,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                <Text style={{ fontSize: 14, color: "#0F172A", fontWeight: "500" }}>
+                  {date.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
+                  , {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+            </TouchableOpacity>
+            <CrossPlatformDateTimePicker
+              isVisible={showDate}
+              mode="datetime"
+              date={date}
+              onConfirm={(d) => { setShowDate(false); setDate(d); }}
+              onCancel={() => setShowDate(false)}
+            />
           </ScrollView>
+
+          {/* BOTÓN GUARDAR — fijo al fondo */}
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 8,
+              paddingBottom: calcVisible ? 8 : 14,
+              backgroundColor: "#FFFFFF",
+              borderTopWidth: 1,
+              borderTopColor: "#F1F5F9",
+            }}
+          >
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={!canSave || saving}
+              activeOpacity={0.85}
+              style={{
+                height: 54,
+                borderRadius: 14,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: canSave ? colors.primary : "#E5E7EB",
+              }}
+            >
+              {saving ? (
+                <ActivityIndicator color={canSave ? "#FFFFFF" : "#94A3B8"} />
+              ) : (
+                <Text style={{ fontSize: 16, fontWeight: "700", color: canSave ? "#FFFFFF" : "#94A3B8" }}>
+                  {saveLabel}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <NumericCalculatorKeyboard
+            visible={calcVisible}
+            value={amount}
+            onChangeValue={setAmount}
+            onExpressionChange={setCalcExpression}
+            showExpressionInHeader={false}
+            onDone={closeCalc}
+            variant="calculator"
+          />
         </KeyboardAvoidingView>
       )}
     </SafeAreaView>
