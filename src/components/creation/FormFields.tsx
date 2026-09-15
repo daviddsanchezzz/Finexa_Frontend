@@ -26,7 +26,7 @@ export function FormSection({
   children: ReactNode;
 }) {
   return (
-    <View style={{ gap: 16 }}>
+    <View style={{ gap: 12 }}>
       {title ? (
         <View style={{ marginBottom: -4 }}>
           <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.45, color: "#64748B" }}>{title}</Text>
@@ -77,22 +77,22 @@ export function FormTextField({
 
   return (
     <View>
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 5 }}>
         <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
           {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
         </Text>
       </View>
       <View
         style={{
-          minHeight: multiline ? 100 : 50,
+          minHeight: multiline ? 88 : 44,
           flexDirection: "row",
           alignItems: multiline ? "flex-start" : "center",
           borderWidth: 1,
           borderColor: visibleError ? "#FCA5A5" : focused ? colors.primary : "#E2E8F0",
           borderRadius: radii.input,
           backgroundColor: "white",
-          paddingHorizontal: 14,
-          paddingVertical: multiline ? 12 : 0,
+          paddingHorizontal: 12,
+          paddingVertical: multiline ? 10 : 0,
         }}
       >
         {icon ? <Ionicons name={icon} size={18} color={focused ? colors.primary : "#94A3B8"} style={{ marginRight: 10, marginTop: multiline ? 2 : 0 }} /> : null}
@@ -113,7 +113,7 @@ export function FormTextField({
           placeholderTextColor="#A3ADBC"
           style={{
             flex: 1,
-            minHeight: multiline ? 74 : 48,
+            minHeight: multiline ? 66 : 42,
             paddingVertical: 0,
             textAlignVertical: multiline ? "top" : "center",
             fontSize: 15,
@@ -157,7 +157,7 @@ export function FormSelect({
 }) {
   return (
     <View>
-      <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 7 }}>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>
         {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
       </Text>
       <TouchableOpacity
@@ -168,8 +168,8 @@ export function FormSelect({
         activeOpacity={0.75}
         accessibilityRole="button"
         style={{
-          minHeight: 50,
-          paddingHorizontal: 14,
+          minHeight: 44,
+          paddingHorizontal: 12,
           borderRadius: radii.input,
           borderWidth: 1,
           borderColor: error ? "#FCA5A5" : "#E2E8F0",
@@ -271,7 +271,7 @@ export function FormSegmentedControl<T extends string>({
 }) {
   return (
     <View>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
         <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
           {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
         </Text>
@@ -291,7 +291,7 @@ export function FormSegmentedControl<T extends string>({
               activeOpacity={0.75}
               style={{
                 flex: 1,
-                minHeight: 40,
+                minHeight: 38,
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 11,

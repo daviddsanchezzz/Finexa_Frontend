@@ -87,7 +87,7 @@ export default function OverflowMenuButton({
             onPress={close}
           />
 
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 18) + 10 }]}>
+          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Text style={styles.title} numberOfLines={2}>{title}</Text>
 
             <View style={styles.actions}>
@@ -135,32 +135,32 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 22,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   title: {
     color: "#0F172A",
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "900",
-    marginBottom: 18,
+    marginBottom: 12,
   },
   actions: {
-    gap: 8,
+    gap: 6,
   },
   action: {
-    minHeight: 54,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F8FAFC",
   },
   actionText: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800",
     textAlign: "center",
   },
@@ -173,12 +173,12 @@ const styles = StyleSheet.create({
   cancel: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 52,
-    marginTop: 10,
+    minHeight: 44,
+    marginTop: 6,
   },
   cancelText: {
     color: "#94A3B8",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800",
   },
 });

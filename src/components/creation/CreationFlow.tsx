@@ -39,7 +39,7 @@ export function CreationProgress({ current, total }: { current: number; total: n
 
   return (
     <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 8 }}>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", marginBottom: 6 }}>
         Paso {current} de {total}
       </Text>
       <View style={{ height: 3, borderRadius: 999, backgroundColor: "#E8EDF5", overflow: "hidden" }}>
@@ -71,8 +71,8 @@ export function CreationFooter({
     <View
       style={{
         paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: Platform.OS === "ios" ? 8 : 14,
+        paddingTop: 8,
+        paddingBottom: Platform.OS === "ios" ? 8 : 10,
         borderTopWidth: 1,
         borderTopColor: "#EEF1F5",
         backgroundColor: colors.background,
@@ -85,7 +85,7 @@ export function CreationFooter({
         accessibilityRole="button"
         accessibilityState={{ disabled: !enabled || !!loading, busy: !!loading }}
         style={{
-          minHeight: 50,
+          minHeight: 44,
           borderRadius: radii.input,
           alignItems: "center",
           justifyContent: "center",
@@ -95,7 +95,7 @@ export function CreationFooter({
         {loading ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text style={{ fontSize: 16, fontWeight: "800", color: enabled ? "white" : "#94A3B8" }}>
+          <Text style={{ fontSize: 15, fontWeight: "800", color: enabled ? "white" : "#94A3B8" }}>
             {label}
           </Text>
         )}
@@ -163,7 +163,7 @@ export default function CreationFlow({
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={{
-          minHeight: 58,
+          minHeight: 52,
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: 14,
@@ -202,13 +202,13 @@ export default function CreationFlow({
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-          <Text style={{ fontSize: 24, lineHeight: 30, fontWeight: "900", color: colors.ink }}>{step.title}</Text>
+          <Text style={{ fontSize: 21, lineHeight: 27, fontWeight: "900", color: colors.ink }}>{step.title}</Text>
           {step.description ? (
-            <Text style={{ fontSize: 14, lineHeight: 20, fontWeight: "500", color: "#64748B", marginTop: 5 }}>
+            <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: "500", color: "#64748B", marginTop: 4 }}>
               {step.description}
             </Text>
           ) : null}
-          <View style={{ marginTop: 24 }}>{content}</View>
+          <View style={{ marginTop: 16 }}>{content}</View>
           {submitError ? (
             <View style={{ marginTop: 16, padding: 12, borderRadius: 12, backgroundColor: "#FEF2F2" }}>
               <Text style={{ color: colors.error, fontSize: 13, lineHeight: 18, fontWeight: "600" }}>{submitError}</Text>

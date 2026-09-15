@@ -31,6 +31,7 @@ import { formatEuro } from "../../../../utils/currency";
 import InvestmentOperationDetailsModal from "../../../../components/InvestmentOperationDetailsModal";
 import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import ChartTooltip from "../../../../components/ChartTooltip";
+import useChartScrubber from "../../../../hooks/useChartScrubber";
 import InvestmentDetailScreenSkeleton from "../../../../components/skeletons/InvestmentDetailScreenSkeleton";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
@@ -51,6 +52,7 @@ interface AssetFromApi {
   name: string;
   abbreviation?: string | null;
   description?: string | null;
+  provider?: string | null;
   type: InvestmentAssetType;
   riskType?: InvestmentRiskType | null;
   currency: string;
@@ -220,7 +222,7 @@ const riskLabel = (r?: InvestmentRiskType | null) => {
   switch (r) {
     case "variable_income": return "Renta variable";
     case "fixed_income":    return "Renta fija";
-    default:                return "Sin definir";
+    default:                return "";
   }
 };
 
@@ -652,15 +654,17 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     return { W, H, padY, mapped, path, areaPath, capitalPath, returnMapped, returnPath, returnAreaPath, returnMinV, returnMaxV, minV, maxV, rangeDelta, cashflowNet, periodProfit, rangeReturnPct };
   }, [filteredSeries]);
 
-  const selectChartPoint = useCallback((locationX: number) => {
-    if (!chart || !chartLayoutWidth) return;
-    const index = Math.max(0, Math.min(chart.mapped.length - 1, Math.round((locationX / chartLayoutWidth) * (chart.mapped.length - 1))));
+  const selectChartPoint = useCallback((fraction: number) => {
+    if (!chart) return;
+    const index = Math.max(0, Math.min(chart.mapped.length - 1, Math.round(fraction * (chart.mapped.length - 1))));
     if (selectedChartIndexRef.current !== index) {
       selectedChartIndexRef.current = index;
       setSelectedChartIndex(index);
       if (Platform.OS !== "web") void Haptics.selectionAsync();
     }
-  }, [chart, chartLayoutWidth]);
+  }, [chart]);
+  const valueScrubber = useChartScrubber(selectChartPoint);
+  const returnScrubber = useChartScrubber(selectChartPoint);
 
   const valuationsRows = useMemo(() => {
     return [...valuations]
@@ -734,6 +738,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       <View className="px-5 pb-3">
         <AppHeader
           title={asset?.abbreviation?.trim() || asset?.name || "Inversión"}
+          titleFontSize={17}
+          titleNumberOfLines={0}
           showBack
           showProfile={false}
           showDatePicker={false}
@@ -824,6 +830,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           </View>
 
           <ScrollView
+            scrollEnabled={!valueScrubber.isScrubbing && !returnScrubber.isScrubbing}
             style={{ flex: 1, paddingHorizontal: 14 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
@@ -889,13 +896,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 </View>
 
                 <View
-                  onLayout={(event) => setChartLayoutWidth(event.nativeEvent.layout.width - 24)}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
-                  onResponderMove={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
-                  onTouchEnd={(event) => event.stopPropagation()}
+                  ref={valueScrubber.ref}
+                  {...valueScrubber.handlers}
+                  onLayout={(event) => setChartLayoutWidth(event.nativeEvent.layout.width - 26)}
                   style={{
+                    ...(Platform.OS === "web" ? { touchAction: "none", userSelect: "none" } as any : {}),
                     marginTop: 14, backgroundColor: "white",
                     borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB",
                     paddingVertical: 14, paddingHorizontal: 12,
@@ -966,7 +971,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
                     {selectedChartIndex !== null && chart.mapped[Math.min(selectedChartIndex, chart.mapped.length - 1)] ? (() => {
                       const point = chart.mapped[Math.min(selectedChartIndex, chart.mapped.length - 1)];
-                      const tooltipWidth = 184;
+                      const tooltipWidth = Math.min(260, chartLayoutWidth || 260);
                       const selectedX = chartLayoutWidth > 0 ? (point.x / chart.W) * chartLayoutWidth : 0;
                       const tooltipLeft = Math.min(
                         Math.max(selectedX - tooltipWidth / 2, 0),
@@ -983,7 +988,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                             position: "absolute",
                             width: tooltipWidth,
                             left: tooltipLeft,
-                            top: -78,
+                            bottom: chart.H + 8,
                             zIndex: 20,
                             elevation: 6,
                           }}
@@ -1020,12 +1025,10 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 </View>
 
                 <View
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
-                  onResponderMove={(event) => selectChartPoint(event.nativeEvent.locationX - 12)}
-                  onTouchEnd={(event) => event.stopPropagation()}
+                  ref={returnScrubber.ref}
+                  {...returnScrubber.handlers}
                   style={{
+                    ...(Platform.OS === "web" ? { touchAction: "none", userSelect: "none" } as any : {}),
                     marginTop: 12, backgroundColor: "white",
                     borderRadius: 18, borderWidth: 1, borderColor: "#E5E7EB",
                     paddingVertical: 14, paddingHorizontal: 12,
@@ -1100,7 +1103,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
           <View style={{ marginBottom: 20 }}>
             {(() => {
               const isin = metadata?.isin?.trim() || (asset.type !== "crypto" ? asset.identificator?.trim() : "");
-              const manager = metadata?.manager?.trim();
+              const manager = asset.provider?.trim() || metadata?.manager?.trim();
               const benchmark = metadata?.benchmark?.trim();
               const distributionPolicy = metadata?.distributionPolicy?.trim();
               const ter = typeof metadata?.ter === "number" && Number.isFinite(metadata.ter)
@@ -1125,9 +1128,9 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   label: "Precio medio",
                   value: formatMoney(Number(summaryRow.averagePurchasePrice), currency),
                 }] : []),
-                ...(asset.description?.trim() ? [{ label: "Broker", value: asset.description.trim() }] : []),
               ];
               const technicalRows = [
+                ...(asset.description?.trim() ? [{ label: "Broker", value: asset.description.trim() }] : []),
                 ...(manager ? [{ label: "Gestora", value: manager }] : []),
                 ...(benchmark ? [{ label: "Índice", value: benchmark }] : []),
                 ...(distributionPolicy ? [{ label: "Distribución", value: distributionPolicy }] : []),
@@ -1152,7 +1155,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                   }}
                 >
                   <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>{row.label}</Text>
-                  <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: "#0F172A", textAlign: "right" }} numberOfLines={2}>
+                  <Text style={{ flex: 1, minWidth: 0, paddingVertical: 8, fontSize: 13, fontWeight: "800", color: "#0F172A", textAlign: "right" }}>
                     {row.value}
                   </Text>
                 </View>
@@ -1202,11 +1205,11 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                     <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B", letterSpacing: 0.55 }}>
                       SOBRE EL ACTIVO
                     </Text>
-                    <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A", lineHeight: 22, marginTop: 11 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A", lineHeight: 20, marginTop: 11 }}>
                       {asset.name}
                     </Text>
                     <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginTop: 5 }}>
-                      {typeLabel(asset.type)} · {riskLabel(asset.riskType)} · {asset.currency}
+                      {[typeLabel(asset.type), riskLabel(asset.riskType), asset.currency].filter(Boolean).join(" · ")}
                     </Text>
                     {technicalRows.length ? (
                       <View style={{ borderTopWidth: 1, borderTopColor: "#E8EDF4", marginTop: 14 }}>

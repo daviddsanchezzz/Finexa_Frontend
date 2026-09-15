@@ -57,8 +57,8 @@ export default function ChartTooltip({
       {rows.map((r) => (
         <View key={r.label} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: r.color }} />
-            <Text style={{ fontSize: 12.5, color: "#5B6472", fontWeight: "500" }} numberOfLines={1}>
+            <View style={{ width: 6, height: 6, flexShrink: 0, borderRadius: 3, backgroundColor: r.color }} />
+            <Text style={{ fontSize: 12.5, color: "#5B6472", fontWeight: "500", flexShrink: 1 }}>
               {r.label}
             </Text>
           </View>

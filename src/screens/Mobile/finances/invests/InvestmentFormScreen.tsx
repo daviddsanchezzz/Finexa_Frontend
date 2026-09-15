@@ -55,7 +55,6 @@ interface AssetFromApi {
   abbreviation?: string | null;
   identificator?: string | null;
   provider?: string | null;
-  metadataUrl?: string | null;
   quantity?: number | string | null;
   description?: string | null;
   type: InvestmentAssetType;
@@ -104,7 +103,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
   const [quantityText, setQuantityText] = useState("");
   const [description, setDescription] = useState("");
   const [provider, setProvider] = useState("");
-  const [metadataUrl, setMetadataUrl] = useState("");
   const [type, setType] = useState<InvestmentAssetType>("custom");
   const [riskType, setRiskType] = useState<RiskOrNull>(null); // ✅ null por defecto
   const [currency, setCurrency] = useState("EUR");
@@ -161,7 +159,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       setQuantityText(Number.isFinite(q as number) ? numToInputStr(q as number) : "");
       setDescription(a.description ?? "");
       setProvider(a.provider ?? "");
-      setMetadataUrl(a.metadataUrl ?? "");
       setType(a.type ?? "custom");
       setRiskType((a.riskType ?? null) as RiskOrNull);
       setCurrency((a.currency ?? "EUR").toUpperCase());
@@ -223,8 +220,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
       identificator: identificator.trim() ? identificator.trim().toUpperCase() : null,
       ...(parsedQuantity !== null ? { quantity: parsedQuantity } : {}),
       description: desc ? desc : null, // ✅ importante
-      provider: provider.trim() ? provider.trim().toLowerCase() : null,
-      metadataUrl: metadataUrl.trim() ? metadataUrl.trim() : null,
+      provider: provider.trim() || null,
       type,
       riskType: riskType ?? null, // ✅ importante (solo 2 valores o null)
       currency: currency.trim() ? currency.trim().toUpperCase() : "EUR",
@@ -387,7 +383,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             description: "Identifica el producto y dónde lo tienes contratado.",
             isValid: !!name.trim() && !currencyError,
             content: ({ showErrors }) => (
-              <View style={{ gap: 22 }}>
+              <View style={{ gap: 18 }}>
                 <FormSection>
                   <FormTextField
                     label="Nombre"
@@ -401,10 +397,10 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                   />
 
                   <View>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 7 }}>Tipo de activo</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>Tipo de activo</Text>
                     <View style={{ flexDirection: "row", flexWrap: "wrap", margin: -4 }}>
                       {TYPE_OPTIONS.map((option) => (
-                        <View key={option.key} style={{ width: "50%", padding: 4 }}>
+                        <View key={option.key} style={{ width: "33.333%", padding: 4 }}>
                           <FormOptionCard
                             label={option.label}
                             selected={type === option.key}
@@ -466,6 +462,16 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                   />
 
                   <FormCurrencyPicker value={currency} onChange={setCurrency} required />
+
+                  <FormTextField
+                    label="Gestora"
+                    value={provider}
+                    onChangeText={setProvider}
+                    placeholder="Fidelity, Vanguard..."
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                  />
                 </FormSection>
               </View>
             ),
@@ -476,7 +482,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             description: "Añade lo que ya tenías antes de empezar a usar Spendly.",
             isValid: !quantityError && !initialInvestedError,
             content: ({ showErrors }) => (
-              <View style={{ gap: 22 }}>
+              <View style={{ gap: 18 }}>
                 <FormSection>
                   <FormTextField
                     label="Broker"
@@ -503,27 +509,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
                     returnKeyType="done"
                   />
                 </FormSection>
-
-                <FormSection
-                  title="DATOS EXTERNOS"
-                  description="Solo si utilizas una fuente automática de información del activo."
-                >
-                  <FormTextField
-                    label="Proveedor de datos"
-                    value={provider}
-                    onChangeText={setProvider}
-                    autoCapitalize="none"
-                    returnKeyType="next"
-                  />
-                  <FormTextField
-                    label="URL de metadata"
-                    value={metadataUrl}
-                    onChangeText={setMetadataUrl}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="url"
-                  />
-                </FormSection>
               </View>
             ),
           },
@@ -541,7 +526,7 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
         isSubmitting={saving}
         isValid={canSave}
       >
-        <View style={{ gap: 28 }}>
+        <View style={{ gap: 20 }}>
           <FormSection title="EL ACTIVO">
             <FormTextField
               label="Nombre"
@@ -554,10 +539,10 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
             />
 
             <View>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 7 }}>Tipo de activo</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>Tipo de activo</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", margin: -4 }}>
                 {TYPE_OPTIONS.map((option) => (
-                  <View key={option.key} style={{ width: "50%", padding: 4 }}>
+                  <View key={option.key} style={{ width: "33.333%", padding: 4 }}>
                     <FormOptionCard
                       label={option.label}
                       selected={type === option.key}
@@ -614,6 +599,15 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               onClear={clearRisk}
             />
             <FormCurrencyPicker value={currency} onChange={setCurrency} required />
+            <FormTextField
+              label="Gestora"
+              value={provider}
+              onChangeText={setProvider}
+              placeholder="Fidelity, Vanguard..."
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+            />
           </FormSection>
 
           <FormSection title="TU POSICIÓN">
@@ -638,27 +632,6 @@ export default function InvestmentFormScreen({ navigation, route }: any) {
               error={initialInvestedText.trim() && initialInvestedNumber === null ? "Introduce un importe válido." : initialInvestedNumber !== null && initialInvestedNumber < 0 ? "El importe aportado no puede ser negativo." : null}
               hint="Las nuevas aportaciones se registran como operaciones."
               returnKeyType="done"
-            />
-          </FormSection>
-
-          <FormSection
-            title="DATOS EXTERNOS"
-            description="Fuente automática de información del activo."
-          >
-            <FormTextField
-              label="Proveedor de datos"
-              value={provider}
-              onChangeText={setProvider}
-              autoCapitalize="none"
-              returnKeyType="next"
-            />
-            <FormTextField
-              label="URL de metadata"
-              value={metadataUrl}
-              onChangeText={setMetadataUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
             />
           </FormSection>
 

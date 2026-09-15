@@ -21,6 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import Svg, { Circle, G, Path, Line, Text as SvgText } from "react-native-svg";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
+import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import SegmentedTabs from "../../../../components/SegmentedTabs";
 import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
@@ -1091,7 +1092,6 @@ const submitContribution = useCallback(() => {
     if (Platform.OS !== "web") void Haptics.selectionAsync();
   }, [performanceChart]);
 
-  const [fabOpen, setFabOpen] = useState(false);
   const [syncingMetadata, setSyncingMetadata] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const webTouchStartY = useRef(0);
@@ -1132,7 +1132,6 @@ const submitContribution = useCallback(() => {
       Alert.alert("Error", String(msg));
     } finally {
       setSyncingMetadata(false);
-      setFabOpen(false);
     }
   };
 
@@ -1172,12 +1171,6 @@ const submitContribution = useCallback(() => {
     }
     Animated.spring(pullAnim, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
   }, [dismissPerformanceTooltip, pullAnim, onRefresh, PULL_THRESHOLD]);
-
-  const fabActions = useMemo(() => [
-    { label: "Nueva inversión", icon: "add-outline" as const, route: "InvestmentForm" },
-    { label: "Nueva valoración", icon: "calendar-outline" as const, route: "InvestmentValuation" },
-    { label: "Nueva operación", icon: "swap-horizontal-outline" as const, route: "InvestmentOperation" },
-  ], []);
 
   const TABS = [
     { key: "cartera",      label: "Cartera" },
@@ -1230,7 +1223,25 @@ const submitContribution = useCallback(() => {
           showProfile={false}
           showDatePicker={false}
           showBack={!isPinnedModuleTab}
-          rightElement={<AddButton label="Añadir" onPress={() => setFabOpen(true)} />}
+          rightElement={
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <AddButton label="Añadir" onPress={() => navigation.navigate("InvestmentForm")} />
+              <OverflowMenuButton
+                title="Inversiones"
+                accessibilityLabel="Acciones de inversiones"
+                actions={[
+                  {
+                    label: "Nueva valoración",
+                    onPress: () => navigation.navigate("InvestmentValuation"),
+                  },
+                  {
+                    label: "Nueva operación",
+                    onPress: () => navigation.navigate("InvestmentOperation"),
+                  },
+                ]}
+              />
+            </View>
+          }
         />
 
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
@@ -2567,7 +2578,7 @@ const submitContribution = useCallback(() => {
                 </Text>
                 <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8", textAlign: "center" }}>
                   {allOperations.length === 0
-                    ? "Añade una operación desde el botón + Añadir."
+                    ? "Añade una operación desde el menú de tres puntos."
                     : "Prueba con otro filtro para ver más movimientos."}
                 </Text>
               </View>
@@ -2916,85 +2927,7 @@ const submitContribution = useCallback(() => {
         baseAssets={searchedAssets}
       />
 
-      {/* -- Modal de acciones -- */}
-      <Modal visible={fabOpen} transparent animationType="fade" onRequestClose={() => setFabOpen(false)}>
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}
-          activeOpacity={1}
-          onPress={() => setFabOpen(false)}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-            <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 28,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                width: 280,
-                shadowColor: "#000",
-                shadowOpacity: 0.15,
-                shadowRadius: 20,
-                shadowOffset: { width: 0, height: 8 },
-                elevation: 10,
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", letterSpacing: 0.5, textAlign: "center", paddingVertical: 14 }}>
-                NUEVA ACCIÓN
-              </Text>
 
-              {fabActions.map((action, idx) => (
-                <TouchableOpacity
-                  key={action.route || action.label}
-                  activeOpacity={0.85}
-                  disabled={syncingMetadata && !action.route}
-                  onPress={() => {
-                    if ((action as any).onPress) {
-                      (action as any).onPress();
-                      return;
-                    }
-                    setFabOpen(false);
-                    navigation.navigate((action as any).route);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 14,
-                    paddingVertical: 15,
-                    paddingHorizontal: 12,
-                    borderRadius: 18,
-                    borderTopWidth: idx === 0 ? 1 : 0,
-                    borderBottomWidth: 1,
-                    borderColor: "#F1F5F9",
-                    opacity: syncingMetadata && !action.route ? 0.7 : 1,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40, height: 40, borderRadius: 14,
-                      backgroundColor: "#EEF2FF",
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Ionicons name={action.icon} size={18} color={colors.primary} />
-                  </View>
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
-                    {action.label}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: "auto" }} />
-                </TouchableOpacity>
-              ))}
-
-              <TouchableOpacity
-                onPress={() => setFabOpen(false)}
-                activeOpacity={0.7}
-                style={{ alignItems: "center", paddingVertical: 16 }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: "700", color: "#94A3B8" }}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
 
     </SafeAreaView>
   );

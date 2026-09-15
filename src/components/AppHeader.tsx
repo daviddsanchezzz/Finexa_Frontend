@@ -16,6 +16,8 @@ interface Props {
   showProfile?: boolean;
   showBack?: boolean;
   title?: string;
+  titleFontSize?: number;
+  titleNumberOfLines?: number;
   showDatePicker?: boolean;
   rightElement?: React.ReactNode;
 
@@ -31,6 +33,8 @@ export default function AppHeader({
   showBack = false,
   showDatePicker = true,
   title,
+  titleFontSize = 22,
+  titleNumberOfLines = 1,
   rightElement,
   showNotificationsBell = false,
   onOpenNotifications,
@@ -132,11 +136,11 @@ export default function AppHeader({
         {title && (
           <Text
             className="text-[22px] font-bold text-text"
-            numberOfLines={1}
+            numberOfLines={titleNumberOfLines}
             adjustsFontSizeToFit
             minimumFontScale={0.65}
             ellipsizeMode="tail"
-            style={{ flex: 1, flexShrink: 1 }}
+            style={{ flex: 1, flexShrink: 1, fontSize: titleFontSize }}
           >
             {title}
           </Text>

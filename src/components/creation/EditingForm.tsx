@@ -43,7 +43,7 @@ export function EditingActionRow({
       activeOpacity={0.65}
       accessibilityRole="button"
       style={{
-        minHeight: 50,
+        minHeight: 44,
         flexDirection: "row",
         alignItems: "center",
         borderBottomWidth: 1,
@@ -74,7 +74,7 @@ export default function EditingForm({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ minHeight: 58, flexDirection: "row", alignItems: "center", paddingHorizontal: 14 }}>
+      <View style={{ minHeight: 52, flexDirection: "row", alignItems: "center", paddingHorizontal: 14 }}>
         <TouchableOpacity
           onPress={onClose}
           activeOpacity={0.7}
@@ -107,7 +107,7 @@ export default function EditingForm({
           <ScrollView
             ref={scrollRef}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 44 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
