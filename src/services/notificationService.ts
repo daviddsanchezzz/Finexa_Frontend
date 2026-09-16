@@ -139,6 +139,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 
 export interface NotificationPreferences {
   recurringTransactions: boolean;
+  budgetThresholdAlerts: boolean;
 }
 
 export async function fetchNotificationPreferences(): Promise<NotificationPreferences> {

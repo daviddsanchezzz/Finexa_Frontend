@@ -30,7 +30,7 @@ export const MODULES: FinanceModule[] = [
     title: "Presupuestos",
     subtitle: "Limita y controla tus gastos por categoría.",
     emoji: "📊",
-    iconName: "wallet-outline",
+    iconName: "pie-chart-outline",
     routeName: "Budgets",
     accentColor: "#6366F1",
     softBg: "#EEF2FF",

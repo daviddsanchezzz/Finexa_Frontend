@@ -64,6 +64,7 @@ export default function BudgetHistoryCard({ budgetId, categoryId }: { budgetId: 
       ) : <>
         <GroupedBarChart
           height={150}
+          axisLabelWidth={40}
           xLabels={bars.map(bar => periodLabel(bar.from))}
           tooltipLabels={bars.map(bar => new Date(bar.from).toLocaleDateString("es-ES", monthly ? { month: "long", year: "numeric" } : { day: "numeric", month: "short", year: "numeric" }))}
           series={[{ label: "% gastado", color: colors.primary, values: bars.map(bar => bar.percentage) }]}

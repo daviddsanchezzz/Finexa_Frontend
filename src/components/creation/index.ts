@@ -9,6 +9,7 @@ export {
   FormCategoryPicker,
   FormCurrencyPicker,
   FormDateField,
+  FormEmojiField,
   FormMoneyField,
   FormNotesField,
   FormNumberField,
@@ -18,5 +19,6 @@ export {
   FormSegmentedControl,
   FormTextField,
   FormToggle,
+  FormWalletPicker,
 } from "./FormFields";
 export type { FormTextFieldProps } from "./FormFields";

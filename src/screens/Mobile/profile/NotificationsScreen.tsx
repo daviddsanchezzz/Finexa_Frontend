@@ -31,6 +31,8 @@ function iconForType(type: string | null) {
       return { name: "checkmark-circle-outline" as const, bg: "#DCFCE7", color: "#16A34A" };
     case "recurring_transaction":
       return { name: "repeat-outline" as const, bg: "#F3E8FF", color: "#A855F7" };
+    case "budget_threshold":
+      return { name: "pie-chart-outline" as const, bg: "#EEF2FF", color: "#6366F1" };
     case "trip_invite":
       return { name: "airplane-outline" as const, bg: "#DBEAFE", color: "#2563EB" };
     case "trip_invite_accepted":

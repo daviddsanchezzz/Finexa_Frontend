@@ -74,34 +74,14 @@ export default function AccountScreen() {
     setSaving(true);
     try {
       const payload = { name: nextName, avatar: nextAvatar || null };
-
-      let persisted = false;
-      for (const endpoint of ["/users/me", "/auth/me", "/auth/profile"]) {
-        try {
-          await api.patch(endpoint, payload);
-          persisted = true;
-          break;
-        } catch {
-          // Intentamos el siguiente endpoint
-        }
-      }
+      await api.patch("/users/me", payload);
 
       updateUser({ name: nextName, avatar: nextAvatar || undefined });
+      await refreshUser();
 
-      try {
-        await refreshUser();
-      } catch {
-        // Si /auth/me falla, mantenemos al menos actualización local
-      }
-
-      if (!persisted) {
-        Alert.alert(
-          "Guardado local",
-          "Se actualizó en la app, pero el backend no confirmó guardado permanente todavía."
-        );
-      } else {
-        Alert.alert("Perfil actualizado", "Tus cambios se guardaron correctamente.");
-      }
+      Alert.alert("Perfil actualizado", "Tus cambios se guardaron correctamente.");
+    } catch {
+      Alert.alert("Error", "No se pudieron guardar los cambios. Inténtalo de nuevo.");
     } finally {
       setSaving(false);
     }

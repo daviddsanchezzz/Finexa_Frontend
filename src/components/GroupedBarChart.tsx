@@ -26,6 +26,10 @@ interface Props {
   showValues?: boolean;
   minimumMax?: number;
   referenceLine?: { value: number; color: string };
+  // Ancho de la columna de etiquetas del eje Y — el valor por defecto (34px)
+  // vale para importes compactos ("1,2k €") pero se queda corto con
+  // porcentajes de 3 cifras ("150%"), truncándolos.
+  axisLabelWidth?: number;
 }
 
 const TOOLTIP_WIDTH = 172;
@@ -38,7 +42,7 @@ const LABEL_HEIGHT = 24;
 // (con un pequeño golpe háptico en cada cambio de mes) y superpone un
 // tooltip flotante con sus valores exactos — el tooltip nunca desplaza el
 // contenido de alrededor.
-export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100, currentPeriodIndex, formatValue, formatAxisValue = formatEuroInt, showValues = false, minimumMax = 1, referenceLine }: Props) {
+export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100, currentPeriodIndex, formatValue, formatAxisValue = formatEuroInt, showValues = false, minimumMax = 1, referenceLine, axisLabelWidth = 34 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [screenWidth, setScreenWidth] = useState(Dimensions.get("window").width - 80);
   const seriesCount = series.length;
@@ -55,7 +59,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
   const barWidth = seriesCount >= 3 ? 5 : seriesCount === 2 ? 9 : n > 8 ? 12 : 18;
   const groupGap = seriesCount > 1 ? 3 : 0;
 
-  const gridLeft = 42;
+  const gridLeft = axisLabelWidth + 8;
   const colWidth = n > 0 ? (screenWidth - gridLeft) / n : 0;
 
   // Tap y arrastre comparten el mismo cálculo de columna tocada, con un
@@ -131,7 +135,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
         <View style={{ height: showValues ? maxBarHeight : plotHeight, position: "absolute", left: 0, right: 0, top: showValues ? 22 : 0, justifyContent: "space-between" }}>
           {[niceMax, niceMax / 2, 0].map((v, idx) => (
             <View key={idx} style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ width: 34, textAlign: "right", marginRight: 8, fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>
+              <Text style={{ width: axisLabelWidth, textAlign: "right", marginRight: 8, fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }} numberOfLines={1}>
                 {formatAxisValue(v)}
               </Text>
               <View style={{ height: 1, backgroundColor: "#F4F5F7", flex: 1 }} />
@@ -160,7 +164,14 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
                       return (
                         <View key={s.label} style={{ width: barWidth, height: barHeight }}>
                         {showValues && (
-                          <Text style={{ position: "absolute", bottom: barHeight + 5, width: Math.max(barWidth, colWidth - 2), left: (barWidth - Math.max(barWidth, colWidth - 2)) / 2, textAlign: "center", fontSize: 10.5, fontWeight: "700", color: "#475569" }} numberOfLines={1}>
+                          // left/right negativos simétricos en vez de un width
+                          // fijo: el cuadro de texto queda deliberadamente
+                          // sobredimensionado (invisible, sin fondo) así el
+                          // texto nunca se recorta pase lo que pase con
+                          // barWidth/colWidth; textAlign lo centra igualmente.
+                          <Text
+                            style={{ position: "absolute", bottom: barHeight + 5, left: -60, right: -60, textAlign: "center", fontSize: 10.5, fontWeight: "700", color: "#475569" }}
+                          >
                             {formatValue ? formatValue(s.values[i] ?? 0) : formatAxisValue(s.values[i] ?? 0)}
                           </Text>
                         )}

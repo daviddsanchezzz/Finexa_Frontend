@@ -31,6 +31,7 @@ export default function NotificationSettingsScreen(_: any) {
   const [registering, setRegistering] = useState(false);
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     recurringTransactions: false,
+    budgetThresholdAlerts: false,
   });
   const [loadingPrefs, setLoadingPrefs] = useState(true);
   const [savingKey, setSavingKey] = useState<keyof NotificationPreferences | null>(null);
@@ -266,17 +267,29 @@ export default function NotificationSettingsScreen(_: any) {
           {loadingPrefs ? (
             <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
           ) : (
-            <NotificationRow
-              icon="repeat-outline"
-              iconBg="#F3E8FF"
-              iconColor="#A855F7"
-              title="Transacciones recurrentes"
-              description="Aviso cuando el cron ejecuta un pago o ingreso programado"
-              value={preferences.recurringTransactions}
-              saving={savingKey === "recurringTransactions"}
-              onToggle={(v) => handleToggle("recurringTransactions", v)}
-              isLast
-            />
+            <>
+              <NotificationRow
+                icon="repeat-outline"
+                iconBg="#F3E8FF"
+                iconColor="#A855F7"
+                title="Transacciones recurrentes"
+                description="Aviso cuando el cron ejecuta un pago o ingreso programado"
+                value={preferences.recurringTransactions}
+                saving={savingKey === "recurringTransactions"}
+                onToggle={(v) => handleToggle("recurringTransactions", v)}
+              />
+              <NotificationRow
+                icon="pie-chart-outline"
+                iconBg="#EEF2FF"
+                iconColor="#6366F1"
+                title="Avisos de presupuesto"
+                description="Aviso al llegar al 85% de un presupuesto y al superar su límite"
+                value={preferences.budgetThresholdAlerts}
+                saving={savingKey === "budgetThresholdAlerts"}
+                onToggle={(v) => handleToggle("budgetThresholdAlerts", v)}
+                isLast
+              />
+            </>
           )}
         </View>
 

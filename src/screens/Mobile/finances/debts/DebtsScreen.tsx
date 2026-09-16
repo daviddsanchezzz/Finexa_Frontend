@@ -1,22 +1,18 @@
 // src/screens/Debts/DebtsHomeScreen.tsx
 import React, { useState, useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, SafeAreaView, ScrollView } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import api from "../../../../api/api";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
-import { colors } from "../../../../theme/theme";
-import BudgetGoalCard from "../../../../components/BudgetGoalCard";
+import HeroBalanceCard from "../../../../components/HeroBalanceCard";
+import StatsRow from "../../../../components/StatsRow";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
+import DebtListCard, { DebtFrequency } from "../../../../components/DebtListCard";
 import { DebtsScreenSkeleton } from "../../../../components/skeletons/DebtsScreenSkeleton";
+import { useDebtsQuery } from "../../../../hooks/useDebtsQuery";
+import { formatEuro as formatEuroBase } from "../../../../utils/currency";
 
-type DebtType = "loan" | "personal";
+type DebtType = "loan" | "mortgage" | "credit_card" | "personal" | "other";
 type DebtDirection = "i_ow" | "they_owe";
 type DebtStatus = "active" | "paid" | "closed";
 
@@ -26,7 +22,7 @@ interface Debt {
   direction: DebtDirection;
   status: DebtStatus;
   name: string;
-  entity: string;
+  entity?: string | null;
   emoji?: string | null;
   color?: string | null;
   totalAmount: number;
@@ -34,93 +30,105 @@ interface Debt {
   remainingAmount: number;
   interestRate?: number | null;
   monthlyPayment?: number | null;
+  paymentFrequency?: DebtFrequency | null;
   startDate?: string | null;
   nextDueDate?: string | null;
   installmentsPaid?: number | null;
 }
 
+// Normaliza una cuota a su equivalente mensual según su frecuencia, para
+// poder sumar cuotas de distintas periodicidades en un único indicador.
+const MONTHLY_EQUIVALENT_FACTOR: Record<DebtFrequency, number> = {
+  weekly: 52 / 12,
+  monthly: 1,
+  quarterly: 1 / 3,
+  yearly: 1 / 12,
+};
+
 type FilterType = "active" | "paid" | "all";
 
+const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
+
+// Días restantes hasta una fecha (redondeado a días naturales, sin horas).
+function daysUntil(dateStr: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dateStr);
+  due.setHours(0, 0, 0, 0);
+  return Math.round((due.getTime() - today.getTime()) / 86400000);
+}
+
 export default function DebtsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
-  const [debts, setDebts] = useState<Debt[]>([]);
-  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FilterType>("active");
 
-  const fetchDebts = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/debts");
-      setDebts(res.data || []);
-    } catch (err) {
-      console.error("❌ Error al obtener deudas:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const debtsQuery = useDebtsQuery();
+  const debts: Debt[] = debtsQuery.data ?? [];
+  const loading = debtsQuery.isLoading;
 
   useFocusEffect(
     useCallback(() => {
-      fetchDebts();
+      debtsQuery.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
 
+  // Nos centramos en lo que YO debo — "me deben" queda fuera por ahora.
+  const iOweDebts = useMemo(() => debts.filter((d) => d.direction === "i_ow"), [debts]);
+  const iOweActiveDebts = useMemo(() => iOweDebts.filter((d) => d.status === "active"), [iOweDebts]);
+
   const filteredDebts = useMemo(() => {
-    if (filter === "all") return debts;
-    if (filter === "active") return debts.filter((d) => d.status === "active");
-    if (filter === "paid") return debts.filter((d) => d.status === "paid");
-    return debts;
-  }, [debts, filter]);
+    if (filter === "all") return iOweDebts;
+    return iOweDebts.filter((d) => d.status === filter);
+  }, [iOweDebts, filter]);
 
-  // Resumen de deuda
   const summary = useMemo(() => {
-    const activeDebts = debts.filter((d) => d.status === "active");
+    const totalRemaining = iOweActiveDebts.reduce((s, d) => s + (d.remainingAmount || 0), 0);
+    const totalOriginal = iOweActiveDebts.reduce((s, d) => s + (d.totalAmount || 0), 0);
+    const totalPaid = iOweActiveDebts.reduce((s, d) => {
+      const paid = d.payed != null ? d.payed : Math.max(0, Math.min(d.totalAmount, d.totalAmount - d.remainingAmount));
+      return s + paid;
+    }, 0);
+    const monthlyEquivalentPayment = iOweActiveDebts.reduce((s, d) => {
+      if (d.monthlyPayment == null || !d.paymentFrequency) return s;
+      return s + d.monthlyPayment * MONTHLY_EQUIVALENT_FACTOR[d.paymentFrequency];
+    }, 0);
+    const pctPaid = totalOriginal > 0 ? Math.min(100, (totalPaid / totalOriginal) * 100) : 0;
 
-    const totalDebt = activeDebts.reduce(
-      (sum, d) => sum + (d.totalAmount || 0),
-      0
-    );
-    const totalRemaining = activeDebts.reduce(
-      (sum, d) => sum + (d.remainingAmount || 0),
-      0
-    );
-    const totalMonthlyPayment = activeDebts.reduce(
-      (sum, d) => sum + (d.monthlyPayment || 0),
-      0
-    );
-
-    const iOwe = activeDebts
-      .filter((d) => d.direction === "i_ow")
-      .reduce((sum, d) => sum + (d.remainingAmount || 0), 0);
-
-    const theyOwe = activeDebts
-      .filter((d) => d.direction === "they_owe")
-      .reduce((sum, d) => sum + (d.remainingAmount || 0), 0);
+    const nextDueDates = iOweActiveDebts
+      .map((d) => d.nextDueDate)
+      .filter((d): d is string => !!d)
+      .map((d) => new Date(d))
+      .filter((d) => !isNaN(d.getTime()));
+    const nextDue = nextDueDates.length > 0 ? nextDueDates.reduce((min, d) => (d < min ? d : min)) : null;
 
     return {
-      totalDebt,
       totalRemaining,
-      totalMonthlyPayment,
-      iOwe,
-      theyOwe,
-      activeCount: activeDebts.length,
-      totalCount: debts.length,
+      monthlyEquivalentPayment,
+      pctPaid,
+      activeCount: iOweActiveDebts.length,
+      nextDue,
     };
-  }, [debts]);
+  }, [iOweActiveDebts]);
 
-  const formatCurrency = (value: number) => {
-    if (isNaN(value)) return "0 €";
-    return `${value.toFixed(0)} €`;
-  };
+  const nextPaymentLabel = useMemo(() => {
+    if (!summary.nextDue) return "—";
+    const diff = daysUntil(summary.nextDue.toISOString());
+    if (diff < 0) return "Vencido";
+    if (diff === 0) return "Hoy";
+    if (diff === 1) return "Mañana";
+    return `${diff} días`;
+  }, [summary.nextDue]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* HEADER */}
-      <View className="px-5 pb-3">
+      <View className="px-5 pb-2">
         <AppHeader
           title="Deudas"
           showProfile={false}
           showDatePicker={false}
           showBack={!isPinnedModuleTab}
+          rightElement={<AddButton label="Añadir" onPress={() => navigation.navigate("DebtForm")} />}
         />
       </View>
 
@@ -129,184 +137,96 @@ export default function DebtsHomeScreen({ navigation, isPinnedModuleTab = false 
           <DebtsScreenSkeleton />
         </ScrollView>
       ) : (
-        <>
-        {/* RESUMEN SUPERIOR */}
-        <View className="px-5 mb-3">
-          {/* TARJETA RESUMEN (ESTILO OSCURO) */}
-          <View
-              className="rounded-3xl p-4 mb-2"
-              style={{
-              backgroundColor: colors.primary,
-              }}
-          >
-            <View className="flex-row justify-between items-center mb-3">
-              <View>
-                <Text className="text-xs text-gray-300 mb-1">
-                  Deuda total activa
-                </Text>
-                <Text className="text-2xl font-extrabold text-white" style={{ fontVariant: ["tabular-nums"] }}>
-                  {formatCurrency(summary.totalDebt)}
-                </Text>
-              </View>
-              <View className="items-end">
-                <Text className="text-xs text-gray-300 mb-1">
-                  Pendiente por pagar
-                </Text>
-                  <Text className="text-lg font-semibold text-white">
-                  {formatCurrency(summary.totalRemaining)}
-                  </Text>
-              </View>
-            </View>
-
-            <View className="flex-row justify-between mt-1">
-              <View>
-                <Text className="text-[11px] text-gray-300">
-                  Cuota mensual estimada
-                </Text>
-                <Text className="text-sm font-medium text-gray-100">
-                  {formatCurrency(summary.totalMonthlyPayment)}
-                </Text>
-              </View>
-              <View className="items-end">
-                <Text className="text-[11px] text-gray-300">
-                  Deudas activas
-                </Text>
-                <Text className="text-sm font-medium text-gray-100">
-                  {summary.activeCount} / {summary.totalCount}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* TARJETA SECUNDARIA: YO DEBO / ME DEBEN */}
-          <View className="flex-row mb-2">
-            <View
-              className="flex-1 mr-1.5 rounded-2xl p-3"
-              style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
-            >
-              <Text className="text-[11px] text-gray-500 mb-0.5">Yo debo</Text>
-              <Text className="text-sm font-semibold text-red-600">
-                {formatCurrency(summary.iOwe)}
-              </Text>
-            </View>
-            <View
-              className="flex-1 ml-1.5 rounded-2xl p-3"
-              style={{ backgroundColor: "white", borderWidth: 1, borderColor: "#E5E7EB" }}
-            >
-              <Text className="text-[11px] text-gray-500 mb-0.5">Me deben</Text>
-              <Text className="text-sm font-semibold text-green-600">
-                {formatCurrency(summary.theyOwe)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* FILTROS */}
-        <View className="px-5 mb-2">
-          <View className="flex-row rounded-2xl bg-slate-50 p-1">
-            {[
-              { key: "active" as FilterType, label: "Activas" },
-              { key: "paid" as FilterType, label: "Pagadas" },
-              { key: "all" as FilterType, label: "Todas" },
-            ].map((f) => {
-              const active = filter === f.key;
-              return (
-                <TouchableOpacity
-                  key={f.key}
-                  onPress={() => setFilter(f.key)}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 14,
-                    backgroundColor: active ? "white" : "transparent",
-                    borderWidth: active ? 1 : 0,
-                    borderColor: active ? colors.primary : "transparent",
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <Text
+        <View className="flex-1">
+          {/* HERO + STATS */}
+          <View style={{ marginBottom: 16, paddingHorizontal: 20 }}>
+            <HeroBalanceCard
+              label="Deuda activa"
+              value={formatEuro(summary.totalRemaining)}
+              style={{ marginBottom: 8 }}
+              footer={
+                <View style={{ width: "100%", marginTop: 8, alignItems: "center" }}>
+                  <View
                     style={{
-                      textAlign: "center",
-                      fontSize: 12,
-                      fontWeight: "600",
-                      color: active ? colors.primary : "#6B7280",
+                      width: "100%",
+                      height: 6,
+                      borderRadius: 999,
+                      backgroundColor: "rgba(255,255,255,0.25)",
+                      overflow: "hidden",
                     }}
                   >
-                    {f.label}
+                    <View
+                      style={{
+                        height: "100%",
+                        width: `${summary.pctPaid}%`,
+                        borderRadius: 999,
+                        backgroundColor: "white",
+                      }}
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }} numberOfLines={1}>
+                    {summary.pctPaid.toFixed(0)}% pagado
                   </Text>
-                </TouchableOpacity>
-              );
-            })}
+                </View>
+              }
+            />
+
+            <StatsRow
+              items={[
+                { key: "cuota", label: "CUOTAS/MES", value: formatEuro(summary.monthlyEquivalentPayment) },
+                { key: "activas", label: "DEUDAS ACTIVAS", value: String(summary.activeCount) },
+                { key: "proximo", label: "PRÓXIMO PAGO", value: nextPaymentLabel },
+              ]}
+            />
           </View>
+
+          {/* FILTROS */}
+          <SegmentedTabs<FilterType>
+            options={[
+              { key: "active", label: "Activas" },
+              { key: "paid", label: "Pagadas" },
+              { key: "all", label: "Todas" },
+            ]}
+            value={filter}
+            onChange={setFilter}
+            variant="underline"
+          />
+
+          {/* LISTA DE DEUDAS */}
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20, paddingTop: 14 }}
+          >
+            {filteredDebts.length === 0 ? (
+              <Text className="text-center text-gray-400 mb-4 text-sm">
+                No hay deudas en este estado.
+              </Text>
+            ) : (
+              filteredDebts.map((d) => {
+                const total = d.totalAmount;
+                const paid =
+                  d.payed != null ? d.payed : Math.max(0, Math.min(total, total - d.remainingAmount));
+
+                return (
+                  <DebtListCard
+                    key={d.id}
+                    title={d.name}
+                    icon={d.emoji}
+                    color={d.color}
+                    totalAmount={total}
+                    paidAmount={paid}
+                    remainingAmount={d.remainingAmount}
+                    monthlyPayment={d.monthlyPayment}
+                    paymentFrequency={d.paymentFrequency}
+                    nextDueDate={d.status === "active" ? d.nextDueDate : null}
+                    onPress={() => navigation.navigate("DebtDetail", { debtId: d.id })}
+                  />
+                );
+              })
+            )}
+          </ScrollView>
         </View>
-
-        {/* LISTA DE DEUDAS */}
-        <ScrollView
-          className="flex-1 px-5"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-        {filteredDebts.length === 0 ? (
-          <Text className="text-center text-gray-400 mb-4 text-sm">
-            No hay deudas en este estado.
-          </Text>
-        ) : (
-          filteredDebts.map((d) => {
-            const total = d.totalAmount;
-            const paid =
-              d.payed != null
-                ? d.payed
-                : Math.max(0, Math.min(total, total - d.remainingAmount));
-
-            const statusLabel =
-              d.status === "active"
-                ? "Activa"
-                : d.status === "paid"
-                ? "Pagada"
-                : "Cerrada";
-
-            const statusColor =
-              d.status === "active"
-                ? "#F97316"
-                : d.status === "paid"
-                ? "#22C55E"
-                : "#6B7280";
-
-            const directionLabel =
-              d.direction === "i_ow" ? "Yo debo" : "Me deben";
-
-            const directionColor =
-              d.direction === "i_ow" ? colors.danger : colors.success;
-
-            return (
-              <View key={d.id} className="mb-2">
-                <BudgetGoalCard
-                  title={d.name}
-                  icon={d.emoji || "💸"}
-                  total={total}
-                  current={paid}
-                  color={d.color || colors.primary}
-                  onPress={() =>
-                    navigation.navigate("DebtDetail", {
-                      debtId: d.id,
-                    })
-                  }
-                />
-
-              </View>
-            );
-          })
-        )}
-
-        {/* BOTÓN AÑADIR DEUDA */}
-        <AddButton
-          label="Añadir deuda"
-          onPress={() => navigation.navigate("DebtForm")}
-          style={{ justifyContent: "center", alignSelf: "stretch" }}
-        />
-
-      </ScrollView>
-        </>
       )}
     </SafeAreaView>
   );

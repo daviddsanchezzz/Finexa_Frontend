@@ -32,8 +32,8 @@ export default function BudgetPaceCard({ from, to, limit, transactions }: {
   const neutral = Math.abs(pace.difference) < 0.005 || pace.future;
   const tint = neutral ? "#F1F5F9" : over ? "#FEF2F2" : "#F0FDF4";
   const color = neutral ? colors.textSecondary : over ? colors.danger : colors.success;
-  const message = pace.future ? "El periodo todavía no ha comenzado." : neutral ? "El gasto está en el ritmo previsto." :
-    `${pace.ended ? "Terminaste" : "Vas"} ${money(Math.abs(pace.difference))} ${over ? "por encima" : "por debajo"} ${pace.ended ? "del presupuesto" : "del ritmo previsto"}.`;
+  const message = pace.future ? "El periodo todavía no ha comenzado." : neutral ? "El gasto está en el ritmo ideal." :
+    `${pace.ended ? "Terminaste" : "Vas"} ${money(Math.abs(pace.difference))} ${over ? "por encima" : "por debajo"} ${pace.ended ? "del presupuesto" : "del ritmo ideal"}.`;
 
   return (
     <View style={{ backgroundColor: "white", borderRadius: 18, borderWidth: 1, borderColor: "#E2E8F0", padding: 14 }}>
@@ -47,7 +47,7 @@ export default function BudgetPaceCard({ from, to, limit, transactions }: {
           <Text style={{ fontSize: 21, fontWeight: "900", color: colors.ink, fontVariant: ["tabular-nums"] }}>{money(pace.spent)}</Text>
         </View>
         <View style={{ flex: 1, alignItems: "flex-end", borderLeftWidth: 1, borderLeftColor: "#EEF2F7", paddingLeft: 12 }}>
-          <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8", marginBottom: 3 }}>{!pace.ended && !pace.future ? "PREVISTO HASTA HOY" : "PREVISTO"}</Text>
+          <Text style={{ fontSize: 11, fontWeight: "600", color: "#94A3B8", marginBottom: 3 }}>RITMO IDEAL</Text>
           <Text style={{ fontSize: 18, fontWeight: "700", color: "#64748B", fontVariant: ["tabular-nums"] }}>{money(pace.expected)}</Text>
         </View>
       </View>
@@ -79,13 +79,13 @@ export default function BudgetPaceCard({ from, to, limit, transactions }: {
       </View>
       <View style={{ flexDirection: "row", justifyContent: "center", gap: 16, marginTop: 8, marginBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><View style={{ width: 16, height: 3, borderRadius: 2, backgroundColor: colors.primary }} /><Text style={{ fontSize: 11.5, fontWeight: "600", color: "#64748B" }}>Gasto real</Text></View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><Svg width={20} height={4}><Line x1={0} y1={2} x2={20} y2={2} stroke="#94A3B8" strokeWidth={2} strokeDasharray="4 3" /></Svg><Text style={{ fontSize: 11.5, fontWeight: "600", color: "#64748B" }}>Ritmo previsto</Text></View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><Svg width={20} height={4}><Line x1={0} y1={2} x2={20} y2={2} stroke="#94A3B8" strokeWidth={2} strokeDasharray="4 3" /></Svg><Text style={{ fontSize: 11.5, fontWeight: "600", color: "#64748B" }}>Ritmo ideal</Text></View>
       </View>
       <View style={{ backgroundColor: tint, borderRadius: 10, padding: 10, flexDirection: "row", gap: 8, alignItems: "center" }}>
         <Ionicons name={over ? "alert-circle-outline" : "information-circle-outline"} size={16} color={color} />
         <Text style={{ flex: 1, fontSize: 11.5, lineHeight: 16, fontWeight: "600", color }}>{message}</Text>
       </View>
-      <Text style={{ fontSize: 10.5, lineHeight: 15, color: "#94A3B8", marginTop: 8 }}>El ritmo previsto reparte el presupuesto por igual entre los días del periodo.</Text>
+      <Text style={{ fontSize: 10.5, lineHeight: 15, color: "#94A3B8", marginTop: 8 }}>El ritmo ideal reparte el presupuesto por igual entre los días del periodo.</Text>
     </View>
   );
 }

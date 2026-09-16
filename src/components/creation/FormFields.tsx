@@ -148,6 +148,41 @@ export function FormNotesField(props: FormTextFieldProps) {
   return <FormTextField {...props} multiline numberOfLines={4} />;
 }
 
+// Campo de emoji: una casilla donde el usuario escribe/pega directamente un
+// emoji desde el teclado nativo del sistema (mismo patrón ya usado en
+// EditWalletModal/EditCategoryModal, ahora disponible para los módulos que
+// usan el shell de creación).
+export function FormEmojiField({
+  label = "Emoji",
+  value,
+  onChange,
+}: {
+  label?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <View>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={(text) => onChange(text.slice(0, 2))}
+        maxLength={2}
+        style={{
+          width: 52,
+          height: 52,
+          borderWidth: 1,
+          borderColor: "#E2E8F0",
+          borderRadius: radii.input,
+          backgroundColor: "white",
+          textAlign: "center",
+          fontSize: 24,
+        }}
+      />
+    </View>
+  );
+}
+
 export function FormSelect({
   label,
   value,
@@ -473,6 +508,75 @@ export function FormCategoryPicker({
         )}
       </View>
     </Modal>
+  );
+}
+
+// Selector de UNA sola cartera (p.ej. cuenta asociada a una deuda) — a
+// diferencia de FormAccountPicker (multi-selección + "Todas"), aquí siempre
+// hay exactamente una cartera elegida o ninguna.
+export function FormWalletPicker({
+  label = "Cuenta",
+  wallets,
+  selectedId,
+  onChange,
+  required = false,
+}: {
+  label?: string;
+  wallets: { id: number; name: string; emoji?: string | null }[];
+  selectedId: number | null;
+  onChange: (id: number) => void;
+  required?: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  const displayValue = wallets.find((w) => w.id === selectedId)?.name || "Selecciona una cuenta";
+
+  return (
+    <View>
+      <FormSelect label={label} value={displayValue} required={required} onPress={() => setVisible(true)} />
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
+        <Pressable onPress={() => setVisible(false)} style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.38)" }} />
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            maxHeight: "72%",
+            backgroundColor: "white",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: 24,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
+            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>Cuentas</Text>
+            <TouchableOpacity onPress={() => setVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={22} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {wallets.map((w) => {
+              const active = w.id === selectedId;
+              return (
+                <TouchableOpacity
+                  key={w.id}
+                  onPress={() => {
+                    onChange(w.id);
+                    setVisible(false);
+                  }}
+                  activeOpacity={0.72}
+                  style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
+                >
+                  <WalletIcon emoji={w.emoji} size={18} />
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>{w.name}</Text>
+                  {active ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 

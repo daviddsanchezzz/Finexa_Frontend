@@ -15,7 +15,7 @@ import BudgetPaceCard from "../../../../components/BudgetPaceCard";
 import BudgetHistoryCard from "../../../../components/BudgetHistoryCard";
 import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import { formatEuro as formatEuroBase } from "../../../../utils/currency";
-import { budgetProgressColor } from "../../../../utils/budgetProgressColor";
+import { budgetProgressColor, budgetSpentTextColor } from "../../../../utils/budgetProgressColor";
 
 const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
 
@@ -79,11 +79,16 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
 
   const [tab, setTab] = useState<"movements" | "pace" | "history">("movements");
   const scopedCategoryId = !isGoalMode && categoryId != null ? Number(categoryId) : null;
-  const refDate = new Date(date || Date.now());
-  refDate.setHours(0, 0, 0, 0);
-  const referenceDate = refDate.toISOString();
+  // referenceDate es lo que se envía al backend: NUNCA se trunca a medianoche
+  // local, porque convertida a UTC puede caer en el día/mes anterior según el
+  // huso horario del usuario, haciendo que el backend calcule el rango
+  // equivocado (p.ej. agosto en vez de septiembre) y muestre 0 gastado.
+  // cacheDate sí se trunca, mismo día = misma query, pero solo se usa para la key.
+  const referenceDate = new Date(date || Date.now()).toISOString();
+  const cacheDate = new Date(date || Date.now());
+  cacheDate.setHours(0, 0, 0, 0);
   const detail = useBudgetData<{ progress: BudgetProgress | null; transactions: any[] }>(
-    ["detail", isGoalMode ? "goal" : "budget", budgetId ?? goalId, referenceDate, scopedCategoryId, range?.from ?? dateFrom, range?.to ?? dateTo, walletId, type, categoryId],
+    ["detail", isGoalMode ? "goal" : "budget", budgetId ?? goalId, cacheDate.toISOString(), scopedCategoryId, range?.from ?? dateFrom, range?.to ?? dateTo, walletId, type, categoryId],
     async (signal) => {
       if (isGoalMode) {
         const params: any = { dateFrom: range?.from || dateFrom, dateTo: range?.to || dateTo, type: type || "expense" };
@@ -210,7 +215,7 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
               <StatsRow
                 items={[
                   { key: "limite", label: "LÍMITE", value: formatEuro(limitValue) },
-                  { key: "gastado", label: "GASTADO", value: formatEuro(spentValue), color: colors.danger },
+                  { key: "gastado", label: "GASTADO", value: formatEuro(spentValue), color: budgetSpentTextColor(rawProgress) },
                 ]}
               />
             </View>

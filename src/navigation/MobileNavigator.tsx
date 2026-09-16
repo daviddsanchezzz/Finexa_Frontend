@@ -23,6 +23,7 @@ export type RootStackParamList = {
   BudgetTransactions: undefined;
   DebtDetail: undefined;
   DebtForm: undefined;
+  DebtEdit: undefined;
   Debts: undefined;
   Budgets: undefined;
   Goals: undefined;
@@ -186,6 +187,13 @@ export default function MobileNavigator() {
             name="DebtForm"
             getComponent={() =>
               require("../screens/Mobile/finances/debts/DebtFormScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="DebtEdit"
+            getComponent={() =>
+              require("../screens/Mobile/finances/debts/DebtEditScreen").default
             }
           />
 

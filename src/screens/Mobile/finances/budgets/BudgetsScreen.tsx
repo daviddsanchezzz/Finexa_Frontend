@@ -19,8 +19,7 @@ import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
 import { formatEuro as formatEuroBase } from "../../../../utils/currency";
 import { BudgetsScreenSkeleton } from "../../../../components/skeletons/BudgetsScreenSkeleton";
-import { checkBudgetAlerts } from "../../../../utils/budgetAlerts";
-import { budgetProgressColor } from "../../../../utils/budgetProgressColor";
+import { budgetProgressColor, budgetSpentTextColor } from "../../../../utils/budgetProgressColor";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -259,45 +258,20 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
   const [dateModalVisible, setDateModalVisible] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
+  // periodStart solo identifica la caché (mismo mes = misma query); el valor
+  // real que se envía al backend es refDate, NUNCA la medianoche exacta del
+  // periodo: convertida a UTC puede caer en el día/mes anterior según el huso
+  // horario del usuario, y el backend calculará el rango equivocado (p.ej.
+  // agosto en vez de septiembre), mostrando 0 gastado. La pantalla de detalle
+  // ya usa refDate y por eso nunca tiene este problema.
   const periodStart = computePeriodRange(periodType, refDate).from.toISOString();
   const overview = useBudgetData<OverviewResponse>(["overview", periodType, periodStart], async (signal) => {
-    const res = await api.get<OverviewResponse>("/budgets/overview", { params: { period: periodType, date: periodStart }, signal });
+    const res = await api.get<OverviewResponse>("/budgets/overview", { params: { period: periodType, date: refDate.toISOString() }, signal });
     return res.data;
   });
   const loading = overview.isPending;
   const budgets = overview.data?.budgets ?? [];
   const summary = overview.data?.summary ?? { totalLimit: 0, totalSpent: 0, remaining: 0, count: 0 };
-
-  React.useEffect(() => {
-    if (!overview.data) return;
-    const budgetList = overview.data.budgets;
-        // checkBudgetAlerts espera "unidades" con {limit,spent,progress}; un budget
-        // puede aportar varias (su límite global + cada sublímite por categoría).
-        const alertUnits = budgetList.flatMap((b) => {
-          const units: { id: string; name?: string | null; limit: number; spent: number; progress: number; category?: any }[] = [];
-          if (b.effectiveTotalLimit != null) {
-            units.push({
-              id: `${b.id}`,
-              name: b.name || "Presupuesto",
-              limit: b.effectiveTotalLimit,
-              spent: b.globalSpent || 0,
-              progress: b.globalProgress || 0,
-            });
-          }
-          for (const cl of b.categoryLimits) {
-            units.push({
-              id: `${b.id}-cat-${cl.categoryId}`,
-              name: cl.category?.name,
-              limit: cl.limit,
-              spent: cl.spent,
-              progress: cl.progress,
-              category: cl.category,
-            });
-          }
-          return units;
-        });
-        checkBudgetAlerts(alertUnits).catch(() => {});
-  }, [overview.data]);
 
   const handleSelectDate = useCallback((range: { from: string; to: string; label: string; type: string }) => {
     const mappedPeriod = DATE_TYPE_TO_PERIOD[range.type];
@@ -349,7 +323,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
           <BudgetsScreenSkeleton />
         </ScrollView>
       ) : (
-        <View className="flex-1 px-3">
+        <View className="flex-1 px-5">
           <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 6 }}>
             <AddButton label="Añadir" onPress={() => navigation.navigate("BudgetCreate", { periodType })} />
           </View>
@@ -389,7 +363,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
             <StatsRow
               items={[
                 { key: "presupuesto", label: "PRESUPUESTO", value: formatEuro(summary.totalLimit) },
-                { key: "gastado", label: "GASTADO", value: formatEuro(summary.totalSpent), color: colors.danger },
+                { key: "gastado", label: "GASTADO", value: formatEuro(summary.totalSpent), color: budgetSpentTextColor(overallProgress / 100) },
               ]}
             />
           </View>
@@ -464,6 +438,20 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
                       progressLabel="gastado"
                     />
                   </View>
+                );
+              }
+
+              // Info discreta de cuánto del límite global está asignado a
+              // categorías — NO es "disponible" (eso es lo que aún puedes
+              // gastar); es la parte del global sin un sublímite específico.
+              // Solo tiene sentido si hay límite global Y categorías.
+              if (b.effectiveTotalLimit != null && b.categoryLimits.length > 0) {
+                const assigned = b.categoryLimits.reduce((s, cl) => s + cl.limit, 0);
+                const unassigned = Math.max(b.effectiveTotalLimit - assigned, 0);
+                rows.push(
+                  <Text key={`${b.id}-unassigned`} style={{ fontSize: 11.5, fontWeight: "600", color: "#94A3B8", paddingHorizontal: 4, marginTop: -4, marginBottom: 8 }}>
+                    {formatEuro(assigned)} asignados a categorías · {formatEuro(unassigned)} sin asignar
+                  </Text>
                 );
               }
 
