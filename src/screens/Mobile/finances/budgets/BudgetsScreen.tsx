@@ -310,6 +310,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
       <View className="px-5" style={{ marginBottom: -8 }}>
         <AppHeader
           title="Presupuestos"
+          titleFontSize={18}
           showProfile={false}
           showBack={!isPinnedModuleTab}
           onOpenDateModal={() => setDateModalVisible(true)}

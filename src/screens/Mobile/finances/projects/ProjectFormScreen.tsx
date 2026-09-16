@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../../../api/api';
 import { appAlert } from '../../../../utils/appAlert';
 import { colors } from '../../../../theme/theme';
+import { markTransactionsDirty } from '../../../../utils/transactionsInvalidation';
 import {
   CreationFlow,
   CreationStep,
@@ -86,6 +87,7 @@ export default function ProjectFormScreen({ navigation, route }: any) {
       } else {
         await api.post('/projects', payload);
       }
+      markTransactionsDirty();
       navigation.goBack();
     } catch (error) {
       console.error('Error guardando proyecto:', error);
@@ -107,6 +109,7 @@ export default function ProjectFormScreen({ navigation, route }: any) {
           try {
             setDeleting(true);
             await api.delete(`/projects/${editProject.id}`);
+            markTransactionsDirty();
             navigation.goBack();
           } catch (error) {
             console.error('Error eliminando proyecto:', error);
@@ -125,7 +128,6 @@ export default function ProjectFormScreen({ navigation, route }: any) {
         label="Nombre del proyecto"
         value={name}
         onChangeText={setName}
-        placeholder="Ej. SaaS para restaurantes"
         icon="briefcase-outline"
         required
         autoCapitalize="sentences"
@@ -134,7 +136,6 @@ export default function ProjectFormScreen({ navigation, route }: any) {
         label="Tipo"
         value={type}
         onChangeText={setType}
-        placeholder="SaaS, evento, reforma..."
         icon="bookmark-outline"
       />
 
@@ -180,8 +181,8 @@ export default function ProjectFormScreen({ navigation, route }: any) {
         </Text>
       )}
 
-      <FormNotesField label="Descripción" value={description} onChangeText={setDescription} placeholder="Descripción breve" />
-      <FormNotesField label="Notas" value={notes} onChangeText={setNotes} placeholder="Observaciones internas" />
+      <FormTextField label="Descripción" value={description} onChangeText={setDescription} icon="document-text-outline" />
+      <FormNotesField label="Notas" value={notes} onChangeText={setNotes} />
     </>
   );
 

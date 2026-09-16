@@ -23,6 +23,7 @@ import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDat
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
 import { formatEuro } from '../../../../utils/currency';
+import { markTransactionsDirty } from '../../../../utils/transactionsInvalidation';
 
 type DetailTab = 'info' | 'movements' | 'cash';
 
@@ -193,25 +194,6 @@ function defaultProfitForm(): ProfitForm {
   };
 }
 
-function SectionCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <View
-      className="rounded-3xl p-4 mb-3"
-      style={{
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        backgroundColor: 'white',
-      }}
-    >
-      <View className="flex-row justify-between items-center mb-2">
-        <Text className="text-[14px] font-semibold text-slate-900">{title}</Text>
-        {action}
-      </View>
-      {children}
-    </View>
-  );
-}
-
 export default function ProjectDetailScreen({ route, navigation }: any) {
   const projectId: number | undefined = route?.params?.projectId;
 
@@ -323,6 +305,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
       setTxSelectorOpen(false);
       setSearch('');
+      markTransactionsDirty();
       fetchProject();
     } catch (error) {
       console.error('Error actualizando transacciones asociadas:', error);
@@ -339,6 +322,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       await api.patch(`/projects/${project.id}/detach-transactions`, {
         transactionIds: [txId],
       });
+      markTransactionsDirty();
       fetchProject();
     } catch (error) {
       console.error('Error desasociando transacción:', error);
@@ -417,6 +401,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       setManualModalOpen(false);
       setEditingEntry(null);
       setManualForm(defaultManualForm());
+      markTransactionsDirty();
       fetchProject();
     } catch (error) {
       console.error('Error guardando movimiento manual:', error);
@@ -437,6 +422,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         onPress: async () => {
           try {
             await api.delete(`/projects/${project.id}/manual-entries/${entry.id}`);
+            markTransactionsDirty();
             fetchProject();
           } catch (error) {
             console.error('Error eliminando movimiento manual:', error);
@@ -591,6 +577,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       await api.post(`/projects/${project.id}/distribute-profit`, payload);
       setProfitModalOpen(false);
       setProfitForm(defaultProfitForm());
+      markTransactionsDirty();
       fetchProject();
     } catch (error) {
       console.error('Error guardando reparto de beneficios:', error);
@@ -684,6 +671,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           try {
             setDeletingProject(true);
             await api.delete(`/projects/${project.id}`);
+            markTransactionsDirty();
             navigation.goBack();
           } catch (error) {
             console.error('Error eliminando proyecto:', error);
@@ -838,197 +826,250 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
       >
-        {tab === 'info' && (
-          <SectionCard title="Detalles">
-            <View className="flex-row items-center mb-2">
-              <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: statusTone.bg }}>
-                <Text className="text-[11px] font-semibold" style={{ color: statusTone.text }}>
-                  {STATUS_LABELS[project.status]}
-                </Text>
+        {tab === 'info' && (() => {
+          const infoRows: { label: string; value: string }[] = [
+            ...(project.type ? [{ label: 'Tipo', value: project.type }] : []),
+            { label: 'Fecha de inicio', value: formatDate(project.startDate) },
+            ...(project.endDate ? [{ label: 'Fecha de fin', value: formatDate(project.endDate) }] : []),
+          ];
+
+          return (
+            <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
+              <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: infoRows.length ? 5 : 18 }}>
+                <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: statusTone.bg, alignSelf: 'flex-start' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: statusTone.text }}>{STATUS_LABELS[project.status]}</Text>
+                </View>
+
+                {!!project.description && (
+                  <Text style={{ fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 10 }}>{project.description}</Text>
+                )}
+
+                {infoRows.length ? (
+                  <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', marginTop: 14 }}>
+                    {infoRows.map((row, index) => (
+                      <View
+                        key={row.label}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          minHeight: 43,
+                          borderBottomWidth: index < infoRows.length - 1 ? 1 : 0,
+                          borderBottomColor: '#E8EDF4',
+                          gap: 16,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{row.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
               </View>
+
+              {project.notes ? (
+                <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', paddingHorizontal: 14, paddingVertical: 14 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 8 }}>NOTAS</Text>
+                  <Text style={{ fontSize: 13, lineHeight: 19, color: '#0F172A' }}>{project.notes}</Text>
+                </View>
+              ) : null}
             </View>
-            {!!project.description && (
-              <Text className="text-[12px] text-slate-600 mb-1">{project.description}</Text>
-            )}
-            {!!project.type && (
-              <Text className="text-[12px] text-slate-600 mb-1">Tipo: {project.type}</Text>
-            )}
-            <Text className="text-[12px] text-slate-600 mb-1">Inicio: {formatDate(project.startDate)}</Text>
-            <Text className="text-[12px] text-slate-600 mb-1">Fin: {formatDate(project.endDate || null)}</Text>
-            {!!project.notes && (
-              <Text className="text-[12px] text-slate-600 mt-1">Notas: {project.notes}</Text>
-            )}
-          </SectionCard>
-        )}
+          );
+        })()}
 
         {tab === 'movements' && (
-        <SectionCard
-          title=""
-          action={
-            <IconCircleButton
-              icon="add"
-              onPress={() => setAddMovementMenuOpen(true)}
-              size={30}
-              iconSize={16}
-              color="white"
-              backgroundColor={colors.primary}
-            />
-          }
-        >
-          {combinedMovements.length === 0 ? (
-            <Text className="text-[12px] text-slate-400">No hay movimientos todavía.</Text>
-          ) : (
-            combinedMovements.map((item) => {
-              const isManual = item.source === 'manual';
-              const isProfitDistribution = isManual && item.entryKind === 'profit_distribution';
-              const amountColor = isProfitDistribution
-                ? '#2563EB'
-                : item.type === 'income'
-                  ? '#16A34A'
-                  : '#DC2626';
-              const iconBg = isProfitDistribution
-                ? '#EFF6FF'
-                : item.type === 'income'
-                  ? '#ECFDF3'
-                  : '#FEF2F2';
-              const iconName = isProfitDistribution
-                ? 'wallet-outline'
-                : item.type === 'income'
-                  ? 'add-outline'
-                  : 'remove-outline';
-              const movementTag = isProfitDistribution
-                ? ` · Retirada${item.partnerName ? ` (${item.partnerName})` : ''}`
-                : isManual
-                  ? ' · Manual'
-                  : ' · Transacción';
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>MOVIMIENTOS</Text>
+              <IconCircleButton
+                icon="add"
+                onPress={() => setAddMovementMenuOpen(true)}
+                size={28}
+                iconSize={15}
+                color="white"
+                backgroundColor={colors.primary}
+              />
+            </View>
 
-              return (
-                <View key={`${item.source}-${item.id}`} className="py-2.5 border-b border-slate-100">
-                  <View className="flex-row items-center">
-                    <View
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 10,
-                        backgroundColor: iconBg,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 10,
-                      }}
-                    >
-                      <Ionicons
-                        name={iconName}
-                        size={16}
-                        color={amountColor}
-                      />
-                    </View>
+            {combinedMovements.length === 0 ? (
+              <Text style={{ fontSize: 12.5, color: '#94A3B8', textAlign: 'center', marginTop: 24 }}>
+                No hay movimientos todavía.
+              </Text>
+            ) : (
+              combinedMovements.map((item) => {
+                const isManual = item.source === 'manual';
+                const isProfitDistribution = isManual && item.entryKind === 'profit_distribution';
+                const amountColor = isProfitDistribution
+                  ? '#2563EB'
+                  : item.type === 'income'
+                    ? '#16A34A'
+                    : '#DC2626';
+                const iconBg = isProfitDistribution
+                  ? '#EFF6FF'
+                  : item.type === 'income'
+                    ? '#ECFDF3'
+                    : '#FEF2F2';
+                const iconName = isProfitDistribution
+                  ? 'wallet-outline'
+                  : item.type === 'income'
+                    ? 'add-outline'
+                    : 'remove-outline';
+                const movementTag = isProfitDistribution
+                  ? ` · Retirada${item.partnerName ? ` (${item.partnerName})` : ''}`
+                  : isManual
+                    ? ' · Manual'
+                    : ' · Transacción';
 
-                    <View className="flex-1 pr-2">
-                      <Text className="text-[13px] text-slate-900" numberOfLines={1}>
-                        {item.title}
+                return (
+                  <View
+                    key={`${item.source}-${item.id}`}
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: 16,
+                      paddingHorizontal: 12,
+                      paddingVertical: 11,
+                      marginBottom: 8,
+                      shadowColor: '#000',
+                      shadowOpacity: 0.04,
+                      shadowRadius: 6,
+                      elevation: 1,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 10,
+                          backgroundColor: iconBg,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 10,
+                        }}
+                      >
+                        <Ionicons name={iconName} size={15} color={amountColor} />
+                      </View>
+
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>
+                          {item.title}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }} numberOfLines={1}>
+                          {formatDate(item.date)}
+                          {item.category ? ` · ${item.category}` : ''}
+                          {movementTag}
+                        </Text>
+                      </View>
+
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: amountColor, marginRight: 8 }}>
+                        {formatCurrency(item.amount)}
                       </Text>
-                      <Text className="text-[11px] text-slate-500">
-                        {formatDate(item.date)}
-                        {item.category ? ` · ${item.category}` : ''}
-                        {movementTag}
-                      </Text>
-                    </View>
 
-                    <Text className="text-[12px] font-semibold mr-2" style={{ color: amountColor }}>
-                      {formatCurrency(item.amount)}
-                    </Text>
-
-                    {isManual ? (
-                      <>
-                        {!isProfitDistribution && (
+                      {isManual ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {!isProfitDistribution && (
+                            <TouchableOpacity
+                              onPress={() => {
+                                const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
+                                if (manualEntry) openManualEdit(manualEntry);
+                              }}
+                            >
+                              <Ionicons name="create-outline" size={16} color="#94A3B8" />
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
                             onPress={() => {
                               const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
-                              if (manualEntry) openManualEdit(manualEntry);
+                              if (manualEntry) removeManualEntry(manualEntry);
                             }}
-                            style={{ marginRight: 8 }}
                           >
-                            <Ionicons name="create-outline" size={17} color="#64748B" />
+                            <Ionicons name="trash-outline" size={16} color={colors.danger} />
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          onPress={() => {
-                            const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
-                            if (manualEntry) removeManualEntry(manualEntry);
-                          }}
-                        >
-                          <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                        </View>
+                      ) : (
+                        <TouchableOpacity onPress={() => detachTransaction(item.id)}>
+                          <Ionicons name="close-circle-outline" size={17} color="#CBD5E1" />
                         </TouchableOpacity>
-                      </>
-                    ) : (
-                      <TouchableOpacity onPress={() => detachTransaction(item.id)}>
-                        <Ionicons name="close-circle-outline" size={18} color="#94A3B8" />
-                      </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {!!item.description && (
+                      <Text style={{ fontSize: 11, color: '#94A3B8', marginLeft: 42, marginTop: 4 }}>{item.description}</Text>
                     )}
                   </View>
-
-                  {!!item.description && (
-                    <Text className="text-[11px] text-slate-500 ml-11 mt-1">{item.description}</Text>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </SectionCard>
+                );
+              })
+            )}
+          </View>
         )}
 
         {tab === 'cash' && (
-        <SectionCard
-          title=""
-          action={
-            <TouchableOpacity onPress={openPartnersEditor}>
-              <Text className="text-[12px] font-semibold text-primary">Configurar socios</Text>
-            </TouchableOpacity>
-          }
-        >
-          <View className="flex-row mb-3">
-            <View className="flex-1">
-              <Text className="text-[10px] text-slate-500">Retiradas</Text>
-              <Text className="text-[13px] font-semibold text-rose-600 mt-0.5">
-                {formatCurrency(project.financials.withdrawalsTotal || 0)}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-[10px] text-slate-500">Balance operativo</Text>
-              <Text className="text-[13px] font-semibold text-indigo-700 mt-0.5">
-                {formatCurrency(project.financials.operatingBalance || 0)}
-              </Text>
-            </View>
-            <View className="flex-1 items-end">
-              <Text className="text-[10px] text-slate-500">Caja</Text>
-              <Text className="text-[13px] font-semibold mt-0.5" style={{ color: balanceColor }}>
-                {formatCurrency(project.financials.cashInBox || project.financials.balance || 0)}
-              </Text>
-            </View>
-          </View>
-          <View className="mb-3 rounded-xl px-3 py-2" style={{ backgroundColor: '#F8FAFC' }}>
-            <Text className="text-[10px] text-slate-500">Mis retiradas acumuladas</Text>
-            <Text className="text-[13px] font-semibold text-slate-900 mt-0.5">{formatCurrency(myWithdrawals)}</Text>
-          </View>
-
-          {!project.partners?.length ? (
-            <Text className="text-[12px] text-slate-400">
-              Define los socios y porcentajes para activar el reparto de beneficios.
-            </Text>
-          ) : (
-            project.partners.map((partner) => (
-              <View key={partner.id} className="py-2 border-b border-slate-100 flex-row items-center">
-                <View className="flex-1 pr-2">
-                  <Text className="text-[13px] text-slate-900">{partner.name}</Text>
-                  <Text className="text-[11px] text-slate-500">
-                    {partner.isMe ? 'Mi usuario' : 'Socio'}
-                  </Text>
-                </View>
-                <Text className="text-[13px] font-semibold text-slate-700">{partner.percentage}%</Text>
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
+            <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 17 }}>RESUMEN DE CAJA</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+                {[
+                  { label: 'Retiradas', value: formatCurrency(project.financials.withdrawalsTotal || 0), color: colors.danger },
+                  { label: 'Balance operativo', value: formatCurrency(project.financials.operatingBalance || 0), color: '#4338CA' },
+                  { label: 'Caja', value: formatCurrency(project.financials.cashInBox || project.financials.balance || 0), color: balanceColor },
+                ].map((metric, index) => (
+                  <View
+                    key={metric.label}
+                    style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8, borderLeftWidth: index > 0 ? 1 : 0, borderLeftColor: '#E8EDF4' }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: metric.color, textAlign: 'center' }} numberOfLines={1}>
+                      {metric.value}
+                    </Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '600', color: '#94A3B8', textAlign: 'center', marginTop: 4 }}>{metric.label}</Text>
+                  </View>
+                ))}
               </View>
-            ))
-          )}
-        </SectionCard>
+            </View>
+
+            <View style={{ height: 1, backgroundColor: '#E8EDF4', marginHorizontal: 14 }} />
+
+            <View style={{ paddingHorizontal: 14, paddingTop: 17, paddingBottom: project.partners?.length ? 5 : 18 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>SOCIOS</Text>
+                <TouchableOpacity onPress={openPartnersEditor}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Configurar</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ marginTop: 12, borderRadius: 12, backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 10 }}>
+                <Text style={{ fontSize: 10.5, color: '#94A3B8', fontWeight: '600' }}>Mis retiradas acumuladas</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', marginTop: 2 }}>{formatCurrency(myWithdrawals)}</Text>
+              </View>
+
+              {!project.partners?.length ? (
+                <Text style={{ fontSize: 12.5, color: '#94A3B8', marginTop: 12 }}>
+                  Define los socios y porcentajes para activar el reparto de beneficios.
+                </Text>
+              ) : (
+                <View style={{ marginTop: 6 }}>
+                  {project.partners.map((partner, index) => (
+                    <View
+                      key={partner.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        minHeight: 43,
+                        borderBottomWidth: index < project.partners.length - 1 ? 1 : 0,
+                        borderBottomColor: '#E8EDF4',
+                      }}
+                    >
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#0F172A' }}>{partner.name}</Text>
+                        <Text style={{ fontSize: 11, color: '#94A3B8' }}>{partner.isMe ? 'Mi usuario' : 'Socio'}</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{partner.percentage}%</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
         )}
 
       </ScrollView>

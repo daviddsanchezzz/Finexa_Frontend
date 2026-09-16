@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
@@ -15,6 +16,7 @@ import HeroBalanceCard from '../../../../components/HeroBalanceCard';
 import StatsRow from '../../../../components/StatsRow';
 import SegmentedTabs from '../../../../components/SegmentedTabs';
 import { colors } from '../../../../theme/theme';
+import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from '../../../../utils/transactionsInvalidation';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
 type ProjectFilter = 'all' | 'active' | 'idea';
@@ -64,6 +66,12 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [filter, setFilter] = useState<ProjectFilter>('all');
+  const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
+
+  useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
+
+  const hasFetched = useRef(false);
+  const lastFetchedVersion = useRef<number>(-1);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -80,8 +88,12 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
 
   useFocusEffect(
     useCallback(() => {
+      if (hasFetched.current && lastFetchedVersion.current === invalidationVersion) return;
+      hasFetched.current = true;
+      lastFetchedVersion.current = invalidationVersion;
       fetchProjects();
-    }, [fetchProjects]),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [invalidationVersion]),
   );
 
   const totals = useMemo(() => {
@@ -115,7 +127,7 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
 
       <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
         <HeroBalanceCard
-          label="RENTABILIDAD GLOBAL"
+          label="Rentabilidad global"
           value={formatCurrency(totals.balance)}
           style={{ marginBottom: 8 }}
         />
@@ -152,16 +164,11 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
             style={{ marginTop: 40 }}
           />
         ) : filteredProjects.length === 0 ? (
-          <View
-            className="rounded-2xl p-4"
-            style={{ borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: 'white' }}
-          >
-            <Text className="text-center text-gray-400 text-sm">
-              {projects.length === 0
-                ? 'Aún no tienes proyectos. Crea uno para empezar a medir su rentabilidad.'
-                : 'No hay proyectos en este estado.'}
-            </Text>
-          </View>
+          <Text className="text-center text-gray-400 mb-4 text-sm">
+            {projects.length === 0
+              ? 'Aún no tienes proyectos. Crea uno para empezar a medir su rentabilidad.'
+              : 'No hay proyectos en este estado.'}
+          </Text>
         ) : (
           filteredProjects.map((project) => {
             const balance = Number(project.financials?.balance || 0);
@@ -186,28 +193,13 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <View
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 9,
-                      backgroundColor: badgeColors.bg,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 9,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: badgeColors.text }}>
-                      {project.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
                   <Text
-                    style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: '#0F172A' }}
+                    style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' }}
                     numberOfLines={1}
                   >
                     {project.name}
                   </Text>
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: balanceColor, marginLeft: 8 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: balanceColor, marginLeft: 8 }}>
                     {formatCurrency(balance)}
                   </Text>
                 </View>
@@ -218,9 +210,20 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                       {STATUS_LABELS[project.status]}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 11.5, fontWeight: '600', color: '#6B7280' }}>
-                    +{formatCurrency(project.financials?.totalIncome || 0)} · -{formatCurrency(project.financials?.totalExpense || 0)}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <Ionicons name="arrow-up" size={11} color={colors.success} />
+                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.success }}>
+                        {formatCurrency(project.financials?.totalIncome || 0)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <Ionicons name="arrow-down" size={11} color={colors.danger} />
+                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.danger }}>
+                        {formatCurrency(project.financials?.totalExpense || 0)}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </TouchableOpacity>
             );
