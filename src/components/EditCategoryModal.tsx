@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   Dimensions,
   ScrollView,
   Alert,
@@ -14,8 +13,14 @@ import WheelColorPicker from "react-native-wheel-color-picker";
 import { colors } from "../theme/theme";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
+import ModalHeader from "./ModalHeader";
+import { FormTextField, FormSegmentedControl } from "./creation";
 
 const screenHeight = Dimensions.get("window").height;
+
+// Mismo estilo que la etiqueta de FormTextField ("Nombre", "Emoji"...) para
+// que "Información básica" y "Color" se vean idénticos.
+const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: "#64748B", marginBottom: 5 };
 
 interface EditCategoryModalProps {
   visible: boolean;
@@ -217,6 +222,14 @@ export default function EditCategoryModal({
   const typeLabel =
     editingItem?.isSub ? "Subcategoría" : type === "expense" ? "Gasto" : "Ingreso";
 
+  const title = editingItem?.id
+    ? editingItem.isSub
+      ? "Editar subcategoría"
+      : "Editar categoría"
+    : editingItem?.isSub
+    ? "Nueva subcategoría"
+    : "Nueva categoría";
+
   return (
     <Modal
       isVisible={visible}
@@ -228,216 +241,146 @@ export default function EditCategoryModal({
       style={{ justifyContent: "flex-end", margin: 0 }}
     >
       <View
-        className="bg-white rounded-t-3xl px-5 pt-4 pb-2"
         style={{
-          minHeight: screenHeight * 0.6,
+          backgroundColor: "white",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 8,
+          maxHeight: screenHeight * 0.85,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 5,
         }}
       >
-        {/* Header */}
-        <View className="flex-row justify-between items-center mb-3">
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text className="text-[14px] text-gray-500 font-medium">
-              Cancelar
-            </Text>
-          </TouchableOpacity>
+        <ModalHeader
+          title={title}
+          onClose={onClose}
+          closeLabel="Cancelar"
+          rightLabel={editingItem?.id ? "Actualizar" : "Guardar"}
+          onRightPress={handleSave}
+          rightLoading={loading}
+        />
 
-          <Text className="text-[16px] font-semibold text-text">
-            {editingItem?.id
-              ? editingItem.isSub
-                ? "Editar subcategoría"
-                : "Editar categoría"
-              : editingItem?.isSub
-              ? "Nueva subcategoría"
-              : "Nueva categoría"}
-          </Text>
-
-          <TouchableOpacity
-            onPress={handleSave}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text
-                className="text-[14px] font-semibold"
-                style={{ color: colors.primary }}
-              >
-                {editingItem?.id ? "Actualizar" : "Guardar"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Contenido */}
         <ScrollView
           showsVerticalScrollIndicator={false}
+          style={{ marginTop: 14, flexShrink: 1 }}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          {/* PREVIEW CARD */}
-          <View className="mb-6">
-            <View
-              className="rounded-3xl px-4 py-4 flex-row items-center shadow-md shadow-black/5"
-              style={{ backgroundColor: color }}
-            >
-              <View className="w-12 h-12 rounded-2xl bg-white/15 items-center justify-center mr-3">
-                <Text className="text-[28px]">{emoji || "💸"}</Text>
-              </View>
-
-              <View className="flex-1">
-                <Text
-                  className="text-white text-[14px] font-semibold"
-                  numberOfLines={1}
-                >
-                  {name ||
-                    (editingItem?.isSub
-                      ? "Nueva subcategoría"
-                      : "Nueva categoría")}
-                </Text>
-                <Text className="text-white/80 text-[11px] mt-1">
-                  {typeLabel}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* INFO BÁSICA */}
-          <View className="mb-5">
-            <Text className="text-[13px] text-gray-400 mb-2">
-              Información básica
-            </Text>
-
-            <Text className="text-[11px] text-gray-500 mb-1">Nombre</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder={
-                editingItem?.isSub
-                  ? "Nombre de la subcategoría"
-                  : "Nombre de la categoría"
-              }
-              placeholderTextColor="#9CA3AF"
-              className="w-full bg-gray-50 rounded-xl px-3 py-2 text-[15px] text-text border border-gray-100"
-            />
-
-            <Text className="text-[11px] text-gray-500 mb-1 mt-3">
-              Emoji (opcional)
-            </Text>
-            <View className="flex-row items-center">
-              <TextInput
-                value={emoji}
-                onChangeText={setEmoji}
-                maxLength={8}
-                className="border border-slate-200 rounded-xl px-3 py-2 w-16 text-center mr-2 text-[18px] bg-gray-50"
-              />
-              <Text className="text-[11px] text-gray-500 flex-1">
-                Se mostrará en listas, tarjetas y gráficos.
-              </Text>
-            </View>
-          </View>
-
-          {/* TIPO */}
-          {!editingItem?.isSub && (
-            <View className="mb-5">
-              <Text className="text-[13px] text-gray-400 mb-2">
-                Tipo de categoría
-              </Text>
-              <View className="flex-row bg-gray-100 rounded-full p-1">
-                <TouchableOpacity
-                  onPress={() => setType("expense")}
-                  activeOpacity={0.8}
-                  className={`flex-1 rounded-full py-1.5 items-center ${
-                    type === "expense" ? "bg-white" : ""
-                  }`}
-                >
-                  <Text
-                    className={`text-[14px] font-medium ${
-                      type === "expense" ? "text-text" : "text-gray-500"
-                    }`}
-                  >
-                    Gastos
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setType("income")}
-                  activeOpacity={0.8}
-                  className={`flex-1 rounded-full py-1.5 items-center ${
-                    type === "income" ? "bg-white" : ""
-                  }`}
-                >
-                  <Text
-                    className={`text-[14px] font-medium ${
-                      type === "income" ? "text-text" : "text-gray-500"
-                    }`}
-                  >
-                    Ingresos
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* SELECTOR DE COLOR AVANZADO */}
-          <View className="mb-4">
-            <Text className="text-[13px] text-gray-400 mb-2">Color</Text>
-
-            <View className="flex-row items-center mb-2">
-              <View
-                style={{
-                  backgroundColor: color,
-                  width: 34,
-                  height: 34,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  marginRight: 10,
-                }}
-              />
-              <TouchableOpacity
-                onPress={() => {
-                  setTempColor(color);
-                  setShowColorPicker(true);
-                }}
-                className="bg-gray-100 px-3 py-1.5 rounded-full"
-                activeOpacity={0.8}
-              >
-                <Text className="text-[13px] font-medium text-text">
-                  Elegir color
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text className="text-[10px] text-gray-400">
-              Puedes escoger cualquier color con el selector avanzado.
-            </Text>
-          </View>
-        </ScrollView>
-
-        {/* Botón ELIMINAR */}
-        {editingItem?.id && (
-          <TouchableOpacity
-            onPress={handleDelete}
-            activeOpacity={0.8}
-            disabled={loading}
-            className="mt-1 py-3 items-center"
+          {/* Preview */}
+          <View
             style={{
-              borderRadius: 14,
-              backgroundColor: "#FEE2E2",
+              backgroundColor: color,
+              borderRadius: 20,
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              flexDirection: "row",
+              alignItems: "center",
               marginBottom: 20,
             }}
           >
-            <Text
-              className="text-[14px] font-semibold"
-              style={{ color: "#DC2626" }}
+            <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+              <Text style={{ fontSize: 28 }}>{emoji || "💸"}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "white", fontSize: 14, fontWeight: "700" }} numberOfLines={1}>
+                {name || (editingItem?.isSub ? "Nueva subcategoría" : "Nueva categoría")}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, marginTop: 2 }}>
+                {typeLabel}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ gap: 18 }}>
+            {!editingItem?.isSub && (
+              <FormSegmentedControl<"expense" | "income">
+                label="Tipo de categoría"
+                value={type}
+                options={[
+                  { value: "expense", label: "Gastos" },
+                  { value: "income", label: "Ingresos" },
+                ]}
+                onChange={setType}
+              />
+            )}
+
+            <FormTextField
+              label={editingItem?.isSub ? "Nombre de la subcategoría" : "Nombre de la categoría"}
+              required
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="sentences"
+            />
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ width: 72 }}>
+                <FormTextField
+                  label="Emoji"
+                  value={emoji}
+                  onChangeText={setEmoji}
+                  maxLength={8}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={sectionLabelStyle}>Color</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View
+                    style={{
+                      backgroundColor: color,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                    }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setTempColor(color);
+                      setShowColorPicker(true);
+                    }}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1,
+                      height: 44,
+                      paddingHorizontal: 16,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.ink }}>Elegir color</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {editingItem?.id && (
+            <TouchableOpacity
+              onPress={handleDelete}
+              activeOpacity={0.8}
+              disabled={loading}
+              style={{
+                marginTop: 24,
+                paddingVertical: 12,
+                alignItems: "center",
+                borderRadius: 12,
+                backgroundColor: "#FEE2E2",
+              }}
             >
-              Eliminar {editingItem.isSub ? "subcategoría" : "categoría"}
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#DC2626" }}>
+                Eliminar {editingItem.isSub ? "subcategoría" : "categoría"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
       </View>
 
       {/* SUB-MODAL COLOR PICKER */}
@@ -456,10 +399,10 @@ export default function EditCategoryModal({
             height: screenHeight * 0.6,
           }}
         >
-          <Text className="text-[15px] font-semibold text-text mb-2">
+          <Text style={{ fontSize: 15, fontWeight: "700", color: colors.ink, marginBottom: 4 }}>
             Elige un color
           </Text>
-          <Text className="text-[11px] text-gray-500 mb-4">
+          <Text style={{ fontSize: 11, color: "#94A3B8", marginBottom: 16 }}>
             Arrastra por la rueda de color y ajusta la luminosidad.
           </Text>
 
@@ -474,12 +417,12 @@ export default function EditCategoryModal({
             />
           </View>
 
-          <View className="flex-row justify-end mt-3">
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 12 }}>
             <TouchableOpacity
               onPress={() => setShowColorPicker(false)}
-              className="px-3 py-2 mr-2"
+              style={{ paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}
             >
-              <Text className="text-[13px] text-gray-500">Cancelar</Text>
+              <Text style={{ fontSize: 13, color: "#94A3B8" }}>Cancelar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -487,10 +430,9 @@ export default function EditCategoryModal({
                 setColor(tempColor);
                 setShowColorPicker(false);
               }}
-              className="px-4 py-2 rounded-full"
-              style={{ backgroundColor: colors.primary }}
+              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.primary }}
             >
-              <Text className="text-[13px] text-white font-semibold">
+              <Text style={{ fontSize: 13, color: "white", fontWeight: "700" }}>
                 Usar este color
               </Text>
             </TouchableOpacity>

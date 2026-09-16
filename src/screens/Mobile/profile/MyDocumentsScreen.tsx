@@ -33,7 +33,9 @@ const SECTIONS: Section[] = [
   { title: "Conducir", types: ["driving_license", "driving_license_international"] },
 ];
 
-export default function MyDocumentsScreen(_: any) {
+// Contenido reutilizable: lo usa esta pantalla (standalone) y también la
+// pestaña "Documentos" de Cuenta, sin el SafeAreaView/AppHeader propios.
+export function MyDocumentsContent() {
   const { documentsByType, isLoading, createDocument, updateDocument, deleteDocument, isSaving, isDeleting } = useUserDocuments();
   const [activeModal, setActiveModal] = useState<{ type: UserDocumentType; doc: UserDocument | null } | null>(null);
 
@@ -55,67 +57,61 @@ export default function MyDocumentsScreen(_: any) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pb-2">
-        <AppHeader title="Mis documentos" showProfile={false} showDatePicker={false} showBack={true} />
-      </View>
+    <>
+      <Text style={{ fontSize: 13, color: "#6B7280", lineHeight: 19, marginBottom: 20 }}>
+        Guarda aquí tus documentos personales — pasaporte, DNI, vacunas, carnet de conducir, tarjeta sanitaria...
+        para reutilizarlos en cualquier viaje y que podamos avisarte si van a caducar.
+      </Text>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontSize: 13, color: "#6B7280", lineHeight: 19, marginBottom: 20 }}>
-          Guarda aquí tus documentos personales — pasaporte, DNI, vacunas, carnet de conducir, tarjeta sanitaria...
-          para reutilizarlos en cualquier viaje y que podamos avisarte si van a caducar.
-        </Text>
+      {isLoading ? (
+        <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
+      ) : (
+        SECTIONS.map((section) => (
+          <View key={section.title} style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+              {section.title}
+            </Text>
+            <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+              {section.types.map((type, idx) => {
+                const isMulti = MULTI_INSTANCE_PERSONAL_TYPES.includes(type);
+                const docs = documentsByType.get(type) ?? [];
+                const isLastType = idx === section.types.length - 1;
 
-        {isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
-        ) : (
-          SECTIONS.map((section) => (
-            <View key={section.title} style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
-                {section.title}
-              </Text>
-              <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-                {section.types.map((type, idx) => {
-                  const isMulti = MULTI_INSTANCE_PERSONAL_TYPES.includes(type);
-                  const docs = documentsByType.get(type) ?? [];
-                  const isLastType = idx === section.types.length - 1;
-
-                  if (!isMulti) {
-                    return (
-                      <DocumentRow
-                        key={type}
-                        type={type}
-                        doc={docs[0] ?? null}
-                        isLast={isLastType}
-                        onPress={() => setActiveModal({ type, doc: docs[0] ?? null })}
-                      />
-                    );
-                  }
-
+                if (!isMulti) {
                   return (
-                    <View key={type}>
-                      {docs.map((doc, i) => (
-                        <DocumentRow
-                          key={doc.id}
-                          type={type}
-                          doc={doc}
-                          isLast={false}
-                          onPress={() => setActiveModal({ type, doc })}
-                        />
-                      ))}
-                      <AddAnotherRow
-                        type={type}
-                        isLast={isLastType}
-                        onPress={() => setActiveModal({ type, doc: null })}
-                      />
-                    </View>
+                    <DocumentRow
+                      key={type}
+                      type={type}
+                      doc={docs[0] ?? null}
+                      isLast={isLastType}
+                      onPress={() => setActiveModal({ type, doc: docs[0] ?? null })}
+                    />
                   );
-                })}
-              </View>
+                }
+
+                return (
+                  <View key={type}>
+                    {docs.map((doc, i) => (
+                      <DocumentRow
+                        key={doc.id}
+                        type={type}
+                        doc={doc}
+                        isLast={false}
+                        onPress={() => setActiveModal({ type, doc })}
+                      />
+                    ))}
+                    <AddAnotherRow
+                      type={type}
+                      isLast={isLastType}
+                      onPress={() => setActiveModal({ type, doc: null })}
+                    />
+                  </View>
+                );
+              })}
             </View>
-          ))
-        )}
-      </ScrollView>
+          </View>
+        ))
+      )}
 
       {activeModal && (
         <DocumentFormModal
@@ -128,6 +124,20 @@ export default function MyDocumentsScreen(_: any) {
           onDelete={activeModal.doc ? handleDelete : undefined}
         />
       )}
+    </>
+  );
+}
+
+export default function MyDocumentsScreen(_: any) {
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="px-5 pb-2">
+        <AppHeader title="Mis documentos" showProfile={false} showDatePicker={false} showBack={true} />
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
+        <MyDocumentsContent />
+      </ScrollView>
     </SafeAreaView>
   );
 }

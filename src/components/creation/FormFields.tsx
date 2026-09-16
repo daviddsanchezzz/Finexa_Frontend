@@ -4,6 +4,7 @@ import {
   Keyboard,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   TextInputProps,
@@ -13,6 +14,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../../theme/theme";
 import { COMMON_CURRENCIES } from "../../utils/exchangeRate";
+import AppSwitch from "../AppSwitch";
+import WalletIcon from "../WalletIcon";
+import CrossPlatformDateTimePicker from "../CrossPlatformDateTimePicker";
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -345,5 +349,212 @@ export function FormOptionCard({
         {label}
       </Text>
     </TouchableOpacity>
+  );
+}
+
+export function FormToggle({
+  label,
+  description,
+  value,
+  onValueChange,
+  disabled = false,
+}: {
+  label: string;
+  description?: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.ink }}>{label}</Text>
+        {description ? (
+          <Text style={{ fontSize: 12, lineHeight: 17, color: "#94A3B8", marginTop: 4 }}>{description}</Text>
+        ) : null}
+      </View>
+      <AppSwitch accessibilityLabel={label} value={value} onValueChange={onValueChange} disabled={disabled} />
+    </View>
+  );
+}
+
+export function FormDateField({
+  label,
+  value,
+  onChange,
+  required = false,
+}: {
+  label?: string;
+  value: Date;
+  onChange: (date: Date) => void;
+  required?: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  const displayValue = value.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+
+  return (
+    <View>
+      <FormSelect label={label} value={displayValue} required={required} onPress={() => setVisible(true)} />
+      <CrossPlatformDateTimePicker
+        isVisible={visible}
+        mode="date"
+        date={value}
+        onConfirm={(date) => {
+          setVisible(false);
+          onChange(date);
+        }}
+        onCancel={() => setVisible(false)}
+      />
+    </View>
+  );
+}
+
+// Bottom sheet compartido para elegir 1 categoría de una lista, excluyendo las
+// que el llamador ya tiene seleccionadas (p.ej. sublímites de un presupuesto).
+export function FormCategoryPicker({
+  visible,
+  title = "Selecciona una categoría",
+  categories,
+  excludeIds = [],
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  title?: string;
+  categories: { id: number; name: string; emoji?: string | null }[];
+  excludeIds?: number[];
+  onSelect: (category: { id: number; name: string; emoji?: string | null }) => void;
+  onClose: () => void;
+}) {
+  const available = categories.filter((c) => !excludeIds.includes(c.id));
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.38)" }} />
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          maxHeight: "72%",
+          backgroundColor: "white",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          paddingBottom: 24,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>{title}</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <Ionicons name="close" size={22} color="#64748B" />
+          </TouchableOpacity>
+        </View>
+        {available.length === 0 ? (
+          <Text style={{ padding: 24, fontSize: 13, color: "#94A3B8", textAlign: "center" }}>
+            No quedan categorías disponibles.
+          </Text>
+        ) : (
+          <FlatList
+            data={available}
+            keyExtractor={(category) => String(category.id)}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => onSelect(item)}
+                activeOpacity={0.72}
+                style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
+              >
+                <Text style={{ fontSize: 20 }}>{item.emoji || "💸"}</Text>
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+// Selector de cuenta(s)/cartera(s): multi-selección + opción "Todas". Un array
+// de seleccionados vacío significa "todas las carteras".
+export function FormAccountPicker({
+  label = "Cartera",
+  wallets,
+  selectedIds,
+  onChange,
+}: {
+  label?: string;
+  wallets: { id: number; name: string; emoji?: string | null }[];
+  selectedIds: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+
+  const displayValue =
+    selectedIds.length === 0
+      ? "Todas las carteras"
+      : selectedIds.length === 1
+      ? wallets.find((w) => w.id === selectedIds[0])?.name || "1 cartera"
+      : `${selectedIds.length} carteras`;
+
+  const toggle = (id: number) => {
+    if (selectedIds.includes(id)) onChange(selectedIds.filter((x) => x !== id));
+    else onChange([...selectedIds, id]);
+  };
+
+  return (
+    <View>
+      <FormSelect label={label} value={displayValue} onPress={() => setVisible(true)} />
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
+        <Pressable onPress={() => setVisible(false)} style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.38)" }} />
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            maxHeight: "72%",
+            backgroundColor: "white",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: 24,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
+            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>Carteras</Text>
+            <TouchableOpacity onPress={() => setVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={22} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <TouchableOpacity
+              onPress={() => onChange([])}
+              activeOpacity={0.72}
+              style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
+            >
+              <Ionicons name="apps-outline" size={18} color={colors.ink} />
+              <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>Todas las carteras</Text>
+              {selectedIds.length === 0 ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
+            </TouchableOpacity>
+            {wallets.map((w) => {
+              const active = selectedIds.includes(w.id);
+              return (
+                <TouchableOpacity
+                  key={w.id}
+                  onPress={() => toggle(w.id)}
+                  activeOpacity={0.72}
+                  style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
+                >
+                  <WalletIcon emoji={w.emoji} size={18} />
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>{w.name}</Text>
+                  {active ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }

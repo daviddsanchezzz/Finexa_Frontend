@@ -254,37 +254,45 @@ export default function ReconcileAccountsScreen({ navigation }: any) {
           })}
 
           {/* Totales */}
-          <View className="mx-4 mt-2 bg-white rounded-2xl border border-[#E5E7EB] px-4 py-3">
-            <Text className="text-[15px] font-semibold text-text mb-3">
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 4,
+              backgroundColor: "white",
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "700", color: "#0F172A", marginBottom: 8 }}>
               Resumen total
             </Text>
 
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-[13px] text-gray-500">Total teórico</Text>
-              <Text className="text-[15px] font-semibold text-gray-800">
-                {formatEuro(totalTeorico)}
-              </Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 12, color: "#94A3B8" }}>Teórico {formatEuro(totalTeorico)}</Text>
+              <Text style={{ fontSize: 12, color: "#94A3B8" }}>Real {formatEuro(totalReal)}</Text>
             </View>
 
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-[13px] text-gray-500">Total real</Text>
-              <Text className="text-[15px] font-semibold text-gray-800">
-                {formatEuro(totalReal)}
-              </Text>
-            </View>
-
-            <View className="flex-row justify-between mt-1 pt-2 border-t border-gray-200">
-              <Text className="text-[13px] text-gray-500">
-                Diferencia total
-              </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 8,
+                paddingTop: 8,
+                borderTopWidth: 1,
+                borderTopColor: "#F1F5F9",
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B" }}>Diferencia total</Text>
               <Text
-                className={`text-[16px] font-bold ${
-                  totalDiff === 0
-                    ? "text-gray-800"
-                    : totalDiff > 0
-                    ? "text-green-600"
-                    : "text-red-500"
-                }`}
+                style={{
+                  fontSize: 15,
+                  fontWeight: "800",
+                  color: totalDiff === 0 ? "#0F172A" : totalDiff > 0 ? "#16A34A" : "#DC2626",
+                }}
               >
                 {totalDiff > 0 ? "+" : totalDiff < 0 ? "−" : ""}
                 {formatEuro(Math.abs(totalDiff))}

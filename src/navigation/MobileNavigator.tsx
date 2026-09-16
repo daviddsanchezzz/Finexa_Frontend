@@ -19,6 +19,7 @@ export type RootStackParamList = {
   Transfers: undefined;
   EditMonth: undefined;
   BudgetCreate: undefined;
+  BudgetEdit: undefined;
   BudgetTransactions: undefined;
   DebtDetail: undefined;
   DebtForm: undefined;
@@ -157,6 +158,13 @@ export default function MobileNavigator() {
             name="BudgetCreate"
             getComponent={() =>
               require("../screens/Mobile/finances/budgets/BudgetCreateScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="BudgetEdit"
+            getComponent={() =>
+              require("../screens/Mobile/finances/budgets/BudgetEditScreen").default
             }
           />
 

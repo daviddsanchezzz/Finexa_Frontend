@@ -1,26 +1,38 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRoute } from "@react-navigation/native";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
-
-import { colors } from "../../../../theme/theme";
-import ModalHeader from "../../../../components/ModalHeader";
+import { useRoute } from "@react-navigation/native";
 import api from "../../../../api/api";
-import { ViewStyle, TextStyle } from "react-native";
+import { colors } from "../../../../theme/theme";
+import { formatEuro } from "../../../../utils/currency";
+import {
+  CreationFlow,
+  CreationStep,
+  FormAccountPicker,
+  FormCategoryPicker,
+  FormDateField,
+  FormError,
+  FormMoneyField,
+  FormSegmentedControl,
+  FormTextField,
+  FormToggle,
+} from "../../../../components/creation";
 
 type BudgetPeriod = "daily" | "weekly" | "monthly" | "yearly";
+
+const PERIOD_OPTIONS: { label: string; value: BudgetPeriod }[] = [
+  { label: "Diario", value: "daily" },
+  { label: "Semanal", value: "weekly" },
+  { label: "Mensual", value: "monthly" },
+  { label: "Anual", value: "yearly" },
+];
+
+const PERIOD_NOUN: Record<BudgetPeriod, string> = {
+  daily: "día",
+  weekly: "semana",
+  monthly: "mes",
+  yearly: "año",
+};
 
 const normalizeStartOfDay = (d: Date) => {
   const x = new Date(d);
@@ -28,398 +40,237 @@ const normalizeStartOfDay = (d: Date) => {
   return x;
 };
 
+const toNumberOrNull = (text: string): number | null => {
+  if (!text || !text.trim()) return null;
+  const n = Number(text.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+};
+
+const money = (n: number) => `${formatEuro(n)} €`;
+
+interface CategoryLimitDraft {
+  categoryId: number;
+  name: string;
+  emoji?: string | null;
+  limitText: string;
+}
+
 export default function BudgetCreateScreen({ navigation }: any) {
   const route = useRoute();
-  const { periodType, from, to } = (route.params as any) || {};
-  const editData = (route.params as any)?.editData || null;
-
-  const scrollRef = useRef<ScrollView>(null);
+  const { periodType } = (route.params as any) || {};
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [wallets, setWallets] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [existingBudgets, setExistingBudgets] = useState<any[]>([]);
 
-  // ---------- Estado principal ----------
-  const [walletMode, setWalletMode] = useState<"all" | "one">("all");
-  const [categoryMode, setCategoryMode] = useState<"all" | "one">("all");
-
-  const [selectedWallet, setSelectedWallet] = useState<any | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<any | null>(null);
-
-  const [amount, setAmount] = useState("");
   const [name, setName] = useState("");
-  const [period, setPeriod] = useState<BudgetPeriod>("monthly");
-  const [startDate, setStartDate] = useState<Date>(normalizeStartOfDay(new Date()));
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // ---------- Estilos chips ----------
-  const chipBase: ViewStyle = {
-    minHeight: 32,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9999,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-    marginBottom: 8,
-  };
-
-  const chipText: TextStyle = { fontSize: 14 };
-
-  const blueSelected: ViewStyle = {
-    backgroundColor: "rgba(59,130,246,0.10)",
-    borderColor: "#3b82f6",
-  };
-
-  const grayBorder: ViewStyle = { borderColor: "#d1d5db" };
-
-  const scrollTo = (y: number) => {
-    scrollRef.current?.scrollTo({ y, animated: true });
-  };
-
-  // ---------- Datos ----------
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [walletRes, catRes, budgetsRes] = await Promise.all([
-        api.get("/wallets"),
-        api.get("/categories"),
-        api.get("/budgets"),
-      ]);
-      setWallets(walletRes.data || []);
-      setCategories(catRes.data || []);
-      setExistingBudgets(budgetsRes.data || []);
-    } catch (error) {
-      console.error("ERROR (budgets fetch):", error);
-      Alert.alert("Error", "No se pudieron cargar carteras/categorías");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [])
+  const [period, setPeriod] = useState<BudgetPeriod>(
+    ["daily", "weekly", "monthly", "yearly"].includes(periodType) ? periodType : "monthly"
   );
+  const [totalLimitText, setTotalLimitText] = useState("");
 
-  // Solo categorías de gasto (recomendado para budgets)
+  const [categoryLimits, setCategoryLimits] = useState<CategoryLimitDraft[]>([]);
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  const [walletIds, setWalletIds] = useState<number[]>([]);
+  const [startDate, setStartDate] = useState<Date>(normalizeStartOfDay(new Date()));
+  const [autoRenew, setAutoRenew] = useState(true);
+  const [carryOverRemaining, setCarryOverRemaining] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const [walletRes, catRes] = await Promise.all([api.get("/wallets"), api.get("/categories")]);
+        setWallets(walletRes.data || []);
+        setCategories(catRes.data || []);
+      } catch (e) {
+        console.error("ERROR (budgets create fetch):", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
   const expenseCategories = useMemo(
     () => (categories || []).filter((c: any) => c?.type === "expense" && c?.active !== false),
     [categories]
   );
 
-  // ---------- Rellenar si edit ----------
-  useEffect(() => {
-    if (!editData || wallets.length === 0 || categories.length === 0) return;
+  const totalLimitValue = toNumberOrNull(totalLimitText);
+  const catSum = categoryLimits.reduce((s, c) => s + (toNumberOrNull(c.limitText) || 0), 0);
+  const overLimit = totalLimitValue != null && catSum > totalLimitValue;
+  const hasAnyLimit = (totalLimitValue != null && totalLimitValue > 0) || categoryLimits.length > 0;
+  const allCategoryLimitsPositive = categoryLimits.every((c) => (toNumberOrNull(c.limitText) || 0) > 0);
+  const step2Valid = hasAnyLimit && allCategoryLimitsPositive && !overLimit;
 
-    setName(editData.name || "");
+  const addCategoryLimit = (cat: { id: number; name: string; emoji?: string | null }) => {
+    setCategoryLimits((prev) => [...prev, { categoryId: cat.id, name: cat.name, emoji: cat.emoji, limitText: "" }]);
+    setPickerVisible(false);
+  };
+  const updateCategoryLimit = (idx: number, text: string) => {
+    setCategoryLimits((prev) => prev.map((c, i) => (i === idx ? { ...c, limitText: text } : c)));
+  };
+  const removeCategoryLimit = (idx: number) => {
+    setCategoryLimits((prev) => prev.filter((_, i) => i !== idx));
+  };
 
-    if (typeof editData.limit === "number") {
-      setAmount(editData.limit.toString().replace(".", ","));
-    }
-
-    if (["daily", "weekly", "monthly", "yearly"].includes(editData.period)) {
-      setPeriod(editData.period);
-    } else {
-      setPeriod("monthly");
-    }
-
-    if (editData.startDate) {
-      setStartDate(normalizeStartOfDay(new Date(editData.startDate)));
-    }
-
-    if (editData.walletId) {
-      setWalletMode("one");
-      const w = wallets.find((w) => w.id === editData.walletId) || null;
-      setSelectedWallet(w);
-    } else {
-      setWalletMode("all");
-      setSelectedWallet(null);
-    }
-
-    if (editData.categoryId) {
-      setCategoryMode("one");
-      const c = categories.find((c) => c.id === editData.categoryId) || null;
-      setSelectedCategory(c);
-    } else {
-      setCategoryMode("all");
-      setSelectedCategory(null);
-    }
-  }, [editData, wallets, categories]);
-
-  // Si venimos desde BudgetsHome con un filtro activo
-  useEffect(() => {
-    if (periodType) setPeriod(periodType as BudgetPeriod);
-  }, [periodType]);
-
-  // Ajustar startDate si vienes con rango (from/to)
-  useEffect(() => {
-    if (!from || !to) return;
-    setStartDate(normalizeStartOfDay(new Date(from)));
-  }, [from, to]);
-
-  // ---------- Guardar ----------
   const handleSubmit = async () => {
-    // Validación importe
-    if (!amount || isNaN(Number(amount.replace(",", ".")))) {
-      return Alert.alert("Error", "Introduce una cantidad válida");
-    }
-
-    const numericLimit = parseFloat(amount.replace(",", "."));
-    if (numericLimit <= 0) {
-      return Alert.alert("Error", "El límite debe ser mayor que 0");
-    }
-
-    // Validación selección
-    if (walletMode === "one" && !selectedWallet) {
-      return Alert.alert("Error", "Selecciona una cartera o elige Todas");
-    }
-    if (categoryMode === "one" && !selectedCategory) {
-      return Alert.alert("Error", "Selecciona una categoría o elige Todas");
-    }
-
-    // Presupuestos existentes (solo activos)
-    const activeExisting = (existingBudgets || []).filter((b: any) => b?.active !== false);
-
-    // Presupuestos del mismo periodo
-    const budgetsInPeriod = activeExisting.filter((b: any) => b.period === period);
-
-    // --- VALIDACIÓN EXCLUSIVIDAD (General vs Categorías) ---
-    if (categoryMode === "all") {
-      const hasCategoryBudgets = budgetsInPeriod.some((b: any) => !!b.categoryId);
-      if (hasCategoryBudgets) {
-        return Alert.alert(
-          "No permitido",
-          "Ya tienes presupuestos por categoría para este periodo. No puedes crear uno general."
-        );
-      }
-
-      const existingGeneral = budgetsInPeriod.find(
-        (b: any) => !b.categoryId && (!editData || b.id !== editData.id)
-      );
-      if (existingGeneral) {
-        return Alert.alert("No permitido", "Ya existe un presupuesto general para este periodo.");
-      }
-    }
-
-    if (categoryMode === "one") {
-      const hasGeneralBudget = budgetsInPeriod.some((b: any) => !b.categoryId);
-      if (hasGeneralBudget) {
-        return Alert.alert(
-          "No permitido",
-          "Ya tienes un presupuesto general para este periodo. No puedes crear uno por categoría."
-        );
-      }
-
-      if (selectedCategory) {
-        const existingSameCategory = budgetsInPeriod.find(
-          (b: any) =>
-            b.categoryId === selectedCategory.id && (!editData || b.id !== editData.id)
-        );
-        if (existingSameCategory) {
-          return Alert.alert(
-            "No permitido",
-            `Ya existe un presupuesto para la categoría ${selectedCategory.name} en este periodo.`
-          );
-        }
-      }
-    }
-    // ------------------------------------------------------
-
-    const payload: any = {
-      name: name.trim() || null,
-      limit: numericLimit,
-      period,
-      startDate: normalizeStartOfDay(startDate).toISOString(),
-      walletId: walletMode === "one" ? selectedWallet?.id || null : null,
-      categoryId: categoryMode === "one" ? selectedCategory?.id || null : null,
-    };
-
+    setSubmitError(null);
     try {
       setSaving(true);
-      if (editData) {
-        await api.patch(`/budgets/${editData.id}`, payload);
-      } else {
-        await api.post("/budgets", payload);
-      }
-
-      Alert.alert("Correcto", editData ? "Presupuesto actualizado" : "Presupuesto creado");
+      const payload = {
+        name: name.trim() || null,
+        period,
+        startDate: normalizeStartOfDay(startDate).toISOString(),
+        totalLimit: totalLimitValue,
+        categoryLimits: categoryLimits.map((c) => ({ categoryId: c.categoryId, limit: toNumberOrNull(c.limitText) || 0 })),
+        walletIds,
+        autoRenew,
+        carryOverRemaining,
+      };
+      await api.post("/budgets", payload);
       navigation.goBack();
-    } catch (error) {
-      console.error("ERROR guardando presupuesto:", error);
-      Alert.alert("Error", "No se pudo guardar el presupuesto");
+    } catch (e: any) {
+      console.error("ERROR guardando presupuesto:", e);
+      setSubmitError(e?.response?.data?.message || "No se pudo guardar el presupuesto");
     } finally {
       setSaving(false);
     }
   };
 
-  // ---------- UI ----------
-  return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* HEADER */}
-      <View className="px-5 py-4 border-b border-gray-100">
-        <ModalHeader
-          title={editData ? "Editar presupuesto" : "Nuevo presupuesto"}
-          onClose={() => navigation.goBack()}
-          rightLabel={editData ? "Actualizar" : "Guardar"}
-          onRightPress={handleSubmit}
-          rightLoading={saving}
-        />
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
+    );
+  }
 
-      {/* CONTENIDO */}
-      {loading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
-      ) : (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            ref={scrollRef}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }}
-          >
-            {/* IMPORTE */}
-            <View className="items-center mb-10 mt-6">
-              <View className="flex-row items-end justify-center">
-                <TextInput
-                  value={amount}
-                  onChangeText={(t) => setAmount(t.replace(".", ","))}
-                  keyboardType="numeric"
-                  placeholder="0,00"
-                  placeholderTextColor="#d1d5db"
-                  className="text-[42px] font-semibold text-black text-center text-amount-md"
-                  style={{ minWidth: 120 }}
-                  onFocus={() => scrollTo(0)}
-                />
-                <Text className="text-[28px] text-gray-400 font-semibold ml-1 mb-1">€</Text>
-              </View>
-              <Text className="text-[13px] text-gray-400 mt-2">Límite para este presupuesto</Text>
-            </View>
-
-            {/* CATEGORÍAS (solo gasto) */}
-            <View className="mb-6">
-              <Text className="text-[13px] text-gray-400 mb-2">Categoría</Text>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    setCategoryMode("all");
-                    setSelectedCategory(null);
-                  }}
-                  style={[chipBase, categoryMode === "all" ? blueSelected : grayBorder]}
-                >
-                  <Text style={chipText}>Todas las categorías</Text>
+  const steps: CreationStep[] = [
+    {
+      id: "budget",
+      title: "Presupuesto",
+      description: "Define cuánto quieres gastar durante este periodo.",
+      isValid: true,
+      content: (
+        <View style={{ gap: 18 }}>
+          <FormTextField label="Nombre" value={name} onChangeText={setName} autoCapitalize="sentences" returnKeyType="done" />
+          <FormSegmentedControl<BudgetPeriod>
+            label="Periodo"
+            value={period}
+            options={PERIOD_OPTIONS}
+            onChange={setPeriod}
+          />
+          <FormMoneyField
+            label="Límite total"
+            value={totalLimitText}
+            onChangeText={setTotalLimitText}
+            currency="€"
+            hint="Opcional. Define el máximo que quieres gastar en total durante este periodo."
+          />
+        </View>
+      ),
+    },
+    {
+      id: "limits",
+      title: "Límites por categoría",
+      description: "Añade límites específicos si quieres controlar algunas categorías por separado.",
+      isValid: step2Valid,
+      content: ({ showErrors }) => (
+        <View style={{ gap: 20 }}>
+          <View style={{ gap: 10 }}>
+            {categoryLimits.map((c, idx) => (
+              <View key={c.categoryId} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ fontSize: 18 }}>{c.emoji || "💸"}</Text>
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }} numberOfLines={1}>
+                  {c.name}
+                </Text>
+                <View style={{ width: 108 }}>
+                  <FormMoneyField label="" value={c.limitText} onChangeText={(t) => updateCategoryLimit(idx, t)} currency="€" />
+                </View>
+                <TouchableOpacity onPress={() => removeCategoryLimit(idx)} hitSlop={8} accessibilityLabel={`Eliminar límite de ${c.name}`}>
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
                 </TouchableOpacity>
+              </View>
+            ))}
 
-                {expenseCategories.map((cat: any) => {
-                  const isSelected = categoryMode === "one" && selectedCategory?.id === cat.id;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      onPress={() => {
-                        setCategoryMode("one");
-                        setSelectedCategory(cat);
-                      }}
-                      style={[chipBase, isSelected ? blueSelected : grayBorder]}
-                    >
-                      <Text style={chipText}>
-                        {cat.emoji} {cat.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+            <TouchableOpacity
+              onPress={() => setPickerVisible(true)}
+              activeOpacity={0.75}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 }}
+            >
+              <Ionicons name="add-circle" size={20} color={colors.primary} />
+              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary }}>Añadir categoría</Text>
+            </TouchableOpacity>
 
-              {expenseCategories.length === 0 && (
-                <Text className="text-[12px] text-gray-400 mt-2">
-                  No tienes categorías de gasto creadas.
+            {overLimit ? (
+              <FormError message="Los límites por categoría no pueden superar el límite total." />
+            ) : showErrors && !hasAnyLimit ? (
+              <FormError message="Añade un límite total o al menos un límite por categoría." />
+            ) : null}
+          </View>
+
+          {totalLimitValue != null && categoryLimits.length > 0 ? (
+            <View style={{ backgroundColor: "#F8FAFC", borderRadius: 14, padding: 14, gap: 6 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>Límite total</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.ink }}>{money(totalLimitValue)}</Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>Asignado</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.ink }}>{money(catSum)}</Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12.5, fontWeight: "600", color: "#64748B" }}>Sin asignar</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: "700", color: colors.ink }}>
+                  {money(Math.max(totalLimitValue - catSum, 0))}
                 </Text>
-              )}
+              </View>
             </View>
+          ) : null}
 
-            {/* PERIODO */}
-            <View className="mb-6">
-              <Text className="text-[13px] text-gray-400 mb-2">Periodo del presupuesto</Text>
+          <View style={{ gap: 18 }}>
+            <FormAccountPicker label="Cartera" wallets={wallets} selectedIds={walletIds} onChange={setWalletIds} />
+            <FormDateField label="Fecha de inicio" value={startDate} onChange={(d) => setStartDate(normalizeStartOfDay(d))} />
+            <FormToggle
+              label="Renovar automáticamente"
+              description={`Si lo activas, este presupuesto se creará de nuevo cada ${PERIOD_NOUN[period]}. Si lo desactivas, será único para este ${PERIOD_NOUN[period]}.`}
+              value={autoRenew}
+              onValueChange={setAutoRenew}
+            />
+            <FormToggle
+              label="Transferir sobrante"
+              description={`Si no gastas todo el límite total, el importe restante se añadirá al límite del próximo ${PERIOD_NOUN[period]}.`}
+              value={carryOverRemaining}
+              onValueChange={setCarryOverRemaining}
+            />
+          </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
-                {[
-                  { label: "Diario", value: "daily" as BudgetPeriod },
-                  { label: "Semanal", value: "weekly" as BudgetPeriod },
-                  { label: "Mensual", value: "monthly" as BudgetPeriod },
-                  { label: "Anual", value: "yearly" as BudgetPeriod },
-                ].map((opt) => {
-                  const isSelected = period === opt.value;
-                  return (
-                    <TouchableOpacity
-                      key={opt.value}
-                      onPress={() => setPeriod(opt.value)}
-                      style={[chipBase, isSelected ? blueSelected : grayBorder]}
-                    >
-                      <Text style={chipText}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+          <FormCategoryPicker
+            visible={pickerVisible}
+            categories={expenseCategories}
+            excludeIds={categoryLimits.map((c) => c.categoryId)}
+            onSelect={addCategoryLimit}
+            onClose={() => setPickerVisible(false)}
+          />
+        </View>
+      ),
+    },
+  ];
 
-              <Text className="text-[12px] text-gray-500 mt-1">
-                El presupuesto se renovará automáticamente cada{" "}
-                {period === "daily"
-                  ? "día"
-                  : period === "weekly"
-                  ? "semana"
-                  : period === "monthly"
-                  ? "mes"
-                  : "año"}
-                .
-              </Text>
-            </View>
-
-            {/* FECHA INICIO */}
-            <View className="mb-10">
-              <Text className="text-[13px] text-gray-400 mb-2">Fecha de inicio</Text>
-
-              <TouchableOpacity
-                onPress={() => setShowDatePicker(true)}
-                className="py-2 flex-row justify-between items-center border-b border-gray-200"
-              >
-                <Text className="text-[15px] text-black">
-                  {startDate.toLocaleDateString("es-ES", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
-                </Text>
-                <Ionicons name="calendar-outline" size={19} color="black" />
-              </TouchableOpacity>
-
-              <Text className="text-[12px] text-gray-500 mt-1">
-                Desde esta fecha se empezará a contar el límite.
-              </Text>
-
-              <DateTimePickerModal
-                isVisible={showDatePicker}
-                mode="date"
-                date={startDate}
-                locale="es_ES"
-                themeVariant="light"
-                onConfirm={(d) => {
-                  setShowDatePicker(false);
-                  setStartDate(normalizeStartOfDay(d));
-                }}
-                onCancel={() => setShowDatePicker(false)}
-              />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </SafeAreaView>
+  return (
+    <CreationFlow
+      title="Presupuesto"
+      steps={steps}
+      submitLabel="Crear presupuesto"
+      onSubmit={handleSubmit}
+      onClose={() => navigation.goBack()}
+      isSubmitting={saving}
+      submitError={submitError}
+    />
   );
 }

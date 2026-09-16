@@ -15,24 +15,11 @@ export default function ProfileScreen({ navigation }: any) {
   const { unreadCount } = useNotificationsFeed();
   const sections = [
     {
-      title: "Social",
-      items: [
-        { label: "Amigos", icon: "people-outline", navigate: "Friends", count: friends.length },
-        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications", badge: unreadCount },
-      ],
-    },
-    {
       title: "Perfil",
       items: [
         { label: "Cuenta", icon: "person-outline", navigate: "Account" },
-        { label: "Mis documentos", icon: "id-card-outline", navigate: "MyDocuments" },
-        { label: "Gasto rápido (NFC/Shortcuts)", icon: "flash-outline", navigate: "QuickAddSettings" },
-      ],
-    },
-    {
-      title: "Preferencias",
-      items: [
-        { label: "Seguridad", icon: "lock-closed-outline", navigate: "BiometricSetup" },
+        { label: "Amigos", icon: "people-outline", navigate: "Friends", count: friends.length },
+        { label: "Notificaciones", icon: "notifications-outline", navigate: "Notifications", badge: unreadCount },
       ],
     },
     {

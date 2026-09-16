@@ -7,7 +7,7 @@ const SENT_ALERTS_KEY = "budget_alerts_sent_v1";
 const ALERT_THRESHOLD = 0.8; // 80%
 
 interface Budget {
-  id: number;
+  id: number | string;
   name?: string | null;
   limit: number;
   spent: number;

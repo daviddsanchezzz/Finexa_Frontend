@@ -4,51 +4,223 @@ import {
   Text,
   SafeAreaView,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
+  TouchableOpacity,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
-import SegmentedTabs from "../../../../components/SegmentedTabs";
+import HeroBalanceCard from "../../../../components/HeroBalanceCard";
+import StatsRow from "../../../../components/StatsRow";
+import DateFilterModal from "../../../../components/DateFilterModal";
 import { colors } from "../../../../theme/theme";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
+import { formatEuro as formatEuroBase } from "../../../../utils/currency";
 import { BudgetsScreenSkeleton } from "../../../../components/skeletons/BudgetsScreenSkeleton";
 import { checkBudgetAlerts } from "../../../../utils/budgetAlerts";
+import { budgetProgressColor } from "../../../../utils/budgetProgressColor";
 
 type PeriodType = "daily" | "weekly" | "monthly" | "yearly";
+
+const formatEuro = (n: number) => `${formatEuroBase(n)} €`;
+
+const capitalizeLabel = (label: string) => (label ? label.charAt(0).toUpperCase() + label.slice(1) : label);
+
+const DATE_TYPE_TO_PERIOD: Record<string, PeriodType> = {
+  day: "daily",
+  week: "weekly",
+  month: "monthly",
+  year: "yearly",
+};
+
+function defaultLabelForPeriod(period: PeriodType, date: Date): string {
+  switch (period) {
+    case "daily": {
+      const raw = date.toLocaleString("es-ES", { day: "2-digit", month: "long", year: "numeric" }).replace("de ", "");
+      return capitalizeLabel(raw);
+    }
+    case "weekly": {
+      const day = date.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const start = new Date(date);
+      start.setDate(date.getDate() + diffToMonday);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      const fmt = (d: Date) => d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+      return `${fmt(start)} - ${fmt(end)}`;
+    }
+    case "yearly":
+      return `${date.getFullYear()}`;
+    case "monthly":
+    default: {
+      const raw = date.toLocaleString("es-ES", { month: "long", year: "numeric" }).replace("de ", "");
+      return capitalizeLabel(raw);
+    }
+  }
+}
+
+const PERIOD_NOUN: Record<PeriodType, string> = {
+  daily: "día",
+  weekly: "semana",
+  monthly: "mes",
+  yearly: "año",
+};
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function endOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+function startOfWeekMonday(d: Date) {
+  const x = startOfDay(d);
+  const day = x.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+function endOfWeekSunday(d: Date) {
+  const s = startOfWeekMonday(d);
+  const e = new Date(s);
+  e.setDate(e.getDate() + 6);
+  return endOfDay(e);
+}
+function startOfMonth(d: Date) {
+  return startOfDay(new Date(d.getFullYear(), d.getMonth(), 1));
+}
+function endOfMonth(d: Date) {
+  return endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+function startOfYear(d: Date) {
+  return startOfDay(new Date(d.getFullYear(), 0, 1));
+}
+function endOfYear(d: Date) {
+  return endOfDay(new Date(d.getFullYear(), 11, 31));
+}
+
+// Mismo cálculo de rango que usa el backend (computeRange en budgets.service.ts),
+// replicado aquí para saber cuánto ha transcurrido del periodo sin otra llamada.
+function computePeriodRange(period: PeriodType, ref: Date): { from: Date; to: Date } {
+  switch (period) {
+    case "daily":
+      return { from: startOfDay(ref), to: endOfDay(ref) };
+    case "weekly":
+      return { from: startOfWeekMonday(ref), to: endOfWeekSunday(ref) };
+    case "yearly":
+      return { from: startOfYear(ref), to: endOfYear(ref) };
+    case "monthly":
+    default:
+      return { from: startOfMonth(ref), to: endOfMonth(ref) };
+  }
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function InsightRow({
+  icon,
+  tint,
+  color,
+  title,
+  subtitle,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: string;
+  color: string;
+  title: string;
+  subtitle: string;
+  onPress?: () => void;
+}) {
+  const Wrapper: any = onPress ? TouchableOpacity : View;
+  return (
+    <Wrapper onPress={onPress} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 12 }}>
+      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: tint, alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name={icon} size={15} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13.5, fontWeight: "600", color: "#0F172A" }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: "#8A8F98", marginTop: 2 }}>{subtitle}</Text>
+      </View>
+      {onPress ? <Ionicons name="chevron-forward" size={14} color="#D1D5DB" /> : null}
+    </Wrapper>
+  );
+}
+
+// Días restantes + ritmo de gasto recomendado, y qué porcentaje del periodo ya
+// ha transcurrido — mismo estilo de fila que los "insights" de Estadísticas.
+function PacingInsights({ from, to, period, remaining, spendProgress }: { from: Date; to: Date; period: PeriodType; remaining: number; spendProgress: number }) {
+  const now = new Date();
+
+  const totalMs = Math.max(to.getTime() - from.getTime(), MS_PER_DAY);
+  const elapsedMs = Math.min(Math.max(now.getTime() - from.getTime(), 0), totalMs);
+  const elapsedFraction = elapsedMs / totalMs;
+
+  const daysRemaining = Math.max(1, Math.ceil((to.getTime() - now.getTime()) / MS_PER_DAY));
+  const perDay = remaining / daysRemaining;
+
+  const paceDelta = spendProgress - elapsedFraction;
+  const paceColor = paceDelta > 0.15 ? colors.error : paceDelta > 0.05 ? colors.accent : colors.success;
+  const paceSubtitle =
+    paceDelta > 0.15
+      ? "Gastas más rápido de lo previsto para este periodo."
+      : paceDelta > 0.05
+      ? "Vas ligeramente por delante del ritmo del periodo."
+      : "Vas dentro de lo previsto para este periodo.";
+
+  return (
+    <View style={{ marginTop: 4, marginBottom: 8 }}>
+      <InsightRow
+        icon="calendar-outline"
+        tint="#EFF3FF"
+        color={colors.primary}
+        title={`${daysRemaining} ${daysRemaining === 1 ? "día restante" : "días restantes"}`}
+        subtitle={`${formatEuro(perDay)}/día disponibles para no pasarte.`}
+      />
+      <InsightRow
+        icon="time-outline"
+        tint={`${paceColor}1F`}
+        color={paceColor}
+        title={`${(elapsedFraction * 100).toFixed(1)}% del ${PERIOD_NOUN[period]} transcurrido`}
+        subtitle={paceSubtitle}
+      />
+    </View>
+  );
+}
+
+interface CategoryLimitItem {
+  categoryId: number;
+  category: { id: number; name: string; emoji?: string | null; color?: string | null } | null;
+  limit: number;
+  spent: number;
+  remaining: number;
+  progress: number;
+}
 
 interface BudgetFromApi {
   id: number;
   name: string | null;
   period: PeriodType;
-  limit: number;
   startDate: string;
 
-  categoryId: number | null;
-  walletId: number | null;
+  walletIds: number[];
+  wallets: { id: number; name: string; emoji: string; currency: string }[];
 
-  category: null | {
-    id: number;
-    name: string;
-    emoji?: string | null;
-    color?: string | null;
-  };
+  totalLimit: number | null;
+  carryOverAmount: number;
+  effectiveTotalLimit: number | null;
+  globalSpent: number | null;
+  globalRemaining: number | null;
+  globalProgress: number | null;
+  otherSpent: number | null;
+  categoryLimits: CategoryLimitItem[];
 
-  wallet: null | {
-    id: number;
-    name: string;
-    emoji: string;
-    currency: string;
-    kind: string;
-  };
-
-  range?: { from: string; to: string }; // si tu backend lo devuelve
-  spent: number;
-  remaining: number;
-  progress: number;
+  range?: { from: string; to: string };
 }
 
 interface OverviewResponse {
@@ -82,6 +254,9 @@ const getPeriodLabel = (period: PeriodType) => {
 
 export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
+  const [refDate, setRefDate] = useState<Date>(() => new Date());
+  const [dateLabel, setDateLabel] = useState<string>(() => defaultLabelForPeriod("monthly", new Date()));
+  const [dateModalVisible, setDateModalVisible] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,10 +275,10 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
         if (!opts?.silent) setLoading(true);
 
         const res = await api.get<OverviewResponse>("/budgets/overview", {
-          params: { period: periodType },
+          params: { period: periodType, date: refDate.toISOString() },
         });
 
-        const budgetList = res.data?.budgets || [];
+        const budgetList: BudgetFromApi[] = res.data?.budgets || [];
         setBudgets(budgetList);
         setSummary(
           res.data?.summary || {
@@ -113,7 +288,33 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
             count: 0,
           }
         );
-        checkBudgetAlerts(budgetList).catch(() => {});
+
+        // checkBudgetAlerts espera "unidades" con {limit,spent,progress}; un budget
+        // puede aportar varias (su límite global + cada sublímite por categoría).
+        const alertUnits = budgetList.flatMap((b) => {
+          const units: { id: string; name?: string | null; limit: number; spent: number; progress: number; category?: any }[] = [];
+          if (b.effectiveTotalLimit != null) {
+            units.push({
+              id: `${b.id}`,
+              name: b.name || "Presupuesto",
+              limit: b.effectiveTotalLimit,
+              spent: b.globalSpent || 0,
+              progress: b.globalProgress || 0,
+            });
+          }
+          for (const cl of b.categoryLimits) {
+            units.push({
+              id: `${b.id}-cat-${cl.categoryId}`,
+              name: cl.category?.name,
+              limit: cl.limit,
+              spent: cl.spent,
+              progress: cl.progress,
+              category: cl.category,
+            });
+          }
+          return units;
+        });
+        checkBudgetAlerts(alertUnits).catch(() => {});
       } catch (e) {
         console.log("❌ Error cargando overview de budgets", e);
         setBudgets([]);
@@ -122,7 +323,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
         if (!opts?.silent) setLoading(false);
       }
     },
-    [periodType]
+    [periodType, refDate]
   );
 
   useFocusEffect(
@@ -131,10 +332,17 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
     }, [fetchOverview])
   );
 
-  // Cuando cambias el periodo, refresca automáticamente
+  const handleSelectDate = useCallback((range: { from: string; to: string; label: string; type: string }) => {
+    const mappedPeriod = DATE_TYPE_TO_PERIOD[range.type];
+    if (mappedPeriod) setPeriodType(mappedPeriod);
+    setRefDate(new Date(range.from));
+    setDateLabel(capitalizeLabel(range.label));
+  }, []);
+
+  // Cuando cambia el periodo o la fecha de referencia, refresca automáticamente
   React.useEffect(() => {
     fetchOverview();
-  }, [periodType]);
+  }, [periodType, refDate]);
 
   const onRefresh = useCallback(async () => {
     try {
@@ -147,12 +355,18 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
 
   const periodLabel = getPeriodLabel(periodType);
 
+  const overallProgress = summary.totalLimit > 0
+    ? Math.min(100, Math.max(0, (summary.totalSpent / summary.totalLimit) * 100))
+    : 0;
+
   // Si tu backend devolviera budgets “mixed periods” (no debería si filtras por period),
   // filtramos por seguridad:
   const filteredBudgets = useMemo(
     () => budgets.filter((b) => b.period === periodType),
     [budgets, periodType]
   );
+
+  const periodRange = useMemo(() => computePeriodRange(periodType, refDate), [periodType, refDate]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -161,22 +375,9 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
         <AppHeader
           title="Presupuestos"
           showProfile={false}
-          showDatePicker={false}
           showBack={!isPinnedModuleTab}
-        />
-      </View>
-
-      {/* SELECTOR PERIODO - siempre visible (interactivo) */}
-      <View className="px-5 mb-3">
-        <SegmentedTabs<PeriodType>
-          options={[
-            { key: "daily", label: "Día" },
-            { key: "weekly", label: "Semana" },
-            { key: "monthly", label: "Mes" },
-            { key: "yearly", label: "Año" },
-          ]}
-          value={periodType}
-          onChange={setPeriodType}
+          onOpenDateModal={() => setDateModalVisible(true)}
+          dateLabel={dateLabel}
         />
       </View>
 
@@ -194,16 +395,47 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          <View className="mb-3">
-            <BudgetGoalCard
-              title={`Resumen ${periodLabel}`}
-              icon="📊"
-              total={summary.totalLimit}
-              current={summary.totalSpent}
-              color="white"
-              backgroundColor={colors.primary}
-              titleColor="white"
-              subtitleColor="rgba(255,255,255,0.8)"
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 12 }}>
+            <AddButton label="Añadir" onPress={() => navigation.navigate("BudgetCreate", { periodType })} />
+          </View>
+
+          <View style={{ marginBottom: 16 }}>
+            <HeroBalanceCard
+              label="Disponible"
+              value={formatEuro(summary.remaining)}
+              style={{ marginBottom: 8 }}
+              footer={
+                <View style={{ width: "100%", marginTop: 8, alignItems: "center" }}>
+                  <View
+                    style={{
+                      width: "100%",
+                      height: 6,
+                      borderRadius: 999,
+                      backgroundColor: "rgba(255,255,255,0.25)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        height: "100%",
+                        width: `${overallProgress}%`,
+                        borderRadius: 999,
+                        backgroundColor: "white",
+                      }}
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }} numberOfLines={1}>
+                    {overallProgress.toFixed(0)}% del presupuesto {periodLabel}
+                  </Text>
+                </View>
+              }
+            />
+
+            <StatsRow
+              items={[
+                { key: "presupuesto", label: "PRESUPUESTO", value: formatEuro(summary.totalLimit) },
+                { key: "gastado", label: "GASTADO", value: formatEuro(summary.totalSpent), color: colors.danger },
+              ]}
             />
           </View>
 
@@ -212,54 +444,90 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
               No tienes presupuestos para este periodo.
             </Text>
           ) : (
-            filteredBudgets.map((b) => {
-              const hasCategory = !!b.category;
-              const title = hasCategory
-                ? b.category!.name
-                : b.name || "Presupuesto";
-              const icon = hasCategory
-                ? b.category!.emoji || "💰"
-                : "💰";
-              const color = hasCategory
-                ? b.category!.color || colors.primary
-                : colors.primary;
+            filteredBudgets.flatMap((b) => {
+              // Un mismo Budget puede aportar varias tarjetas a la lista: su
+              // límite global (si existe) y uno por cada sublímite de categoría.
+              // Todas apuntan al mismo budgetId, así que "editar" desde
+              // cualquiera de ellas lleva siempre a la misma pantalla de edición.
+              const title = b.name || "Presupuesto";
 
-              return (
-                <View key={b.id} className="mb-3">
-                  <BudgetGoalCard
-                    title={title}
-                    icon={icon}
-                    total={b.limit}
-                    current={b.spent}
-                    color={color}
-                    onPress={() =>
-                      navigation.navigate("BudgetTransactions", {
-                        budgetId: b.id,
-                        budgetName: title,
-                        budgetEmoji: icon,
-                        budgetColor: color,
-                        budgetLimit: b.limit,
-                        budgetSpent: b.spent,
-                        categoryId: b.categoryId,
-                        walletId: b.walletId,
-                        periodType: periodType,
-                        range: b.range, // por si lo usas para filtrar transacciones
-                      })
-                    }
-                  />
-                </View>
-              );
+              const goToDetail = (categoryId?: number) =>
+                navigation.navigate("BudgetTransactions", {
+                  budgetId: b.id,
+                  budgetName: title,
+                  periodType,
+                  date: refDate.toISOString(),
+                  categoryId,
+                });
+
+              const rows: React.ReactNode[] = [];
+
+              // El total global ya se ve arriba en el Hero, así que en la lista
+              // solo mostramos una tarjeta aparte para él cuando no hay categorías
+              // (si no, sería el único punto de entrada para editar ese budget).
+              if (b.effectiveTotalLimit != null && b.categoryLimits.length === 0) {
+                rows.push(
+                  <View key={`${b.id}-global`}>
+                    <BudgetGoalCard
+                      title={title}
+                      icon="💰"
+                      total={b.effectiveTotalLimit}
+                      current={b.globalSpent || 0}
+                      color={colors.primary}
+                      progressColor={budgetProgressColor(b.globalProgress || 0)}
+                      onPress={() => goToDetail()}
+                      compact
+                      showOverflow
+                    />
+                  </View>
+                );
+              }
+
+              // Menos porcentaje restante (más gastado) primero: lo más urgente arriba.
+              const sortedCategoryLimits = [...b.categoryLimits].sort((x, y) => y.progress - x.progress);
+
+              for (const cl of sortedCategoryLimits) {
+                rows.push(
+                  <View key={`${b.id}-cat-${cl.categoryId}`}>
+                    <BudgetGoalCard
+                      title={cl.category?.name || "Categoría"}
+                      icon={cl.category?.emoji || "💸"}
+                      total={cl.limit}
+                      current={cl.spent}
+                      color={cl.category?.color || colors.primary}
+                      progressColor={budgetProgressColor(cl.progress)}
+                      onPress={() => goToDetail(cl.categoryId)}
+                      compact
+                      showOverflow
+                    />
+                  </View>
+                );
+              }
+
+              return rows;
             })
           )}
 
-          {/* BOTÓN AÑADIR PRESUPUESTO */}
-          <AddButton
-            label="Añadir presupuesto"
-            onPress={() => navigation.navigate("BudgetCreate", { periodType })}
-            style={{ justifyContent: "center", alignSelf: "stretch", marginTop: 8 }}
-          />
+          {summary.totalLimit > 0 ? (
+            <PacingInsights
+              from={periodRange.from}
+              to={periodRange.to}
+              period={periodType}
+              remaining={summary.remaining}
+              spendProgress={overallProgress / 100}
+            />
+          ) : null}
         </ScrollView>
       )}
+
+      <DateFilterModal
+        visible={dateModalVisible}
+        showCustomRange={false}
+        showTotalRange={false}
+        showDayRange
+        onClose={() => setDateModalVisible(false)}
+        onSelect={handleSelectDate}
+      />
     </SafeAreaView>
   );
 }

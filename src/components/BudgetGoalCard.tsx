@@ -17,12 +17,16 @@ interface Props {
   titleColor?: string;
   subtitleColor?: string;
   progressColor?: string;
+  compact?: boolean;
+  // Si es true, el "% completado" del footer muestra el valor real aunque
+  // supere el 100% (p.ej. "110%" si te has pasado del límite). La barra
+  // siempre se capa visualmente en el 100% de ancho, se muestre o no el overflow.
+  showOverflow?: boolean;
 }
 
 const euro = (n: number) => formatEuro(n);
 const pct = (p: number) => `${p}%` as `${number}%`;
-const getProgress = (a: number, b: number) =>
-  b > 0 ? Math.min(100, Math.max(0, (a / b) * 100)) : 0;
+const getRawProgress = (a: number, b: number) => (b > 0 ? Math.max(0, (a / b) * 100) : 0);
 
 function isEmoji(str?: string) {
   if (!str) return false;
@@ -43,8 +47,12 @@ export default function BudgetGoalCard({
   titleColor = "#111827",
   subtitleColor = "#6B7280",
   progressColor,
+  compact = false,
+  showOverflow = false,
 }: Props) {
-  const p = getProgress(current, total);
+  const rawPct = getRawProgress(current, total);
+  const barPct = Math.min(100, rawPct);
+  const displayPct = showOverflow ? rawPct : barPct;
   const remaining = Math.max(0, total - current);
   const showEmoji = isEmoji(icon);
   const barColor = progressColor || color;
@@ -53,7 +61,7 @@ export default function BudgetGoalCard({
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
-      className="p-4 rounded-3xl mb-3"
+      className={compact ? "px-4 py-3 rounded-2xl mb-2" : "p-4 rounded-3xl mb-3"}
       style={{
         backgroundColor,
         shadowColor: "#000",
@@ -63,11 +71,11 @@ export default function BudgetGoalCard({
       }}
     >
       {/* HEADER */}
-      <View className="flex-row justify-between items-center mb-3">
+      <View className={compact ? "flex-row justify-between items-center mb-2" : "flex-row justify-between items-center mb-3"}>
         <View className="flex-row items-center">
           {icon && (
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-2"
+              className={compact ? "w-6 h-6 rounded-md items-center justify-center mr-2" : "w-8 h-8 rounded-lg items-center justify-center mr-2"}
               style={{
                 backgroundColor: backgroundColor === "white"
                   ? "#F3F4F6"
@@ -75,15 +83,15 @@ export default function BudgetGoalCard({
               }}
             >
               {showEmoji ? (
-                <Text style={{ fontSize: 22 }}>{icon}</Text>
+                <Text style={{ fontSize: compact ? 15 : 22 }}>{icon}</Text>
               ) : (
-                <Ionicons name={icon as any} size={20} color={titleColor} />
+                <Ionicons name={icon as any} size={compact ? 14 : 20} color={titleColor} />
               )}
             </View>
           )}
 
           <Text
-            className="text-[17px] font-semibold"
+            className={compact ? "text-[14px] font-semibold" : "text-[17px] font-semibold"}
             style={{ color: titleColor }}
           >
             {title}
@@ -97,7 +105,7 @@ export default function BudgetGoalCard({
         </View>
 
         <Text
-          className="text-[17px] font-semibold"
+          className={compact ? "text-[14px] font-semibold" : "text-[17px] font-semibold"}
           style={{ color: titleColor }}
         >
           {euro(remaining)} €
@@ -106,8 +114,9 @@ export default function BudgetGoalCard({
 
       {/* PROGRESS */}
       <View
-        className="h-3 rounded-full overflow-hidden mb-3"
+        className={compact ? "rounded-full overflow-hidden mb-2" : "h-3 rounded-full overflow-hidden mb-3"}
         style={{
+          height: compact ? 8 : undefined,
           backgroundColor:
             backgroundColor === "white"
               ? "#E5E7EB"
@@ -117,7 +126,7 @@ export default function BudgetGoalCard({
         <View
           className="h-full rounded-full"
           style={{
-            width: pct(p),
+            width: pct(barPct),
             backgroundColor: barColor,
           }}
         />
@@ -125,11 +134,11 @@ export default function BudgetGoalCard({
 
       {/* FOOTER */}
       <View className="flex-row justify-between">
-        <Text className="text-[13px]" style={{ color: subtitleColor }}>
-          {p.toFixed(0)}% completado
+        <Text className={compact ? "text-[11px]" : "text-[13px]"} style={{ color: subtitleColor }}>
+          {displayPct.toFixed(0)}% completado
         </Text>
 
-        <Text className="text-[13px]" style={{ color: subtitleColor }}>
+        <Text className={compact ? "text-[11px]" : "text-[13px]"} style={{ color: subtitleColor }}>
           {euro(total)} € totales
         </Text>
       </View>

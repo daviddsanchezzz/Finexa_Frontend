@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Dimensions,
   ActivityIndicator,
@@ -18,43 +17,27 @@ import { formatEuro as formatEuroBase } from "../utils/currency";
 import { BANK_PRESETS, getBankLogoUrl, isLogoUrl } from "../constants/bankPresets";
 import WalletIcon from "./WalletIcon";
 import PresetPickerCard from "./PresetPickerCard";
+import ModalHeader from "./ModalHeader";
+import { FormTextField, FormMoneyField, FormOptionCard, FormCurrencyPicker } from "./creation";
 
 const screenHeight = Dimensions.get("window").height;
+
+// Mismo estilo que la etiqueta de FormTextField/FormSelect ("Nombre", "Divisa"...)
+// para que "Tipo de cartera", "Banco" e "Información básica" se vean idénticos.
+const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: "#64748B", marginBottom: 5 };
 
 type WalletKind = "cash" | "savings" | "investment";
 
 const KIND_OPTIONS: {
   key: WalletKind;
   label: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   color: string;
   bg: string;
-  description: string;
 }[] = [
-  {
-    key: "cash",
-    label: "Gastos",
-    icon: "card-outline",
-    color: "#3B82F6",
-    bg: "#EFF6FF",
-    description: "Cuenta del día a día",
-  },
-  {
-    key: "savings",
-    label: "Ahorro",
-    icon: "wallet-outline",
-    color: "#10B981",
-    bg: "#ECFDF5",
-    description: "Cuenta remunerada o fondo",
-  },
-  {
-    key: "investment",
-    label: "Inversión",
-    icon: "trending-up-outline",
-    color: "#8B5CF6",
-    bg: "#F5F3FF",
-    description: "Solo puede haber una",
-  },
+  { key: "cash", label: "Gastos", icon: "card-outline", color: "#3B82F6", bg: "#EFF6FF" },
+  { key: "savings", label: "Ahorro", icon: "wallet-outline", color: "#10B981", bg: "#ECFDF5" },
+  { key: "investment", label: "Inversión", icon: "trending-up-outline", color: "#8B5CF6", bg: "#F5F3FF" },
 ];
 
 interface EditWalletModalProps {
@@ -215,27 +198,17 @@ export default function EditWalletModal({
           shadowRadius: 5,
         }}
       >
-        {/* Header */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text style={{ fontSize: 14, color: "#6B7280", fontWeight: "500" }}>Cancelar</Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}>
-            {isEditing ? "Editar cartera" : "Nueva cartera"}
-          </Text>
-          <TouchableOpacity onPress={handleSave} activeOpacity={0.8} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.primary }}>
-                Guardar
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <ModalHeader
+          title={isEditing ? "Editar cartera" : "Nueva cartera"}
+          onClose={onClose}
+          closeLabel="Cancelar"
+          rightLabel="Guardar"
+          onRightPress={handleSave}
+          rightLoading={loading}
+        />
 
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Preview card */}
+        <ScrollView style={{ flex: 1, marginTop: 14 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          {/* Preview */}
           <View
             style={{
               backgroundColor: selectedKindInfo.color,
@@ -260,8 +233,8 @@ export default function EditWalletModal({
               <WalletIcon emoji={emoji} size={28} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "500" }}>
-                {selectedKindInfo.label.toUpperCase()}
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "600" }}>
+                {selectedKindInfo.label}
               </Text>
               <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }} numberOfLines={1}>
                 {name || "Nueva cartera"}
@@ -272,228 +245,130 @@ export default function EditWalletModal({
             </View>
           </View>
 
-          {/* Tipo de cartera */}
-          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
-            Tipo de cartera
-          </Text>
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 20 }}>
-            {KIND_OPTIONS.map((opt) => {
-              const selected = kind === opt.key;
-              const blocked = opt.key === "investment" && isEditing && editingWallet?.kind !== "investment";
-              return (
-                <TouchableOpacity
-                  key={opt.key}
-                  onPress={() => !blocked && setKind(opt.key)}
-                  activeOpacity={0.8}
+          <View style={{ gap: 18 }}>
+            <View>
+              <Text style={sectionLabelStyle}>Tipo de cartera</Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {KIND_OPTIONS.map((opt) => {
+                  const blocked = opt.key === "investment" && isEditing && editingWallet?.kind !== "investment";
+                  return (
+                    <View key={opt.key} style={{ flex: 1, opacity: blocked ? 0.4 : 1 }}>
+                      <FormOptionCard
+                        label={opt.label}
+                        icon={opt.icon}
+                        selected={kind === opt.key}
+                        onPress={() => { if (!blocked) setKind(opt.key); }}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+              {kind === "investment" && (
+                <View
                   style={{
-                    flex: 1,
-                    borderRadius: 14,
-                    borderWidth: selected ? 2 : 1,
-                    borderColor: selected ? opt.color : "#E5E7EB",
-                    backgroundColor: selected ? opt.bg : "white",
-                    padding: 10,
-                    alignItems: "center",
-                    opacity: blocked ? 0.4 : 1,
+                    marginTop: 12,
+                    backgroundColor: "#F5F3FF",
+                    borderRadius: 12,
+                    padding: 12,
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    borderWidth: 1,
+                    borderColor: "#DDD6FE",
                   }}
                 >
-                  <Ionicons
-                    name={opt.icon as any}
-                    size={20}
-                    color={selected ? opt.color : "#9CA3AF"}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "700",
-                      color: selected ? opt.color : "#6B7280",
-                      marginTop: 5,
-                    }}
-                  >
-                    {opt.label}
+                  <Ionicons name="information-circle-outline" size={16} color="#8B5CF6" style={{ marginRight: 8, marginTop: 1 }} />
+                  <Text style={{ fontSize: 12, color: "#6D28D9", flex: 1, lineHeight: 17 }}>
+                    Solo puede existir una cartera de inversión. Su saldo se sincroniza automáticamente con el módulo de inversiones.
                   </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {kind === "investment" && (
-            <View
-              style={{
-                backgroundColor: "#F5F3FF",
-                borderRadius: 12,
-                padding: 12,
-                flexDirection: "row",
-                alignItems: "flex-start",
-                marginBottom: 16,
-                borderWidth: 1,
-                borderColor: "#DDD6FE",
-              }}
-            >
-              <Ionicons name="information-circle-outline" size={16} color="#8B5CF6" style={{ marginRight: 8, marginTop: 1 }} />
-              <Text style={{ fontSize: 12, color: "#6D28D9", flex: 1, lineHeight: 17 }}>
-                Solo puede existir una cartera de inversión. Su saldo se sincroniza automáticamente con el módulo de inversiones.
-              </Text>
-            </View>
-          )}
-
-          {/* Elegir banco (opcional) */}
-          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
-            Elegir banco (opcional)
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
-            style={{ marginBottom: 20 }}
-          >
-            {BANK_PRESETS.map((preset) => (
-              <PresetPickerCard
-                key={preset.key}
-                logoUrl={getBankLogoUrl(preset.domain)}
-                label={preset.name}
-                selected={emoji === getBankLogoUrl(preset.domain)}
-                onPress={() => {
-                  setEmoji(getBankLogoUrl(preset.domain));
-                  setName(preset.name);
-                }}
-              />
-            ))}
-          </ScrollView>
-
-          {/* Nombre y emoji */}
-          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
-            Información básica
-          </Text>
-          <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Nombre</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Nombre de la cartera"
-            placeholderTextColor="#9CA3AF"
-            style={{
-              backgroundColor: "#F9FAFB",
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              fontSize: 15,
-              color: "#111827",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              marginBottom: 12,
-            }}
-          />
-
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-            <View style={{ marginRight: 12 }}>
-              <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Emoji</Text>
-              {isLogoUrl(emoji) ? (
-                <TouchableOpacity
-                  onPress={() => setEmoji("💰")}
-                  activeOpacity={0.7}
-                  style={{
-                    width: 58,
-                    height: 42,
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    borderRadius: 12,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#F9FAFB",
-                  }}
-                >
-                  <WalletIcon emoji={emoji} size={24} />
-                </TouchableOpacity>
-              ) : (
-                <TextInput
-                  value={emoji}
-                  onChangeText={setEmoji}
-                  maxLength={2}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    borderRadius: 12,
-                    paddingHorizontal: 10,
-                    paddingVertical: 10,
-                    width: 58,
-                    textAlign: "center",
-                    fontSize: 20,
-                    backgroundColor: "#F9FAFB",
-                  }}
-                />
+                </View>
               )}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Divisa</Text>
-              <TextInput
-                value={currency}
-                onChangeText={(t) => setCurrency(t.toUpperCase())}
-                placeholder="EUR"
-                placeholderTextColor="#9CA3AF"
-                maxLength={3}
-                autoCapitalize="characters"
-                style={{
-                  backgroundColor: "#F9FAFB",
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  fontSize: 15,
-                  color: "#111827",
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                }}
-              />
+
+            <View>
+              <Text style={sectionLabelStyle}>Banco</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
+              >
+                {BANK_PRESETS.map((preset) => (
+                  <PresetPickerCard
+                    key={preset.key}
+                    logoUrl={getBankLogoUrl(preset.domain)}
+                    label={preset.name}
+                    selected={emoji === getBankLogoUrl(preset.domain)}
+                    onPress={() => {
+                      setEmoji(getBankLogoUrl(preset.domain));
+                      setName(preset.name);
+                    }}
+                  />
+                ))}
+              </ScrollView>
             </View>
+
+            <View>
+              <View style={{ gap: 12 }}>
+                <FormTextField
+                  label="Nombre"
+                  required
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <View>
+                    <Text style={sectionLabelStyle}>Emoji</Text>
+                    {isLogoUrl(emoji) ? (
+                      <TouchableOpacity
+                        onPress={() => setEmoji("💰")}
+                        activeOpacity={0.7}
+                        style={{
+                          width: 58,
+                          height: 44,
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 14,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "white",
+                        }}
+                      >
+                        <WalletIcon emoji={emoji} size={24} />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ width: 58 }}>
+                        <FormTextField
+                          label=""
+                          value={emoji}
+                          onChangeText={setEmoji}
+                          maxLength={2}
+                        />
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormCurrencyPicker value={currency} onChange={setCurrency} required />
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <FormMoneyField
+              label="Saldo"
+              required
+              value={balance}
+              onChangeText={(t) => setBalance(t.replace(".", ","))}
+              currency={currency.toUpperCase() || "EUR"}
+              hint="Puedes ajustar el saldo con movimientos después."
+            />
+
+            <FormTextField
+              label="Descripción"
+              value={description}
+              onChangeText={setDescription}
+            />
           </View>
-
-          {/* Saldo */}
-          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
-            Saldo
-          </Text>
-          <TextInput
-            value={balance}
-            onChangeText={(t) => setBalance(t.replace(".", ","))}
-            placeholder="0,00"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="numeric"
-            style={{
-              backgroundColor: "#F9FAFB",
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              fontSize: 15,
-              color: "#111827",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              marginBottom: 6,
-            }}
-          />
-          <Text style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 20 }}>
-            Puedes ajustar el saldo con movimientos después.
-          </Text>
-
-          {/* Descripción */}
-          <Text style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
-            Descripción (opcional)
-          </Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Ej: Cuenta remunerada MyInvestor al 3%..."
-            placeholderTextColor="#9CA3AF"
-            multiline
-            numberOfLines={3}
-            style={{
-              backgroundColor: "#F9FAFB",
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              fontSize: 14,
-              color: "#111827",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              textAlignVertical: "top",
-              minHeight: 80,
-            }}
-          />
 
           {isEditing && (
             <TouchableOpacity
@@ -504,7 +379,7 @@ export default function EditWalletModal({
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                marginTop: 28,
+                marginTop: 24,
                 paddingVertical: 12,
                 borderRadius: 12,
                 borderWidth: 1,

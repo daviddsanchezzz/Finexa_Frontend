@@ -5,7 +5,10 @@ export type { CreationStep, CreationStepRenderContext } from "./CreationFlow";
 export { CreationFooter, CreationProgress } from "./CreationFlow";
 export {
   FormError,
+  FormAccountPicker,
+  FormCategoryPicker,
   FormCurrencyPicker,
+  FormDateField,
   FormMoneyField,
   FormNotesField,
   FormNumberField,
@@ -14,5 +17,6 @@ export {
   FormSelect,
   FormSegmentedControl,
   FormTextField,
+  FormToggle,
 } from "./FormFields";
 export type { FormTextFieldProps } from "./FormFields";

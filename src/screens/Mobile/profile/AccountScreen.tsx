@@ -14,12 +14,17 @@ import { Ionicons } from "@expo/vector-icons";
 import AppHeader from "../../../components/AppHeader";
 import UserAvatar from "../../../components/UserAvatar";
 import ChangePasswordModal from "../../../components/ChangePasswordModal";
+import SegmentedTabs from "../../../components/SegmentedTabs";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../api/api";
 import { useTheme } from "../../../context/ThemeContext";
 import AppSwitch from "../../../components/AppSwitch";
 import { useHomePreferences } from "../../../hooks/useHomePreferences";
 import { pickAndUploadAvatar } from "../../../utils/uploadTripCover";
+import { MyDocumentsContent } from "./MyDocumentsScreen";
+import { QuickAddSettingsContent } from "./QuickAddSettingsScreen";
+
+type AccountTab = "preferences" | "documents" | "nfc";
 
 export default function AccountScreen() {
   const { user, updateUser, refreshUser } = useAuth();
@@ -31,6 +36,7 @@ export default function AccountScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [tab, setTab] = useState<AccountTab>("preferences");
 
   useEffect(() => {
     setName(user?.name || "");
@@ -108,122 +114,155 @@ export default function AccountScreen() {
         <AppHeader title="Cuenta" showProfile={false} showDatePicker={false} showBack={true} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <View className="rounded-2xl border p-4 mb-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-          <View className="items-center mb-4">
-            <View style={{ position: "relative" }}>
-              <UserAvatar user={user ? { ...user, avatar } : user} size={96} fontSize={32} />
-              <TouchableOpacity
-                onPress={handlePickAvatar}
-                disabled={uploadingAvatar}
-                activeOpacity={0.85}
-                style={{
-                  position: "absolute",
-                  bottom: -2,
-                  right: -2,
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: colors.primary,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: 2,
-                  borderColor: colors.surface,
-                }}
-              >
-                {uploadingAvatar ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Ionicons name="camera" size={15} color="white" />
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {avatar ? (
-              <TouchableOpacity onPress={handleRemoveAvatar} activeOpacity={0.7} style={{ marginTop: 10 }}>
-                <Text style={{ color: colors.error, fontSize: 13, fontWeight: "700" }}>Quitar foto</Text>
-              </TouchableOpacity>
-            ) : null}
-
-            <Text className="text-[18px] font-bold text-text mt-2">{name.trim() || "Usuario"}</Text>
-            <Text className="text-gray-500 text-[14px] mt-1">{user?.email || "-"}</Text>
+      <View style={{ paddingHorizontal: 20 }}>
+        <View
+          className="rounded-2xl border"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border, padding: 12 }}
+        >
+        <View
+          className="flex-row items-center"
+          style={{ gap: 12 }}
+        >
+          <View style={{ position: "relative" }}>
+            <UserAvatar user={user ? { ...user, avatar } : user} size={56} fontSize={20} />
+            <TouchableOpacity
+              onPress={handlePickAvatar}
+              disabled={uploadingAvatar}
+              activeOpacity={0.85}
+              style={{
+                position: "absolute",
+                bottom: -2,
+                right: -2,
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: colors.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 2,
+                borderColor: colors.surface,
+              }}
+            >
+              {uploadingAvatar ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons name="camera" size={11} color="white" />
+              )}
+            </TouchableOpacity>
           </View>
 
-          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Tu nombre" />
+          <View style={{ flex: 1 }}>
+            <Text className="text-[15px] font-bold text-text" numberOfLines={1}>{name.trim() || "Usuario"}</Text>
+            <Text className="text-gray-500 text-[12px] mt-0.5" numberOfLines={1}>{user?.email || "-"}</Text>
+            {avatar ? (
+              <TouchableOpacity onPress={handleRemoveAvatar} activeOpacity={0.7} style={{ marginTop: 4, alignSelf: "flex-start" }}>
+                <Text style={{ color: colors.error, fontSize: 11, fontWeight: "700" }}>Quitar foto</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           <TouchableOpacity
             onPress={handleSaveProfile}
             disabled={!hasChanges || saving}
             activeOpacity={0.8}
-            className="mt-2 rounded-xl py-3 items-center"
-            style={{ backgroundColor: !hasChanges || saving ? "#CBD5E1" : colors.primary }}
+            style={{
+              paddingHorizontal: 14,
+              height: 34,
+              borderRadius: 10,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: !hasChanges || saving ? "#CBD5E1" : colors.primary,
+            }}
           >
             {saving ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color="white" size="small" />
             ) : (
-              <Text className="text-white font-semibold text-[15px]">Guardar cambios</Text>
+              <Text className="text-white font-semibold text-[12.5px]">Guardar</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 8 }}>PREFERENCIAS</Text>
-        <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
-          <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Modo oscuro</Text>
-              <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
-                El tema se aplica a toda la aplicación y se guarda automáticamente.
-              </Text>
-            </View>
-            <AppSwitch
-              accessibilityLabel="Activar modo oscuro"
-              value={isDark}
-              onValueChange={(enabled) => setMode(enabled ? "dark" : "light")}
-            />
-          </View>
-
-          <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Rentabilidad de inversiones en Inicio</Text>
-              <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
-                Al ocultarla, Balance ocupa su lugar en Inicio, siempre en negro.
-              </Text>
-            </View>
-            {preferencesLoading ? <ActivityIndicator color={colors.primary} /> : (
-              <AppSwitch
-                accessibilityLabel="Mostrar rentabilidad de inversiones en Inicio"
-                value={showInvestmentReturn}
-                onValueChange={setShowInvestmentReturn}
-                disabled={preferencesSaving}
-              />
-            )}
-          </View>
+        <View style={{ marginTop: 10 }}>
+          <Field label="Nombre" value={name} onChangeText={setName} placeholder="Tu nombre" />
         </View>
-        {preferencesError ? <Text accessibilityRole="alert" style={{ color: colors.error, fontSize: 12, marginTop: 12 }}>No se pudo cargar o guardar la preferencia. Vuelve a intentarlo.</Text> : null}
 
-        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 8, marginTop: 20 }}>SEGURIDAD</Text>
         <TouchableOpacity
           onPress={() => setPasswordModalVisible(true)}
-          activeOpacity={0.75}
+          activeOpacity={0.7}
           style={{
-            backgroundColor: colors.surface,
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: 16,
             flexDirection: "row",
             alignItems: "center",
-            gap: 12,
+            justifyContent: "space-between",
+            marginTop: 10,
+            paddingTop: 10,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
           }}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Cambiar contraseña</Text>
-            <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
-              Actualiza la contraseña de acceso a tu cuenta.
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons name="lock-closed-outline" size={16} color={colors.textSecondary} />
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Cambiar contraseña</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
         </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={{ marginTop: 4 }}>
+        <SegmentedTabs<AccountTab>
+          variant="underline"
+          options={[
+            { key: "preferences", label: "Preferencias" },
+            { key: "documents", label: "Documentos" },
+            { key: "nfc", label: "Atajo NFC" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        {tab === "preferences" && (
+          <View>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Modo oscuro</Text>
+                  <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
+                    El tema se aplica a toda la aplicación y se guarda automáticamente.
+                  </Text>
+                </View>
+                <AppSwitch
+                  accessibilityLabel="Activar modo oscuro"
+                  value={isDark}
+                  onValueChange={(enabled) => setMode(enabled ? "dark" : "light")}
+                />
+              </View>
+
+              <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Rentabilidad de inversiones en Inicio</Text>
+                  <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
+                    Al ocultarla, Balance ocupa su lugar en Inicio, siempre en negro.
+                  </Text>
+                </View>
+                {preferencesLoading ? <ActivityIndicator color={colors.primary} /> : (
+                  <AppSwitch
+                    accessibilityLabel="Mostrar rentabilidad de inversiones en Inicio"
+                    value={showInvestmentReturn}
+                    onValueChange={setShowInvestmentReturn}
+                    disabled={preferencesSaving}
+                  />
+                )}
+              </View>
+            </View>
+            {preferencesError ? <Text accessibilityRole="alert" style={{ color: colors.error, fontSize: 12, marginTop: 12 }}>No se pudo cargar o guardar la preferencia. Vuelve a intentarlo.</Text> : null}
+          </View>
+        )}
+
+        {tab === "documents" && <MyDocumentsContent />}
+
+        {tab === "nfc" && <QuickAddSettingsContent />}
       </ScrollView>
 
       <ChangePasswordModal visible={passwordModalVisible} onClose={() => setPasswordModalVisible(false)} />

@@ -24,10 +24,13 @@ los mismos campos, comportamiento de teclado y footer fijo del sistema de creaci
 - 2–3 opciones mutuamente excluyentes: `FormSegmentedControl`.
 - 4–8 opciones visuales: `FormOptionCard` en grid.
 - Muchas opciones: `FormSelect` que abre una sheet.
-- Booleano: `FormToggle` cuando se incorpore el primer caso real.
+- Booleano: `FormToggle`.
 - Moneda: `FormCurrencyPicker`.
-- Cuenta, categoría, broker o frecuencia: picker compartido específico, creado al
-  migrar el primer módulo que necesite ese dominio.
+- Fecha: `FormDateField`.
+- Categoría (selección única desde una sheet): `FormCategoryPicker`.
+- Cartera(s), con soporte multi-selección y "Todas": `FormAccountPicker`.
+- Broker o frecuencia u otro dominio nuevo: picker compartido específico,
+  creado al migrar el primer módulo que lo necesite.
 
 ## Campos y validación
 
