@@ -18,6 +18,7 @@ interface Props {
   subtitleColor?: string;
   progressColor?: string;
   compact?: boolean;
+  progressLabel?: "completado" | "gastado";
   // Si es true, el "% completado" del footer muestra el valor real aunque
   // supere el 100% (p.ej. "110%" si te has pasado del límite). La barra
   // siempre se capa visualmente en el 100% de ancho, se muestre o no el overflow.
@@ -49,6 +50,7 @@ export default function BudgetGoalCard({
   progressColor,
   compact = false,
   showOverflow = false,
+  progressLabel = "completado",
 }: Props) {
   const rawPct = getRawProgress(current, total);
   const barPct = Math.min(100, rawPct);
@@ -135,7 +137,7 @@ export default function BudgetGoalCard({
       {/* FOOTER */}
       <View className="flex-row justify-between">
         <Text className={compact ? "text-[11px]" : "text-[13px]"} style={{ color: subtitleColor }}>
-          {displayPct.toFixed(0)}% completado
+          {displayPct.toFixed(0)}% {progressLabel}
         </Text>
 
         <Text className={compact ? "text-[11px]" : "text-[13px]"} style={{ color: subtitleColor }}>

@@ -1,4 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useBudgetData } from "../../../../hooks/useBudgetData";
+import { useBudgetFormOptions } from "../../../../hooks/useBudgetFormOptions";
+import { invalidateBudgets } from "../../../../utils/budgetsCache";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
@@ -65,12 +68,15 @@ export default function BudgetEditScreen({ navigation }: any) {
   const route = useRoute();
   const { budgetId } = (route.params as any) || {};
 
-  const [loading, setLoading] = useState(true);
+  const [formReady, setFormReady] = useState(false);
+  const hydratedBudget = useRef<number | null>(null);
+  const budgetQuery = useBudgetData<any>(["edit", budgetId], async (signal) => (await api.get(`/budgets/${budgetId}`, { signal })).data);
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [wallets, setWallets] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const options = useBudgetFormOptions();
+  const wallets = options.data?.wallets ?? [];
+  const categories = options.data?.categories ?? [];
 
   const [name, setName] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
@@ -83,16 +89,8 @@ export default function BudgetEditScreen({ navigation }: any) {
   const [carryOverRemaining, setCarryOverRemaining] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const [budgetRes, walletRes, catRes] = await Promise.all([
-          api.get(`/budgets/${budgetId}`),
-          api.get("/wallets"),
-          api.get("/categories"),
-        ]);
-
-        const b = budgetRes.data;
+    if (!budgetQuery.data || hydratedBudget.current === budgetId) return;
+    const b = budgetQuery.data;
         setName(b.name || "");
         setPeriod(b.period || "monthly");
         setTotalLimitText(b.totalLimit != null ? String(b.totalLimit).replace(".", ",") : "");
@@ -109,17 +107,10 @@ export default function BudgetEditScreen({ navigation }: any) {
         setAutoRenew(b.autoRenew !== undefined ? !!b.autoRenew : true);
         setCarryOverRemaining(!!b.carryOverRemaining);
 
-        setWallets(walletRes.data || []);
-        setCategories(catRes.data || []);
-      } catch (e) {
-        console.error("ERROR (budget edit fetch):", e);
-        appAlert("Error", "No se pudo cargar el presupuesto");
-        navigation.goBack();
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [budgetId]);
+    hydratedBudget.current = budgetId;
+    setFormReady(true);
+  }, [budgetQuery.data, budgetId]);
+  const loading = !formReady || options.isPending;
 
   const expenseCategories = useMemo(
     () => (categories || []).filter((c: any) => c?.type === "expense" && c?.active !== false),
@@ -160,6 +151,7 @@ export default function BudgetEditScreen({ navigation }: any) {
         carryOverRemaining,
       };
       await api.patch(`/budgets/${budgetId}`, payload);
+      invalidateBudgets();
       navigation.goBack();
     } catch (e: any) {
       console.error("ERROR actualizando presupuesto:", e);
@@ -181,6 +173,7 @@ export default function BudgetEditScreen({ navigation }: any) {
           onPress: async () => {
             try {
               await api.delete(`/budgets/${budgetId}`);
+              invalidateBudgets();
               navigation.pop(2);
             } catch (e) {
               appAlert("Error", "No se pudo archivar el presupuesto");
@@ -203,6 +196,7 @@ export default function BudgetEditScreen({ navigation }: any) {
           onPress: async () => {
             try {
               await api.delete(`/budgets/${budgetId}/permanent`);
+              invalidateBudgets();
               navigation.pop(2);
             } catch (e) {
               appAlert("Error", "No se pudo eliminar el presupuesto");

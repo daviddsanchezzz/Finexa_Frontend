@@ -7,7 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useBudgetData } from "../../../../hooks/useBudgetData";
 import { Ionicons } from "@expo/vector-icons";
 import AppHeader from "../../../../components/AppHeader";
 import AddButton from "../../../../components/AddButton";
@@ -258,37 +258,19 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
   const [dateLabel, setDateLabel] = useState<string>(() => defaultLabelForPeriod("monthly", new Date()));
   const [dateModalVisible, setDateModalVisible] = useState(false);
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const [budgets, setBudgets] = useState<BudgetFromApi[]>([]);
-  const [summary, setSummary] = useState<OverviewResponse["summary"]>({
-    totalLimit: 0,
-    totalSpent: 0,
-    remaining: 0,
-    count: 0,
+  const periodStart = computePeriodRange(periodType, refDate).from.toISOString();
+  const overview = useBudgetData<OverviewResponse>(["overview", periodType, periodStart], async (signal) => {
+    const res = await api.get<OverviewResponse>("/budgets/overview", { params: { period: periodType, date: periodStart }, signal });
+    return res.data;
   });
+  const loading = overview.isPending;
+  const budgets = overview.data?.budgets ?? [];
+  const summary = overview.data?.summary ?? { totalLimit: 0, totalSpent: 0, remaining: 0, count: 0 };
 
-  const fetchOverview = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      try {
-        if (!opts?.silent) setLoading(true);
-
-        const res = await api.get<OverviewResponse>("/budgets/overview", {
-          params: { period: periodType, date: refDate.toISOString() },
-        });
-
-        const budgetList: BudgetFromApi[] = res.data?.budgets || [];
-        setBudgets(budgetList);
-        setSummary(
-          res.data?.summary || {
-            totalLimit: 0,
-            totalSpent: 0,
-            remaining: 0,
-            count: 0,
-          }
-        );
-
+  React.useEffect(() => {
+    if (!overview.data) return;
+    const budgetList = overview.data.budgets;
         // checkBudgetAlerts espera "unidades" con {limit,spent,progress}; un budget
         // puede aportar varias (su límite global + cada sublímite por categoría).
         const alertUnits = budgetList.flatMap((b) => {
@@ -315,22 +297,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
           return units;
         });
         checkBudgetAlerts(alertUnits).catch(() => {});
-      } catch (e) {
-        console.log("❌ Error cargando overview de budgets", e);
-        setBudgets([]);
-        setSummary({ totalLimit: 0, totalSpent: 0, remaining: 0, count: 0 });
-      } finally {
-        if (!opts?.silent) setLoading(false);
-      }
-    },
-    [periodType, refDate]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchOverview();
-    }, [fetchOverview])
-  );
+  }, [overview.data]);
 
   const handleSelectDate = useCallback((range: { from: string; to: string; label: string; type: string }) => {
     const mappedPeriod = DATE_TYPE_TO_PERIOD[range.type];
@@ -339,19 +306,14 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
     setDateLabel(capitalizeLabel(range.label));
   }, []);
 
-  // Cuando cambia el periodo o la fecha de referencia, refresca automáticamente
-  React.useEffect(() => {
-    fetchOverview();
-  }, [periodType, refDate]);
-
   const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      await fetchOverview({ silent: true });
+      await overview.refetch();
     } finally {
       setRefreshing(false);
     }
-  }, [fetchOverview]);
+  }, [overview.refetch]);
 
   const periodLabel = getPeriodLabel(periodType);
 
@@ -371,7 +333,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* HEADER */}
-      <View className="px-5 pb-3">
+      <View className="px-5" style={{ marginBottom: -8 }}>
         <AppHeader
           title="Presupuestos"
           showProfile={false}
@@ -387,15 +349,8 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
           <BudgetsScreenSkeleton />
         </ScrollView>
       ) : (
-        <ScrollView
-          className="flex-1 px-3"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 12 }}>
+        <View className="flex-1 px-3">
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 6 }}>
             <AddButton label="Añadir" onPress={() => navigation.navigate("BudgetCreate", { periodType })} />
           </View>
 
@@ -425,7 +380,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
                     />
                   </View>
                   <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }} numberOfLines={1}>
-                    {overallProgress.toFixed(0)}% del presupuesto {periodLabel}
+                    {overallProgress.toFixed(0)}% gastado del presupuesto {periodLabel}
                   </Text>
                 </View>
               }
@@ -439,6 +394,12 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
             />
           </View>
 
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          >
           {filteredBudgets.length === 0 ? (
             <Text className="text-center text-gray-400 mt-16 text-sm">
               No tienes presupuestos para este periodo.
@@ -478,6 +439,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
                       onPress={() => goToDetail()}
                       compact
                       showOverflow
+                      progressLabel="gastado"
                     />
                   </View>
                 );
@@ -499,6 +461,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
                       onPress={() => goToDetail(cl.categoryId)}
                       compact
                       showOverflow
+                      progressLabel="gastado"
                     />
                   </View>
                 );
@@ -517,7 +480,8 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
               spendProgress={overallProgress / 100}
             />
           ) : null}
-        </ScrollView>
+          </ScrollView>
+        </View>
       )}
 
       <DateFilterModal

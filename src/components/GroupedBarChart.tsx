@@ -21,6 +21,11 @@ interface Props {
   // Periodo destacado mientras el usuario no haya seleccionado otro.
   // `null` deja la gráfica sin un periodo destacado por defecto.
   currentPeriodIndex?: number | null;
+  formatValue?: (value: number) => string;
+  formatAxisValue?: (value: number) => string;
+  showValues?: boolean;
+  minimumMax?: number;
+  referenceLine?: { value: number; color: string };
 }
 
 const TOOLTIP_WIDTH = 172;
@@ -33,9 +38,9 @@ const LABEL_HEIGHT = 24;
 // (con un pequeño golpe háptico en cada cambio de mes) y superpone un
 // tooltip flotante con sus valores exactos — el tooltip nunca desplaza el
 // contenido de alrededor.
-export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100, currentPeriodIndex }: Props) {
+export default function GroupedBarChart({ series, xLabels, tooltipLabels, height = 100, currentPeriodIndex, formatValue, formatAxisValue = formatEuroInt, showValues = false, minimumMax = 1, referenceLine }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const screenWidth = Dimensions.get("window").width - 80;
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get("window").width - 80);
   const seriesCount = series.length;
   const n = xLabels.length;
   const labels = tooltipLabels ?? xLabels;
@@ -44,7 +49,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
   const plotHeight = height;
 
   const allValues = series.flatMap((s) => s.values.map((v) => Math.abs(v)));
-  const rawMax = Math.max(...allValues, 1);
+  const rawMax = Math.max(...allValues, minimumMax, referenceLine?.value ?? 0, 1);
   const niceMax = Math.ceil(rawMax / 25) * 25 || 1;
 
   const barWidth = seriesCount >= 3 ? 5 : seriesCount === 2 ? 9 : n > 8 ? 12 : 18;
@@ -98,7 +103,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
   // Altura de la barra más alta de la columna seleccionada, para anclar el
   // tooltip justo encima de su punta (con margen para la puntita) en vez de
   // taparla.
-  const maxBarHeight = plotHeight - 4;
+  const maxBarHeight = plotHeight - (showValues ? 22 : 4);
   const selectedBarTopY = selectedIndex != null
     ? plotHeight - Math.max(
         (Math.max(...series.map((s) => Math.abs(s.values[selectedIndex] ?? 0))) / niceMax) * maxBarHeight,
@@ -109,7 +114,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
   const tooltipTop = selectedBarTopY - estTooltipHeight - 14;
 
   return (
-    <View style={{ width: "100%" }}>
+    <View style={{ width: "100%" }} onLayout={event => setScreenWidth(event.nativeEvent.layout.width)}>
       {seriesCount > 1 && (
         <View style={{ flexDirection: "row", gap: 16, marginBottom: 10, flexWrap: "wrap" }}>
           {series.map((s) => (
@@ -123,11 +128,11 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
 
       <View style={{ width: screenWidth, alignSelf: "center", position: "relative" }}>
         {/* GRID Y EJE Y — solo cubre el área de trazado, no las etiquetas */}
-        <View style={{ height: plotHeight, position: "absolute", left: 0, right: 0, top: 0, justifyContent: "space-between" }}>
+        <View style={{ height: showValues ? maxBarHeight : plotHeight, position: "absolute", left: 0, right: 0, top: showValues ? 22 : 0, justifyContent: "space-between" }}>
           {[niceMax, niceMax / 2, 0].map((v, idx) => (
             <View key={idx} style={{ flexDirection: "row", alignItems: "center" }}>
               <Text style={{ width: 34, textAlign: "right", marginRight: 8, fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>
-                {formatEuroInt(v)}
+                {formatAxisValue(v)}
               </Text>
               <View style={{ height: 1, backgroundColor: "#F4F5F7", flex: 1 }} />
             </View>
@@ -153,8 +158,13 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
                       const v = Math.abs(s.values[i] ?? 0);
                       const barHeight = Math.max((v / niceMax) * maxBarHeight, v === 0 ? 0 : 3);
                       return (
+                        <View key={s.label} style={{ width: barWidth, height: barHeight }}>
+                        {showValues && (
+                          <Text style={{ position: "absolute", bottom: barHeight + 5, width: Math.max(barWidth, colWidth - 2), left: (barWidth - Math.max(barWidth, colWidth - 2)) / 2, textAlign: "center", fontSize: 10.5, fontWeight: "700", color: "#475569" }} numberOfLines={1}>
+                            {formatValue ? formatValue(s.values[i] ?? 0) : formatAxisValue(s.values[i] ?? 0)}
+                          </Text>
+                        )}
                         <View
-                          key={s.label}
                           style={{
                             width: barWidth,
                             height: barHeight,
@@ -163,6 +173,7 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
                             opacity: v === 0 ? 0.18 : isHighlighted ? 1 : 0.4,
                           }}
                         />
+                        </View>
                       );
                     })}
                   </View>
@@ -176,12 +187,15 @@ export default function GroupedBarChart({ series, xLabels, tooltipLabels, height
           })}
         </View>
 
+        {referenceLine && (
+          <View pointerEvents="none" style={{ position: "absolute", left: gridLeft, right: 0, top: plotHeight - referenceLine.value / niceMax * maxBarHeight, borderTopWidth: 1, borderStyle: "dashed", borderColor: referenceLine.color }} />
+        )}
         {selectedIndex != null && (
           <ChartTooltip
             title={labels[selectedIndex]}
             style={{ position: "absolute", left: tooltipLeft, top: tooltipTop, zIndex: 20, elevation: 6 }}
             pointerLeft={pointerLeft}
-            rows={series.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0 }))}
+            rows={series.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0, formattedValue: formatValue?.(s.values[selectedIndex] ?? 0) }))}
           />
         )}
       </View>

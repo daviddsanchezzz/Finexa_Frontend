@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useBudgetData } from "../../../../hooks/useBudgetData";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +10,9 @@ import TransactionsList from "../../../../components/TransactionsList";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
+import SegmentedTabs from "../../../../components/SegmentedTabs";
+import BudgetPaceCard from "../../../../components/BudgetPaceCard";
+import BudgetHistoryCard from "../../../../components/BudgetHistoryCard";
 import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import { formatEuro as formatEuroBase } from "../../../../utils/currency";
 import { budgetProgressColor } from "../../../../utils/budgetProgressColor";
@@ -73,82 +77,39 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
   // que ya vienen en los params, sin tocar el endpoint de presupuestos.
   const isGoalMode = !!goalId;
 
-  const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState<BudgetProgress | null>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
-
-  const fetchGoalTransactions = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params: any = {
-        dateFrom: range?.from || dateFrom,
-        dateTo: range?.to || dateTo,
-        type: type || "expense",
-      };
-      if (categoryId) params.categoryId = categoryId;
-      if (walletId) params.walletId = walletId;
-      const res = await api.get("/transactions", { params });
-      setTransactions(res.data || []);
-    } catch (e) {
-      console.log("❌ Error cargando transacciones del objetivo", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [range, dateFrom, dateTo, type, categoryId, walletId]);
-
-  // Si se abrió desde una tarjeta de categoría concreta (no la global), solo
-  // nos interesan el progreso y las transacciones de esa categoría.
+  const [tab, setTab] = useState<"movements" | "pace" | "history">("movements");
   const scopedCategoryId = !isGoalMode && categoryId != null ? Number(categoryId) : null;
-
-  const fetchBudgetProgress = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const progressRes = await api.get(`/budgets/${budgetId}/progress`, { params: date ? { date } : undefined });
-      const p: BudgetProgress = progressRes.data;
-      setProgress(p);
-
-      const hasGlobal = p.effectiveTotalLimit != null;
-      const categoryIds = p.categoryLimits.map((c) => c.categoryId);
-
-      if (scopedCategoryId == null && !hasGlobal && categoryIds.length === 0) {
-        setTransactions([]);
-        return;
+  const refDate = new Date(date || Date.now());
+  refDate.setHours(0, 0, 0, 0);
+  const referenceDate = refDate.toISOString();
+  const detail = useBudgetData<{ progress: BudgetProgress | null; transactions: any[] }>(
+    ["detail", isGoalMode ? "goal" : "budget", budgetId ?? goalId, referenceDate, scopedCategoryId, range?.from ?? dateFrom, range?.to ?? dateTo, walletId, type, categoryId],
+    async (signal) => {
+      if (isGoalMode) {
+        const params: any = { dateFrom: range?.from || dateFrom, dateTo: range?.to || dateTo, type: type || "expense" };
+        if (categoryId) params.categoryId = categoryId;
+        if (walletId) params.walletId = walletId;
+        const response = await api.get("/transactions", { params, signal });
+        return { progress: null, transactions: response.data || [] };
       }
-
-      const params: any = {
-        dateFrom: p.range.from,
-        dateTo: p.range.to,
-        type: "expense",
-        isRecurring: false,
-      };
-      if (p.walletIds?.length) params.walletIds = p.walletIds.join(",");
-
-      if (scopedCategoryId != null) {
-        params.categoryId = scopedCategoryId;
-      } else if (!hasGlobal) {
-        params.categoryIds = categoryIds.join(",");
-      }
-
-      const txRes = await api.get("/transactions", { params });
-      // El backend no filtra excludeFromStats server-side (igual que en Home);
-      // isRecurring se pide ya filtrado, pero lo reforzamos aquí por si acaso.
-      const filtered = (txRes.data || [])
-        .filter((tx: any) => tx.isRecurring !== true)
-        .filter((tx: any) => tx.excludeFromStats !== true);
-      setTransactions(filtered);
-    } catch (e) {
-      console.log("❌ Error cargando presupuesto/transacciones", e);
-    } finally {
-      setLoading(false);
+      const response = await api.get<BudgetProgress>(`/budgets/${budgetId}/progress`, { params: { date: referenceDate }, signal });
+      const progress = response.data;
+      const hasGlobal = progress.effectiveTotalLimit != null;
+      const categoryIds = progress.categoryLimits.map(item => item.categoryId);
+      if (scopedCategoryId == null && !hasGlobal && !categoryIds.length) return { progress, transactions: [] };
+      const params: any = { dateFrom: progress.range.from, dateTo: progress.range.to, type: "expense", isRecurring: false };
+      if (progress.walletIds?.length) params.walletIds = progress.walletIds.join(",");
+      if (scopedCategoryId != null) params.categoryId = scopedCategoryId;
+      else if (!hasGlobal) params.categoryIds = categoryIds.join(",");
+      const txResponse = await api.get("/transactions", { params, signal });
+      return { progress, transactions: (txResponse.data || []).filter((tx: any) => tx.isRecurring !== true && tx.excludeFromStats !== true) };
     }
-  }, [budgetId, date, scopedCategoryId]);
-
-  const fetchAll = isGoalMode ? fetchGoalTransactions : fetchBudgetProgress;
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  );
+  const loading = detail.isPending;
+  const progress = detail.data?.progress ?? null;
+  const transactions = detail.data?.transactions ?? [];
+  const fetchGoalTransactions = () => { void detail.refetch(); };
+  const fetchBudgetProgress = () => { void detail.refetch(); };
 
   if (isGoalMode) {
     return (
@@ -212,9 +173,9 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
       {loading || !progress ? (
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : (
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20 }}>
+        <View className="flex-1">
           {scopedCategory || hasGlobal ? (
-            <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: 16, paddingHorizontal: 20 }}>
               <HeroBalanceCard
                 label="Disponible"
                 value={formatEuro(remainingValue)}
@@ -240,7 +201,7 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
                       />
                     </View>
                     <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }} numberOfLines={1}>
-                      {(rawProgress * 100).toFixed(0)}% completado
+                      {(rawProgress * 100).toFixed(0)}% gastado
                     </Text>
                   </View>
                 }
@@ -255,6 +216,32 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
             </View>
           ) : null}
 
+          <SegmentedTabs<"movements" | "pace" | "history">
+            options={[{ key: "movements", label: "Movimientos" }, { key: "pace", label: "Ritmo" }, { key: "history", label: "Histórico" }]}
+            value={tab}
+            onChange={setTab}
+            variant="underline"
+          />
+          <ScrollView
+            key={tab}
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20 }}
+          >
+          {tab === "history" ? (
+            <View style={{ paddingTop: 16 }}>
+              <BudgetHistoryCard budgetId={budgetId} categoryId={scopedCategoryId} />
+            </View>
+          ) : tab === "pace" ? (
+            <View style={{ paddingTop: 16 }}>
+              <BudgetPaceCard
+                from={progress.range.from}
+                to={progress.range.to}
+                limit={scopedCategory || hasGlobal ? Number(limitValue) : progress.categoryLimits.reduce((sum, item) => sum + Number(item.limit), 0)}
+                transactions={transactions}
+              />
+            </View>
+          ) : <>
           {!scopedCategory && progress.categoryLimits.length > 0 ? (
             <View style={{ marginBottom: 24 }}>
               <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.45, color: "#64748B", marginBottom: 12 }}>
@@ -287,7 +274,9 @@ export default function BudgetTransactionsScreen({ navigation }: any) {
           ) : null}
 
           <TransactionsList transactions={transactions} navigation={navigation} onDeleted={fetchBudgetProgress} />
-        </ScrollView>
+          </>}
+          </ScrollView>
+        </View>
       )}
     </SafeAreaView>
   );

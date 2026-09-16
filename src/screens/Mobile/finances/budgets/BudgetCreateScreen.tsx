@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useBudgetFormOptions } from "../../../../hooks/useBudgetFormOptions";
+import { invalidateBudgets } from "../../../../utils/budgetsCache";
+import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
@@ -59,12 +61,13 @@ export default function BudgetCreateScreen({ navigation }: any) {
   const route = useRoute();
   const { periodType } = (route.params as any) || {};
 
-  const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [wallets, setWallets] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const options = useBudgetFormOptions();
+  const wallets = options.data?.wallets ?? [];
+  const categories = options.data?.categories ?? [];
 
   const [name, setName] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>(
@@ -80,20 +83,7 @@ export default function BudgetCreateScreen({ navigation }: any) {
   const [autoRenew, setAutoRenew] = useState(true);
   const [carryOverRemaining, setCarryOverRemaining] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const [walletRes, catRes] = await Promise.all([api.get("/wallets"), api.get("/categories")]);
-        setWallets(walletRes.data || []);
-        setCategories(catRes.data || []);
-      } catch (e) {
-        console.error("ERROR (budgets create fetch):", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const loading = options.isPending;
 
   const expenseCategories = useMemo(
     () => (categories || []).filter((c: any) => c?.type === "expense" && c?.active !== false),
@@ -133,6 +123,7 @@ export default function BudgetCreateScreen({ navigation }: any) {
         carryOverRemaining,
       };
       await api.post("/budgets", payload);
+      invalidateBudgets();
       navigation.goBack();
     } catch (e: any) {
       console.error("ERROR guardando presupuesto:", e);
