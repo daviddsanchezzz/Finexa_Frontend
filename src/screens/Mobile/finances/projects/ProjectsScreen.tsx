@@ -1,6 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   Text,
@@ -9,14 +8,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
 import AddButton from '../../../../components/AddButton';
 import HeroBalanceCard from '../../../../components/HeroBalanceCard';
 import StatsRow from '../../../../components/StatsRow';
 import SegmentedTabs from '../../../../components/SegmentedTabs';
+import { ProjectsScreenSkeleton } from '../../../../components/skeletons/ProjectsScreenSkeleton';
 import { colors } from '../../../../theme/theme';
-import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from '../../../../utils/transactionsInvalidation';
+import { useProjectsQuery } from '../../../../hooks/useProjectsQuery';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
 type ProjectFilter = 'all' | 'active' | 'idea';
@@ -31,9 +30,9 @@ type ProjectItem = {
   endDate?: string | null;
   notes?: string | null;
   financials: {
-    totalIncome: number;
-    totalExpense: number;
-    balance: number;
+    income: number;
+    expense: number;
+    result: number;
   };
 };
 
@@ -63,48 +62,27 @@ function formatCurrency(value: number) {
 }
 
 export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }: any) {
-  const [loading, setLoading] = useState(false);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const projectsQuery = useProjectsQuery();
+  const projects: ProjectItem[] = projectsQuery.data ?? [];
+  const loading = projectsQuery.isLoading;
   const [filter, setFilter] = useState<ProjectFilter>('all');
-  const [invalidationVersion, setInvalidationVersion] = useState<number>(() => getTransactionsDataVersion());
-
-  useEffect(() => subscribeTransactionsInvalidation((v) => setInvalidationVersion(v)), []);
-
-  const hasFetched = useRef(false);
-  const lastFetchedVersion = useRef<number>(-1);
-
-  const fetchProjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/projects');
-      setProjects(Array.isArray(res.data) ? res.data : []);
-    } catch (error) {
-      console.error('Error al cargar proyectos:', error);
-      setProjects([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (hasFetched.current && lastFetchedVersion.current === invalidationVersion) return;
-      hasFetched.current = true;
-      lastFetchedVersion.current = invalidationVersion;
-      fetchProjects();
+      projectsQuery.refetch();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [invalidationVersion]),
+    }, []),
   );
 
   const totals = useMemo(() => {
     return projects.reduce(
       (acc, project) => {
-        acc.income += Number(project.financials?.totalIncome || 0);
-        acc.expense += Number(project.financials?.totalExpense || 0);
-        acc.balance += Number(project.financials?.balance || 0);
+        acc.income += Number(project.financials?.income || 0);
+        acc.expense += Number(project.financials?.expense || 0);
+        acc.result += Number(project.financials?.result || 0);
         return acc;
       },
-      { income: 0, expense: 0, balance: 0 },
+      { income: 0, expense: 0, result: 0 },
     );
   }, [projects]);
 
@@ -125,111 +103,113 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
         />
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-        <HeroBalanceCard
-          label="Rentabilidad global"
-          value={formatCurrency(totals.balance)}
-          style={{ marginBottom: 8 }}
-        />
+      {loading ? (
+        <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 42 }}>
+          <ProjectsScreenSkeleton />
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+            <HeroBalanceCard
+              label="Rentabilidad global"
+              value={formatCurrency(totals.result)}
+              style={{ marginBottom: 8 }}
+            />
 
-        <StatsRow
-          items={[
-            { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(totals.income), color: colors.success },
-            { key: 'gastos', label: 'GASTOS', value: formatCurrency(totals.expense), color: colors.danger },
-            { key: 'proyectos', label: 'PROYECTOS', value: String(projects.length) },
-          ]}
-        />
-      </View>
+            <StatsRow
+              items={[
+                { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(totals.income), color: colors.success },
+                { key: 'gastos', label: 'GASTOS', value: formatCurrency(totals.expense), color: colors.danger },
+                { key: 'proyectos', label: 'PROYECTOS', value: String(projects.length) },
+              ]}
+            />
+          </View>
 
-      <SegmentedTabs<ProjectFilter>
-        variant="underline"
-        options={[
-          { key: 'active', label: 'Activos' },
-          { key: 'idea', label: 'Ideas' },
-          { key: 'all', label: 'Todos' },
-        ]}
-        value={filter}
-        onChange={setFilter}
-      />
-
-      <ScrollView
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 42, paddingTop: 14 }}
-      >
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.primary}
-            style={{ marginTop: 40 }}
+          <SegmentedTabs<ProjectFilter>
+            variant="underline"
+            options={[
+              { key: 'active', label: 'Activos' },
+              { key: 'idea', label: 'Ideas' },
+              { key: 'all', label: 'Todos' },
+            ]}
+            value={filter}
+            onChange={setFilter}
           />
-        ) : filteredProjects.length === 0 ? (
-          <Text className="text-center text-gray-400 mb-4 text-sm">
-            {projects.length === 0
-              ? 'Aún no tienes proyectos. Crea uno para empezar a medir su rentabilidad.'
-              : 'No hay proyectos en este estado.'}
-          </Text>
-        ) : (
-          filteredProjects.map((project) => {
-            const balance = Number(project.financials?.balance || 0);
-            const balanceColor = balance >= 0 ? colors.success : colors.danger;
-            const badgeColors = STATUS_COLORS[project.status];
 
-            return (
-              <TouchableOpacity
-                key={project.id}
-                onPress={() => navigation.navigate('ProjectDetail', { projectId: project.id })}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor: 'white',
-                  borderRadius: 18,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  marginBottom: 10,
-                  shadowColor: '#000',
-                  shadowOpacity: 0.04,
-                  shadowRadius: 6,
-                  elevation: 1,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text
-                    style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' }}
-                    numberOfLines={1}
+          <ScrollView
+            className="flex-1 px-5"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 42, paddingTop: 14 }}
+          >
+            {filteredProjects.length === 0 ? (
+              <Text className="text-center text-gray-400 mb-4 text-sm">
+                {projects.length === 0
+                  ? 'Aún no tienes proyectos. Crea uno para empezar a medir su rentabilidad.'
+                  : 'No hay proyectos en este estado.'}
+              </Text>
+            ) : (
+              filteredProjects.map((project) => {
+                const result = Number(project.financials?.result || 0);
+                const resultColor = result >= 0 ? colors.success : colors.danger;
+                const badgeColors = STATUS_COLORS[project.status];
+
+                return (
+                  <TouchableOpacity
+                    key={project.id}
+                    onPress={() => navigation.navigate('ProjectDetail', { projectId: project.id })}
+                    activeOpacity={0.85}
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: 18,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      marginBottom: 10,
+                      shadowColor: '#000',
+                      shadowOpacity: 0.04,
+                      shadowRadius: 6,
+                      elevation: 1,
+                    }}
                   >
-                    {project.name}
-                  </Text>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: balanceColor, marginLeft: 8 }}>
-                    {formatCurrency(balance)}
-                  </Text>
-                </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <Text
+                        style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' }}
+                        numberOfLines={1}
+                      >
+                        {project.name}
+                      </Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: resultColor, marginLeft: 8 }}>
+                        {formatCurrency(result)}
+                      </Text>
+                    </View>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: badgeColors.bg }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColors.text }}>
-                      {STATUS_LABELS[project.status]}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                      <Ionicons name="arrow-up" size={11} color={colors.success} />
-                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.success }}>
-                        {formatCurrency(project.financials?.totalIncome || 0)}
-                      </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: badgeColors.bg }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColors.text }}>
+                          {STATUS_LABELS[project.status]}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                          <Ionicons name="arrow-up" size={11} color={colors.success} />
+                          <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.success }}>
+                            {formatCurrency(project.financials?.income || 0)}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                          <Ionicons name="arrow-down" size={11} color={colors.danger} />
+                          <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.danger }}>
+                            {formatCurrency(project.financials?.expense || 0)}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                      <Ionicons name="arrow-down" size={11} color={colors.danger} />
-                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.danger }}>
-                        {formatCurrency(project.financials?.totalExpense || 0)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

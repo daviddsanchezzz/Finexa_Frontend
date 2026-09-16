@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
 import OverflowMenuButton from '../../../../components/OverflowMenuButton';
@@ -24,11 +25,30 @@ import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
 import { formatEuro } from '../../../../utils/currency';
 import { markTransactionsDirty } from '../../../../utils/transactionsInvalidation';
+import { ProjectDetailScreenSkeleton } from '../../../../components/skeletons/ProjectDetailScreenSkeleton';
 
 type DetailTab = 'info' | 'movements' | 'cash';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
-type EntryType = 'income' | 'expense';
+
+// income/expense afectan al resultado del proyecto. contribution/withdrawal
+// son capital de un socio (aportación/retirada) y nunca afectan al
+// resultado, solo a la caja disponible.
+type MovementKind = 'income' | 'expense' | 'contribution' | 'withdrawal';
+
+const MOVEMENT_KIND_LABELS: Record<MovementKind, string> = {
+  income: 'Ingreso',
+  expense: 'Gasto',
+  contribution: 'Aportación',
+  withdrawal: 'Retirada',
+};
+
+const MOVEMENT_KIND_META: Record<MovementKind, { icon: keyof typeof Ionicons.glyphMap; bg: string; color: string }> = {
+  income: { icon: 'add-outline', bg: '#ECFDF3', color: '#16A34A' },
+  expense: { icon: 'remove-outline', bg: '#FEF2F2', color: '#DC2626' },
+  contribution: { icon: 'arrow-down-circle-outline', bg: '#EFF6FF', color: '#2563EB' },
+  withdrawal: { icon: 'arrow-up-circle-outline', bg: '#FFF7ED', color: '#C2410C' },
+};
 
 type ProjectTransaction = {
   id: number;
@@ -41,15 +61,14 @@ type ProjectTransaction = {
 
 type ProjectManualEntry = {
   id: number;
-  type: EntryType;
+  kind: MovementKind;
   title: string;
   description?: string | null;
   amount: number;
   date: string;
   category?: string | null;
   notes?: string | null;
-  entryKind?: 'standard' | 'profit_distribution';
-  partnerName?: string | null;
+  partnerId?: number | null;
 };
 
 type ProjectPartner = {
@@ -57,6 +76,8 @@ type ProjectPartner = {
   name: string;
   percentage: number;
   isMe: boolean;
+  contributed: number;
+  withdrawn: number;
 };
 
 type ProjectDetail = {
@@ -76,32 +97,31 @@ type ProjectDetail = {
     transactionsExpense: number;
     manualIncome: number;
     manualExpense: number;
-    totalIncome: number;
-    totalExpense: number;
-    balance: number;
-    withdrawalsTotal?: number;
-    operatingExpense?: number;
-    operatingBalance?: number;
-    cashInBox?: number;
-    retainedProfit?: number; // backward compatibility
+    income: number;
+    expense: number;
+    result: number;
+    contributions: number;
+    withdrawals: number;
+    cash: number;
   };
 };
 
 type ManualForm = {
-  type: EntryType;
+  kind: MovementKind;
   title: string;
   description: string;
   amount: string;
   date: Date;
   category: string;
   notes: string;
+  partnerId: number | null;
 };
 
 type CombinedMovement =
   | {
       source: 'transaction';
       id: number;
-      type: 'income' | 'expense';
+      kind: 'income' | 'expense';
       title: string;
       description?: string | null;
       amount: number;
@@ -111,17 +131,17 @@ type CombinedMovement =
   | {
       source: 'manual';
       id: number;
-      type: EntryType;
+      kind: MovementKind;
       title: string;
       description?: string | null;
       amount: number;
       date: string;
       category?: string | null;
-      entryKind?: 'standard' | 'profit_distribution';
-      partnerName?: string | null;
+      partnerId?: number | null;
     };
 
 type ProfitFormLine = {
+  partnerId: number;
   partnerName: string;
   amount: string;
   notes: string;
@@ -136,6 +156,7 @@ type ProfitForm = {
 };
 
 type PartnerFormItem = {
+  id?: number;
   name: string;
   percentage: string;
   isMe: boolean;
@@ -174,13 +195,14 @@ function formatDate(value?: string | null) {
 
 function defaultManualForm(): ManualForm {
   return {
-    type: 'expense',
+    kind: 'expense',
     title: '',
     description: '',
     amount: '',
     date: new Date(),
     category: '',
     notes: '',
+    partnerId: null,
   };
 }
 
@@ -197,8 +219,17 @@ function defaultProfitForm(): ProfitForm {
 export default function ProjectDetailScreen({ route, navigation }: any) {
   const projectId: number | undefined = route?.params?.projectId;
 
-  const [loading, setLoading] = useState(false);
-  const [project, setProject] = useState<ProjectDetail | null>(null);
+  const projectQuery = useQuery({
+    queryKey: ['projects', 'detail', projectId],
+    queryFn: async () => (await api.get(`/projects/${projectId}`)).data as ProjectDetail,
+    enabled: !!projectId,
+  });
+  const project = projectQuery.data ?? null;
+  const loading = projectQuery.isLoading;
+  const fetchProject = useCallback(() => {
+    projectQuery.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
   const [tab, setTab] = useState<DetailTab>('info');
 
   const [txSelectorOpen, setTxSelectorOpen] = useState(false);
@@ -215,6 +246,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [partnersSaving, setPartnersSaving] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
   const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
+  const [selectedMovement, setSelectedMovement] = useState<CombinedMovement | null>(null);
   const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
   const [profitForm, setProfitForm] = useState<ProfitForm>(defaultProfitForm());
@@ -222,25 +254,11 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [profitDatePickerVisible, setProfitDatePickerVisible] = useState(false);
 
-  const fetchProject = useCallback(async () => {
-    if (!projectId) return;
-
-    try {
-      setLoading(true);
-      const res = await api.get(`/projects/${projectId}`);
-      setProject(res.data || null);
-    } catch (error) {
-      console.error('Error cargando detalle del proyecto:', error);
-      setProject(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
   useFocusEffect(
     useCallback(() => {
-      fetchProject();
-    }, [fetchProject]),
+      projectQuery.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [projectId]),
   );
 
   const fetchAllTransactions = async () => {
@@ -339,23 +357,21 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const openManualEdit = (entry: ProjectManualEntry) => {
     setEditingEntry(entry);
     setManualForm({
-      type: entry.type,
+      kind: entry.kind,
       title: entry.title,
       description: entry.description || '',
       amount: String(entry.amount),
       date: entry.date ? new Date(entry.date) : new Date(),
       category: entry.category || '',
       notes: entry.notes || '',
+      partnerId: entry.partnerId ?? null,
     });
     setManualModalOpen(true);
   };
 
-  const validateManualForm = () => {
-    if (!manualForm.type) {
-      appAlert('Validación', 'El tipo es obligatorio.');
-      return false;
-    }
+  const needsPartner = (kind: MovementKind) => kind === 'contribution' || kind === 'withdrawal';
 
+  const validateManualForm = () => {
     if (!manualForm.title.trim()) {
       appAlert('Validación', 'El título es obligatorio.');
       return false;
@@ -372,6 +388,11 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       return false;
     }
 
+    if (needsPartner(manualForm.kind) && manualForm.partnerId == null) {
+      appAlert('Validación', 'Selecciona el socio para este movimiento.');
+      return false;
+    }
+
     return true;
   };
 
@@ -380,13 +401,14 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     if (!validateManualForm()) return;
 
     const payload = {
-      type: manualForm.type,
+      kind: manualForm.kind,
       title: manualForm.title.trim(),
       description: manualForm.description.trim() || null,
       amount: Number(String(manualForm.amount).replace(',', '.')),
       date: manualForm.date.toISOString(),
       category: manualForm.category.trim() || null,
       notes: manualForm.notes.trim() || null,
+      partnerId: needsPartner(manualForm.kind) ? manualForm.partnerId : null,
     };
 
     try {
@@ -447,6 +469,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       date: new Date(),
       notes: '',
       lines: partners.map((partner) => ({
+        partnerId: partner.id,
         partnerName: partner.name,
         amount: '',
         notes: partner.isMe ? 'Mi parte' : '',
@@ -457,6 +480,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
   const openPartnersEditor = () => {
     const base = (project?.partners || []).map((partner) => ({
+      id: partner.id,
       name: partner.name,
       percentage: String(partner.percentage),
       isMe: !!partner.isMe,
@@ -472,6 +496,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     if (!Number.isFinite(total) || total <= 0 || !partners.length) return;
 
     const rawLines = partners.map((partner) => ({
+      partnerId: partner.id,
       partnerName: partner.name,
       amount: Number(((total * partner.percentage) / 100).toFixed(2)),
       notes: partner.isMe ? 'Mi parte' : '',
@@ -487,6 +512,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     setProfitForm((prev) => ({
       ...prev,
       lines: rawLines.map((line) => ({
+        partnerId: line.partnerId,
         partnerName: line.partnerName,
         amount: String(line.amount),
         notes: line.notes,
@@ -559,9 +585,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     const cleanLines = profitForm.lines
       .filter((line) => line.partnerName.trim() || line.amount.trim())
       .map((line) => ({
-        partnerName: line.partnerName.trim(),
+        partnerId: line.partnerId,
         amount: Number(String(line.amount).replace(',', '.')),
-        notes: line.notes.trim() || null,
       }));
 
     const payload = {
@@ -593,6 +618,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     const clean = partnersForm
       .filter((item) => item.name.trim() || item.percentage.trim())
       .map((item) => ({
+        id: item.id,
         name: item.name.trim(),
         percentage: Number(String(item.percentage).replace(',', '.')),
         isMe: !!item.isMe,
@@ -699,7 +725,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       .map((tx) => ({
         source: 'transaction',
         id: tx.id,
-        type: tx.type,
+        kind: tx.type,
         title: tx.description || 'Transacción sin descripción',
         description: tx.description,
         amount: Number(tx.amount || 0),
@@ -709,14 +735,13 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     const manualItems: CombinedMovement[] = manualEntries.map((entry) => ({
       source: 'manual',
       id: entry.id,
-      type: entry.type,
+      kind: entry.kind,
       title: entry.title,
       description: entry.description,
       amount: Number(entry.amount || 0),
       date: entry.date,
       category: entry.category,
-      entryKind: entry.entryKind,
-      partnerName: entry.partnerName,
+      partnerId: entry.partnerId,
     }));
 
     return [...txItems, ...manualItems].sort((a, b) => {
@@ -726,23 +751,21 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     });
   }, [project?.transactions, project?.manualEntries]);
 
-  const myWithdrawals = useMemo(() => {
-    const me = project?.partners?.find((partner) => partner.isMe);
-    if (!project || !me) return 0;
-
-    return (project.manualEntries || [])
-      .filter((entry) => {
-        if (entry.type !== 'expense') return false;
-        if (entry.entryKind !== 'profit_distribution') return false;
-        return String(entry.partnerName || '').trim().toLowerCase() === me.name.trim().toLowerCase();
-      })
-      .reduce((acc, entry) => acc + Number(entry.amount || 0), 0);
-  }, [project]);
+  const partnerNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (project?.partners || []).forEach((partner) => map.set(partner.id, partner.name));
+    return map;
+  }, [project?.partners]);
 
   if (loading && !project) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color={colors.primary} />
+      <SafeAreaView className="flex-1 bg-background">
+        <View className="px-5 pb-2">
+          <AppHeader title="Proyecto" showProfile={false} showDatePicker={false} showBack={true} />
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <ProjectDetailScreenSkeleton />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -765,9 +788,12 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     );
   }
 
-  const balance = Number(project.financials.balance || 0);
-  const balanceColor = balance >= 0 ? '#16A34A' : '#DC2626';
+  const result = Number(project.financials.result || 0);
   const statusTone = STATUS_COLORS[project.status];
+  // Beneficio aún no repartido: resultado acumulado menos lo ya retirado por
+  // los socios. Puramente informativo — no escribe nada hasta que se
+  // registre una retirada real.
+  const distributable = Math.max(0, result - Number(project.financials.withdrawals || 0));
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -794,15 +820,15 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
       <View style={{ paddingHorizontal: 20 }}>
         <HeroBalanceCard
-          label="Balance del proyecto"
-          value={formatCurrency(balance)}
+          label="Resultado del proyecto"
+          value={formatCurrency(result)}
           style={{ marginBottom: 8 }}
         />
 
         <StatsRow
           items={[
-            { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(project.financials.totalIncome || 0), color: colors.success },
-            { key: 'gastos', label: 'GASTOS', value: formatCurrency(project.financials.totalExpense || 0), color: colors.danger },
+            { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(project.financials.income || 0), color: colors.success },
+            { key: 'gastos', label: 'GASTOS', value: formatCurrency(project.financials.expense || 0), color: colors.danger },
           ]}
         />
       </View>
@@ -897,32 +923,15 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
               </Text>
             ) : (
               combinedMovements.map((item) => {
-                const isManual = item.source === 'manual';
-                const isProfitDistribution = isManual && item.entryKind === 'profit_distribution';
-                const amountColor = isProfitDistribution
-                  ? '#2563EB'
-                  : item.type === 'income'
-                    ? '#16A34A'
-                    : '#DC2626';
-                const iconBg = isProfitDistribution
-                  ? '#EFF6FF'
-                  : item.type === 'income'
-                    ? '#ECFDF3'
-                    : '#FEF2F2';
-                const iconName = isProfitDistribution
-                  ? 'wallet-outline'
-                  : item.type === 'income'
-                    ? 'add-outline'
-                    : 'remove-outline';
-                const movementTag = isProfitDistribution
-                  ? ` · Retirada${item.partnerName ? ` (${item.partnerName})` : ''}`
-                  : isManual
-                    ? ' · Manual'
-                    : ' · Transacción';
+                const meta = MOVEMENT_KIND_META[item.kind];
+                const partnerName = item.source === 'manual' && item.partnerId != null ? partnerNameById.get(item.partnerId) : null;
+                const movementTag = ` · ${MOVEMENT_KIND_LABELS[item.kind]}${partnerName ? ` (${partnerName})` : ''}`;
 
                 return (
-                  <View
+                  <TouchableOpacity
                     key={`${item.source}-${item.id}`}
+                    activeOpacity={0.7}
+                    onPress={() => setSelectedMovement(item)}
                     style={{
                       backgroundColor: 'white',
                       borderRadius: 16,
@@ -941,13 +950,13 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                           width: 32,
                           height: 32,
                           borderRadius: 10,
-                          backgroundColor: iconBg,
+                          backgroundColor: meta.bg,
                           alignItems: 'center',
                           justifyContent: 'center',
                           marginRight: 10,
                         }}
                       >
-                        <Ionicons name={iconName} size={15} color={amountColor} />
+                        <Ionicons name={meta.icon} size={15} color={meta.color} />
                       </View>
 
                       <View style={{ flex: 1, marginRight: 8 }}>
@@ -961,42 +970,16 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                         </Text>
                       </View>
 
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: amountColor, marginRight: 8 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: meta.color }}>
                         {formatCurrency(item.amount)}
                       </Text>
-
-                      {isManual ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {!isProfitDistribution && (
-                            <TouchableOpacity
-                              onPress={() => {
-                                const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
-                                if (manualEntry) openManualEdit(manualEntry);
-                              }}
-                            >
-                              <Ionicons name="create-outline" size={16} color="#94A3B8" />
-                            </TouchableOpacity>
-                          )}
-                          <TouchableOpacity
-                            onPress={() => {
-                              const manualEntry = project.manualEntries.find((entry) => entry.id === item.id);
-                              if (manualEntry) removeManualEntry(manualEntry);
-                            }}
-                          >
-                            <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <TouchableOpacity onPress={() => detachTransaction(item.id)}>
-                          <Ionicons name="close-circle-outline" size={17} color="#CBD5E1" />
-                        </TouchableOpacity>
-                      )}
+                      <Ionicons name="chevron-forward" size={15} color="#CBD5E1" style={{ marginLeft: 6 }} />
                     </View>
 
                     {!!item.description && (
                       <Text style={{ fontSize: 11, color: '#94A3B8', marginLeft: 42, marginTop: 4 }}>{item.description}</Text>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -1004,70 +987,101 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         )}
 
         {tab === 'cash' && (
-          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
-            <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: 16 }}>
-              <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 17 }}>RESUMEN DE CAJA</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+          <View>
+            <HeroBalanceCard
+              label="Caja actual"
+              value={formatCurrency(project.financials.cash)}
+              style={{ marginBottom: 12 }}
+            />
+
+            <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 16 }}>
+              <View style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
                 {[
-                  { label: 'Retiradas', value: formatCurrency(project.financials.withdrawalsTotal || 0), color: colors.danger },
-                  { label: 'Balance operativo', value: formatCurrency(project.financials.operatingBalance || 0), color: '#4338CA' },
-                  { label: 'Caja', value: formatCurrency(project.financials.cashInBox || project.financials.balance || 0), color: balanceColor },
-                ].map((metric, index) => (
+                  { label: 'Aportaciones', value: project.financials.contributions, sign: '+' as const },
+                  { label: 'Ingresos', value: project.financials.income, sign: '+' as const },
+                  { label: 'Gastos', value: project.financials.expense, sign: '-' as const },
+                  { label: 'Retiradas', value: project.financials.withdrawals, sign: '-' as const },
+                ].map((row, index, arr) => (
                   <View
-                    key={metric.label}
-                    style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8, borderLeftWidth: index > 0 ? 1 : 0, borderLeftColor: '#E8EDF4' }}
+                    key={row.label}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      minHeight: 43,
+                      borderBottomWidth: index < arr.length - 1 ? 1 : 0,
+                      borderBottomColor: '#E8EDF4',
+                    }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: metric.color, textAlign: 'center' }} numberOfLines={1}>
-                      {metric.value}
+                    <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: row.sign === '+' ? colors.success : colors.danger }}>
+                      {row.sign}{formatCurrency(row.value)}
                     </Text>
-                    <Text style={{ fontSize: 10.5, fontWeight: '600', color: '#94A3B8', textAlign: 'center', marginTop: 4 }}>{metric.label}</Text>
                   </View>
                 ))}
               </View>
             </View>
 
-            <View style={{ height: 1, backgroundColor: '#E8EDF4', marginHorizontal: 14 }} />
-
-            <View style={{ paddingHorizontal: 14, paddingTop: 17, paddingBottom: project.partners?.length ? 5 : 18 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>SOCIOS</Text>
-                <TouchableOpacity onPress={openPartnersEditor}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Configurar</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={{ marginTop: 12, borderRadius: 12, backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 10 }}>
-                <Text style={{ fontSize: 10.5, color: '#94A3B8', fontWeight: '600' }}>Mis retiradas acumuladas</Text>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', marginTop: 2 }}>{formatCurrency(myWithdrawals)}</Text>
-              </View>
-
-              {!project.partners?.length ? (
-                <Text style={{ fontSize: 12.5, color: '#94A3B8', marginTop: 12 }}>
-                  Define los socios y porcentajes para activar el reparto de beneficios.
-                </Text>
-              ) : (
-                <View style={{ marginTop: 6 }}>
-                  {project.partners.map((partner, index) => (
-                    <View
-                      key={partner.id}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        minHeight: 43,
-                        borderBottomWidth: index < project.partners.length - 1 ? 1 : 0,
-                        borderBottomColor: '#E8EDF4',
-                      }}
-                    >
-                      <View>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#0F172A' }}>{partner.name}</Text>
-                        <Text style={{ fontSize: 11, color: '#94A3B8' }}>{partner.isMe ? 'Mi usuario' : 'Socio'}</Text>
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{partner.percentage}%</Text>
-                    </View>
-                  ))}
+            <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
+              <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: project.partners?.length ? 5 : 18 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>SOCIOS</Text>
+                  <View style={{ flexDirection: 'row', gap: 14 }}>
+                    {!!project.partners?.length && (
+                      <TouchableOpacity onPress={openProfitCreate}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Repartir</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={openPartnersEditor}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Configurar</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              )}
+
+                {!project.partners?.length ? (
+                  <Text style={{ fontSize: 12.5, color: '#94A3B8', marginTop: 12 }}>
+                    Define los socios y porcentajes para activar el reparto de beneficios.
+                  </Text>
+                ) : (
+                  <View style={{ marginTop: 10 }}>
+                    {distributable > 0 && (
+                      <Text style={{ fontSize: 11, color: '#94A3B8', marginBottom: 8 }}>
+                        Beneficio sin repartir: {formatCurrency(distributable)}
+                      </Text>
+                    )}
+                    {project.partners.map((partner, index) => {
+                      const suggested = distributable * (partner.percentage / 100);
+                      return (
+                        <View
+                          key={partner.id}
+                          style={{
+                            paddingVertical: 10,
+                            borderBottomWidth: index < project.partners.length - 1 ? 1 : 0,
+                            borderBottomColor: '#E8EDF4',
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
+                              {partner.name}{partner.isMe ? ' · Tú' : ''}
+                            </Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{partner.percentage}%</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                            <Text style={{ fontSize: 11, color: '#94A3B8' }}>
+                              Aportado {formatCurrency(partner.contributed)} · Retirado {formatCurrency(partner.withdrawn)}
+                            </Text>
+                            {suggested > 0 && (
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                                Le correspondería {formatCurrency(suggested)}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             </View>
           </View>
         )}
@@ -1169,17 +1183,22 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
               {editingEntry ? 'Editar movimiento manual' : 'Nuevo movimiento manual'}
             </Text>
 
-            <View className="flex-row mb-3">
-              {(['income', 'expense'] as EntryType[]).map((option) => {
-                const active = manualForm.type === option;
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {(['income', 'expense', 'contribution', 'withdrawal'] as MovementKind[]).map((option) => {
+                const active = manualForm.kind === option;
                 return (
                   <TouchableOpacity
                     key={option}
-                    onPress={() => setManualForm((prev) => ({ ...prev, type: option }))}
+                    onPress={() =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        kind: option,
+                        partnerId: needsPartner(option) ? prev.partnerId : null,
+                      }))
+                    }
                     style={{
-                      flex: 1,
+                      width: '48%',
                       height: 36,
-                      marginRight: option === 'income' ? 8 : 0,
                       borderRadius: 10,
                       borderWidth: 1,
                       borderColor: active ? colors.primary : '#D1D5DB',
@@ -1189,12 +1208,44 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                     }}
                   >
                     <Text style={{ fontSize: 12, fontWeight: '600', color: active ? 'white' : '#64748B' }}>
-                      {option === 'income' ? 'Ingreso' : 'Gasto'}
+                      {MOVEMENT_KIND_LABELS[option]}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
+
+            {needsPartner(manualForm.kind) && (
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}>Socio *</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {(project.partners || []).map((partner) => {
+                    const active = manualForm.partnerId === partner.id;
+                    return (
+                      <TouchableOpacity
+                        key={partner.id}
+                        onPress={() => setManualForm((prev) => ({ ...prev, partnerId: partner.id }))}
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: active ? colors.primary : '#D1D5DB',
+                          backgroundColor: active ? colors.primary : 'white',
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: active ? 'white' : '#475569' }}>{partner.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {!project.partners?.length && (
+                  <Text style={{ fontSize: 11, color: colors.danger, marginTop: 6 }}>
+                    Configura socios primero para registrar aportaciones o retiradas.
+                  </Text>
+                )}
+              </View>
+            )}
 
             <TextInput
               value={manualForm.title}
@@ -1553,7 +1604,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
               className="flex-row items-center px-2 py-3 border-b border-slate-100"
             >
               <Ionicons name="link-outline" size={17} color="#2563EB" />
-              <Text className="text-[14px] font-medium text-slate-800 ml-2">Asociar transacción</Text>
+              <Text className="text-[14px] font-medium text-slate-800 ml-2">Vincular transacción existente</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1561,22 +1612,98 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 setAddMovementMenuOpen(false);
                 openManualCreate();
               }}
-              className="flex-row items-center px-2 py-3 border-b border-slate-100"
-            >
-              <Ionicons name="add-circle-outline" size={17} color="#059669" />
-              <Text className="text-[14px] font-medium text-slate-800 ml-2">Movimiento manual</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setAddMovementMenuOpen(false);
-                openProfitCreate();
-              }}
               className="flex-row items-center px-2 py-3"
             >
-              <Ionicons name="wallet-outline" size={17} color="#7C3AED" />
-              <Text className="text-[14px] font-medium text-slate-800 ml-2">Repartir beneficios</Text>
+              <Ionicons name="add-circle-outline" size={17} color="#059669" />
+              <Text className="text-[14px] font-medium text-slate-800 ml-2">Crear movimiento manual</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!selectedMovement} transparent animationType="fade" onRequestClose={() => setSelectedMovement(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.24)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setSelectedMovement(null)} style={{ flex: 1 }} />
+          <View
+            style={{
+              backgroundColor: 'white',
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: 22,
+            }}
+          >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 99,
+                backgroundColor: '#CBD5E1',
+                marginBottom: 12,
+              }}
+            />
+
+            <Text className="text-[14px] font-semibold text-slate-900 mb-2" numberOfLines={1}>
+              {selectedMovement?.title}
+            </Text>
+
+            {selectedMovement?.source === 'transaction' ? (
+              <>
+                <TouchableOpacity
+                  onPress={() => {
+                    const tx = project.transactions.find((t) => t.id === selectedMovement.id);
+                    setSelectedMovement(null);
+                    if (tx) navigation.navigate('Add', { editData: tx });
+                  }}
+                  className="flex-row items-center px-2 py-3 border-b border-slate-100"
+                >
+                  <Ionicons name="eye-outline" size={17} color="#2563EB" />
+                  <Text className="text-[14px] font-medium text-slate-800 ml-2">Ver transacción</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    const id = selectedMovement.id;
+                    setSelectedMovement(null);
+                    detachTransaction(id);
+                  }}
+                  className="flex-row items-center px-2 py-3"
+                >
+                  <Ionicons name="close-circle-outline" size={17} color="#DC2626" />
+                  <Text className="text-[14px] font-medium text-red-600 ml-2">Desvincular del proyecto</Text>
+                </TouchableOpacity>
+              </>
+            ) : selectedMovement?.source === 'manual' ? (
+              <>
+                <TouchableOpacity
+                  onPress={() => {
+                    const entry = project.manualEntries.find((e) => e.id === selectedMovement.id);
+                    setSelectedMovement(null);
+                    if (entry) openManualEdit(entry);
+                  }}
+                  className="flex-row items-center px-2 py-3 border-b border-slate-100"
+                >
+                  <Ionicons name="create-outline" size={17} color="#4F46E5" />
+                  <Text className="text-[14px] font-medium text-slate-800 ml-2">Editar movimiento</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    const entry = project.manualEntries.find((e) => e.id === selectedMovement.id);
+                    setSelectedMovement(null);
+                    if (entry) removeManualEntry(entry);
+                  }}
+                  className="flex-row items-center px-2 py-3"
+                >
+                  <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                  <Text className="text-[14px] font-medium text-red-600 ml-2">Eliminar movimiento</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
           </View>
         </View>
       </Modal>
