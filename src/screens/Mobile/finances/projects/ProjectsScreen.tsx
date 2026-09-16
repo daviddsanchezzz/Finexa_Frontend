@@ -7,15 +7,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
+import AddButton from '../../../../components/AddButton';
+import HeroBalanceCard from '../../../../components/HeroBalanceCard';
+import StatsRow from '../../../../components/StatsRow';
 import SegmentedTabs from '../../../../components/SegmentedTabs';
 import { colors } from '../../../../theme/theme';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
-type ProjectFilter = 'all' | ProjectStatus;
+type ProjectFilter = 'all' | 'active' | 'idea';
 
 type ProjectItem = {
   id: number;
@@ -56,17 +58,6 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Sin fecha';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return 'Sin fecha';
-  return d.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }: any) {
@@ -118,60 +109,42 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
           showProfile={false}
           showDatePicker={false}
           showBack={!isPinnedModuleTab}
+          rightElement={<AddButton label="Añadir" onPress={() => navigation.navigate('ProjectForm')} />}
         />
       </View>
+
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <HeroBalanceCard
+          label="RENTABILIDAD GLOBAL"
+          value={formatCurrency(totals.balance)}
+          style={{ marginBottom: 8 }}
+        />
+
+        <StatsRow
+          items={[
+            { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(totals.income), color: colors.success },
+            { key: 'gastos', label: 'GASTOS', value: formatCurrency(totals.expense), color: colors.danger },
+            { key: 'proyectos', label: 'PROYECTOS', value: String(projects.length) },
+          ]}
+        />
+      </View>
+
+      <SegmentedTabs<ProjectFilter>
+        variant="underline"
+        options={[
+          { key: 'active', label: 'Activos' },
+          { key: 'idea', label: 'Ideas' },
+          { key: 'all', label: 'Todos' },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
 
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 42 }}
+        contentContainerStyle={{ paddingBottom: 42, paddingTop: 14 }}
       >
-        <View
-          className="rounded-3xl p-4 mb-3"
-          style={{ backgroundColor: colors.primary }}
-        >
-          <Text className="text-[11px] text-gray-300">RENTABILIDAD GLOBAL</Text>
-          <Text className="text-white text-2xl font-extrabold mt-1" style={{ fontVariant: ["tabular-nums"] }}>
-            {formatCurrency(totals.balance)}
-          </Text>
-
-          <View className="flex-row mt-3">
-            <View className="flex-1">
-              <Text className="text-[11px] text-gray-300">Ingresos</Text>
-              <Text className="text-[13px] text-emerald-300 font-semibold mt-0.5">
-                {formatCurrency(totals.income)}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-[11px] text-gray-300">Gastos</Text>
-              <Text className="text-[13px] text-rose-300 font-semibold mt-0.5">
-                {formatCurrency(totals.expense)}
-              </Text>
-            </View>
-            <View className="flex-1 items-end">
-              <Text className="text-[11px] text-gray-300">Proyectos</Text>
-              <Text className="text-[13px] text-white font-semibold mt-0.5">
-                {projects.length}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View className="mb-3">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <SegmentedTabs<ProjectFilter>
-              variant="underline"
-              compact
-              options={[
-                { key: 'all', label: 'Todos' },
-                ...Object.entries(STATUS_LABELS).map(([k, v]) => ({ key: k as ProjectFilter, label: v })),
-              ]}
-              value={filter}
-              onChange={setFilter}
-            />
-          </ScrollView>
-        </View>
-
         {loading ? (
           <ActivityIndicator
             size="large"
@@ -192,95 +165,68 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
         ) : (
           filteredProjects.map((project) => {
             const balance = Number(project.financials?.balance || 0);
-            const balanceColor = balance >= 0 ? '#16A34A' : '#DC2626';
+            const balanceColor = balance >= 0 ? colors.success : colors.danger;
             const badgeColors = STATUS_COLORS[project.status];
 
             return (
               <TouchableOpacity
                 key={project.id}
                 onPress={() => navigation.navigate('ProjectDetail', { projectId: project.id })}
-                activeOpacity={0.92}
-                className="rounded-3xl p-4 mb-3"
+                activeOpacity={0.85}
                 style={{
-                  borderWidth: 1,
-                  borderColor: '#E2E8F0',
                   backgroundColor: 'white',
+                  borderRadius: 18,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  marginBottom: 10,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.04,
+                  shadowRadius: 6,
+                  elevation: 1,
                 }}
               >
-                <View className="flex-row justify-between items-start">
-                  <View className="flex-1 pr-2">
-                    <Text className="text-[15px] font-semibold text-gray-900">
-                      {project.name}
-                    </Text>
-                    <Text className="text-[11px] text-gray-500 mt-1">
-                      Inicio: {formatDate(project.startDate)}
-                    </Text>
-                    {!!project.description && (
-                      <Text className="text-[12px] text-gray-500 mt-1" numberOfLines={2}>
-                        {project.description}
-                      </Text>
-                    )}
-                  </View>
-
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <View
-                    className="px-2.5 py-1 rounded-full"
-                    style={{ backgroundColor: badgeColors.bg }}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 9,
+                      backgroundColor: badgeColors.bg,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 9,
+                    }}
                   >
-                    <Text className="text-[11px] font-semibold" style={{ color: badgeColors.text }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: badgeColors.text }}>
+                      {project.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: '#0F172A' }}
+                    numberOfLines={1}
+                  >
+                    {project.name}
+                  </Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: balanceColor, marginLeft: 8 }}>
+                    {formatCurrency(balance)}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: badgeColors.bg }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColors.text }}>
                       {STATUS_LABELS[project.status]}
                     </Text>
                   </View>
-                </View>
-
-                <View className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: '#F8FAFC' }}>
-                  <View className="flex-row">
-                    <View className="flex-1">
-                      <Text className="text-[10px] text-gray-500">Ingresos</Text>
-                      <Text className="text-[13px] font-semibold text-emerald-600 mt-0.5">
-                        {formatCurrency(project.financials?.totalIncome || 0)}
-                      </Text>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-[10px] text-gray-500">Gastos</Text>
-                      <Text className="text-[13px] font-semibold text-rose-600 mt-0.5">
-                        {formatCurrency(project.financials?.totalExpense || 0)}
-                      </Text>
-                    </View>
-                    <View className="flex-1 items-end">
-                      <Text className="text-[10px] text-gray-500">Balance</Text>
-                      <Text className="text-[13px] font-semibold mt-0.5" style={{ color: balanceColor }}>
-                        {formatCurrency(balance)}
-                      </Text>
-                    </View>
-                  </View>
+                  <Text style={{ fontSize: 11.5, fontWeight: '600', color: '#6B7280' }}>
+                    +{formatCurrency(project.financials?.totalIncome || 0)} · -{formatCurrency(project.financials?.totalExpense || 0)}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
           })
         )}
       </ScrollView>
-
-      <TouchableOpacity
-        onPress={() => navigation.navigate('ProjectForm')}
-        activeOpacity={0.9}
-        style={{
-          position: 'absolute',
-          right: 20,
-          bottom: 20,
-          width: 56,
-          height: 56,
-          borderRadius: 999,
-          backgroundColor: colors.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.2,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 8 },
-        }}
-      >
-        <Ionicons name="add" size={24} color="white" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }

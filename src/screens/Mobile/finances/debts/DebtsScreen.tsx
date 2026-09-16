@@ -174,7 +174,7 @@ export default function DebtsHomeScreen({ navigation, isPinnedModuleTab = false 
             <StatsRow
               items={[
                 { key: "cuota", label: "CUOTAS/MES", value: formatEuro(summary.monthlyEquivalentPayment) },
-                { key: "activas", label: "DEUDAS ACTIVAS", value: String(summary.activeCount) },
+                { key: "activas", label: "ACTIVAS", value: String(summary.activeCount) },
                 { key: "proximo", label: "PRÓXIMO PAGO", value: nextPaymentLabel },
               ]}
             />

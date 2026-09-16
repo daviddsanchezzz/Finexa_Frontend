@@ -80,16 +80,6 @@ export default function TransactionsList({
     setSelectedTx(null);
   };
 
-  if (!transactions || transactions.length === 0) {
-    return (
-      <View className="items-center mt-10">
-        <Text className="text-gray-400 text-[15px]">
-          No hay transacciones todavía
-        </Text>
-      </View>
-    );
-  }
-
   const handleSwipeOpen = (id: string | number) => {
     if (openId !== null && openId !== id) {
       swipeableRefs.current[openId]?.close();
@@ -120,7 +110,7 @@ export default function TransactionsList({
     return `${y}-${m}-${day}`;
   };
 
-  const sorted = [...transactions].sort(
+  const sorted = [...(transactions ?? [])].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
@@ -371,6 +361,16 @@ export default function TransactionsList({
   const selectedTripExpenseCategory = selectedTx
     ? getTripExpenseCategoryLabel(selectedTx)
     : null;
+
+  if (!transactions || transactions.length === 0) {
+    return (
+      <View className="items-center mt-10">
+        <Text className="text-gray-400 text-[15px]">
+          No hay transacciones todavía
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View className="mt-3">

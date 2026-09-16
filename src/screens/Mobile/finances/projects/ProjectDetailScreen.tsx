@@ -14,11 +14,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../../../api/api';
 import AppHeader from '../../../../components/AppHeader';
+import OverflowMenuButton from '../../../../components/OverflowMenuButton';
+import HeroBalanceCard from '../../../../components/HeroBalanceCard';
+import StatsRow from '../../../../components/StatsRow';
+import SegmentedTabs from '../../../../components/SegmentedTabs';
 import IconCircleButton from '../../../../components/IconCircleButton';
 import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDateTimePicker';
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
 import { formatEuro } from '../../../../utils/currency';
+
+type DetailTab = 'info' | 'movements' | 'cash';
 
 type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
 type EntryType = 'income' | 'expense';
@@ -211,6 +217,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [tab, setTab] = useState<DetailTab>('info');
 
   const [txSelectorOpen, setTxSelectorOpen] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
@@ -225,7 +232,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [partnersModalOpen, setPartnersModalOpen] = useState(false);
   const [partnersSaving, setPartnersSaving] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
   const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
@@ -783,83 +789,81 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           showProfile={false}
           showDatePicker={false}
           showBack={true}
+          rightElement={
+            <OverflowMenuButton
+              title={project.name}
+              actions={[
+                { label: 'Editar', onPress: () => navigation.navigate('ProjectForm', { editProject: project }) },
+                { label: 'Eliminar', style: 'destructive', onPress: handleDeleteProject, disabled: deletingProject },
+              ]}
+              iconSize={19}
+              accessibilityLabel="Acciones del proyecto"
+              buttonStyle={{ width: 30, height: 36 }}
+            />
+          }
         />
       </View>
-      <View style={{ position: 'absolute', right: 20, top: 22, zIndex: 30 }}>
-        <TouchableOpacity
-          onPress={() => setProjectMenuOpen(true)}
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: '#E2E8F0',
-            backgroundColor: 'white',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="ellipsis-vertical" size={16} color="#475569" />
-        </TouchableOpacity>
+
+      <View style={{ paddingHorizontal: 20 }}>
+        <HeroBalanceCard
+          label="Balance del proyecto"
+          value={formatCurrency(balance)}
+          style={{ marginBottom: 8 }}
+        />
+
+        <StatsRow
+          items={[
+            { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(project.financials.totalIncome || 0), color: colors.success },
+            { key: 'gastos', label: 'GASTOS', value: formatCurrency(project.financials.totalExpense || 0), color: colors.danger },
+          ]}
+        />
+      </View>
+
+      <View style={{ marginTop: 12 }}>
+        <SegmentedTabs<DetailTab>
+          variant="underline"
+          options={[
+            { key: 'info', label: 'Información' },
+            { key: 'movements', label: 'Movimientos' },
+            { key: 'cash', label: 'Caja' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </View>
 
       <ScrollView
+        key={tab}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
       >
-        <View
-          className="rounded-3xl p-4 mb-3"
-          style={{ backgroundColor: colors.primary }}
-        >
-          <View className="flex-row justify-between items-start">
-            <View className="flex-1 pr-2">
-              <Text className="text-[11px] text-slate-300">BALANCE DEL PROYECTO</Text>
-              <Text className="text-white text-2xl font-extrabold mt-1" style={{ fontVariant: ["tabular-nums"] }}>{formatCurrency(balance)}</Text>
-              {!!project.description && (
-                <Text className="text-[12px] text-slate-300 mt-1" numberOfLines={2}>{project.description}</Text>
-              )}
+        {tab === 'info' && (
+          <SectionCard title="Detalles">
+            <View className="flex-row items-center mb-2">
+              <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: statusTone.bg }}>
+                <Text className="text-[11px] font-semibold" style={{ color: statusTone.text }}>
+                  {STATUS_LABELS[project.status]}
+                </Text>
+              </View>
             </View>
-            <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: statusTone.bg }}>
-              <Text className="text-[11px] font-semibold" style={{ color: statusTone.text }}>
-                {STATUS_LABELS[project.status]}
-              </Text>
-            </View>
-          </View>
+            {!!project.description && (
+              <Text className="text-[12px] text-slate-600 mb-1">{project.description}</Text>
+            )}
+            {!!project.type && (
+              <Text className="text-[12px] text-slate-600 mb-1">Tipo: {project.type}</Text>
+            )}
+            <Text className="text-[12px] text-slate-600 mb-1">Inicio: {formatDate(project.startDate)}</Text>
+            <Text className="text-[12px] text-slate-600 mb-1">Fin: {formatDate(project.endDate || null)}</Text>
+            {!!project.notes && (
+              <Text className="text-[12px] text-slate-600 mt-1">Notas: {project.notes}</Text>
+            )}
+          </SectionCard>
+        )}
 
-          <View className="flex-row mt-3">
-            <View className="flex-1">
-              <Text className="text-[10px] text-slate-400">Ingresos</Text>
-              <Text className="text-[13px] font-semibold text-emerald-300 mt-0.5">
-                {formatCurrency(project.financials.totalIncome || 0)}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-[10px] text-slate-400">Gastos</Text>
-              <Text className="text-[13px] font-semibold text-rose-300 mt-0.5">
-                {formatCurrency(project.financials.totalExpense || 0)}
-              </Text>
-            </View>
-            <View className="flex-1 items-end">
-              <Text className="text-[10px] text-slate-400">Inicio</Text>
-              <Text className="text-[13px] font-semibold text-white mt-0.5">{formatDate(project.startDate)}</Text>
-            </View>
-          </View>
-        </View>
-
-        <SectionCard title="Información">
-          {!!project.type && (
-            <Text className="text-[12px] text-slate-600 mb-1">Tipo: {project.type}</Text>
-          )}
-          <Text className="text-[12px] text-slate-600 mb-1">Inicio: {formatDate(project.startDate)}</Text>
-          <Text className="text-[12px] text-slate-600 mb-1">Fin: {formatDate(project.endDate || null)}</Text>
-          {!!project.notes && (
-            <Text className="text-[12px] text-slate-600 mt-1">Notas: {project.notes}</Text>
-          )}
-        </SectionCard>
-
+        {tab === 'movements' && (
         <SectionCard
-          title="Movimientos del proyecto"
+          title=""
           action={
             <IconCircleButton
               icon="add"
@@ -971,9 +975,11 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             })
           )}
         </SectionCard>
+        )}
 
+        {tab === 'cash' && (
         <SectionCard
-          title="Socios, retiradas y caja"
+          title=""
           action={
             <TouchableOpacity onPress={openPartnersEditor}>
               <Text className="text-[12px] font-semibold text-primary">Configurar socios</Text>
@@ -1023,6 +1029,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             ))
           )}
         </SectionCard>
+        )}
 
       </ScrollView>
 
@@ -1460,64 +1467,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={projectMenuOpen} transparent animationType="fade" onRequestClose={() => setProjectMenuOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.24)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setProjectMenuOpen(false)} style={{ flex: 1 }} />
-          <View
-            style={{
-              backgroundColor: 'white',
-              borderTopLeftRadius: 22,
-              borderTopRightRadius: 22,
-              borderWidth: 1,
-              borderColor: '#E2E8F0',
-              paddingHorizontal: 16,
-              paddingTop: 10,
-              paddingBottom: 22,
-            }}
-          >
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 99,
-                backgroundColor: '#CBD5E1',
-                marginBottom: 12,
-              }}
-            />
-
-            <TouchableOpacity
-              onPress={() => {
-                setProjectMenuOpen(false);
-                navigation.navigate('ProjectForm', { editProject: project });
-              }}
-              className="flex-row items-center px-2 py-3 border-b border-slate-100"
-            >
-              <Ionicons name="create-outline" size={17} color="#4F46E5" />
-              <Text className="text-[14px] font-medium text-slate-800 ml-2">Editar proyecto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setProjectMenuOpen(false);
-                handleDeleteProject();
-              }}
-              className="flex-row items-center px-2 py-3"
-              disabled={deletingProject}
-            >
-              {deletingProject ? (
-                <ActivityIndicator size="small" color="#DC2626" />
-              ) : (
-                <>
-                  <Ionicons name="trash-outline" size={17} color="#DC2626" />
-                  <Text className="text-[14px] font-medium text-red-600 ml-2">Eliminar proyecto</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
