@@ -51,18 +51,6 @@ const MOVEMENT_KIND_META: Record<MovementKind, { icon: keyof typeof Ionicons.gly
   withdrawal: { icon: 'arrow-up-circle-outline', bg: '#FFF7ED', color: '#C2410C' },
 };
 
-type ManualForm = {
-  kind: MovementKind;
-  isCapitalReturn: boolean;
-  title: string;
-  description: string;
-  amount: string;
-  date: Date;
-  category: string;
-  notes: string;
-  partnerId: number | null;
-};
-
 type CombinedMovement =
   | {
       source: 'transaction';
@@ -153,20 +141,6 @@ function formatDate(value?: string | null) {
   });
 }
 
-function defaultManualForm(): ManualForm {
-  return {
-    kind: 'expense',
-    isCapitalReturn: false,
-    title: '',
-    description: '',
-    amount: '',
-    date: new Date(),
-    category: '',
-    notes: '',
-    partnerId: null,
-  };
-}
-
 function defaultProfitForm(): ProfitForm {
   return {
     title: '',
@@ -199,8 +173,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [search, setSearch] = useState('');
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
 
-  const [manualModalOpen, setManualModalOpen] = useState(false);
-  const [manualSaving, setManualSaving] = useState(false);
   const [profitModalOpen, setProfitModalOpen] = useState(false);
   const [profitSaving, setProfitSaving] = useState(false);
   const [partnersModalOpen, setPartnersModalOpen] = useState(false);
@@ -208,11 +180,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [deletingProject, setDeletingProject] = useState(false);
   const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<CombinedMovement | null>(null);
-  const [editingEntry, setEditingEntry] = useState<ProjectManualEntry | null>(null);
-  const [manualForm, setManualForm] = useState<ManualForm>(defaultManualForm());
   const [profitForm, setProfitForm] = useState<ProfitForm>(defaultProfitForm());
   const [partnersForm, setPartnersForm] = useState<PartnerFormItem[]>([]);
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [profitDatePickerVisible, setProfitDatePickerVisible] = useState(false);
 
   useFocusEffect(
@@ -310,90 +279,15 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   };
 
   const openManualCreate = () => {
-    setEditingEntry(null);
-    setManualForm(defaultManualForm());
-    setManualModalOpen(true);
+    navigation.navigate('ProjectManualEntryForm', { projectId: project?.id, partners: project?.partners || [] });
   };
 
   const openManualEdit = (entry: ProjectManualEntry) => {
-    setEditingEntry(entry);
-    setManualForm({
-      kind: entry.kind,
-      isCapitalReturn: entry.isCapitalReturn,
-      title: entry.title,
-      description: entry.description || '',
-      amount: String(entry.amount),
-      date: entry.date ? new Date(entry.date) : new Date(),
-      category: entry.category || '',
-      notes: entry.notes || '',
-      partnerId: entry.partnerId ?? null,
+    navigation.navigate('ProjectManualEntryForm', {
+      projectId: project?.id,
+      partners: project?.partners || [],
+      editEntry: entry,
     });
-    setManualModalOpen(true);
-  };
-
-  const needsPartner = (kind: MovementKind) => kind === 'contribution' || kind === 'withdrawal';
-
-  const validateManualForm = () => {
-    if (!manualForm.title.trim()) {
-      appAlert('Validación', 'El título es obligatorio.');
-      return false;
-    }
-
-    const amount = Number(String(manualForm.amount).replace(',', '.'));
-    if (!Number.isFinite(amount) || amount <= 0) {
-      appAlert('Validación', 'El importe debe ser mayor que 0.');
-      return false;
-    }
-
-    if (!manualForm.date || Number.isNaN(manualForm.date.getTime())) {
-      appAlert('Validación', 'La fecha es obligatoria.');
-      return false;
-    }
-
-    if (needsPartner(manualForm.kind) && manualForm.partnerId == null) {
-      appAlert('Validación', 'Selecciona el socio para este movimiento.');
-      return false;
-    }
-
-    return true;
-  };
-
-  const saveManualEntry = async () => {
-    if (!project) return;
-    if (!validateManualForm()) return;
-
-    const payload = {
-      kind: manualForm.kind,
-      isCapitalReturn: manualForm.kind === 'withdrawal' ? manualForm.isCapitalReturn : false,
-      title: manualForm.title.trim(),
-      description: manualForm.description.trim() || null,
-      amount: Number(String(manualForm.amount).replace(',', '.')),
-      date: manualForm.date.toISOString(),
-      category: manualForm.category.trim() || null,
-      notes: manualForm.notes.trim() || null,
-      partnerId: needsPartner(manualForm.kind) ? manualForm.partnerId : null,
-    };
-
-    try {
-      setManualSaving(true);
-
-      if (editingEntry) {
-        await api.patch(`/projects/${project.id}/manual-entries/${editingEntry.id}`, payload);
-      } else {
-        await api.post(`/projects/${project.id}/manual-entries`, payload);
-      }
-
-      setManualModalOpen(false);
-      setEditingEntry(null);
-      setManualForm(defaultManualForm());
-      markTransactionsDirty();
-      fetchProject();
-    } catch (error) {
-      console.error('Error guardando movimiento manual:', error);
-      appAlert('Error', 'No se pudo guardar el movimiento manual.');
-    } finally {
-      setManualSaving(false);
-    }
   };
 
   const removeManualEntry = (entry: ProjectManualEntry) => {
@@ -1291,202 +1185,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             </View>
           </View>
         </View>
-      </Modal>
-
-      <Modal visible={manualModalOpen} transparent animationType="fade" onRequestClose={() => setManualModalOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16 }}>
-            <Text className="text-sm font-semibold text-slate-900 mb-3">
-              {editingEntry ? 'Editar movimiento manual' : 'Nuevo movimiento manual'}
-            </Text>
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-              {(['income', 'expense', 'contribution', 'withdrawal'] as MovementKind[]).map((option) => {
-                const active = manualForm.kind === option;
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    onPress={() =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        kind: option,
-                        partnerId: needsPartner(option) ? prev.partnerId : null,
-                      }))
-                    }
-                    style={{
-                      width: '48%',
-                      height: 36,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: active ? colors.primary : '#D1D5DB',
-                      backgroundColor: active ? colors.primary : 'white',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: active ? 'white' : '#64748B' }}>
-                      {MOVEMENT_KIND_LABELS[option]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {needsPartner(manualForm.kind) && (
-              <View style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}>Socio *</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {(project.partners || []).map((partner) => {
-                    const active = manualForm.partnerId === partner.id;
-                    return (
-                      <TouchableOpacity
-                        key={partner.id}
-                        onPress={() => setManualForm((prev) => ({ ...prev, partnerId: partner.id }))}
-                        style={{
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: 999,
-                          borderWidth: 1,
-                          borderColor: active ? colors.primary : '#D1D5DB',
-                          backgroundColor: active ? colors.primary : 'white',
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: active ? 'white' : '#475569' }}>{partner.name}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {!project.partners?.length && (
-                  <Text style={{ fontSize: 11, color: colors.danger, marginTop: 6 }}>
-                    Configura socios primero para registrar aportaciones o retiradas.
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {manualForm.kind === 'withdrawal' && (
-              <View style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}>Tipo de retirada</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {[
-                    { value: false, label: 'Retirada de beneficio' },
-                    { value: true, label: 'Devolución de capital' },
-                  ].map((option) => {
-                    const active = manualForm.isCapitalReturn === option.value;
-                    return (
-                      <TouchableOpacity
-                        key={String(option.value)}
-                        onPress={() => setManualForm((prev) => ({ ...prev, isCapitalReturn: option.value }))}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 8,
-                          borderRadius: 10,
-                          borderWidth: 1,
-                          borderColor: active ? colors.primary : '#D1D5DB',
-                          backgroundColor: active ? colors.primary : 'white',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Text style={{ fontSize: 11.5, fontWeight: '600', color: active ? 'white' : '#64748B' }}>
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            <TextInput
-              value={manualForm.title}
-              onChangeText={(text) => setManualForm((prev) => ({ ...prev, title: text }))}
-              placeholder="Título *"
-              placeholderTextColor="#94A3B8"
-              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-            />
-
-            <TextInput
-              value={manualForm.amount}
-              onChangeText={(text) => setManualForm((prev) => ({ ...prev, amount: text }))}
-              placeholder="Importe *"
-              placeholderTextColor="#94A3B8"
-              keyboardType="decimal-pad"
-              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-            />
-
-            <TouchableOpacity
-              onPress={() => setDatePickerVisible(true)}
-              className="border border-slate-200 rounded-xl px-3 py-2 mb-2"
-            >
-              <Text className="text-[13px] text-slate-900">
-                Fecha *: {formatDate(manualForm.date.toISOString())}
-              </Text>
-            </TouchableOpacity>
-
-            <TextInput
-              value={manualForm.category}
-              onChangeText={(text) => setManualForm((prev) => ({ ...prev, category: text }))}
-              placeholder="Categoría (opcional)"
-              placeholderTextColor="#94A3B8"
-              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-            />
-
-            <TextInput
-              value={manualForm.description}
-              onChangeText={(text) => setManualForm((prev) => ({ ...prev, description: text }))}
-              placeholder="Descripción (opcional)"
-              placeholderTextColor="#94A3B8"
-              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-            />
-
-            <TextInput
-              value={manualForm.notes}
-              onChangeText={(text) => setManualForm((prev) => ({ ...prev, notes: text }))}
-              placeholder="Notas (opcional)"
-              placeholderTextColor="#94A3B8"
-              multiline
-              className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] text-slate-900"
-              style={{ minHeight: 64, textAlignVertical: 'top' }}
-            />
-
-            <View className="flex-row mt-3">
-              <TouchableOpacity
-                onPress={() => {
-                  setManualModalOpen(false);
-                  setEditingEntry(null);
-                }}
-                className="flex-1 py-2.5 rounded-xl mr-2 items-center"
-                style={{ backgroundColor: '#F1F5F9' }}
-              >
-                <Text className="text-[13px] text-slate-700 font-semibold">Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={saveManualEntry}
-                disabled={manualSaving}
-                className="flex-1 py-2.5 rounded-xl ml-2 items-center"
-                style={{ backgroundColor: colors.primary, opacity: manualSaving ? 0.7 : 1 }}
-              >
-                {manualSaving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text className="text-[13px] text-white font-semibold">Guardar</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        <CrossPlatformDateTimePicker
-          isVisible={datePickerVisible}
-          mode="date"
-          date={manualForm.date}
-          onCancel={() => setDatePickerVisible(false)}
-          onConfirm={(date) => {
-            setManualForm((prev) => ({ ...prev, date }));
-            setDatePickerVisible(false);
-          }}
-        />
       </Modal>
 
       <Modal

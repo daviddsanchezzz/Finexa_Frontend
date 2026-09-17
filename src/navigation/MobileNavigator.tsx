@@ -30,6 +30,7 @@ export type RootStackParamList = {
   Projects: undefined;
   ProjectForm: undefined;
   ProjectDetail: undefined;
+  ProjectManualEntryForm: undefined;
   Trips: undefined;
   TripForm: undefined;
   TripDetail: undefined;
@@ -236,6 +237,13 @@ export default function MobileNavigator() {
             name="ProjectDetail"
             getComponent={() =>
               require("../screens/Mobile/finances/projects/ProjectDetailScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="ProjectManualEntryForm"
+            getComponent={() =>
+              require("../screens/Mobile/finances/projects/ProjectManualEntryFormScreen").default
             }
           />
 
