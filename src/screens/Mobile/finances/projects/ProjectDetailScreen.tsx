@@ -19,7 +19,7 @@ import OverflowMenuButton from '../../../../components/OverflowMenuButton';
 import HeroBalanceCard from '../../../../components/HeroBalanceCard';
 import StatsRow from '../../../../components/StatsRow';
 import SegmentedTabs from '../../../../components/SegmentedTabs';
-import IconCircleButton from '../../../../components/IconCircleButton';
+import AddButton from '../../../../components/AddButton';
 import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDateTimePicker';
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
@@ -35,7 +35,7 @@ import {
   ProjectDetail,
 } from '../../../../types/project';
 
-type DetailTab = 'info' | 'movements' | 'cash';
+type DetailTab = 'info' | 'movements' | 'config';
 
 const MOVEMENT_KIND_LABELS: Record<MovementKind, string> = {
   income: 'Ingreso',
@@ -126,6 +126,20 @@ const STATUS_COLORS: Record<ProjectStatus, { bg: string; text: string }> = {
 
 function formatCurrency(value: number) {
   return `${formatEuro(Number(value || 0))} €`;
+}
+
+function formatPercentage(value: number) {
+  const rounded = Math.round(Number(value || 0) * 100) / 100;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(2)}%`;
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
 }
 
 function formatDate(value?: string | null) {
@@ -786,48 +800,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             { key: 'gastos', label: 'GASTOS', value: formatCurrency(project.financials.expense || 0), color: colors.danger },
           ]}
         />
-
-        {hasActivity && (
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderWidth: 1,
-              borderColor: '#E2E8F0',
-              borderRadius: 16,
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              marginTop: 8,
-            }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 8 }}>
-              TU POSICIÓN
-            </Text>
-            <StatsRow
-              items={[
-                { key: 'participacion', label: 'TU PARTICIPACIÓN', value: `${project.financials.myPercentage}%` },
-                {
-                  key: 'mi-beneficio',
-                  label: 'TU BENEFICIO',
-                  value: formatCurrency(myProfit),
-                  color: myProfit >= 0 ? colors.success : colors.danger,
-                },
-              ]}
-            />
-            <View style={{ marginTop: 10 }}>
-              <StatsRow
-                items={[
-                  { key: 'retirado', label: 'RETIRADO', value: formatCurrency(project.financials.myWithdrawnProfit) },
-                  {
-                    key: 'pendiente',
-                    label: 'PENDIENTE',
-                    value: formatCurrency(myPending),
-                    color: myPending >= 0 ? colors.success : colors.danger,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        )}
       </View>
 
       <View style={{ marginTop: 12 }}>
@@ -836,7 +808,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           options={[
             { key: 'info', label: 'Información' },
             { key: 'movements', label: 'Movimientos' },
-            { key: 'cash', label: 'Caja' },
+            { key: 'config', label: 'Configuración' },
           ]}
           value={tab}
           onChange={setTab}
@@ -856,62 +828,149 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             ...(project.endDate ? [{ label: 'Fecha de fin', value: formatDate(project.endDate) }] : []),
           ];
 
+          const positionRows: { label: string; value: string; color?: string }[] = [
+            { label: 'Tu participación', value: formatPercentage(project.financials.myPercentage) },
+            {
+              label: 'Tu beneficio',
+              value: formatCurrency(myProfit),
+              color: myProfit >= 0 ? colors.success : colors.danger,
+            },
+            { label: 'Retirado', value: formatCurrency(project.financials.myWithdrawnProfit) },
+            {
+              label: 'Pendiente',
+              value: formatCurrency(myPending),
+              color: myPending >= 0 ? colors.success : colors.danger,
+            },
+          ];
+
+          const cashRows: { label: string; value: number; sign: '+' | '-'; tone?: 'signal' }[] = [
+            { label: 'Aportaciones', value: project.financials.contributions, sign: '+' },
+            { label: 'Ingresos', value: project.financials.income, sign: '+', tone: 'signal' },
+            { label: 'Gastos', value: project.financials.expense, sign: '-', tone: 'signal' },
+            { label: 'Retiradas de beneficio', value: project.financials.withdrawalsProfit, sign: '-' },
+            ...(project.financials.withdrawalsCapital > 0
+              ? [{ label: 'Capital devuelto', value: project.financials.withdrawalsCapital, sign: '-' as const }]
+              : []),
+          ];
+
           return (
-            <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
-              <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: infoRows.length ? 5 : 18 }}>
-                <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: statusTone.bg, alignSelf: 'flex-start' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: statusTone.text }}>{STATUS_LABELS[project.status]}</Text>
-                </View>
-
-                {!!project.description && (
-                  <Text style={{ fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 10 }}>{project.description}</Text>
-                )}
-
-                {infoRows.length ? (
-                  <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', marginTop: 14 }}>
-                    {infoRows.map((row, index) => (
+            <View>
+              {hasActivity && (
+                <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
+                  <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 4 }}>
+                      TU POSICIÓN
+                    </Text>
+                    {positionRows.map((row, index) => (
                       <View
                         key={row.label}
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          minHeight: 43,
-                          borderBottomWidth: index < infoRows.length - 1 ? 1 : 0,
+                          minHeight: 40,
+                          borderBottomWidth: index < positionRows.length - 1 ? 1 : 0,
                           borderBottomColor: '#E8EDF4',
-                          gap: 16,
                         }}
                       >
                         <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{row.value}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: row.color ?? '#0F172A' }}>{row.value}</Text>
                       </View>
                     ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
+                <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: infoRows.length ? 5 : 18 }}>
+                  <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: statusTone.bg, alignSelf: 'flex-start' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: statusTone.text }}>{STATUS_LABELS[project.status]}</Text>
+                  </View>
+
+                  {!!project.description && (
+                    <Text style={{ fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 10 }}>{project.description}</Text>
+                  )}
+
+                  {infoRows.length ? (
+                    <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', marginTop: 14 }}>
+                      {infoRows.map((row, index) => (
+                        <View
+                          key={row.label}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            minHeight: 43,
+                            borderBottomWidth: index < infoRows.length - 1 ? 1 : 0,
+                            borderBottomColor: '#E8EDF4',
+                            gap: 16,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{row.value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+
+                {project.notes ? (
+                  <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', paddingHorizontal: 14, paddingVertical: 14 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 8 }}>NOTAS</Text>
+                    <Text style={{ fontSize: 13, lineHeight: 19, color: '#0F172A' }}>{project.notes}</Text>
                   </View>
                 ) : null}
               </View>
 
-              {project.notes ? (
-                <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', paddingHorizontal: 14, paddingVertical: 14 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 8 }}>NOTAS</Text>
-                  <Text style={{ fontSize: 13, lineHeight: 19, color: '#0F172A' }}>{project.notes}</Text>
+              <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
+                <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      minHeight: 40,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#E8EDF4',
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>CAJA</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A' }}>{formatCurrency(project.financials.cash)}</Text>
+                  </View>
+                  {cashRows.map((row, index) => (
+                    <View
+                      key={row.label}
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        minHeight: 40,
+                        borderBottomWidth: index < cashRows.length - 1 ? 1 : 0,
+                        borderBottomColor: '#E8EDF4',
+                      }}
+                    >
+                      <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '800',
+                          color: row.tone === 'signal' ? (row.sign === '+' ? colors.success : colors.danger) : '#334155',
+                        }}
+                      >
+                        {row.sign}{formatCurrency(row.value)}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ) : null}
+              </View>
             </View>
           );
         })()}
 
         {tab === 'movements' && (
           <View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>MOVIMIENTOS</Text>
-              <IconCircleButton
-                icon="add"
-                onPress={() => setAddMovementMenuOpen(true)}
-                size={28}
-                iconSize={15}
-                color="white"
-                backgroundColor={colors.primary}
-              />
+            <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
+              <AddButton label="Añadir movimiento" onPress={() => setAddMovementMenuOpen(true)} />
             </View>
 
             {combinedMovements.length === 0 ? (
@@ -921,8 +980,9 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             ) : (
               combinedMovements.map((item) => {
                 const meta = MOVEMENT_KIND_META[item.kind];
+                const sign = item.kind === 'income' || item.kind === 'contribution' ? '+' : '-';
                 const partnerName = item.source === 'manual' && item.partnerId != null ? partnerNameById.get(item.partnerId) : null;
-                const movementTag = ` · ${MOVEMENT_KIND_LABELS[item.kind]}${partnerName ? ` (${partnerName})` : ''}`;
+                const movementTag = `${MOVEMENT_KIND_LABELS[item.kind]}${partnerName ? ` · ${partnerName}` : ''}`;
 
                 return (
                   <TouchableOpacity
@@ -933,48 +993,46 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                       backgroundColor: 'white',
                       borderRadius: 16,
                       paddingHorizontal: 12,
-                      paddingVertical: 11,
+                      paddingVertical: 12,
                       marginBottom: 8,
                       shadowColor: '#000',
-                      shadowOpacity: 0.04,
-                      shadowRadius: 6,
+                      shadowOpacity: 0.03,
+                      shadowRadius: 5,
                       elevation: 1,
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View
                         style={{
-                          width: 32,
-                          height: 32,
+                          width: 36,
+                          height: 36,
                           borderRadius: 10,
                           backgroundColor: meta.bg,
                           alignItems: 'center',
                           justifyContent: 'center',
-                          marginRight: 10,
+                          marginRight: 12,
                         }}
                       >
-                        <Ionicons name={meta.icon} size={15} color={meta.color} />
+                        <Ionicons name={meta.icon} size={17} color={meta.color} />
                       </View>
 
                       <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#0F172A' }} numberOfLines={1}>
                           {item.title}
                         </Text>
-                        <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }} numberOfLines={1}>
-                          {formatDate(item.date)}
+                        <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }} numberOfLines={1}>
+                          {formatDate(item.date)} · {movementTag}
                           {item.category ? ` · ${item.category}` : ''}
-                          {movementTag}
                         </Text>
                       </View>
 
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: meta.color }}>
-                        {formatCurrency(item.amount)}
+                      <Text style={{ fontSize: 15.5, fontWeight: '700', color: meta.color }}>
+                        {sign}{formatCurrency(item.amount)}
                       </Text>
-                      <Ionicons name="chevron-forward" size={15} color="#CBD5E1" style={{ marginLeft: 6 }} />
                     </View>
 
                     {!!item.description && (
-                      <Text style={{ fontSize: 11, color: '#94A3B8', marginLeft: 42, marginTop: 4 }}>{item.description}</Text>
+                      <Text style={{ fontSize: 11.5, color: '#94A3B8', marginLeft: 48, marginTop: 4 }}>{item.description}</Text>
                     )}
                   </TouchableOpacity>
                 );
@@ -983,53 +1041,10 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           </View>
         )}
 
-        {tab === 'cash' && (
+        {tab === 'config' && (
           <View>
-            <HeroBalanceCard
-              label="Caja actual"
-              value={formatCurrency(project.financials.cash)}
-              style={{ marginBottom: 12 }}
-            />
-
-            <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 16 }}>
-              <View style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
-                {[
-                  { label: 'Aportaciones', value: project.financials.contributions, sign: '+' as const },
-                  { label: 'Ingresos', value: project.financials.income, sign: '+' as const, tone: 'signal' as const },
-                  { label: 'Gastos', value: project.financials.expense, sign: '-' as const, tone: 'signal' as const },
-                  { label: 'Retiradas de beneficio', value: project.financials.withdrawalsProfit, sign: '-' as const },
-                  ...(project.financials.withdrawalsCapital > 0
-                    ? [{ label: 'Capital devuelto', value: project.financials.withdrawalsCapital, sign: '-' as const }]
-                    : []),
-                ].map((row, index, arr) => (
-                  <View
-                    key={row.label}
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      minHeight: 43,
-                      borderBottomWidth: index < arr.length - 1 ? 1 : 0,
-                      borderBottomColor: '#E8EDF4',
-                    }}
-                  >
-                    <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: '800',
-                        color: 'tone' in row && row.tone === 'signal' ? (row.sign === '+' ? colors.success : colors.danger) : '#334155',
-                      }}
-                    >
-                      {row.sign}{formatCurrency(row.value)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
             <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
-              <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: project.partners?.length ? 5 : 18 }}>
+              <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: project.partners?.length ? 12 : 18 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>SOCIOS</Text>
                   <View style={{ flexDirection: 'row', gap: 14 }}>
@@ -1049,9 +1064,9 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                     Define los socios y porcentajes para activar el reparto de beneficios.
                   </Text>
                 ) : (
-                  <View style={{ marginTop: 10 }}>
+                  <View style={{ marginTop: 12 }}>
                     {distributable > 0 && (
-                      <Text style={{ fontSize: 11, color: '#94A3B8', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 11, color: '#94A3B8', marginBottom: 10 }}>
                         Beneficio sin repartir: {formatCurrency(distributable)}
                       </Text>
                     )}
@@ -1061,28 +1076,77 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                         <View
                           key={partner.id}
                           style={{
-                            paddingVertical: 10,
-                            borderBottomWidth: index < project.partners.length - 1 ? 1 : 0,
-                            borderBottomColor: '#E8EDF4',
+                            backgroundColor: '#F8FAFC',
+                            borderRadius: 14,
+                            padding: 12,
+                            marginBottom: index < project.partners.length - 1 ? 8 : 0,
                           }}
                         >
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 10,
+                                backgroundColor: partner.isMe ? '#EEF2FF' : '#E2E8F0',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginRight: 10,
+                              }}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: partner.isMe ? '#4F46E5' : '#64748B' }}>
+                                {initials(partner.name)}
+                              </Text>
+                            </View>
+                            <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>
                               {partner.name}{partner.isMe ? ' · Tú' : ''}
                             </Text>
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{partner.percentage}%</Text>
+                            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#EEF2FF' }}>
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: '#4F46E5' }}>{formatPercentage(partner.percentage)}</Text>
+                            </View>
                           </View>
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
-                            <Text style={{ fontSize: 11, color: '#94A3B8' }}>
-                              Aportado {formatCurrency(partner.contributed)} · Retirado {formatCurrency(partner.withdrawnProfit)}
-                              {partner.capitalReturned > 0 ? ` · Devuelto ${formatCurrency(partner.capitalReturned)}` : ''}
-                            </Text>
-                            {suggested > 0 && (
-                              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
-                                Le correspondería {formatCurrency(suggested)}
+
+                          <View style={{ flexDirection: 'row', marginTop: 12, gap: 20 }}>
+                            <View>
+                              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.4 }}>APORTADO</Text>
+                              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#334155', marginTop: 2 }}>
+                                {formatCurrency(partner.contributed)}
                               </Text>
+                            </View>
+                            <View>
+                              <Text style={{ fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.4 }}>RETIRADO</Text>
+                              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#334155', marginTop: 2 }}>
+                                {formatCurrency(partner.withdrawnProfit)}
+                              </Text>
+                            </View>
+                            {partner.capitalReturned > 0 && (
+                              <View>
+                                <Text style={{ fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.4 }}>DEVUELTO</Text>
+                                <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#334155', marginTop: 2 }}>
+                                  {formatCurrency(partner.capitalReturned)}
+                                </Text>
+                              </View>
                             )}
                           </View>
+
+                          {suggested > 0 && (
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginTop: 10,
+                                paddingTop: 10,
+                                borderTopWidth: 1,
+                                borderTopColor: '#E2E8F0',
+                              }}
+                            >
+                              <Text style={{ fontSize: 11.5, color: '#64748B' }}>Le correspondería</Text>
+                              <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.primary }}>
+                                {formatCurrency(suggested)}
+                              </Text>
+                            </View>
+                          )}
                         </View>
                       );
                     })}
@@ -1454,7 +1518,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                   <View className="flex-row items-center justify-between mb-2">
                     <Text className="text-[13px] font-semibold text-slate-900">{line.partnerName || `Socio ${index + 1}`}</Text>
                     <Text className="text-[11px] text-slate-500">
-                      {(project.partners || []).find((p) => p.name === line.partnerName)?.percentage || 0}%
+                      {formatPercentage((project.partners || []).find((p) => p.name === line.partnerName)?.percentage || 0)}
                     </Text>
                   </View>
                   <TextInput
