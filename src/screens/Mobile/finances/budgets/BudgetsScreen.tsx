@@ -324,12 +324,12 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
           <BudgetsScreenSkeleton />
         </ScrollView>
       ) : (
-        <View className="flex-1 px-5">
-          <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 6 }}>
+        <View className="flex-1">
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 6, paddingHorizontal: 20 }}>
             <AddButton label="Añadir" onPress={() => navigation.navigate("BudgetCreate", { periodType })} />
           </View>
 
-          <View style={{ marginBottom: 16 }}>
+          <View style={{ marginBottom: 16, paddingHorizontal: 20 }}>
             <HeroBalanceCard
               label="Disponible"
               value={formatEuro(summary.remaining)}
@@ -372,7 +372,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 40 }}
+            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 14 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
           {filteredBudgets.length === 0 ? (

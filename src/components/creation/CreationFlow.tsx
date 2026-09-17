@@ -61,11 +61,13 @@ export function CreationFooter({
   loading,
   enabled,
   onPress,
+  disabled = false,
 }: {
   label: string;
   loading?: boolean;
   enabled: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <View
@@ -80,7 +82,7 @@ export function CreationFooter({
     >
       <TouchableOpacity
         onPress={onPress}
-        disabled={loading}
+        disabled={loading || disabled}
         activeOpacity={0.82}
         accessibilityRole="button"
         accessibilityState={{ disabled: !enabled || !!loading, busy: !!loading }}

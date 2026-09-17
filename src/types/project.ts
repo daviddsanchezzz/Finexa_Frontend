@@ -39,6 +39,9 @@ export interface ProjectPartner {
 }
 
 export interface ProjectTransaction {
+  category?: { name: string } | null;
+  isRecurring?: boolean;
+  excludeFromStats?: boolean;
   id: number;
   type: 'income' | 'expense' | 'transfer';
   amount: number;

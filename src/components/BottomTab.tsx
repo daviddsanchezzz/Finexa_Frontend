@@ -5,7 +5,7 @@ import { colors } from "../theme/theme";
 import { usePinnedFinanceModule } from "../hooks/usePinnedFinanceModule";
 import { MODULES, DEFAULT_PINNED_MODULE_KEY } from "../screens/Mobile/finances/financeModulesConfig";
 
-export default function BottomNav({ state, descriptors, navigation }: any) {
+export default function BottomNav({ state, descriptors, navigation, onHeightChange }: any) {
   const { pinnedKey } = usePinnedFinanceModule();
   const pinnedModule =
     MODULES.find((m) => m.key === pinnedKey) ??
@@ -19,6 +19,7 @@ export default function BottomNav({ state, descriptors, navigation }: any) {
 
   return (
     <View
+      onLayout={(event) => onHeightChange?.(event.nativeEvent.layout.height)}
       className="flex-row justify-between items-center bg-white px-6 py-3.5"
       style={{
         position: "absolute",

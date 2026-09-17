@@ -2,6 +2,7 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
 import { Platform } from "react-native";
 import { storage } from "../utils/storage";
+import { invalidateFinanceMutation } from "../utils/financeCache";
 
 export const plainApi = axios.create({
   baseURL: getBaseUrl(),
@@ -64,7 +65,10 @@ function processQueue(error: any, token: string | null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    invalidateFinanceMutation(response.config.method, response.config.url);
+    return response;
+  },
   async (error) => {
     if (!error?.response) return Promise.reject(error);
 

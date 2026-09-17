@@ -23,6 +23,8 @@ interface Props {
   // supere el 100% (p.ej. "110%" si te has pasado del límite). La barra
   // siempre se capa visualmente en el 100% de ancho, se muestre o no el overflow.
   showOverflow?: boolean;
+  goalMode?: boolean;
+  currency?: string;
 }
 
 const euro = (n: number) => formatEuro(n);
@@ -51,6 +53,8 @@ export default function BudgetGoalCard({
   compact = false,
   showOverflow = false,
   progressLabel = "completado",
+  goalMode = false,
+  currency = "EUR",
 }: Props) {
   const rawPct = getRawProgress(current, total);
   const barPct = Math.min(100, rawPct);
@@ -58,14 +62,18 @@ export default function BudgetGoalCard({
   const remaining = Math.max(0, total - current);
   const showEmoji = isEmoji(icon);
   const barColor = progressColor || color;
+  const currencyLabel = currency === "EUR" ? "€" : currency;
+
+  compact = compact || goalMode;
 
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
-      className={compact ? "px-4 py-3 rounded-2xl mb-2" : "p-4 rounded-3xl mb-3"}
+      className={compact ? "py-3 rounded-2xl mb-2" : "py-4 rounded-3xl mb-3"}
       style={{
         backgroundColor,
+        paddingHorizontal: 14,
         shadowColor: "#000",
         shadowOpacity: backgroundColor === "white" ? 0.04 : 0.08,
         shadowRadius: 6,
@@ -74,7 +82,7 @@ export default function BudgetGoalCard({
     >
       {/* HEADER */}
       <View className={compact ? "flex-row justify-between items-center mb-2" : "flex-row justify-between items-center mb-3"}>
-        <View className="flex-row items-center">
+        <View className="flex-row items-center" style={goalMode ? { flex: 1, minWidth: 0, marginRight: 8 } : undefined}>
           {icon && (
             <View
               className={compact ? "w-6 h-6 rounded-md items-center justify-center mr-2" : "w-8 h-8 rounded-lg items-center justify-center mr-2"}
@@ -93,8 +101,9 @@ export default function BudgetGoalCard({
           )}
 
           <Text
+            numberOfLines={goalMode ? 1 : undefined}
             className={compact ? "text-[14px] font-semibold" : "text-[17px] font-semibold"}
-            style={{ color: titleColor }}
+            style={{ color: titleColor, ...(goalMode ? { flexShrink: 1 } : {}) }}
           >
             {title}
           </Text>
@@ -107,10 +116,11 @@ export default function BudgetGoalCard({
         </View>
 
         <Text
+          numberOfLines={goalMode ? 1 : undefined}
           className={compact ? "text-[14px] font-semibold" : "text-[17px] font-semibold"}
-          style={{ color: titleColor }}
+          style={{ color: titleColor, ...(goalMode ? { flexShrink: 0 } : {}) }}
         >
-          {euro(remaining)} €
+          {euro(goalMode ? current : remaining)} {currencyLabel}
         </Text>
       </View>
 
@@ -141,9 +151,10 @@ export default function BudgetGoalCard({
         </Text>
 
         <Text className={compact ? "text-[11px]" : "text-[13px]"} style={{ color: subtitleColor }}>
-          {euro(total)} € totales
+          {euro(total)} {currencyLabel} {goalMode ? "objetivo" : "totales"}
         </Text>
       </View>
+
     </TouchableOpacity>
   );
 }

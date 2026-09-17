@@ -6,10 +6,11 @@ async function fetchProjects() {
   return res.data || [];
 }
 
-export function useProjectsQuery() {
+export function useProjectsQuery(options: { staleTime?: number; gcTime?: number } = {}) {
   return useQuery({
     queryKey: ["projects"],
     queryFn: fetchProjects,
     staleTime: 1000 * 60 * 2,
+    ...options,
   });
 }

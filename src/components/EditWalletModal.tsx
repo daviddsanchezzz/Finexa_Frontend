@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/theme";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
+import { invalidateGoals } from "../hooks/useGoalsQuery";
 import { appAlert } from "../utils/appAlert";
 import { formatEuro as formatEuroBase } from "../utils/currency";
 import { BANK_PRESETS, getBankLogoUrl, isLogoUrl } from "../constants/bankPresets";
@@ -125,6 +126,7 @@ export default function EditWalletModal({
       const res = isEditing
         ? await api.patch(`/wallets/${editingWallet!.id}`, payload)
         : await api.post("/wallets", payload);
+      void invalidateGoals();
       onSave(res.data);
       onClose();
     } catch (error: any) {
@@ -151,6 +153,7 @@ export default function EditWalletModal({
             try {
               setDeactivating(true);
               await api.delete(`/wallets/${editingWallet.id}`);
+              void invalidateGoals();
               onSave();
               onClose();
             } catch (error: any) {

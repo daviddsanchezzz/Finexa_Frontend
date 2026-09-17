@@ -27,6 +27,10 @@ export type RootStackParamList = {
   Debts: undefined;
   Budgets: undefined;
   Goals: undefined;
+  GoalDetail: { goalId: number };
+  GoalForm: { goalId?: number } | undefined;
+  GoalAllocations: { goalId: number };
+  GoalManualEntryForm: { goalId: number; entryId?: number };
   Projects: undefined;
   ProjectForm: undefined;
   ProjectDetail: undefined;
@@ -225,6 +229,11 @@ export default function MobileNavigator() {
               require("../screens/Mobile/finances/projects/ProjectsScreen").default
             }
           />
+
+          <Stack.Screen name="GoalDetail" getComponent={() => require("../screens/Mobile/finances/goals/GoalDetailScreen").default} />
+          <Stack.Screen name="GoalForm" getComponent={() => require("../screens/Mobile/finances/goals/GoalFormScreen").default} />
+          <Stack.Screen name="GoalAllocations" getComponent={() => require("../screens/Mobile/finances/goals/GoalAllocationsScreen").default} />
+          <Stack.Screen name="GoalManualEntryForm" getComponent={() => require("../screens/Mobile/finances/goals/GoalManualEntryFormScreen").default} />
 
           <Stack.Screen
             name="ProjectForm"

@@ -6,10 +6,11 @@ async function fetchDebts() {
   return res.data || [];
 }
 
-export function useDebtsQuery() {
+export function useDebtsQuery(options: { staleTime?: number; gcTime?: number } = {}) {
   return useQuery({
     queryKey: ["debts"],
     queryFn: fetchDebts,
     staleTime: 1000 * 60 * 2,
+    ...options,
   });
 }

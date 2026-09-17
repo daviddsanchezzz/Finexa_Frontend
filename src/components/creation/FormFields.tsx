@@ -170,7 +170,7 @@ export function FormEmojiField({
         maxLength={2}
         style={{
           width: 52,
-          height: 52,
+          height: 44,
           borderWidth: 1,
           borderColor: "#E2E8F0",
           borderRadius: radii.input,

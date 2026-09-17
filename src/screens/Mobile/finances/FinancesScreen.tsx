@@ -1,17 +1,15 @@
 // src/screens/Finances/FinancesScreen.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { colors } from "../../../theme/theme";
 import {
   MODULES,
   STORAGE_KEY,
@@ -21,85 +19,108 @@ import {
   mergeConfig,
 } from "./financeModulesConfig";
 import { useTheme } from "../../../context/ThemeContext";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFinanceModuleSummaries } from "../../../hooks/useFinanceModuleSummaries";
+import { BottomTabLayoutContext } from '../../../navigation/BottomTabLayoutContext';
+import { FINANCE_HUB_KEYS, FinanceHubKey, FinanceModuleSummary } from "../../../utils/financeModuleSummaries";
 
-const { width: SW } = Dimensions.get("window");
 const H_PAD = 20;
-const CARD_GAP = 12;
-const CARD_W = (SW - H_PAD * 2 - CARD_GAP) / 2;
+const CARD_GAP = 8;
 const GRID_PAD_TOP = 8;
-const GRID_PAD_BOTTOM = 8;
-const ADD_BTN_H = 52; // height of "Añadir módulos" button
-const ADD_BTN_MARGIN = 8; // margin above it
-const MIN_CARD_H = 110;
-const MAX_CARD_H = 170;
+const GRID_PAD_BOTTOM = 16;
+const CARD_H = 80;
+const INVESTMENTS_VISIBILITY_KEY = 'finances.hub.investments.visible.v1';
+const MODULE_DESCRIPTIONS: Record<FinanceHubKey, string> = {
+  budgets: 'Límites mensuales', goals: 'Tus metas de ahorro', debts: 'Pagos y préstamos',
+  trips: 'Planes y gastos', projects: 'Tu beneficio personal', recurring: 'Pagos programados', investments: 'Cartera y rentabilidad',
+};
 
 /* ── Card ─────────────────────────────────────────── */
 function ModuleCard({
   module: m,
+  width,
   height,
+  summary,
   onPress,
 }: {
   module: FinanceModule;
+  width: number;
   height: number;
+  summary: FinanceModuleSummary;
   onPress: () => void;
 }) {
   const { colors: t } = useTheme();
+  const amountMatch = summary.text.match(/^([+−]?\d[\d.,]*\s(?:€|[A-Z]{3}))\s(.+)$/);
+  const value = amountMatch?.[1] ?? summary.text;
+  const caption = amountMatch?.[2];
   return (
     <TouchableOpacity
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${m.title}. ${summary.text}`}
       activeOpacity={0.82}
       style={{
-        width: CARD_W,
-        height,
+        width,
+        minHeight: height,
         backgroundColor: t.surface,
-        borderRadius: 22,
+        borderRadius: 18,
         borderWidth: 1,
         borderColor: t.border,
-        alignItems: "center",
         justifyContent: "center",
+        paddingHorizontal: 14,
+        paddingVertical: 8,
       }}
     >
-      <View
-        style={{
-          width: 60,
-          height: 60,
-          borderRadius: 18,
-          backgroundColor: m.softBg,
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 12,
-        }}
-      >
-        <Text style={{ fontSize: 30 }}>{m.emoji}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            backgroundColor: m.softBg,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name={m.iconName} size={19} color={m.accentColor} />
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={2} style={{ fontSize: 14, fontWeight: '700', lineHeight: 18, color: t.text }}>{m.title}</Text>
+          <Text numberOfLines={1} style={{ fontSize: 11.5, lineHeight: 16, color: t.textSecondary, marginTop: 2 }}>{MODULE_DESCRIPTIONS[m.key as FinanceHubKey]}</Text>
+        </View>
+        <View style={{ maxWidth: '35%', alignItems: 'flex-end' }}>
+          <Text numberOfLines={2} style={{ fontSize: amountMatch ? 15 : 12, lineHeight: 18, fontWeight: amountMatch ? '700' : '500', textAlign: 'right', fontVariant: ['tabular-nums'],
+            color: t.textSecondary }}>{value}</Text>
+          {!!caption && <Text numberOfLines={1} style={{ fontSize: 11.5, lineHeight: 16, color: t.textSecondary, marginTop: 2 }}>{caption}</Text>}
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={t.textMuted} />
       </View>
-
-      <Text
-        style={{
-          fontSize: 13,
-          fontWeight: "700",
-          color: t.text,
-          textAlign: "center",
-          lineHeight: 18,
-          paddingHorizontal: 10,
-        }}
-        numberOfLines={2}
-      >
-        {m.title}
-      </Text>
-
     </TouchableOpacity>
   );
 }
 
 /* ── Screen ───────────────────────────────────────── */
 export default function FinancesScreen({ navigation }: any) {
+  const bottomTabHeight = useContext(BottomTabLayoutContext);
   const { isDark, colors: t } = useTheme();
   const [config, setConfig] = useState<ModuleConfig[]>(buildDefaultConfig());
-  const [containerH, setContainerH] = useState<number | null>(null);
+  const { width: windowWidth } = useWindowDimensions();
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
+  const summaries = useFinanceModuleSummaries();
+  const cardWidth = (containerWidth ?? windowWidth) - H_PAD * 2;
 
   const loadConfig = async () => {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    setConfig(mergeConfig(raw ? JSON.parse(raw) : null));
+    let next = mergeConfig(raw ? JSON.parse(raw) : null);
+    // Reveal the previously hidden investment card once. Later visibility
+    // choices made in Gestionar are preserved independently of the pinned tab.
+    if (!(await AsyncStorage.getItem(INVESTMENTS_VISIBILITY_KEY))) {
+      next = next.map((module) => module.key === 'investments' ? { ...module, enabled: true } : module);
+      await AsyncStorage.multiSet([[STORAGE_KEY, JSON.stringify(next)], [INVESTMENTS_VISIBILITY_KEY, '1']]);
+    }
+    setConfig(next);
   };
 
   useEffect(() => { loadConfig(); }, []);
@@ -107,39 +128,22 @@ export default function FinancesScreen({ navigation }: any) {
 
   const modulesToRender = useMemo(() => {
     const map = new Map(config.map((c) => [c.key, c]));
-    return MODULES.filter((m) => map.get(m.key)?.enabled).sort(
+    return MODULES.filter((m) => FINANCE_HUB_KEYS.includes(m.key as FinanceHubKey) && map.get(m.key)?.enabled).sort(
       (a, b) => map.get(a.key)!.order - map.get(b.key)!.order
     );
   }, [config]);
 
-  const hasDisabled = config.some((c) => !c.enabled);
+  const visibleRows = Math.max(1, Math.min(6, modulesToRender.length));
+  const cardHeight = containerHeight === null ? CARD_H : Math.max(72,
+    (containerHeight - GRID_PAD_TOP - GRID_PAD_BOTTOM - CARD_GAP * (visibleRows - 1)) / visibleRows);
 
   const rows = useMemo(() => {
     const result: FinanceModule[][] = [];
-    for (let i = 0; i < modulesToRender.length; i += 2)
-      result.push(modulesToRender.slice(i, i + 2));
+    for (const module of modulesToRender) result.push([module]);
     return result;
   }, [modulesToRender]);
-
-  // Dynamic card height: fill exactly the available container
-  const cardH = useMemo(() => {
-    if (containerH === null || modulesToRender.length === 0) return MIN_CARD_H;
-    const numRows = Math.ceil(modulesToRender.length / 2);
-    const addBtnTotalH =
-      hasDisabled && modulesToRender.length > 0
-        ? ADD_BTN_H + ADD_BTN_MARGIN
-        : 0;
-    const available =
-      containerH -
-      GRID_PAD_TOP -
-      GRID_PAD_BOTTOM -
-      (numRows - 1) * CARD_GAP -
-      addBtnTotalH;
-    return Math.min(MAX_CARD_H, Math.max(MIN_CARD_H, available / numRows));
-  }, [containerH, modulesToRender.length, hasDisabled]);
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: isDark ? t.background : "#F3F4F6" }}>
       {/* ── Header ── */}
       <View
         style={{
@@ -157,28 +161,28 @@ export default function FinancesScreen({ navigation }: any) {
 
         <TouchableOpacity
           onPress={() => navigation.navigate("FinancesSettings" as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Gestionar módulos"
+          accessibilityHint="Mostrar, ocultar y reordenar los módulos de Finanzas"
           style={{
-            flexDirection: "row",
             alignItems: "center",
-            backgroundColor: t.surface,
+            justifyContent: "center",
             borderRadius: 10,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderWidth: 1,
-            borderColor: t.border,
+            width: 44,
+            height: 44,
           }}
         >
-          <Ionicons name="options-outline" size={15} color={colors.text} />
-          <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginLeft: 4 }}>
-            Gestionar
-          </Text>
+          <Ionicons name="options-outline" size={22} color={t.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      {/* ── Grid container — measures available height ── */}
+      {/* Grid */}
       <View
-        style={{ flex: 1, paddingHorizontal: H_PAD }}
-        onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}
+        style={{ flex: 1, paddingHorizontal: H_PAD, marginBottom: bottomTabHeight }}
+        onLayout={(e) => {
+          setContainerWidth(e.nativeEvent.layout.width);
+          setContainerHeight(e.nativeEvent.layout.height);
+        }}
       >
         {/* Empty state */}
         {modulesToRender.length === 0 && (
@@ -188,28 +192,15 @@ export default function FinancesScreen({ navigation }: any) {
               Sin módulos activos
             </Text>
             <Text style={{ fontSize: 13, color: "#6B7280", textAlign: "center", lineHeight: 19 }}>
-              Ve a Perfil → Finanzas personal para activar módulos.
+              Pulsa Gestionar para activar y ordenar tus módulos.
             </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("FinancesSettings" as never)}
-              style={{
-                marginTop: 20,
-                backgroundColor: colors.primary,
-                borderRadius: 14,
-                paddingVertical: 12,
-                paddingHorizontal: 24,
-              }}
-            >
-              <Text style={{ color: "white", fontWeight: "700", fontSize: 14 }}>
-                Activar módulos
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
 
-        {/* Grid — only render once height is known */}
-        {containerH !== null && modulesToRender.length > 0 && (
+        {/* Modules */}
+        {modulesToRender.length > 0 && (
           <ScrollView
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingTop: GRID_PAD_TOP,
@@ -229,35 +220,14 @@ export default function FinancesScreen({ navigation }: any) {
                   <ModuleCard
                     key={m.key}
                     module={m}
-                    height={cardH}
+                    width={cardWidth}
+                    height={cardHeight}
+                    summary={summaries[m.key as FinanceHubKey]}
                     onPress={() => navigation.navigate(m.routeName as never)}
                   />
                 ))}
               </View>
             ))}
-
-            {/* Add modules */}
-            {hasDisabled && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("FinancesSettings" as never)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: ADD_BTN_MARGIN,
-                  height: ADD_BTN_H,
-                  borderRadius: 16,
-                  borderWidth: 1.5,
-                  borderColor: "#D1D5DB",
-                  borderStyle: "dashed",
-                }}
-              >
-                <Ionicons name="add-circle-outline" size={18} color="#9CA3AF" style={{ marginRight: 6 }} />
-                <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>
-                  Añadir módulos
-                </Text>
-              </TouchableOpacity>
-            )}
           </ScrollView>
         )}
       </View>

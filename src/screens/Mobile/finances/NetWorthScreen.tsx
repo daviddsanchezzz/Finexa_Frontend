@@ -24,6 +24,9 @@ import { getNetWorthCache, setNetWorthCache } from "../../../utils/netWorthCache
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
 import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
 import NetWorthBreakdownModal from "../../../components/NetWorthBreakdownModal";
+import WalletGoalReservationsModal from "../../../components/WalletGoalReservationsModal";
+import { useGoalWalletsQuery } from "../../../hooks/useGoalsQuery";
+import { money } from "./goals/goalShared";
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -182,30 +185,35 @@ function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = fa
   );
 }
 
-function Row({ emoji, name, amount, amountColor }: { emoji?: string; name: string; amount: number; amountColor?: string }) {
+function Row({ emoji, name, amount, amountColor, allocatedAmount = 0, currency = 'EUR', onPress }: { emoji?: string; name: string; amount: number; amountColor?: string; allocatedAmount?: number; currency?: string; onPress?: () => void }) {
   return (
-    <View
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.75}
+      accessibilityRole={onPress ? 'button' : undefined}
       style={{
-        flexDirection: "row",
-        alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderBottomWidth: 1,
         borderBottomColor: "#F9FAFB",
       }}
     >
-      {emoji ? (
-        <View style={{ marginRight: 8, width: 24, alignItems: "center" }}>
-          <WalletIcon emoji={emoji} size={16} />
-        </View>
-      ) : (
-        <View style={{ width: 24, marginRight: 8 }} />
-      )}
-      <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{name}</Text>
-      <Text style={{ fontSize: 13, fontWeight: "600", color: amountColor || "#111827" }}>
-        {fmt(amount)}
-      </Text>
-    </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {emoji ? (
+          <View style={{ marginRight: 8, width: 24, alignItems: "center" }}>
+            <WalletIcon emoji={emoji} size={16} />
+          </View>
+        ) : (
+          <View style={{ width: 24, marginRight: 8 }} />
+        )}
+        <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{name}</Text>
+        <Text style={{ fontSize: 13, fontWeight: "600", color: amountColor || "#111827" }}>
+          {fmt(amount)}
+        </Text>
+      </View>
+      {allocatedAmount > 0 && <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 4, marginLeft: 32 }}>🎯 {money(allocatedAmount, currency)} destinados a objetivos</Text>}
+    </TouchableOpacity>
   );
 }
 
@@ -218,14 +226,15 @@ function EmptyRow({ label }: { label: string }) {
 }
 
 // ── Fila de cartera (vista "Ver por Cartera") ──────────
-function WalletRow({ wallet }: { wallet: WalletItem }) {
+function WalletRow({ wallet, allocatedAmount = 0, onPress }: { wallet: WalletItem; allocatedAmount?: number; onPress: () => void }) {
   const { colors: t } = useTheme();
   const kindMeta = KIND[wallet.kind] ?? KIND.cash;
   return (
-    <View
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
       style={{
-        flexDirection: "row",
-        alignItems: "center",
         backgroundColor: t.surface,
         borderRadius: 14,
         borderWidth: 1,
@@ -235,26 +244,29 @@ function WalletRow({ wallet }: { wallet: WalletItem }) {
         marginBottom: 8,
       }}
     >
-      <View
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 9,
-          backgroundColor: kindMeta.bg,
-          alignItems: "center",
-          justifyContent: "center",
-          marginRight: 10,
-        }}
-      >
-        <WalletIcon emoji={wallet.emoji} size={16} />
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            backgroundColor: kindMeta.bg,
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 10,
+          }}
+        >
+          <WalletIcon emoji={wallet.emoji} size={16} />
+        </View>
+        <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
+          {wallet.name}
+        </Text>
+        <Text style={{ fontSize: 14, fontWeight: "800", color: "#111827" }}>
+          {fmt(wallet.balance)}
+        </Text>
       </View>
-      <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
-        {wallet.name}
-      </Text>
-      <Text style={{ fontSize: 14, fontWeight: "800", color: "#111827" }}>
-        {fmt(wallet.balance)}
-      </Text>
-    </View>
+      {allocatedAmount > 0 && <Text style={{ fontSize: 11, color: t.textSecondary, marginTop: 4, textAlign: 'right' }}>🎯 {money(allocatedAmount, wallet.currency)} destinados a objetivos</Text>}
+    </TouchableOpacity>
   );
 }
 
@@ -518,6 +530,8 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
   const [expandedMonth, setExpandedMonth] = useState<number | null>(null);
   const [expandedGlobalYear, setExpandedGlobalYear] = useState<number | null>(null);
   const [breakdownVisible, setBreakdownVisible] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<WalletItem | null>(null);
+  const goalWallets = useGoalWalletsQuery();
 
   const netTrend = useNetWorthTrend();
   const netTrendYear = useNetWorthTrend("year");
@@ -563,6 +577,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
 
   useFocusEffect(
     useCallback(() => {
+      void goalWallets.refetch();
       // Ya hay datos en caché y ninguna transacción los ha podido dejar
       // obsoletos desde que se guardaron: no vuelvas a pedirlos al backend.
       const cache = getNetWorthCache<NetWorthData>();
@@ -572,7 +587,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
         return;
       }
       fetchData();
-    }, [])
+    }, [goalWallets.refetch])
   );
 
   // ── Derived values ──
@@ -763,7 +778,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
-                    onRefresh={() => { setRefreshing(true); fetchData(true); }}
+                    onRefresh={() => { setRefreshing(true); fetchData(true); void goalWallets.refetch(); }}
                   />
                 }
               >
@@ -776,7 +791,8 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                     {wallets.length === 0 ? (
                       <EmptyRow label="Sin carteras" />
                     ) : (
-                      wallets.map((w) => <WalletRow key={w.id} wallet={w} />)
+                      wallets.map((w) => <WalletRow key={w.id} wallet={w} allocatedAmount={goalWallets.data?.find((item) => item.id === w.id)?.allocatedAmount}
+                        onPress={() => { setSelectedWallet(w); void goalWallets.refetch(); }} />)
                     )}
                   </>
                 ) : (
@@ -791,6 +807,8 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                       ) : (
                         cashWallets.map((w) => (
                           <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
+                            currency={w.currency} allocatedAmount={goalWallets.data?.find((item) => item.id === w.id)?.allocatedAmount}
+                            onPress={() => { setSelectedWallet(w); void goalWallets.refetch(); }}
                             amountColor={w.balance >= 0 ? "#16A34A" : "#DC2626"} />
                         ))
                       )}
@@ -802,6 +820,8 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                       ) : (
                         savingsWallets.map((w) => (
                           <Row key={w.id} emoji={w.emoji} name={w.name} amount={w.balance}
+                            currency={w.currency} allocatedAmount={goalWallets.data?.find((item) => item.id === w.id)?.allocatedAmount}
+                            onPress={() => { setSelectedWallet(w); void goalWallets.refetch(); }}
                             amountColor="#16A34A" />
                         ))
                       )}
@@ -1010,6 +1030,10 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
         </>
       )}
 
+      {selectedWallet && <WalletGoalReservationsModal wallet={selectedWallet} onClose={() => setSelectedWallet(null)} onOpenGoal={(goalId) => {
+        setSelectedWallet(null);
+        navigation.navigate("GoalDetail", { goalId });
+      }} />}
       <NetWorthBreakdownModal
         visible={breakdownVisible}
         onClose={() => setBreakdownVisible(false)}

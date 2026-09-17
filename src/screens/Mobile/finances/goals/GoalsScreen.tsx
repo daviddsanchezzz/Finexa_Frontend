@@ -1,174 +1,84 @@
-// src/screens/Goals/GoalsHomeScreen.tsx
-import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import AppHeader from "../../../../components/AppHeader";
-import AddButton from "../../../../components/AddButton";
-import { colors } from "../../../../theme/theme";
-import BudgetGoalCard from "../../../../components/BudgetGoalCard";
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import AppHeader from '../../../../components/AppHeader';
+import AddButton from '../../../../components/AddButton';
+import HeroBalanceCard from '../../../../components/HeroBalanceCard';
+import StatsRow from '../../../../components/StatsRow';
+import SegmentedTabs from '../../../../components/SegmentedTabs';
+import BudgetGoalCard from '../../../../components/BudgetGoalCard';
+import { GoalsScreenSkeleton } from '../../../../components/skeletons/GoalsScreenSkeleton';
+import { EditingActionRow } from '../../../../components/creation';
+import { useGoalsQuery } from '../../../../hooks/useGoalsQuery';
+import { colors } from '../../../../theme/theme';
+import { dateLabel, money, percentage } from './goalShared';
 
-interface Goal {
-  id: number;
-  name: string;
-  emoji?: string;
-  color?: string;
-  targetAmount: number;
-  savedAmount: number;
-}
-
-// MOCKS de objetivos
-const mockGoals: Goal[] = [
-  {
-    id: 1,
-    name: "Viaje a Roma",
-    emoji: "✈️",
-    color: "#3b82f6",
-    targetAmount: 600,
-    savedAmount: 240,
-  },
-  {
-    id: 2,
-    name: "Nuevo portátil",
-    emoji: "💻",
-    color: "#8b5cf6",
-    targetAmount: 1200,
-    savedAmount: 450,
-  },
-  {
-    id: 3,
-    name: "Fondo de emergencia",
-    emoji: "🧯",
-    color: "#f97316",
-    targetAmount: 1000,
-    savedAmount: 1000,
-  },
-];
-
-export default function GoalsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
-  const goals = mockGoals; // luego aquí meterás datos del backend
-
-  const summary = useMemo(() => {
-    if (!goals.length) {
-      return {
-        totalTarget: 0,
-        totalSaved: 0,
-        remaining: 0,
-        count: 0,
-      };
-    }
-
-    const totalTarget = goals.reduce(
-      (sum, g) => sum + (g.targetAmount || 0),
-      0
-    );
-    const totalSaved = goals.reduce(
-      (sum, g) => sum + (g.savedAmount || 0),
-      0
-    );
-    const remaining = Math.max(totalTarget - totalSaved, 0);
-
-    return {
-      totalTarget,
-      totalSaved,
-      remaining,
-      count: goals.length,
-    };
-  }, [goals]);
-
+type Filter = 'active' | 'completed' | 'all';
+export default function GoalsScreen({ navigation, isPinnedModuleTab = false, isDesktop = false }: any) {
+  const query = useGoalsQuery();
+  const [filter, setFilter] = useState<Filter>('active');
+  const [currency, setCurrency] = useState('EUR');
+  useFocusEffect(useCallback(() => { setFilter('active'); void query.refetch(); }, [query.refetch]));
+  const goals = query.data?.goals ?? [];
+  const summaries = query.data?.summaries ?? [];
+  const summaryCurrency = summaries.find((s) => s.currency === currency)?.currency ?? summaries[0]?.currency ?? currency;
+  const summary = summaries.find((s) => s.currency === summaryCurrency);
+  const visible = goals.filter((g) => filter === 'all' || (filter === 'active' ? g.status === 'ACTIVE' : g.status === 'COMPLETED'));
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      {/* HEADER */}
-      <View className="px-5 pb-3">
-        <AppHeader
-          title="Objetivos"
-          showProfile={false}
-          showDatePicker={false}
-          showBack={!isPinnedModuleTab}
-        />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <AppHeader title="Objetivos" showProfile={false} showDatePicker={false} showBack={!isPinnedModuleTab && !isDesktop}
+          rightElement={<AddButton label="Añadir" onPress={() => navigation.navigate('GoalForm')} />} />
       </View>
-
-      {/* RESUMEN */}
-      <View className="px-5 mb-3">
-        {/* RESUMEN COMO BUDGETGOALCARD (COLORES INVERTIDOS) */}
-        <View className="mb-2">
-          <BudgetGoalCard
-            title="Resumen de objetivos"
-            icon="🎯"
-            total={summary.totalTarget}
-            current={summary.totalSaved}
-            color="white" // barra blanca
-            backgroundColor={colors.primary} // fondo azul
-            titleColor="white"
-            subtitleColor="rgba(255,255,255,0.8)"
-          />
-
-          {summary.totalTarget > 0 && (
-            <Text
-              className="text-[11px] mt-1 ml-1"
-              style={{ color: "rgba(55,65,81,0.9)" }}
-            >
-              Te queda{" "}
-              <Text style={{ fontWeight: "600" }}>
-                {summary.remaining.toFixed(0)} €
-              </Text>{" "}
-              para completar tus {summary.count} objetivo
-              {summary.count === 1 ? "" : "s"}.
-            </Text>
-          )}
+      {query.isLoading ? <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}><GoalsScreenSkeleton /></ScrollView> : query.isError ? (
+        <View style={{ padding: 20 }}>
+          <Text style={{ color: colors.textSecondary }}>No se pudieron cargar los objetivos.</Text>
+          <EditingActionRow label="Reintentar" onPress={() => { void query.refetch(); }} />
         </View>
-      </View>
-
-      {/* LISTA DE OBJETIVOS */}
-      <ScrollView
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        {goals.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-16 text-sm">
-            Todavía no tienes objetivos creados.
-          </Text>
-        ) : (
-          goals.map((g) => (
-            <View key={g.id} className="mb-3">
-              <BudgetGoalCard
-                title={g.name}
-                icon={g.emoji || "🎯"}
-                total={g.targetAmount}
-                current={g.savedAmount}
-                color={g.color || colors.primary}
-                onPress={() =>
-                  navigation.navigate("BudgetTransactions", {
-                    // Reutilizas la misma pantalla de transacciones
-                    budgetId: g.id,
-                    budgetName: g.name,
-                    budgetEmoji: g.emoji || "🎯",
-                    budgetColor: g.color || colors.primary,
-                    budgetLimit: g.targetAmount,
-                    budgetSpent: g.savedAmount,
-                    categoryName: undefined,
-                    periodType: undefined, // aquí no hay periodo, puedes ignorarlo en esa screen
-                    goalId: g.id,
-                  })
-                }
-              />
-            </View>
-          ))
-        )}
-
-        {/* BOTÓN AÑADIR OBJETIVO */}
-        <AddButton
-          label="Añadir objetivo"
-          onPress={() => navigation.navigate("GoalCreate")}
-          style={{ justifyContent: "center", alignSelf: "stretch", marginTop: 8 }}
-        />
-      </ScrollView>
+      ) : (
+        <>
+          <View style={{ paddingHorizontal: 20, gap: 8 }}>
+            {summaries.length > 1 && <SegmentedTabs<string> options={summaries.map((s) => ({ key: s.currency, label: s.currency }))} value={summaryCurrency} onChange={setCurrency} />}
+            <HeroBalanceCard label="Ahorrado para objetivos" value={money(summary?.totalSaved ?? 0, summaryCurrency)} footer={
+              <View style={{ width: '100%', marginTop: 10 }}>
+                <View style={{ height: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+                  <View style={{ height: '100%', width: `${summary?.displayProgress ?? 0}%`, backgroundColor: 'white' }} />
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 6, textAlign: 'center' }}>{percentage(summary?.globalProgress ?? 0)} del total objetivo</Text>
+              </View>
+            } />
+            <StatsRow items={[
+              { key: 'target', label: 'OBJETIVO TOTAL', value: money(summary?.totalTarget ?? 0, summaryCurrency) },
+              { key: 'remaining', label: 'FALTA', value: money(summary?.totalRemaining ?? 0, summaryCurrency) },
+              { key: 'count', label: 'ACTIVOS', value: String(summary?.activeCount ?? 0) },
+            ]} />
+          </View>
+          <View style={{ marginTop: 12 }}>
+            <SegmentedTabs<Filter> variant="underline" options={[{ key: 'active', label: 'Activos' }, { key: 'completed', label: 'Completados' }, { key: 'all', label: 'Todos' }]} value={filter} onChange={setFilter} />
+          </View>
+          <ScrollView style={{ flex: 1, paddingHorizontal: 14 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}
+            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }} />}>
+            {!visible.length && (
+              <Text style={{ marginTop: 8, fontSize: 13, color: '#94A3B8', textAlign: 'center' }}>
+                No hay objetivos en este estado.
+              </Text>
+            )}
+            {visible.map((goal) => (
+              <View key={goal.id} style={{ marginBottom: 12 }}>
+                <BudgetGoalCard title={goal.name} icon={goal.icon || 'flag-outline'} total={goal.targetAmount} current={goal.currentAmount}
+                  color={goal.reached ? colors.success : goal.color || colors.primary} goalMode showOverflow currency={goal.currency}
+                  onPress={() => navigation.navigate('GoalDetail', { goalId: goal.id })} />
+                {(goal.targetDate || goal.status !== 'ACTIVE' || goal.allocations.some((a) => a.overAllocated > 0)) && (
+                  <Text style={{ marginHorizontal: 4, fontSize: 12, color: goal.allocations.some((a) => a.overAllocated > 0) ? colors.error : colors.textSecondary }}>
+                    {goal.status === 'ARCHIVED' ? 'Archivado · Reservas liberadas' : goal.status === 'COMPLETED' ? 'Completado' : goal.overdue ? 'Fecha objetivo vencida' : goal.targetDate ? dateLabel(goal.targetDate) : ''}
+                    {goal.allocations.some((a) => a.overAllocated > 0) ? ' · Revisa las asignaciones: el saldo de una cartera ha bajado' : ''}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }

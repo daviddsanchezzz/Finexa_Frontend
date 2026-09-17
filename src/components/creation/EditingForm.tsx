@@ -23,6 +23,8 @@ interface EditingFormProps {
   isSubmitting?: boolean;
   isValid?: boolean;
   submitError?: string | null;
+  footerContent?: ReactNode;
+  disableInvalidSubmit?: boolean;
 }
 
 export function EditingActionRow({
@@ -69,6 +71,8 @@ export default function EditingForm({
   isSubmitting = false,
   isValid = true,
   submitError,
+  footerContent,
+  disableInvalidSubmit = false,
 }: EditingFormProps) {
   const scrollRef = useRef<ScrollView>(null);
 
@@ -120,10 +124,12 @@ export default function EditingForm({
             ) : null}
           </ScrollView>
 
+          {footerContent}
           <CreationFooter
             label={submitLabel}
             loading={isSubmitting}
             enabled={isValid && !isSubmitting}
+            disabled={disableInvalidSubmit && !isValid}
             onPress={() => {
               if (!isValid) {
                 scrollRef.current?.scrollTo({ y: 0, animated: true });

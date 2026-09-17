@@ -6,10 +6,11 @@ async function fetchInvestmentsSummary() {
   return res.data;
 }
 
-export function useInvestmentsSummaryQuery() {
+export function useInvestmentsSummaryQuery(options: { staleTime?: number; gcTime?: number } = {}) {
   return useQuery({
     queryKey: ["investments", "summary"],
     queryFn: fetchInvestmentsSummary,
     staleTime: 1000 * 60 * 5,
+    ...options,
   });
 }

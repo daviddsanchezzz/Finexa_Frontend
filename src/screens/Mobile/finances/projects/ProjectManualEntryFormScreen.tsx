@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../../../../api/api';
 import { appAlert } from '../../../../utils/appAlert';
 import { colors } from '../../../../theme/theme';
@@ -20,20 +20,25 @@ import {
 } from '../../../../components/creation';
 import { ProjectManualEntry, ProjectMovementKind, ProjectPartner } from '../../../../types/project';
 
-const KIND_OPTIONS: { value: ProjectMovementKind; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'income', label: 'Ingreso', icon: 'add-outline' },
-  { value: 'expense', label: 'Gasto', icon: 'remove-outline' },
-  { value: 'contribution', label: 'Aportación', icon: 'arrow-down-circle-outline' },
-  { value: 'withdrawal', label: 'Retirada', icon: 'arrow-up-circle-outline' },
+const KIND_OPTIONS: { value: ProjectMovementKind; label: string }[] = [
+  { value: 'income', label: 'Ingreso' },
+  { value: 'expense', label: 'Gasto' },
+  { value: 'contribution', label: 'Aportación' },
+  { value: 'withdrawal', label: 'Retirada' },
 ];
 
 const needsPartner = (kind: ProjectMovementKind) => kind === 'contribution' || kind === 'withdrawal';
 
+type Mode = 'link' | 'manual' | null;
+
 export default function ProjectManualEntryFormScreen({ navigation, route }: any) {
+  const queryClient = useQueryClient();
   const projectId: number = route?.params?.projectId;
   const partners: ProjectPartner[] = route?.params?.partners || [];
   const editEntry: ProjectManualEntry | undefined = route?.params?.editEntry;
   const isEditing = !!editEntry;
+
+  const [mode, setMode] = useState<Mode>(null);
 
   const [kind, setKind] = useState<ProjectMovementKind>(editEntry?.kind || 'expense');
   const [withdrawalType, setWithdrawalType] = useState<'profit' | 'capital'>(
@@ -47,19 +52,34 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
   const [description, setDescription] = useState(editEntry?.description || '');
   const [notes, setNotes] = useState(editEntry?.notes || '');
 
+  const mutationInFlight = useRef(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const amountNumber = Number(String(amount).replace(',', '.'));
-  const isValid =
+  const manualIsValid =
     title.trim().length > 0 &&
     Number.isFinite(amountNumber) &&
     amountNumber > 0 &&
     (!needsPartner(kind) || partnerId != null);
 
+  const refreshAfterMutation = async () => {
+    markTransactionsDirty();
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['projects'], refetchType: 'all' }),
+      queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+    ]);
+  };
+
   const handleSubmit = async () => {
-    if (!isValid) return;
+    if (mutationInFlight.current) return;
+    if (!isEditing && mode === 'link') {
+      navigation.navigate('ProjectDetail', { projectId, openTxSelector: true });
+      return;
+    }
+
+    if (!manualIsValid || (!isEditing && mode !== 'manual')) return;
     setSubmitError(null);
 
     const payload = {
@@ -74,6 +94,7 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
       partnerId: needsPartner(kind) ? partnerId : null,
     };
 
+    mutationInFlight.current = true;
     try {
       setSaving(true);
       if (isEditing && editEntry) {
@@ -81,18 +102,19 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
       } else {
         await api.post(`/projects/${projectId}/manual-entries`, payload);
       }
-      markTransactionsDirty();
+      await refreshAfterMutation();
       navigation.goBack();
     } catch (error) {
       console.error('Error guardando movimiento manual:', error);
       setSubmitError('No se pudo guardar el movimiento.');
     } finally {
+      mutationInFlight.current = false;
       setSaving(false);
     }
   };
 
   const handleDelete = () => {
-    if (!editEntry) return;
+    if (!editEntry || mutationInFlight.current) return;
 
     appAlert('Eliminar movimiento', '¿Seguro que quieres eliminar este movimiento?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -100,15 +122,18 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
+          if (mutationInFlight.current) return;
+          mutationInFlight.current = true;
           try {
             setDeleting(true);
             await api.delete(`/projects/${projectId}/manual-entries/${editEntry.id}`);
-            markTransactionsDirty();
+            await refreshAfterMutation();
             navigation.goBack();
           } catch (error) {
             console.error('Error eliminando movimiento manual:', error);
             appAlert('Error', 'No se pudo eliminar el movimiento.');
           } finally {
+            mutationInFlight.current = false;
             setDeleting(false);
           }
         },
@@ -116,7 +141,14 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
     ]);
   };
 
-  const fields = (
+  const modeStepContent = (
+    <View style={{ gap: 10 }}>
+      <FormOptionCard label="Vincular transacción existente" selected={mode === 'link'} onPress={() => setMode('link')} />
+      <FormOptionCard label="Crear movimiento manual" selected={mode === 'manual'} onPress={() => setMode('manual')} />
+    </View>
+  );
+
+  const manualFields = (
     <>
       <View>
         <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', marginBottom: 5 }}>Tipo</Text>
@@ -125,7 +157,6 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
             <View key={option.value} style={{ width: '50%', padding: 4 }}>
               <FormOptionCard
                 label={option.label}
-                icon={option.icon}
                 selected={kind === option.value}
                 onPress={() => {
                   setKind(option.value);
@@ -173,26 +204,36 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
         />
       )}
 
-      <FormTextField label="Título" value={title} onChangeText={setTitle} icon="text-outline" required />
-      <FormMoneyField label="Importe" value={amount} onChangeText={setAmount} currency="€" required />
+      <FormTextField label="Título" value={title} onChangeText={setTitle} required />
+      <FormMoneyField label="Importe" value={amount} onChangeText={(value) => setAmount(value.replace('.', ','))} currency="€" required />
       <FormDateField label="Fecha" value={date} onChange={setDate} required />
-      <FormTextField label="Categoría" value={category} onChangeText={setCategory} icon="pricetag-outline" />
-      <FormTextField label="Descripción" value={description} onChangeText={setDescription} icon="document-text-outline" />
+      <FormTextField label="Categoría" value={category} onChangeText={setCategory} />
+      <FormTextField label="Descripción" value={description} onChangeText={setDescription} />
       <FormNotesField label="Notas" value={notes} onChangeText={setNotes} />
     </>
   );
 
-  const steps: CreationStep[] = useMemo(
-    () => [
+  const steps: CreationStep[] = useMemo(() => {
+    const modeStep: CreationStep = {
+      id: 'mode',
+      title: '¿Qué quieres añadir?',
+      isValid: mode !== null,
+      content: modeStepContent,
+    };
+
+    if (mode !== 'manual') return [modeStep];
+
+    return [
+      modeStep,
       {
         id: 'basics',
-        title: 'Nuevo movimiento',
-        isValid,
-        content: <View style={{ gap: 18 }}>{fields}</View>,
+        title: 'Detalles del movimiento',
+        isValid: manualIsValid,
+        content: <View style={{ gap: 18 }}>{manualFields}</View>,
       },
-    ],
-    [kind, withdrawalType, partnerId, title, amount, date, category, description, notes, isValid, partners],
-  );
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, kind, withdrawalType, partnerId, title, amount, date, category, description, notes, manualIsValid, partners]);
 
   if (isEditing) {
     return (
@@ -201,22 +242,24 @@ export default function ProjectManualEntryFormScreen({ navigation, route }: any)
         onClose={() => navigation.goBack()}
         onSubmit={handleSubmit}
         submitLabel="Guardar cambios"
-        isSubmitting={saving}
-        isValid={isValid}
+        isSubmitting={saving || deleting}
+        isValid={manualIsValid}
         submitError={submitError}
       >
-        <FormSection>{fields}</FormSection>
+        <FormSection>{manualFields}</FormSection>
         <View style={{ height: 24 }} />
         <EditingActionRow label="Eliminar movimiento" onPress={handleDelete} disabled={saving || deleting} destructive />
       </EditingForm>
     );
   }
 
+  const submitLabel = mode === 'link' ? 'Buscar transacción' : mode === 'manual' ? 'Crear movimiento' : 'Continuar';
+
   return (
     <CreationFlow
       title="Nuevo movimiento"
       steps={steps}
-      submitLabel="Crear movimiento"
+      submitLabel={submitLabel}
       onSubmit={handleSubmit}
       onClose={() => navigation.goBack()}
       isSubmitting={saving}

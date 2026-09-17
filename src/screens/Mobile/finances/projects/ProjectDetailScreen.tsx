@@ -20,7 +20,10 @@ import HeroBalanceCard from '../../../../components/HeroBalanceCard';
 import StatsRow from '../../../../components/StatsRow';
 import SegmentedTabs from '../../../../components/SegmentedTabs';
 import AddButton from '../../../../components/AddButton';
-import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDateTimePicker';
+import {
+  CreationFlow, EditingForm, EditingActionRow, FormSection, FormTextField,
+  FormMoneyField, FormNumberField, FormDateField, FormNotesField, FormOptionCard,
+} from '../../../../components/creation';
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
 import { formatEuro, signColor } from '../../../../utils/currency';
@@ -118,7 +121,7 @@ function formatCurrency(value: number) {
 
 function formatPercentage(value: number) {
   const rounded = Math.round(Number(value || 0) * 100) / 100;
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(2)}%`;
+  return `${(Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(2)).replace('.', ',')}%`;
 }
 
 function initials(name: string) {
@@ -166,6 +169,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
   const [tab, setTab] = useState<DetailTab>('info');
+  const [cashDetailOpen, setCashDetailOpen] = useState(false);
 
   const [txSelectorOpen, setTxSelectorOpen] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
@@ -178,11 +182,10 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const [partnersModalOpen, setPartnersModalOpen] = useState(false);
   const [partnersSaving, setPartnersSaving] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
-  const [addMovementMenuOpen, setAddMovementMenuOpen] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<CombinedMovement | null>(null);
   const [profitForm, setProfitForm] = useState<ProfitForm>(defaultProfitForm());
   const [partnersForm, setPartnersForm] = useState<PartnerFormItem[]>([]);
-  const [profitDatePickerVisible, setProfitDatePickerVisible] = useState(false);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -196,7 +199,11 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       setTxLoading(true);
       const res = await api.get('/transactions');
       const data = Array.isArray(res.data) ? res.data : [];
-      const filtered = data.filter((tx: any) => tx.type === 'income' || tx.type === 'expense');
+      const filtered = (data as ProjectTransaction[])
+        .filter((tx) => tx.type === 'income' || tx.type === 'expense')
+        .filter((tx) => tx.isRecurring === false)
+        .filter((tx) => tx.excludeFromStats !== true)
+        .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
       setAllTransactions(filtered);
       const currentIds = new Set<number>((project?.transactions || []).map((tx) => tx.id));
       setSelectedTxIds(currentIds);
@@ -213,11 +220,22 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     await fetchAllTransactions();
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!route?.params?.openTxSelector || !project) return;
+      navigation.setParams({ openTxSelector: undefined });
+      setTab('movements');
+      setSearch('');
+      void openTxSelector();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [route?.params?.openTxSelector, project, navigation]),
+  );
+
   const filteredTransactions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return allTransactions;
     return allTransactions.filter((tx) =>
-      String(tx.description || '').toLowerCase().includes(query),
+      [tx.category?.name, tx.description].filter(Boolean).join(' ').toLowerCase().includes(query),
     );
   }, [allTransactions, search]);
 
@@ -290,28 +308,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     });
   };
 
-  const removeManualEntry = (entry: ProjectManualEntry) => {
-    if (!project) return;
-
-    appAlert('Eliminar movimiento', '¿Seguro que quieres eliminar este movimiento manual?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/projects/${project.id}/manual-entries/${entry.id}`);
-            markTransactionsDirty();
-            fetchProject();
-          } catch (error) {
-            console.error('Error eliminando movimiento manual:', error);
-            appAlert('Error', 'No se pudo eliminar el movimiento manual.');
-          }
-        },
-      },
-    ]);
-  };
-
   const openProfitCreate = () => {
     const partners = project?.partners || [];
     if (!partners.length) {
@@ -339,7 +335,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     const base = (project?.partners || []).map((partner) => ({
       id: partner.id,
       name: partner.name,
-      percentage: String(partner.percentage),
+      percentage: String(partner.percentage).replace('.', ','),
       isMe: !!partner.isMe,
     }));
 
@@ -371,7 +367,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
       lines: rawLines.map((line) => ({
         partnerId: line.partnerId,
         partnerName: line.partnerName,
-        amount: String(line.amount),
+        amount: String(line.amount).replace('.', ','),
         notes: line.notes,
       })),
     }));
@@ -384,7 +380,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   ) => {
     setProfitForm((prev) => {
       const next = [...prev.lines];
-      next[index] = { ...next[index], [field]: value };
+      next[index] = { ...next[index], [field]: field === 'amount' ? value.replace('.', ',') : value };
       return { ...prev, lines: next };
     });
   };
@@ -493,7 +489,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
     const sum = clean.reduce((acc, item) => acc + Number(item.percentage || 0), 0);
     if (Math.round(sum * 100) !== 10000) {
-      appAlert('Validación', `El porcentaje total debe ser 100%. Actual: ${sum.toFixed(2)}%.`);
+      appAlert('Validación', `El porcentaje total debe ser 100%. Actual: ${sum.toFixed(2).replace('.', ',')}%.`);
       return;
     }
 
@@ -528,7 +524,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           next[i] = { ...item, isMe: i === index };
         });
       } else {
-        next[index] = { ...next[index], [field]: value as string };
+        next[index] = { ...next[index], [field]: field === 'percentage' ? String(value).replace('.', ',') : value as string };
       }
       return next;
     });
@@ -653,10 +649,18 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   const distributable = Math.max(0, result - Number(project.financials.withdrawals || 0));
   const myProfit = Number(project.financials.myProfit || 0);
   const myPending = Number(project.financials.myPending || 0);
-  const hasActivity =
-    Number(project.financials.income || 0) !== 0 ||
-    Number(project.financials.expense || 0) !== 0 ||
-    Number(project.financials.myPercentage || 100) !== 100;
+  const estimatedCashShare = Number(project.financials.cash || 0) * Number(project.financials.myPercentage || 0) / 100;
+  const cashRows = [
+    { label: 'Aportaciones', value: project.financials.contributions },
+    { label: 'Ingresos', value: project.financials.income },
+    { label: 'Gastos', value: project.financials.expense },
+    { label: 'Beneficios retirados', value: project.financials.withdrawalsProfit },
+    ...(project.financials.withdrawalsCapital > 0
+      ? [{ label: 'Capital devuelto', value: project.financials.withdrawalsCapital }]
+      : []),
+  ];
+  const summaryCardStyle = { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, padding: 16 };
+  const sectionLabelStyle = { fontSize: 12, fontWeight: '900' as const, color: '#64748B', letterSpacing: 0.55, marginBottom: 10 };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -668,7 +672,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           showBack={true}
           rightElement={
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <AddButton label="Añadir" onPress={() => setAddMovementMenuOpen(true)} />
+              <AddButton label="Añadir" onPress={openManualCreate} />
               <OverflowMenuButton
                 title={project.name}
                 actions={[
@@ -718,155 +722,80 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 14 }}
       >
-        {tab === 'info' && (() => {
-          const infoRows: { label: string; value: string }[] = [
-            ...(project.type ? [{ label: 'Tipo', value: project.type }] : []),
-            { label: 'Fecha de inicio', value: formatDate(project.startDate) },
-            ...(project.endDate ? [{ label: 'Fecha de fin', value: formatDate(project.endDate) }] : []),
-          ];
-
-          const cashRows: { label: string; value: number; sign: '+' | '-'; tone?: 'signal' }[] = [
-            { label: 'Aportaciones', value: project.financials.contributions, sign: '+' },
-            { label: 'Ingresos', value: project.financials.income, sign: '+', tone: 'signal' },
-            { label: 'Gastos', value: project.financials.expense, sign: '-', tone: 'signal' },
-            { label: 'Retiradas de beneficio', value: project.financials.withdrawalsProfit, sign: '-' },
-            ...(project.financials.withdrawalsCapital > 0
-              ? [{ label: 'Capital devuelto', value: project.financials.withdrawalsCapital, sign: '-' as const }]
-              : []),
-          ];
-
-          return (
-            <View>
-              {/* SOBRE EL PROYECTO */}
-              <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
-                <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: infoRows.length ? 5 : 18 }}>
-                  <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: statusTone.bg, alignSelf: 'flex-start' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: statusTone.text }}>{STATUS_LABELS[project.status]}</Text>
-                  </View>
-
-                  {!!project.description && (
-                    <Text style={{ fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 10 }}>{project.description}</Text>
-                  )}
-
-                  {infoRows.length ? (
-                    <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', marginTop: 14 }}>
-                      {infoRows.map((row, index) => (
-                        <View
-                          key={row.label}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            minHeight: 43,
-                            borderBottomWidth: index < infoRows.length - 1 ? 1 : 0,
-                            borderBottomColor: '#E8EDF4',
-                            gap: 16,
-                          }}
-                        >
-                          <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{row.value}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-
-                {project.notes ? (
-                  <View style={{ borderTopWidth: 1, borderTopColor: '#E8EDF4', paddingHorizontal: 14, paddingVertical: 14 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 8 }}>NOTAS</Text>
-                    <Text style={{ fontSize: 13, lineHeight: 19, color: '#0F172A' }}>{project.notes}</Text>
-                  </View>
-                ) : null}
+        {tab === 'info' && (
+          <View style={{ gap: 20 }}>
+            <View style={summaryCardStyle}>
+              <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: statusTone.bg, alignSelf: 'flex-start' }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: statusTone.text }}>{STATUS_LABELS[project.status]}</Text>
               </View>
-
-              {/* TU POSICIÓN — perspectiva personal, derivada del resultado de arriba */}
-              {hasActivity && (
-                <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
-                  <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 14 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>
-                      TU POSICIÓN
-                    </Text>
-                    <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 3 }}>
-                      Resultado del proyecto ({formatCurrency(result)}) × tu {formatPercentage(project.financials.myPercentage)} de participación
-                    </Text>
-
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14 }}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Tu beneficio</Text>
-                      <Text style={{ fontSize: 22, fontWeight: '800', color: signColor(myProfit, colors.success, colors.danger, '#0F172A') }}>
-                        {formatCurrency(myProfit)}
-                      </Text>
-                    </View>
-
-                    <View style={{ height: 1, backgroundColor: '#E8EDF4', marginTop: 12, marginBottom: 12 }} />
-
-                    <StatsRow
-                      items={[
-                        { key: 'participacion', label: 'PARTICIPACIÓN', value: formatPercentage(project.financials.myPercentage) },
-                        { key: 'retirado', label: 'RETIRADO', value: formatCurrency(project.financials.myWithdrawnProfit) },
-                        {
-                          key: 'pendiente',
-                          label: 'PENDIENTE',
-                          value: formatCurrency(myPending),
-                          color: signColor(myPending, colors.success, colors.danger, '#0F172A'),
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
+              {!!project.description && (
+                <Text style={{ fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 12 }}>{project.description}</Text>
               )}
-
-              {/* CAJA DEL PROYECTO — perspectiva del proyecto entero, todos los socios */}
-              <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
-                <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>CAJA DEL PROYECTO</Text>
-                  <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 3, marginBottom: 10 }}>
-                    Dinero de todos los socios que sigue dentro del proyecto
-                  </Text>
-
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      minHeight: 40,
-                      borderTopWidth: 1,
-                      borderBottomWidth: 1,
-                      borderTopColor: '#E8EDF4',
-                      borderBottomColor: '#E8EDF4',
-                    }}
-                  >
-                    <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Caja actual</Text>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>{formatCurrency(project.financials.cash)}</Text>
+              <View style={{ marginTop: 12 }}>
+                {[
+                  ...(project.type ? [{ label: 'Tipo', value: project.type }] : []),
+                  { label: 'Inicio', value: formatDate(project.startDate) },
+                  ...(project.endDate ? [{ label: 'Fin', value: formatDate(project.endDate) }] : []),
+                ].map((row) => (
+                  <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 36, gap: 16 }}>
+                    <Text style={{ fontSize: 12.5, color: '#64748B' }}>{row.label}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.ink }}>{row.value}</Text>
                   </View>
-                  {cashRows.map((row, index) => (
-                    <View
-                      key={row.label}
-                      style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        minHeight: 40,
-                        borderBottomWidth: index < cashRows.length - 1 ? 1 : 0,
-                        borderBottomColor: '#E8EDF4',
-                      }}
-                    >
-                      <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: '800',
-                          color: row.tone === 'signal' ? (row.sign === '+' ? colors.success : colors.danger) : '#334155',
-                        }}
-                      >
-                        {row.sign}{formatCurrency(row.value)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+                ))}
               </View>
             </View>
-          );
-        })()}
+
+            <View>
+              <Text style={sectionLabelStyle}>TU POSICIÓN</Text>
+              <View style={summaryCardStyle}>
+                <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Tu beneficio total</Text>
+                <Text style={{ fontSize: 26, fontWeight: '800', color: signColor(myProfit, colors.success, colors.danger, colors.ink), marginTop: 6, marginBottom: 14 }}>
+                  {formatCurrency(myProfit)}
+                </Text>
+                {[
+                  { label: 'Participación', value: formatPercentage(project.financials.myPercentage) },
+                  { label: 'Ya retirado', value: formatCurrency(project.financials.myWithdrawnProfit) },
+                  { label: 'Pendiente de retirar', value: formatCurrency(myPending) },
+                ].map((row) => (
+                  <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 36, gap: 12 }}>
+                    <Text style={{ fontSize: 12.5, color: '#64748B', flex: 1 }}>{row.label}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.ink }}>{row.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View>
+              <Text style={sectionLabelStyle}>CAJA</Text>
+              <TouchableOpacity
+                style={summaryCardStyle}
+                activeOpacity={0.75}
+                onPress={() => setCashDetailOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Ver detalle de caja"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Disponible en el proyecto</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+                </View>
+                <Text style={{ fontSize: 26, fontWeight: '800', color: colors.ink, marginTop: 6 }}>
+                  {formatCurrency(project.financials.cash)}
+                </Text>
+                {!!project.partners.length && (
+                  <>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E8EDF4', marginTop: 16, paddingTop: 14, gap: 12 }}>
+                      <Text style={{ fontSize: 12.5, color: '#64748B' }}>Tu parte estimada</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.ink }}>{formatCurrency(estimatedCashShare)}</Text>
+                    </View>
+                    <Text style={{ fontSize: 11, lineHeight: 16, color: '#94A3B8', marginTop: 8 }}>
+                      Estimación según tu participación. El importe retirable depende de las aportaciones, obligaciones y acuerdos entre socios.
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {tab === 'movements' && (() => {
           if (combinedMovements.length === 0) {
@@ -942,7 +871,14 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                         <TouchableOpacity
                           key={`${item.source}-${item.id}`}
                           activeOpacity={0.7}
-                          onPress={() => setSelectedMovement(item)}
+                          onPress={() => {
+                            if (item.source === 'manual') {
+                              const entry = project.manualEntries.find((e) => e.id === item.id);
+                              if (entry) openManualEdit(entry);
+                              return;
+                            }
+                            setSelectedMovement(item);
+                          }}
                           style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 2 }}
                         >
                           <View
@@ -1123,7 +1059,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 <TextInput
                   value={search}
                   onChangeText={setSearch}
-                  placeholder="Buscar por descripción"
+                  placeholder="Buscar por categoría o descripción"
                   placeholderTextColor="#94A3B8"
                   className="ml-2 text-[16px] flex-1 text-slate-900"
                 />
@@ -1154,7 +1090,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
                       <View className="flex-1 ml-2 pr-2">
                         <Text className="text-[13px] text-slate-900" numberOfLines={1}>
-                          {item.description || 'Sin descripción'}
+                          {[item.category?.name?.trim() || 'Sin categoría', item.description?.trim()].filter(Boolean).join(' · ')}
                         </Text>
                         <Text className="text-[11px] text-slate-500">{formatDate(item.date)}</Text>
                       </View>
@@ -1187,286 +1123,121 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
         </View>
       </Modal>
 
-      <Modal
-        visible={profitModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setProfitModalOpen(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16, maxHeight: '86%' }}>
-            <Text className="text-sm font-semibold text-slate-900 mb-3">
-              Repartir beneficios
-            </Text>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <TextInput
-                value={profitForm.title}
-                onChangeText={(text) => setProfitForm((prev) => ({ ...prev, title: text }))}
-                placeholder="Título (opcional)"
-                placeholderTextColor="#94A3B8"
-                className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-              />
-
-              <TextInput
-                value={profitForm.totalAmount}
-                onChangeText={(text) => {
-                  setProfitForm((prev) => ({ ...prev, totalAmount: text }));
-                  recalculateProfitLinesFromPercentages(text);
-                }}
-                placeholder="Importe total *"
-                placeholderTextColor="#94A3B8"
-                keyboardType="decimal-pad"
-                className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-              />
-
-              <TouchableOpacity
-                onPress={() => recalculateProfitLinesFromPercentages(profitForm.totalAmount)}
-                style={{ alignSelf: 'flex-end', marginBottom: 8 }}
-              >
-                <Text className="text-[12px] font-semibold text-primary">Recalcular por porcentajes</Text>
+      <Modal visible={cashDetailOpen} transparent animationType="slide" onRequestClose={() => setCashDetailOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.24)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setCashDetailOpen(false)} accessibilityRole="button" accessibilityLabel="Cerrar detalle de caja" />
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.ink }}>Detalle de caja</Text>
+              <TouchableOpacity onPress={() => setCashDetailOpen(false)} accessibilityRole="button" accessibilityLabel="Cerrar" style={{ padding: 8 }}>
+                <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setProfitDatePickerVisible(true)}
-                className="border border-slate-200 rounded-xl px-3 py-2 mb-2"
-              >
-                <Text className="text-[13px] text-slate-900">
-                  Fecha *: {formatDate(profitForm.date.toISOString())}
-                </Text>
-              </TouchableOpacity>
-
-              <TextInput
-                value={profitForm.notes}
-                onChangeText={(text) => setProfitForm((prev) => ({ ...prev, notes: text }))}
-                placeholder="Notas (opcional)"
-                placeholderTextColor="#94A3B8"
-                multiline
-                className="border border-slate-200 rounded-xl px-3 py-2 text-[16px] mb-2 text-slate-900"
-                style={{ minHeight: 64, textAlignVertical: 'top' }}
-              />
-
-              <View className="flex-row justify-between items-center mt-1 mb-2">
-                <Text className="text-[12px] text-slate-500">Socios y reparto</Text>
-                <TouchableOpacity onPress={() => recalculateProfitLinesFromPercentages(profitForm.totalAmount)}>
-                  <Text className="text-[12px] font-semibold text-primary">Recalcular</Text>
-                </TouchableOpacity>
+            </View>
+            {cashRows.map((row) => (
+              <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', minHeight: 42, alignItems: 'center', gap: 16 }}>
+                <Text style={{ fontSize: 13, color: '#64748B' }}>{row.label}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.ink }}>{formatCurrency(row.value)}</Text>
               </View>
-
-              {profitForm.lines.map((line, index) => (
-                <View
-                  key={`${index}-${line.partnerName}`}
-                  className="border border-slate-200 rounded-xl p-2 mb-2"
-                  style={{ backgroundColor: '#F8FAFC' }}
-                >
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-[13px] font-semibold text-slate-900">{line.partnerName || `Socio ${index + 1}`}</Text>
-                    <Text className="text-[11px] text-slate-500">
-                      {formatPercentage((project.partners || []).find((p) => p.name === line.partnerName)?.percentage || 0)}
-                    </Text>
-                  </View>
-                  <TextInput
-                    value={line.amount}
-                    onChangeText={(text) => updateProfitLine(index, 'amount', text)}
-                    placeholder="Importe"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="decimal-pad"
-                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
-                  />
-                  <TextInput
-                    value={line.notes}
-                    onChangeText={(text) => updateProfitLine(index, 'notes', text)}
-                    placeholder="Nota (opcional)"
-                    placeholderTextColor="#94A3B8"
-                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] text-slate-900 bg-white"
-                  />
-                </View>
-              ))}
-            </ScrollView>
-
-            <View className="flex-row mt-3">
-              <TouchableOpacity
-                onPress={() => {
-                  setProfitModalOpen(false);
-                }}
-                className="flex-1 py-2.5 rounded-xl mr-2 items-center"
-                style={{ backgroundColor: '#F1F5F9' }}
-              >
-                <Text className="text-[13px] text-slate-700 font-semibold">Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={saveProfitDistribution}
-                disabled={profitSaving}
-                className="flex-1 py-2.5 rounded-xl ml-2 items-center"
-                style={{ backgroundColor: colors.primary, opacity: profitSaving ? 0.7 : 1 }}
-              >
-                {profitSaving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text className="text-[13px] text-white font-semibold">Guardar</Text>
-                )}
-              </TouchableOpacity>
+            ))}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E2E8F0', marginTop: 12, paddingTop: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.ink }}>Caja disponible</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.ink }}>{formatCurrency(project.financials.cash)}</Text>
             </View>
           </View>
         </View>
+      </Modal>
 
-        <CrossPlatformDateTimePicker
-          isVisible={profitDatePickerVisible}
-          mode="date"
-          date={profitForm.date}
-          onCancel={() => setProfitDatePickerVisible(false)}
-          onConfirm={(date) => {
-            setProfitForm((prev) => ({ ...prev, date }));
-            setProfitDatePickerVisible(false);
-          }}
-        />
+      <Modal
+        visible={profitModalOpen}
+        animationType="slide"
+        onRequestClose={() => { if (!profitSaving) setProfitModalOpen(false); }}
+      >
+        {profitModalOpen && (
+          <CreationFlow
+            title="Repartir beneficios"
+            onClose={() => { if (!profitSaving) setProfitModalOpen(false); }}
+            onSubmit={saveProfitDistribution}
+            submitLabel="Guardar reparto"
+            isSubmitting={profitSaving}
+            steps={[
+              {
+                id: 'details',
+                title: 'Detalles del reparto',
+                isValid: Number(profitForm.totalAmount.replace(',', '.')) > 0 && Number.isFinite(Number(profitForm.totalAmount.replace(',', '.'))),
+                content: (
+                  <FormSection>
+                    <FormTextField label="Título" value={profitForm.title} onChangeText={(title) => setProfitForm((prev) => ({ ...prev, title }))} />
+                    <FormMoneyField
+                      label="Importe total" currency="€" required
+                      value={profitForm.totalAmount}
+                      onChangeText={(totalAmount) => {
+                        setProfitForm((prev) => ({ ...prev, totalAmount: totalAmount.replace('.', ',') }));
+                        recalculateProfitLinesFromPercentages(totalAmount);
+                      }}
+                    />
+                    <FormDateField label="Fecha" required value={profitForm.date} onChange={(date) => setProfitForm((prev) => ({ ...prev, date }))} />
+                    <FormNotesField label="Notas" value={profitForm.notes} onChangeText={(notes) => setProfitForm((prev) => ({ ...prev, notes }))} />
+                  </FormSection>
+                ),
+              },
+              {
+                id: 'distribution',
+                title: 'Reparto entre socios',
+                description: 'Los importes se calculan según la participación de cada socio. Puedes ajustarlos antes de guardar.',
+                content: (
+                  <View style={{ gap: 24 }}>
+                    <EditingActionRow label="Recalcular por porcentajes" onPress={() => recalculateProfitLinesFromPercentages(profitForm.totalAmount)} />
+                    {profitForm.lines.map((line, index) => (
+                      <FormSection
+                        key={line.partnerId}
+                        title={line.partnerName}
+                        description={`Participación: ${formatPercentage(project.partners.find((p) => p.id === line.partnerId)?.percentage || 0)}`}
+                      >
+                        <FormMoneyField label="Importe" currency="€" required value={line.amount} onChangeText={(text) => updateProfitLine(index, 'amount', text)} />
+                      </FormSection>
+                    ))}
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.ink }}>
+                      Total asignado: {formatCurrency(profitForm.lines.reduce((sum, line) => sum + (Number(line.amount.replace(',', '.')) || 0), 0))} de {formatCurrency(Number(profitForm.totalAmount.replace(',', '.')) || 0)}
+                    </Text>
+                  </View>
+                ),
+              },
+            ]}
+          />
+        )}
       </Modal>
 
       <Modal
         visible={partnersModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPartnersModalOpen(false)}
+        animationType="slide"
+        onRequestClose={() => { if (!partnersSaving) setPartnersModalOpen(false); }}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 20 }}>
-          <View style={{ backgroundColor: 'white', borderRadius: 18, padding: 16, maxHeight: '86%' }}>
-            <Text className="text-sm font-semibold text-slate-900 mb-3">
-              Configurar socios y porcentajes
-            </Text>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {partnersForm.map((partner, index) => (
-                <View
-                  key={`partner-${index}`}
-                  className="border border-slate-200 rounded-xl p-2 mb-2"
-                  style={{ backgroundColor: '#F8FAFC' }}
-                >
-                  <TextInput
-                    value={partner.name}
-                    onChangeText={(text) => updatePartnerLine(index, 'name', text)}
-                    placeholder={`Socio ${index + 1}`}
-                    placeholderTextColor="#94A3B8"
-                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
-                  />
-                  <TextInput
-                    value={partner.percentage}
-                    onChangeText={(text) => updatePartnerLine(index, 'percentage', text)}
-                    placeholder="% participación"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="decimal-pad"
-                    className="border border-slate-200 rounded-lg px-2 py-2 text-[15px] mb-2 text-slate-900 bg-white"
-                  />
-                  <TouchableOpacity
-                    onPress={() => updatePartnerLine(index, 'isMe', true)}
-                    className="flex-row items-center"
-                  >
-                    <Ionicons
-                      name={partner.isMe ? 'radio-button-on' : 'radio-button-off'}
-                      size={16}
-                      color={partner.isMe ? '#2563EB' : '#94A3B8'}
-                    />
-                    <Text className="text-[12px] text-slate-700 ml-1.5">Soy yo</Text>
-                  </TouchableOpacity>
-
-                  {partnersForm.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removePartnerLine(index)}
-                      style={{ alignSelf: 'flex-end', marginTop: 6 }}
-                    >
-                      <Text className="text-[12px] font-semibold text-red-600">Eliminar socio</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-
-              <TouchableOpacity onPress={addPartnerLine} style={{ marginTop: 2 }}>
-                <Text className="text-[12px] font-semibold text-primary">+ Añadir socio</Text>
-              </TouchableOpacity>
-            </ScrollView>
-
-            <View className="flex-row mt-3">
-              <TouchableOpacity
-                onPress={() => setPartnersModalOpen(false)}
-                className="flex-1 py-2.5 rounded-xl mr-2 items-center"
-                style={{ backgroundColor: '#F1F5F9' }}
-              >
-                <Text className="text-[13px] text-slate-700 font-semibold">Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={savePartners}
-                disabled={partnersSaving}
-                className="flex-1 py-2.5 rounded-xl ml-2 items-center"
-                style={{ backgroundColor: colors.primary, opacity: partnersSaving ? 0.7 : 1 }}
-              >
-                {partnersSaving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text className="text-[13px] text-white font-semibold">Guardar socios</Text>
+        <EditingForm
+          title="Configurar socios"
+          onClose={() => { if (!partnersSaving) setPartnersModalOpen(false); }}
+          onSubmit={savePartners}
+          submitLabel="Guardar socios"
+          isSubmitting={partnersSaving}
+        >
+          <View style={{ gap: 24 }}>
+            <FormSection title="SOCIOS Y PARTICIPACIÓN" description="La participación total debe sumar 100 %. Selecciona qué socio eres tú.">
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.ink }}>
+                Total: {formatPercentage(partnersForm.reduce((sum, partner) => sum + (Number(partner.percentage.replace(',', '.')) || 0), 0))}
+              </Text>
+            </FormSection>
+            {partnersForm.map((partner, index) => (
+              <FormSection key={`partner-${index}`} title={`SOCIO ${index + 1}`}>
+                <FormTextField label="Nombre" required value={partner.name} onChangeText={(text) => updatePartnerLine(index, 'name', text)} />
+                <FormNumberField label="Participación" suffix="%" required value={partner.percentage} onChangeText={(text) => updatePartnerLine(index, 'percentage', text)} />
+                <FormOptionCard label="Soy yo" selected={partner.isMe} onPress={() => updatePartnerLine(index, 'isMe', true)} />
+                {partnersForm.length > 1 && (
+                  <EditingActionRow label="Eliminar socio" destructive disabled={partnersSaving} onPress={() => removePartnerLine(index)} />
                 )}
-              </TouchableOpacity>
-            </View>
+              </FormSection>
+            ))}
+            <EditingActionRow label="Añadir socio" disabled={partnersSaving} onPress={addPartnerLine} />
           </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={addMovementMenuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAddMovementMenuOpen(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.24)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setAddMovementMenuOpen(false)} style={{ flex: 1 }} />
-          <View
-            style={{
-              backgroundColor: 'white',
-              borderTopLeftRadius: 22,
-              borderTopRightRadius: 22,
-              borderWidth: 1,
-              borderColor: '#E2E8F0',
-              paddingHorizontal: 16,
-              paddingTop: 10,
-              paddingBottom: 22,
-            }}
-          >
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 99,
-                backgroundColor: '#CBD5E1',
-                marginBottom: 12,
-              }}
-            />
-
-            <Text className="text-[12px] text-slate-500 mb-2">Añadir movimiento</Text>
-
-            <TouchableOpacity
-              onPress={() => {
-                setAddMovementMenuOpen(false);
-                openTxSelector();
-              }}
-              className="flex-row items-center px-2 py-3 border-b border-slate-100"
-            >
-              <Ionicons name="link-outline" size={17} color="#2563EB" />
-              <Text className="text-[14px] font-medium text-slate-800 ml-2">Vincular transacción existente</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setAddMovementMenuOpen(false);
-                openManualCreate();
-              }}
-              className="flex-row items-center px-2 py-3"
-            >
-              <Ionicons name="add-circle-outline" size={17} color="#059669" />
-              <Text className="text-[14px] font-medium text-slate-800 ml-2">Crear movimiento manual</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </EditingForm>
       </Modal>
 
       <Modal visible={!!selectedMovement} transparent animationType="fade" onRequestClose={() => setSelectedMovement(null)}>
@@ -1523,32 +1294,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 >
                   <Ionicons name="close-circle-outline" size={17} color="#DC2626" />
                   <Text className="text-[14px] font-medium text-red-600 ml-2">Desvincular del proyecto</Text>
-                </TouchableOpacity>
-              </>
-            ) : selectedMovement?.source === 'manual' ? (
-              <>
-                <TouchableOpacity
-                  onPress={() => {
-                    const entry = project.manualEntries.find((e) => e.id === selectedMovement.id);
-                    setSelectedMovement(null);
-                    if (entry) openManualEdit(entry);
-                  }}
-                  className="flex-row items-center px-2 py-3 border-b border-slate-100"
-                >
-                  <Ionicons name="create-outline" size={17} color="#4F46E5" />
-                  <Text className="text-[14px] font-medium text-slate-800 ml-2">Editar movimiento</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => {
-                    const entry = project.manualEntries.find((e) => e.id === selectedMovement.id);
-                    setSelectedMovement(null);
-                    if (entry) removeManualEntry(entry);
-                  }}
-                  className="flex-row items-center px-2 py-3"
-                >
-                  <Ionicons name="trash-outline" size={17} color="#DC2626" />
-                  <Text className="text-[14px] font-medium text-red-600 ml-2">Eliminar movimiento</Text>
                 </TouchableOpacity>
               </>
             ) : null}

@@ -9,7 +9,7 @@ export interface FinanceModule {
   routeName: string;
   accentColor: string;
   softBg: string;
-  /** false = arranca oculto del hub (ej. porque ya vive en el 4º tab por defecto). Default: true. */
+  /** Visibilidad inicial en Finanzas, independiente del módulo fijado abajo. Default: true. */
   defaultEnabled?: boolean;
 }
 
@@ -30,7 +30,7 @@ export const MODULES: FinanceModule[] = [
     title: "Presupuestos",
     subtitle: "Limita y controla tus gastos por categoría.",
     emoji: "📊",
-    iconName: "pie-chart-outline",
+    iconName: "bar-chart-outline",
     routeName: "Budgets",
     accentColor: "#6366F1",
     softBg: "#EEF2FF",
@@ -40,7 +40,7 @@ export const MODULES: FinanceModule[] = [
     title: "Objetivos",
     subtitle: "Ahorra para lo que más te importa.",
     emoji: "🎯",
-    iconName: "flag-outline",
+    iconName: "locate-outline",
     routeName: "Goals",
     accentColor: "#F97316",
     softBg: "#FFF7ED",
@@ -70,7 +70,7 @@ export const MODULES: FinanceModule[] = [
     title: "Proyectos",
     subtitle: "Controla ingresos, gastos y balance por proyecto.",
     emoji: "🧩",
-    iconName: "briefcase-outline",
+    iconName: "construct-outline",
     routeName: "Projects",
     accentColor: "#14B8A6",
     softBg: "#E6FFFB",
@@ -94,7 +94,7 @@ export const MODULES: FinanceModule[] = [
     routeName: "Investments",
     accentColor: "#059669",
     softBg: "#ECFDF5",
-    defaultEnabled: false,
+    defaultEnabled: true,
   },
 ];
 

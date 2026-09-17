@@ -1,11 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import BottomNav from "../components/BottomTab";
+import { BottomTabLayoutContext } from './BottomTabLayoutContext';
 import { readQuickAddFromSession, clearQuickAddFromSession } from "../utils/quickAdd";
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabs({ navigation }: any) {
+  const [bottomTabHeight, setBottomTabHeight] = useState(0);
   useEffect(() => {
     const params = readQuickAddFromSession();
     if (!params) return;
@@ -25,8 +27,9 @@ export default function MainTabs({ navigation }: any) {
     return () => clearTimeout(id);
   }, [navigation]);
   return (
+    <BottomTabLayoutContext.Provider value={bottomTabHeight}>
     <Tab.Navigator
-      tabBar={(props) => <BottomNav {...props} />}
+      tabBar={(props) => <BottomNav {...props} onHeightChange={setBottomTabHeight} />}
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen
@@ -65,5 +68,6 @@ export default function MainTabs({ navigation }: any) {
         }
       />
     </Tab.Navigator>
+    </BottomTabLayoutContext.Provider>
   );
 }

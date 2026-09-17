@@ -53,14 +53,7 @@ export default function FinancesSettingsScreen(_: any) {
   const handlePinModule = async (key: string) => {
     if (key === pinnedKey || switchingPin) return;
     setSwitchingPin(true);
-    const previousKey = pinnedKey;
     await setPinnedKey(key);
-    // El módulo recién pineado se oculta del hub; el anterior vuelve, pero desactivado.
-    const next = config.map((c) => {
-      if (c.key === key || c.key === previousKey) return { ...c, enabled: false };
-      return c;
-    });
-    await saveConfig(next);
     setSwitchingPin(false);
   };
 
@@ -154,7 +147,7 @@ export default function FinancesSettingsScreen(_: any) {
                 <ModuleRow
                   key={m.key}
                   module={m}
-                  enabled={isPinned ? false : enabled}
+                  enabled={enabled}
                   pinned={isPinned}
                   saving={savingKey === m.key}
                   switchingPin={switchingPin}
@@ -239,7 +232,7 @@ function ModuleRow({ module: m, enabled, pinned, saving, switchingPin, isLast, c
           marginRight: 10,
         }}
       >
-        <Text style={{ fontSize: 18 }}>{m.emoji}</Text>
+        <Ionicons name={m.iconName} size={19} color={m.accentColor} />
       </View>
 
       <View style={{ flex: 1, marginRight: 4 }}>
@@ -287,7 +280,6 @@ function ModuleRow({ module: m, enabled, pinned, saving, switchingPin, isLast, c
           <AppSwitch accessibilityLabel={`Mostrar ${m.title}`}
             value={enabled}
             onValueChange={onToggleEnabled}
-            disabled={pinned}
           />
         )}
       </View>

@@ -13,6 +13,11 @@ import RegisterScreen from "../screens/Desktop/register/RegisterScreen";
 import TripsHomeDesktopScreen from "../screens/Desktop/travel/TripsHomeDesktopScreen";
 import DesktopInvestmentsScreen from "../screens/Desktop/investments/DesktopInvestmentsScreen";
 import DesktopInvestmentDetailScreen from "../screens/Desktop/investments/DesktopInvestmentDetailScreen";
+import GoalsScreen from "../screens/Mobile/finances/goals/GoalsScreen";
+import GoalDetailScreen from "../screens/Mobile/finances/goals/GoalDetailScreen";
+import GoalFormScreen from "../screens/Mobile/finances/goals/GoalFormScreen";
+import GoalAllocationsScreen from "../screens/Mobile/finances/goals/GoalAllocationsScreen";
+import GoalManualEntryFormScreen from "../screens/Mobile/finances/goals/GoalManualEntryFormScreen";
 
 import CreateTransactionModal from "../components/CreateTransactionModal";
 import {
@@ -45,6 +50,10 @@ export type DesktopStackParamList = {
   budgets: undefined;
   debts: undefined;
   goals: undefined;
+  GoalDetail: { goalId: number };
+  GoalForm: { goalId?: number } | undefined;
+  GoalAllocations: { goalId: number };
+  GoalManualEntryForm: { goalId: number; entryId?: number };
   investments: undefined;
   reports: undefined;
   settings: undefined;
@@ -497,6 +506,7 @@ function withDesktopShell(Component: React.ComponentType<any>) {
         ? "investments"
         : name === "TripsDetailDesktop"
         ? "travels"
+        : name.startsWith("Goal") ? "goals"
         : (name as DesktopRouteKey);
 
     return (
@@ -507,6 +517,8 @@ function withDesktopShell(Component: React.ComponentType<any>) {
   };
 }
 
+const DesktopGoalsScreen = (props: any) => <GoalsScreen {...props} isDesktop />;
+
 export default function DesktopShellNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: UI.bg } }}>
@@ -516,7 +528,11 @@ export default function DesktopShellNavigator() {
       <Stack.Screen name="travels" component={withDesktopShell(TripsHomeDesktopScreen)} />
       <Stack.Screen name="budgets" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="debts" component={withDesktopShell(EmptyScreen)} />
-      <Stack.Screen name="goals" component={withDesktopShell(EmptyScreen)} />
+      <Stack.Screen name="goals" component={withDesktopShell(DesktopGoalsScreen)} />
+      <Stack.Screen name="GoalDetail" component={withDesktopShell(GoalDetailScreen)} />
+      <Stack.Screen name="GoalForm" component={withDesktopShell(GoalFormScreen)} />
+      <Stack.Screen name="GoalAllocations" component={withDesktopShell(GoalAllocationsScreen)} />
+      <Stack.Screen name="GoalManualEntryForm" component={withDesktopShell(GoalManualEntryFormScreen)} />
       <Stack.Screen name="investments" component={withDesktopShell(DesktopInvestmentsScreen)} />
       <Stack.Screen name="DesktopInvestmentDetail" component={withDesktopShell(DesktopInvestmentDetailScreen)} />
       <Stack.Screen name="TripDetailDesktop" component={withDesktopShell(TripDetailDesktopScreen)} />
