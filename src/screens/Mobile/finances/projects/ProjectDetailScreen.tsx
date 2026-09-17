@@ -142,6 +142,7 @@ function formatDate(value?: string | null) {
 function defaultManualForm(): ManualForm {
   return {
     kind: 'expense',
+    isCapitalReturn: false,
     title: '',
     description: '',
     amount: '',
@@ -304,6 +305,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
     setEditingEntry(entry);
     setManualForm({
       kind: entry.kind,
+      isCapitalReturn: entry.isCapitalReturn,
       title: entry.title,
       description: entry.description || '',
       amount: String(entry.amount),
@@ -348,6 +350,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
     const payload = {
       kind: manualForm.kind,
+      isCapitalReturn: manualForm.kind === 'withdrawal' ? manualForm.isCapitalReturn : false,
       title: manualForm.title.trim(),
       description: manualForm.description.trim() || null,
       amount: Number(String(manualForm.amount).replace(',', '.')),
@@ -1248,6 +1251,39 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                     Configura socios primero para registrar aportaciones o retiradas.
                   </Text>
                 )}
+              </View>
+            )}
+
+            {manualForm.kind === 'withdrawal' && (
+              <View style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}>Tipo de retirada</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {[
+                    { value: false, label: 'Retirada de beneficio' },
+                    { value: true, label: 'Devolución de capital' },
+                  ].map((option) => {
+                    const active = manualForm.isCapitalReturn === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={String(option.value)}
+                        onPress={() => setManualForm((prev) => ({ ...prev, isCapitalReturn: option.value }))}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: active ? colors.primary : '#D1D5DB',
+                          backgroundColor: active ? colors.primary : 'white',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 11.5, fontWeight: '600', color: active ? 'white' : '#64748B' }}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             )}
 
