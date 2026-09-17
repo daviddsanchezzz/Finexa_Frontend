@@ -1,5 +1,5 @@
 import AppSwitch from "../../../components/AppSwitch";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,11 +18,14 @@ import {
   ModuleConfig,
   FinanceModule,
   mergeConfig,
+  moveVisibleModule,
 } from "../finances/financeModulesConfig";
 import { usePinnedFinanceModule } from "../../../hooks/usePinnedFinanceModule";
 
 export default function FinancesSettingsScreen(_: any) {
   const [config, setConfig] = useState<ModuleConfig[]>([]);
+  const configRef = useRef<ModuleConfig[]>([]);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const { pinnedKey, setPinnedKey, isLoading: pinnedLoading } = usePinnedFinanceModule();
@@ -31,19 +34,24 @@ export default function FinancesSettingsScreen(_: any) {
   useEffect(() => {
     (async () => {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      setConfig(mergeConfig(raw ? JSON.parse(raw) : null));
+      const loaded = mergeConfig(raw ? JSON.parse(raw) : null);
+      configRef.current = loaded;
+      setConfig(loaded);
       setLoading(false);
     })();
   }, []);
 
   const saveConfig = async (next: ModuleConfig[]) => {
+    configRef.current = next;
     setConfig(next);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    const serialized = JSON.stringify(next);
+    saveQueue.current = saveQueue.current.catch(() => {}).then(() => AsyncStorage.setItem(STORAGE_KEY, serialized));
+    await saveQueue.current;
   };
 
   const handleToggle = async (key: string, value: boolean) => {
     setSavingKey(key);
-    const next = config.map((c) =>
+    const next = configRef.current.map((c) =>
       c.key === key ? { ...c, enabled: value } : c
     );
     await saveConfig(next);
@@ -62,25 +70,12 @@ export default function FinancesSettingsScreen(_: any) {
   const enabledSorted = [...config].filter((c) => c.enabled).sort((a, b) => a.order - b.order);
 
   const move = (key: string, dir: "up" | "down") => {
-    const idx = enabledSorted.findIndex((c) => c.key === key);
-    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= enabledSorted.length) return;
-    const keyA = enabledSorted[idx].key;
-    const keyB = enabledSorted[swapIdx].key;
-    const orderA = enabledSorted[idx].order;
-    const orderB = enabledSorted[swapIdx].order;
-    const next = config
-      .map((c) => {
-        if (c.key === keyA) return { ...c, order: orderB };
-        if (c.key === keyB) return { ...c, order: orderA };
-        return c;
-      })
-      .sort((a, b) => a.order - b.order)
-      .map((c, i) => ({ ...c, order: i }));
-    saveConfig(next);
+    const next = moveVisibleModule(configRef.current, key, dir);
+    if (next !== configRef.current) void saveConfig(next);
   };
 
   const configMap = new Map(config.map((c) => [c.key, c]));
+  const orderedModules = [...MODULES].sort((a, b) => (configMap.get(a.key)?.order ?? 0) - (configMap.get(b.key)?.order ?? 0));
   const activeCount = config.filter((c) => c.enabled).length;
   const isReady = !loading && !pinnedLoading;
 
@@ -138,7 +133,7 @@ export default function FinancesSettingsScreen(_: any) {
           {!isReady ? (
             <ActivityIndicator color={colors.primary} style={{ margin: 20 }} />
           ) : (
-            MODULES.map((m, i) => {
+            orderedModules.map((m, i) => {
               const cfg = configMap.get(m.key);
               const enabled = cfg?.enabled ?? true;
               const isPinned = pinnedKey === m.key;
@@ -151,7 +146,7 @@ export default function FinancesSettingsScreen(_: any) {
                   pinned={isPinned}
                   saving={savingKey === m.key}
                   switchingPin={switchingPin}
-                  isLast={i === MODULES.length - 1}
+                  isLast={i === orderedModules.length - 1}
                   canMoveUp={orderIdx > 0}
                   canMoveDown={orderIdx >= 0 && orderIdx < enabledSorted.length - 1}
                   onToggleEnabled={(v) => handleToggle(m.key, v)}
@@ -250,10 +245,10 @@ function ModuleRow({ module: m, enabled, pinned, saving, switchingPin, isLast, c
       <View style={{ width: 40, flexDirection: "row", justifyContent: "center" }}>
         {enabled && (
           <>
-            <TouchableOpacity onPress={onMoveUp} disabled={!canMoveUp} hitSlop={8} style={{ opacity: canMoveUp ? 1 : 0.25, paddingHorizontal: 2 }}>
+            <TouchableOpacity onPress={onMoveUp} disabled={!canMoveUp} accessibilityRole="button" accessibilityLabel={`Subir ${m.title}`} style={{ width: 20, height: 44, alignItems: 'center', justifyContent: 'center', opacity: canMoveUp ? 1 : 0.25 }}>
               <Ionicons name="chevron-up" size={16} color="#6B7280" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={onMoveDown} disabled={!canMoveDown} hitSlop={8} style={{ opacity: canMoveDown ? 1 : 0.25, paddingHorizontal: 2 }}>
+            <TouchableOpacity onPress={onMoveDown} disabled={!canMoveDown} accessibilityRole="button" accessibilityLabel={`Bajar ${m.title}`} style={{ width: 20, height: 44, alignItems: 'center', justifyContent: 'center', opacity: canMoveDown ? 1 : 0.25 }}>
               <Ionicons name="chevron-down" size={16} color="#6B7280" />
             </TouchableOpacity>
           </>

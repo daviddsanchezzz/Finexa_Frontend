@@ -24,6 +24,18 @@ export type ModuleConfig = {
 
 export const STORAGE_KEY = "finances.modules.config.v1";
 
+export function moveVisibleModule(config: ModuleConfig[], key: string, direction: 'up' | 'down'): ModuleConfig[] {
+  const visible = config.filter((module) => module.enabled).sort((a, b) => a.order - b.order);
+  const index = visible.findIndex((module) => module.key === key);
+  const neighbor = direction === 'up' ? index - 1 : index + 1;
+  if (index < 0 || neighbor < 0 || neighbor >= visible.length) return config;
+  const current = visible[index];
+  const target = visible[neighbor];
+  return config.map((module) => module.key === current.key ? { ...module, order: target.order }
+    : module.key === target.key ? { ...module, order: current.order } : module)
+    .sort((a, b) => a.order - b.order);
+}
+
 export const MODULES: FinanceModule[] = [
   {
     key: "budgets",
