@@ -16,6 +16,7 @@ import { ProjectsScreenSkeleton } from '../../../../components/skeletons/Project
 import { colors } from '../../../../theme/theme';
 import { useProjectsQuery } from '../../../../hooks/useProjectsQuery';
 import { ProjectListItem, ProjectStatus } from '../../../../types/project';
+import { formatEuro, signColor } from '../../../../utils/currency';
 
 type ProjectFilter = 'all' | 'active' | 'idea';
 
@@ -28,12 +29,7 @@ const STATUS_LABELS: Record<ProjectStatus, string> = {
 };
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+  return `${formatEuro(Number(value || 0))} €`;
 }
 
 function formatPercentage(value: number) {
@@ -103,14 +99,14 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                   key: 'generado',
                   label: 'GENERADO',
                   value: formatCurrency(totals.myProfit),
-                  color: totals.myProfit >= 0 ? colors.success : colors.danger,
+                  color: signColor(totals.myProfit, colors.success, colors.danger, '#0F172A'),
                 },
                 { key: 'retirado', label: 'RETIRADO', value: formatCurrency(totals.myWithdrawnProfit) },
                 {
                   key: 'pendiente',
                   label: 'PENDIENTE',
                   value: formatCurrency(myPending),
-                  color: myPending >= 0 ? colors.success : colors.danger,
+                  color: signColor(myPending, colors.success, colors.danger, '#0F172A'),
                 },
               ]}
             />
@@ -141,7 +137,7 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
             ) : (
               filteredProjects.map((project) => {
                 const myProfit = Number(project.financials?.myProfit || 0);
-                const myProfitColor = myProfit >= 0 ? colors.success : colors.danger;
+                const myProfitColor = signColor(myProfit, colors.success, colors.danger, '#0F172A');
                 const projectResult = Number(project.financials?.result || 0);
                 const hasActivity =
                   Number(project.financials?.income || 0) !== 0 ||

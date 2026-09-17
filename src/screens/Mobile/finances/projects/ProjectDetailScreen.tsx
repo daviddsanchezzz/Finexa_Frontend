@@ -23,7 +23,7 @@ import AddButton from '../../../../components/AddButton';
 import CrossPlatformDateTimePicker from '../../../../components/CrossPlatformDateTimePicker';
 import { colors } from '../../../../theme/theme';
 import { appAlert } from '../../../../utils/appAlert';
-import { formatEuro } from '../../../../utils/currency';
+import { formatEuro, signColor } from '../../../../utils/currency';
 import { markTransactionsDirty } from '../../../../utils/transactionsInvalidation';
 import { ProjectDetailScreenSkeleton } from '../../../../components/skeletons/ProjectDetailScreenSkeleton';
 import {
@@ -774,9 +774,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           showBack={true}
           rightElement={
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {tab === 'movements' && (
-                <AddButton label="Añadir" onPress={() => setAddMovementMenuOpen(true)} />
-              )}
+              <AddButton label="Añadir" onPress={() => setAddMovementMenuOpen(true)} />
               <OverflowMenuButton
                 title={project.name}
                 actions={[
@@ -900,7 +898,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14 }}>
                       <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Tu beneficio</Text>
-                      <Text style={{ fontSize: 22, fontWeight: '800', color: myProfit >= 0 ? colors.success : colors.danger }}>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: signColor(myProfit, colors.success, colors.danger, '#0F172A') }}>
                         {formatCurrency(myProfit)}
                       </Text>
                     </View>
@@ -915,7 +913,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                           key: 'pendiente',
                           label: 'PENDIENTE',
                           value: formatCurrency(myPending),
-                          color: myPending >= 0 ? colors.success : colors.danger,
+                          color: signColor(myPending, colors.success, colors.danger, '#0F172A'),
                         },
                       ]}
                     />

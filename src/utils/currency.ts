@@ -8,10 +8,22 @@
 // en producción.
 export function formatEuro(n: number): string {
   if (!Number.isFinite(n)) return "0,00";
-  const sign = n < 0 ? "-" : "";
-  const [intPart, decPart] = Math.abs(n).toFixed(2).split(".");
+  const abs = Math.abs(n).toFixed(2);
+  // Evita "-0,00": un valor que redondea a cero (p.ej. restas encadenadas con
+  // porcentajes periódicos como 33,33...%) no debe mostrar signo negativo.
+  const sign = n < 0 && Number(abs) !== 0 ? "-" : "";
+  const [intPart, decPart] = abs.split(".");
   const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return `${sign}${grouped},${decPart}`;
+}
+
+// Color verde/rojo según signo, pero tratando como neutro cualquier valor que
+// redondee a 0,00 — mismo motivo que formatEuro: sin esto, un "0,00 €"
+// producido por coma flotante se pintaría de rojo aunque no sea una pérdida.
+export function signColor(value: number, positive: string, negative: string, neutral: string): string {
+  const rounded = Math.round(value * 100) / 100;
+  if (rounded === 0) return neutral;
+  return rounded > 0 ? positive : negative;
 }
 
 // Igual que formatEuro pero siempre antepone "+"/"-" (para deltas/variaciones).
