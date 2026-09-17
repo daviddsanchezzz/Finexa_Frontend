@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AppHeader from '../../../../components/AppHeader';
 import AddButton from '../../../../components/AddButton';
@@ -16,25 +15,9 @@ import SegmentedTabs from '../../../../components/SegmentedTabs';
 import { ProjectsScreenSkeleton } from '../../../../components/skeletons/ProjectsScreenSkeleton';
 import { colors } from '../../../../theme/theme';
 import { useProjectsQuery } from '../../../../hooks/useProjectsQuery';
+import { ProjectListItem, ProjectStatus } from '../../../../types/project';
 
-type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
 type ProjectFilter = 'all' | 'active' | 'idea';
-
-type ProjectItem = {
-  id: number;
-  name: string;
-  description?: string | null;
-  type?: string | null;
-  status: ProjectStatus;
-  startDate: string;
-  endDate?: string | null;
-  notes?: string | null;
-  financials: {
-    income: number;
-    expense: number;
-    result: number;
-  };
-};
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   idea: 'Idea',
@@ -63,7 +46,7 @@ function formatCurrency(value: number) {
 
 export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }: any) {
   const projectsQuery = useProjectsQuery();
-  const projects: ProjectItem[] = projectsQuery.data ?? [];
+  const projects: ProjectListItem[] = projectsQuery.data ?? [];
   const loading = projectsQuery.isLoading;
   const [filter, setFilter] = useState<ProjectFilter>('all');
 
@@ -77,14 +60,15 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
   const totals = useMemo(() => {
     return projects.reduce(
       (acc, project) => {
-        acc.income += Number(project.financials?.income || 0);
-        acc.expense += Number(project.financials?.expense || 0);
-        acc.result += Number(project.financials?.result || 0);
+        acc.myProfit += Number(project.financials?.myProfit || 0);
+        acc.myWithdrawnProfit += Number(project.financials?.myWithdrawnProfit || 0);
         return acc;
       },
-      { income: 0, expense: 0, result: 0 },
+      { myProfit: 0, myWithdrawnProfit: 0 },
     );
   }, [projects]);
+
+  const myPending = totals.myProfit - totals.myWithdrawnProfit;
 
   const filteredProjects = useMemo(() => {
     if (filter === 'all') return projects;
@@ -111,16 +95,26 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
         <View style={{ flex: 1 }}>
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
             <HeroBalanceCard
-              label="Rentabilidad global"
-              value={formatCurrency(totals.result)}
+              label="MI BENEFICIO"
+              value={formatCurrency(totals.myProfit)}
               style={{ marginBottom: 8 }}
             />
 
             <StatsRow
               items={[
-                { key: 'ingresos', label: 'INGRESOS', value: formatCurrency(totals.income), color: colors.success },
-                { key: 'gastos', label: 'GASTOS', value: formatCurrency(totals.expense), color: colors.danger },
-                { key: 'proyectos', label: 'PROYECTOS', value: String(projects.length) },
+                {
+                  key: 'generado',
+                  label: 'GENERADO',
+                  value: formatCurrency(totals.myProfit),
+                  color: totals.myProfit >= 0 ? colors.success : colors.danger,
+                },
+                { key: 'retirado', label: 'RETIRADO', value: formatCurrency(totals.myWithdrawnProfit) },
+                {
+                  key: 'pendiente',
+                  label: 'PENDIENTE',
+                  value: formatCurrency(myPending),
+                  color: myPending >= 0 ? colors.success : colors.danger,
+                },
               ]}
             />
           </View>
@@ -149,9 +143,15 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
               </Text>
             ) : (
               filteredProjects.map((project) => {
-                const result = Number(project.financials?.result || 0);
-                const resultColor = result >= 0 ? colors.success : colors.danger;
+                const myProfit = Number(project.financials?.myProfit || 0);
+                const myProfitColor = myProfit >= 0 ? colors.success : colors.danger;
+                const projectResult = Number(project.financials?.result || 0);
+                const resultColor = projectResult >= 0 ? colors.success : colors.danger;
                 const badgeColors = STATUS_COLORS[project.status];
+                const hasActivity =
+                  Number(project.financials?.income || 0) !== 0 ||
+                  Number(project.financials?.expense || 0) !== 0 ||
+                  Number(project.financials?.myPercentage || 100) !== 100;
 
                 return (
                   <TouchableOpacity
@@ -177,31 +177,27 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                       >
                         {project.name}
                       </Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: resultColor, marginLeft: 8 }}>
-                        {formatCurrency(result)}
-                      </Text>
+                      {hasActivity && (
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: myProfitColor, marginLeft: 8 }}>
+                          {formatCurrency(myProfit)}
+                        </Text>
+                      )}
                     </View>
 
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: badgeColors.bg }}>
                         <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColors.text }}>
                           {STATUS_LABELS[project.status]}
+                          {hasActivity ? ` · ${project.financials.myPercentage}%` : ''}
                         </Text>
                       </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                          <Ionicons name="arrow-up" size={11} color={colors.success} />
-                          <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.success }}>
-                            {formatCurrency(project.financials?.income || 0)}
-                          </Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                          <Ionicons name="arrow-down" size={11} color={colors.danger} />
-                          <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.danger }}>
-                            {formatCurrency(project.financials?.expense || 0)}
-                          </Text>
-                        </View>
-                      </View>
+                      {hasActivity ? (
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: resultColor }}>
+                          Resultado proyecto: {formatCurrency(projectResult)}
+                        </Text>
+                      ) : (
+                        <Text style={{ fontSize: 11, color: '#94A3B8' }}>Sin movimientos todavía</Text>
+                      )}
                     </View>
                   </TouchableOpacity>
                 );
