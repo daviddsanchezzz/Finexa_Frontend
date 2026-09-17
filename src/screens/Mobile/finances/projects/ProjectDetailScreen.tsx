@@ -1071,7 +1071,8 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                           </View>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
                             <Text style={{ fontSize: 11, color: '#94A3B8' }}>
-                              Aportado {formatCurrency(partner.contributed)} · Retirado {formatCurrency(partner.withdrawn)}
+                              Aportado {formatCurrency(partner.contributed)} · Retirado {formatCurrency(partner.withdrawnProfit)}
+                              {partner.capitalReturned > 0 ? ` · Devuelto ${formatCurrency(partner.capitalReturned)}` : ''}
                             </Text>
                             {suggested > 0 && (
                               <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
