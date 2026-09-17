@@ -773,16 +773,21 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           showDatePicker={false}
           showBack={true}
           rightElement={
-            <OverflowMenuButton
-              title={project.name}
-              actions={[
-                { label: 'Editar', onPress: () => navigation.navigate('ProjectForm', { editProject: project }) },
-                { label: 'Eliminar', style: 'destructive', onPress: handleDeleteProject, disabled: deletingProject },
-              ]}
-              iconSize={19}
-              accessibilityLabel="Acciones del proyecto"
-              buttonStyle={{ width: 30, height: 36 }}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {tab === 'movements' && (
+                <AddButton label="Añadir" onPress={() => setAddMovementMenuOpen(true)} />
+              )}
+              <OverflowMenuButton
+                title={project.name}
+                actions={[
+                  { label: 'Editar', onPress: () => navigation.navigate('ProjectForm', { editProject: project }) },
+                  { label: 'Eliminar', style: 'destructive', onPress: handleDeleteProject, disabled: deletingProject },
+                ]}
+                iconSize={19}
+                accessibilityLabel="Acciones del proyecto"
+                buttonStyle={{ width: 30, height: 36 }}
+              />
+            </View>
           }
         />
       </View>
@@ -828,21 +833,6 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             ...(project.endDate ? [{ label: 'Fecha de fin', value: formatDate(project.endDate) }] : []),
           ];
 
-          const positionRows: { label: string; value: string; color?: string }[] = [
-            { label: 'Tu participación', value: formatPercentage(project.financials.myPercentage) },
-            {
-              label: 'Tu beneficio',
-              value: formatCurrency(myProfit),
-              color: myProfit >= 0 ? colors.success : colors.danger,
-            },
-            { label: 'Retirado', value: formatCurrency(project.financials.myWithdrawnProfit) },
-            {
-              label: 'Pendiente',
-              value: formatCurrency(myPending),
-              color: myPending >= 0 ? colors.success : colors.danger,
-            },
-          ];
-
           const cashRows: { label: string; value: number; sign: '+' | '-'; tone?: 'signal' }[] = [
             { label: 'Aportaciones', value: project.financials.contributions, sign: '+' },
             { label: 'Ingresos', value: project.financials.income, sign: '+', tone: 'signal' },
@@ -855,32 +845,7 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
 
           return (
             <View>
-              {hasActivity && (
-                <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
-                  <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 4 }}>
-                      TU POSICIÓN
-                    </Text>
-                    {positionRows.map((row, index) => (
-                      <View
-                        key={row.label}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          minHeight: 40,
-                          borderBottomWidth: index < positionRows.length - 1 ? 1 : 0,
-                          borderBottomColor: '#E8EDF4',
-                        }}
-                      >
-                        <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: row.color ?? '#0F172A' }}>{row.value}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
+              {/* SOBRE EL PROYECTO */}
               <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
                 <View style={{ paddingHorizontal: 14, paddingTop: 16, paddingBottom: infoRows.length ? 5 : 18 }}>
                   <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: statusTone.bg, alignSelf: 'flex-start' }}>
@@ -922,20 +887,64 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                 ) : null}
               </View>
 
+              {/* TU POSICIÓN — perspectiva personal, derivada del resultado de arriba */}
+              {hasActivity && (
+                <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
+                  <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 14 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>
+                      TU POSICIÓN
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 3 }}>
+                      Resultado del proyecto ({formatCurrency(result)}) × tu {formatPercentage(project.financials.myPercentage)} de participación
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14 }}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Tu beneficio</Text>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: myProfit >= 0 ? colors.success : colors.danger }}>
+                        {formatCurrency(myProfit)}
+                      </Text>
+                    </View>
+
+                    <View style={{ height: 1, backgroundColor: '#E8EDF4', marginTop: 12, marginBottom: 12 }} />
+
+                    <StatsRow
+                      items={[
+                        { key: 'participacion', label: 'PARTICIPACIÓN', value: formatPercentage(project.financials.myPercentage) },
+                        { key: 'retirado', label: 'RETIRADO', value: formatCurrency(project.financials.myWithdrawnProfit) },
+                        {
+                          key: 'pendiente',
+                          label: 'PENDIENTE',
+                          value: formatCurrency(myPending),
+                          color: myPending >= 0 ? colors.success : colors.danger,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* CAJA DEL PROYECTO — perspectiva del proyecto entero, todos los socios */}
               <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, overflow: 'hidden' }}>
                 <View style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>CAJA DEL PROYECTO</Text>
+                  <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 3, marginBottom: 10 }}>
+                    Dinero de todos los socios que sigue dentro del proyecto
+                  </Text>
+
                   <View
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       minHeight: 40,
+                      borderTopWidth: 1,
                       borderBottomWidth: 1,
+                      borderTopColor: '#E8EDF4',
                       borderBottomColor: '#E8EDF4',
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 0.55 }}>CAJA</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A' }}>{formatCurrency(project.financials.cash)}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>Caja actual</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>{formatCurrency(project.financials.cash)}</Text>
                   </View>
                   {cashRows.map((row, index) => (
                     <View
@@ -967,79 +976,118 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
           );
         })()}
 
-        {tab === 'movements' && (
-          <View>
-            <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
-              <AddButton label="Añadir movimiento" onPress={() => setAddMovementMenuOpen(true)} />
-            </View>
-
-            {combinedMovements.length === 0 ? (
+        {tab === 'movements' && (() => {
+          if (combinedMovements.length === 0) {
+            return (
               <Text style={{ fontSize: 12.5, color: '#94A3B8', textAlign: 'center', marginTop: 24 }}>
                 No hay movimientos todavía.
               </Text>
-            ) : (
-              combinedMovements.map((item) => {
-                const meta = MOVEMENT_KIND_META[item.kind];
-                const sign = item.kind === 'income' || item.kind === 'contribution' ? '+' : '-';
-                const partnerName = item.source === 'manual' && item.partnerId != null ? partnerNameById.get(item.partnerId) : null;
-                const movementTag = `${MOVEMENT_KIND_LABELS[item.kind]}${partnerName ? ` · ${partnerName}` : ''}`;
+            );
+          }
+
+          const getDayKey = (dateStr?: string | null) => {
+            if (!dateStr) return '__undated__';
+            const d = new Date(dateStr);
+            if (Number.isNaN(d.getTime())) return '__undated__';
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+          };
+
+          const formatDayLabel = (isoDay: string) => {
+            if (isoDay === '__undated__') return 'Sin fecha';
+            const today = new Date();
+            const [y, m, d] = isoDay.split('-').map(Number);
+            const isToday = y === today.getUTCFullYear() && m === today.getUTCMonth() + 1 && d === today.getUTCDate();
+            if (isToday) return 'Hoy';
+            return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-ES', {
+              weekday: 'short',
+              day: '2-digit',
+              month: 'short',
+            });
+          };
+
+          const grouped: Record<string, CombinedMovement[]> = {};
+          combinedMovements.forEach((item) => {
+            const key = getDayKey(item.date);
+            (grouped[key] = grouped[key] || []).push(item);
+          });
+
+          const dayKeys = Object.keys(grouped).sort((a, b) => {
+            if (a === '__undated__') return 1;
+            if (b === '__undated__') return -1;
+            return b.localeCompare(a);
+          });
+
+          return (
+            <View>
+              {dayKeys.map((dayKey) => {
+                const items = grouped[dayKey];
+                const dayTotal = items.reduce((acc, item) => {
+                  const signed = item.kind === 'income' || item.kind === 'contribution' ? item.amount : -item.amount;
+                  return acc + signed;
+                }, 0);
 
                 return (
-                  <TouchableOpacity
-                    key={`${item.source}-${item.id}`}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedMovement(item)}
-                    style={{
-                      backgroundColor: 'white',
-                      borderRadius: 16,
-                      paddingHorizontal: 12,
-                      paddingVertical: 12,
-                      marginBottom: 8,
-                      shadowColor: '#000',
-                      shadowOpacity: 0.03,
-                      shadowRadius: 5,
-                      elevation: 1,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 10,
-                          backgroundColor: meta.bg,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginRight: 12,
-                        }}
-                      >
-                        <Ionicons name={meta.icon} size={17} color={meta.color} />
-                      </View>
-
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#0F172A' }} numberOfLines={1}>
-                          {item.title}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }} numberOfLines={1}>
-                          {formatDate(item.date)} · {movementTag}
-                          {item.category ? ` · ${item.category}` : ''}
-                        </Text>
-                      </View>
-
-                      <Text style={{ fontSize: 15.5, fontWeight: '700', color: meta.color }}>
-                        {sign}{formatCurrency(item.amount)}
+                  <View key={dayKey} style={{ marginBottom: 14 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, paddingHorizontal: 2 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#94A3B8' }}>{formatDayLabel(dayKey)}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#94A3B8' }}>
+                        {dayTotal >= 0 ? '+' : ''}{formatCurrency(dayTotal)}
                       </Text>
                     </View>
+                    <View style={{ height: 1, backgroundColor: '#E2E8F0', marginBottom: 4 }} />
 
-                    {!!item.description && (
-                      <Text style={{ fontSize: 11.5, color: '#94A3B8', marginLeft: 48, marginTop: 4 }}>{item.description}</Text>
-                    )}
-                  </TouchableOpacity>
+                    {items.map((item) => {
+                      const meta = MOVEMENT_KIND_META[item.kind];
+                      const sign = item.kind === 'income' || item.kind === 'contribution' ? '+' : '-';
+                      const partnerName = item.source === 'manual' && item.partnerId != null ? partnerNameById.get(item.partnerId) : null;
+                      const movementTag = `${MOVEMENT_KIND_LABELS[item.kind]}${partnerName ? ` · ${partnerName}` : ''}`;
+                      const secondaryText = [movementTag, item.category, item.description].filter(Boolean).join(' · ');
+
+                      return (
+                        <TouchableOpacity
+                          key={`${item.source}-${item.id}`}
+                          activeOpacity={0.7}
+                          onPress={() => setSelectedMovement(item)}
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 2 }}
+                        >
+                          <View
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 10,
+                              backgroundColor: meta.bg,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: 12,
+                            }}
+                          >
+                            <Ionicons name={meta.icon} size={17} color={meta.color} />
+                          </View>
+
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#0F172A' }} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }} numberOfLines={1}>
+                              {secondaryText}
+                            </Text>
+                          </View>
+
+                          <Text style={{ fontSize: 15.5, fontWeight: '600', color: '#0F172A' }}>
+                            {sign}{formatCurrency(item.amount)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 );
-              })
-            )}
-          </View>
-        )}
+              })}
+            </View>
+          );
+        })()}
 
         {tab === 'config' && (
           <View>
