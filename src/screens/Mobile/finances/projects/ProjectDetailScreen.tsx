@@ -992,9 +992,12 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
               <View style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
                 {[
                   { label: 'Aportaciones', value: project.financials.contributions, sign: '+' as const },
-                  { label: 'Ingresos', value: project.financials.income, sign: '+' as const },
-                  { label: 'Gastos', value: project.financials.expense, sign: '-' as const },
-                  { label: 'Retiradas', value: project.financials.withdrawals, sign: '-' as const },
+                  { label: 'Ingresos', value: project.financials.income, sign: '+' as const, tone: 'signal' as const },
+                  { label: 'Gastos', value: project.financials.expense, sign: '-' as const, tone: 'signal' as const },
+                  { label: 'Retiradas de beneficio', value: project.financials.withdrawalsProfit, sign: '-' as const },
+                  ...(project.financials.withdrawalsCapital > 0
+                    ? [{ label: 'Capital devuelto', value: project.financials.withdrawalsCapital, sign: '-' as const }]
+                    : []),
                 ].map((row, index, arr) => (
                   <View
                     key={row.label}
@@ -1008,7 +1011,13 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                     }}
                   >
                     <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#64748B' }}>{row.label}</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: row.sign === '+' ? colors.success : colors.danger }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '800',
+                        color: 'tone' in row && row.tone === 'signal' ? (row.sign === '+' ? colors.success : colors.danger) : '#334155',
+                      }}
+                    >
                       {row.sign}{formatCurrency(row.value)}
                     </Text>
                   </View>
