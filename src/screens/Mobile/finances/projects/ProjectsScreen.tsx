@@ -27,14 +27,6 @@ const STATUS_LABELS: Record<ProjectStatus, string> = {
   cancelled: 'Cancelado',
 };
 
-const STATUS_COLORS: Record<ProjectStatus, { bg: string; text: string }> = {
-  idea: { bg: '#EEF2FF', text: '#4F46E5' },
-  active: { bg: '#ECFDF3', text: '#15803D' },
-  paused: { bg: '#FFF7ED', text: '#C2410C' },
-  completed: { bg: '#E0F2FE', text: '#0369A1' },
-  cancelled: { bg: '#FEF2F2', text: '#B91C1C' },
-};
-
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-ES', {
     style: 'currency',
@@ -42,6 +34,11 @@ function formatCurrency(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
+}
+
+function formatPercentage(value: number) {
+  const rounded = Math.round(Number(value || 0) * 100) / 100;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(2)}%`;
 }
 
 export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }: any) {
@@ -146,12 +143,14 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                 const myProfit = Number(project.financials?.myProfit || 0);
                 const myProfitColor = myProfit >= 0 ? colors.success : colors.danger;
                 const projectResult = Number(project.financials?.result || 0);
-                const resultColor = projectResult >= 0 ? colors.success : colors.danger;
-                const badgeColors = STATUS_COLORS[project.status];
                 const hasActivity =
                   Number(project.financials?.income || 0) !== 0 ||
                   Number(project.financials?.expense || 0) !== 0 ||
                   Number(project.financials?.myPercentage || 100) !== 100;
+                const statusText =
+                  project.status === 'active'
+                    ? formatPercentage(project.financials?.myPercentage ?? 100)
+                    : `${STATUS_LABELS[project.status]}${hasActivity ? ` · ${formatPercentage(project.financials?.myPercentage ?? 100)}` : ''}`;
 
                 return (
                   <TouchableOpacity
@@ -160,19 +159,19 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                     activeOpacity={0.85}
                     style={{
                       backgroundColor: 'white',
-                      borderRadius: 18,
+                      borderRadius: 16,
                       paddingHorizontal: 14,
-                      paddingVertical: 12,
+                      paddingVertical: 13,
                       marginBottom: 10,
                       shadowColor: '#000',
-                      shadowOpacity: 0.04,
-                      shadowRadius: 6,
+                      shadowOpacity: 0.03,
+                      shadowRadius: 5,
                       elevation: 1,
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text
-                        style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#0F172A' }}
+                        style={{ flex: 1, fontSize: 14.5, fontWeight: '600', color: '#0F172A' }}
                         numberOfLines={1}
                       >
                         {project.name}
@@ -184,19 +183,14 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                       )}
                     </View>
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: badgeColors.bg }}>
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: badgeColors.text }}>
-                          {STATUS_LABELS[project.status]}
-                          {hasActivity ? ` · ${project.financials.myPercentage}%` : ''}
-                        </Text>
-                      </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <Text style={{ fontSize: 11.5, color: '#94A3B8', fontWeight: '500' }}>{statusText}</Text>
                       {hasActivity ? (
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: resultColor }}>
+                        <Text style={{ fontSize: 11.5, color: '#94A3B8' }}>
                           Resultado proyecto: {formatCurrency(projectResult)}
                         </Text>
                       ) : (
-                        <Text style={{ fontSize: 11, color: '#94A3B8' }}>Sin movimientos todavía</Text>
+                        <Text style={{ fontSize: 11.5, color: '#94A3B8' }}>Sin movimientos todavía</Text>
                       )}
                     </View>
                   </TouchableOpacity>
