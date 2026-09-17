@@ -26,15 +26,16 @@ import { appAlert } from '../../../../utils/appAlert';
 import { formatEuro } from '../../../../utils/currency';
 import { markTransactionsDirty } from '../../../../utils/transactionsInvalidation';
 import { ProjectDetailScreenSkeleton } from '../../../../components/skeletons/ProjectDetailScreenSkeleton';
+import {
+  ProjectStatus,
+  ProjectMovementKind as MovementKind,
+  ProjectTransaction,
+  ProjectManualEntry,
+  ProjectPartner,
+  ProjectDetail,
+} from '../../../../types/project';
 
 type DetailTab = 'info' | 'movements' | 'cash';
-
-type ProjectStatus = 'idea' | 'active' | 'paused' | 'completed' | 'cancelled';
-
-// income/expense afectan al resultado del proyecto. contribution/withdrawal
-// son capital de un socio (aportación/retirada) y nunca afectan al
-// resultado, solo a la caja disponible.
-type MovementKind = 'income' | 'expense' | 'contribution' | 'withdrawal';
 
 const MOVEMENT_KIND_LABELS: Record<MovementKind, string> = {
   income: 'Ingreso',
@@ -50,64 +51,9 @@ const MOVEMENT_KIND_META: Record<MovementKind, { icon: keyof typeof Ionicons.gly
   withdrawal: { icon: 'arrow-up-circle-outline', bg: '#FFF7ED', color: '#C2410C' },
 };
 
-type ProjectTransaction = {
-  id: number;
-  type: 'income' | 'expense' | 'transfer';
-  amount: number;
-  description?: string | null;
-  date?: string | null;
-  projectId?: number | null;
-};
-
-type ProjectManualEntry = {
-  id: number;
-  kind: MovementKind;
-  title: string;
-  description?: string | null;
-  amount: number;
-  date: string;
-  category?: string | null;
-  notes?: string | null;
-  partnerId?: number | null;
-};
-
-type ProjectPartner = {
-  id: number;
-  name: string;
-  percentage: number;
-  isMe: boolean;
-  contributed: number;
-  withdrawn: number;
-};
-
-type ProjectDetail = {
-  id: number;
-  name: string;
-  description?: string | null;
-  type?: string | null;
-  status: ProjectStatus;
-  startDate: string;
-  endDate?: string | null;
-  notes?: string | null;
-  transactions: ProjectTransaction[];
-  manualEntries: ProjectManualEntry[];
-  partners: ProjectPartner[];
-  financials: {
-    transactionsIncome: number;
-    transactionsExpense: number;
-    manualIncome: number;
-    manualExpense: number;
-    income: number;
-    expense: number;
-    result: number;
-    contributions: number;
-    withdrawals: number;
-    cash: number;
-  };
-};
-
 type ManualForm = {
   kind: MovementKind;
+  isCapitalReturn: boolean;
   title: string;
   description: string;
   amount: string;
@@ -794,6 +740,12 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
   // los socios. Puramente informativo — no escribe nada hasta que se
   // registre una retirada real.
   const distributable = Math.max(0, result - Number(project.financials.withdrawals || 0));
+  const myProfit = Number(project.financials.myProfit || 0);
+  const myPending = Number(project.financials.myPending || 0);
+  const hasActivity =
+    Number(project.financials.income || 0) !== 0 ||
+    Number(project.financials.expense || 0) !== 0 ||
+    Number(project.financials.myPercentage || 100) !== 100;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -831,6 +783,48 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
             { key: 'gastos', label: 'GASTOS', value: formatCurrency(project.financials.expense || 0), color: colors.danger },
           ]}
         />
+
+        {hasActivity && (
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              borderRadius: 16,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              marginTop: 8,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '900', color: '#64748B', letterSpacing: 0.55, marginBottom: 8 }}>
+              TU POSICIÓN
+            </Text>
+            <StatsRow
+              items={[
+                { key: 'participacion', label: 'TU PARTICIPACIÓN', value: `${project.financials.myPercentage}%` },
+                {
+                  key: 'mi-beneficio',
+                  label: 'TU BENEFICIO',
+                  value: formatCurrency(myProfit),
+                  color: myProfit >= 0 ? colors.success : colors.danger,
+                },
+              ]}
+            />
+            <View style={{ marginTop: 10 }}>
+              <StatsRow
+                items={[
+                  { key: 'retirado', label: 'RETIRADO', value: formatCurrency(project.financials.myWithdrawnProfit) },
+                  {
+                    key: 'pendiente',
+                    label: 'PENDIENTE',
+                    value: formatCurrency(myPending),
+                    color: myPending >= 0 ? colors.success : colors.danger,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={{ marginTop: 12 }}>
