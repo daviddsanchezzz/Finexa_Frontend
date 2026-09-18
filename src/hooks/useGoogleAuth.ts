@@ -38,6 +38,7 @@ export function useGoogleAuthRequest() {
       scopes: ["openid", "profile", "email"],
       redirectUri,
       responseType: AuthSession.ResponseType.IdToken,
+      usePKCE: false, // PKCE no es válido para el flujo implícito (response_type=id_token)
       extraParams: {
         nonce: Math.random().toString(36).slice(2),
       },

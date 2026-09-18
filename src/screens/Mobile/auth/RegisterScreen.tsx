@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,14 +14,20 @@ import { colors } from "../../../theme/theme";
 import api from "../../../api/api";
 import { useAuth } from "../../../context/AuthContext"; // 👈 usa tu contexto
 import * as SecureStore from "expo-secure-store";
+import WalletIcon from "../../../components/WalletIcon";
+import { useGoogleAuthRequest } from "../../../hooks/useGoogleAuth";
+
+const GOOGLE_LOGO_URL = "https://unavatar.io/google.com";
 
 export default function RegisterScreen({ navigation }: any) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState(""); // 👈 nuevo estado para mostrar errores
+  const { request, response, promptAsync } = useGoogleAuthRequest();
 
   const validateForm = () => {
     if (!name || !email || !password) {
@@ -64,6 +70,39 @@ export default function RegisterScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (!response) return;
+
+    if (response.type === "success") {
+      const idToken = response.params?.id_token;
+      if (!idToken) {
+        setError("No se pudo completar el registro con Google.");
+        return;
+      }
+
+      (async () => {
+        try {
+          setGoogleLoading(true);
+          setError("");
+          await loginWithGoogle(idToken);
+          navigation.replace("MainTabs");
+        } catch (e: any) {
+          console.error("❌ Error al registrar con Google:", e.response?.data || e.message);
+          setError(e.response?.data?.message || "No se pudo registrar con Google.");
+        } finally {
+          setGoogleLoading(false);
+        }
+      })();
+    } else if (response.type === "error") {
+      setError("No se pudo registrar con Google.");
+    }
+  }, [response]);
+
+  const handleGoogleRegister = async () => {
+    setError("");
+    await promptAsync();
   };
 
   return (
@@ -159,6 +198,27 @@ export default function RegisterScreen({ navigation }: any) {
           <Text className="text-primary font-semibold">Inicia sesión</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Línea divisoria */}
+      <View className="my-8 h-[1px] bg-gray-200" />
+
+      {/* Botón social: Google */}
+      <TouchableOpacity
+        className="flex-row items-center justify-center border border-gray-300 rounded-2xl py-3"
+        disabled={!request || googleLoading}
+        onPress={handleGoogleRegister}
+      >
+        {googleLoading ? (
+          <ActivityIndicator color={colors.textSecondary} />
+        ) : (
+          <>
+            <WalletIcon emoji={GOOGLE_LOGO_URL} size={20} />
+            <Text className="ml-3 text-base text-gray-700 font-medium">
+              Registrarse con Google
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
     </ScrollView>
   );
 }
