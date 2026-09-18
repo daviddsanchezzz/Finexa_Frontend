@@ -21,7 +21,7 @@ import AppHeader from "../../../../components/AppHeader";
 import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
-import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
+import UserAvatar from "../../../../components/UserAvatar";
 import { tripDateKey } from "../../../../utils/tripDates";
 import { formatEuro as formatEuroCore } from "../../../../utils/currency";
 import { continentFromCountryCode, type CountryContinent } from "../../../../utils/countryContinent";
@@ -52,8 +52,8 @@ interface TripFromApi {
   year: number | null;
   coverImageUrl?: string | null;
   countryStays?: CountryStayFromApi[] | null;
-  user?: { id: number; name: string } | null;
-  members?: { user: { id: number; name: string } }[] | null;
+  user?: { id: number; name: string; avatar?: string | null } | null;
+  members?: { user: { id: number; name: string; avatar?: string | null } }[] | null;
 }
 
 interface TripUI extends TripFromApi {}
@@ -62,27 +62,18 @@ function tripCompanions(t: TripFromApi) {
   return [...(t.user ? [t.user] : []), ...((t.members ?? []).map((m) => m.user))];
 }
 
-function CompanionsMiniRow({ people }: { people: { id: number; name: string }[] }) {
+function CompanionsMiniRow({ people }: { people: { id: number; name: string; avatar?: string | null }[] }) {
   if (people.length < 2) return null;
   return (
     <View style={{ flexDirection: "row", marginTop: 4 }}>
       {people.slice(0, 4).map((p, idx) => (
-        <View
+        <UserAvatar
           key={p.id}
-          style={{
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            backgroundColor: avatarColorForId(p.id),
-            borderWidth: 1.5,
-            borderColor: "white",
-            alignItems: "center",
-            justifyContent: "center",
-            marginLeft: idx === 0 ? 0 : -6,
-          }}
-        >
-          <Text style={{ color: "white", fontSize: 7, fontWeight: "800" }}>{initialsFromName(p.name)}</Text>
-        </View>
+          user={p}
+          size={16}
+          fontSize={7}
+          style={{ borderWidth: 1.5, borderColor: "white", marginLeft: idx === 0 ? 0 : -6 }}
+        />
       ))}
     </View>
   );

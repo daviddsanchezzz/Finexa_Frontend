@@ -5,6 +5,7 @@ export interface TripMemberUser {
   id: number;
   name: string;
   email: string;
+  avatar?: string | null;
 }
 
 export interface TripInviteCandidate extends TripMemberUser {

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Platform } from "react-native";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import * as Crypto from "expo-crypto";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,7 +23,7 @@ function getGoogleClientId(): string | undefined {
 }
 
 function randomToken(): string {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  return Crypto.randomUUID();
 }
 
 // Clave en sessionStorage para el nonce pendiente (solo web). Se guarda antes

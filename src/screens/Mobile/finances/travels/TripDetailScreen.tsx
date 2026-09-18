@@ -21,7 +21,7 @@ import { colors } from "../../../../theme/theme";
 import api from "../../../../api/api";
 import { tripDateKey } from "../../../../utils/tripDates";
 import { appAlert } from "../../../../utils/appAlert";
-import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
+import UserAvatar from "../../../../components/UserAvatar";
 import { TripDetailScreenSkeleton } from "../../../../components/skeletons/TripDetailScreenSkeleton";
 import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import { formatEuro as formatEuroCore } from "../../../../utils/currency";
@@ -121,8 +121,8 @@ interface TripFromApi {
   coverImageUrl?: string | null;
   countryStays?: CountryStayFromApi[] | null;
   userId?: number;
-  user?: { id: number; name: string } | null;
-  members?: { user: { id: number; name: string } }[] | null;
+  user?: { id: number; name: string; avatar?: string | null } | null;
+  members?: { user: { id: number; name: string; avatar?: string | null } }[] | null;
 }
 
 type TripTab = "summary" | "expenses" | "planning" | "info";
@@ -152,27 +152,18 @@ const getStatusStyle = (status: TripStatus) => {
   }
 };
 
-function CompanionAvatars({ people }: { people: { id: number; name: string }[] }) {
+function CompanionAvatars({ people }: { people: { id: number; name: string; avatar?: string | null }[] }) {
   if (people.length < 2) return null;
   return (
     <View style={{ flexDirection: "row" }}>
       {people.slice(0, 4).map((p, idx) => (
-        <View
+        <UserAvatar
           key={p.id}
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 13,
-            backgroundColor: avatarColorForId(p.id),
-            borderWidth: 1.5,
-            borderColor: "white",
-            alignItems: "center",
-            justifyContent: "center",
-            marginLeft: idx === 0 ? 0 : -8,
-          }}
-        >
-          <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }}>{initialsFromName(p.name)}</Text>
-        </View>
+          user={p}
+          size={26}
+          fontSize={10}
+          style={{ borderWidth: 1.5, borderColor: "white", marginLeft: idx === 0 ? 0 : -8 }}
+        />
       ))}
     </View>
   );

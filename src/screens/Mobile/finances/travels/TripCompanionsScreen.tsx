@@ -7,24 +7,7 @@ import { colors } from "../../../../theme/theme";
 import { useAuth } from "../../../../context/AuthContext";
 import { appAlert } from "../../../../utils/appAlert";
 import { useTripMembers, TripMemberUser, TripInviteCandidate } from "../../../../hooks/useTripMembers";
-import { avatarColorForId, initialsFromName } from "../../../../utils/avatarColor";
-
-function Avatar({ user, size = 40 }: { user: { id: number; name: string }; size?: number }) {
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: avatarColorForId(user.id),
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text style={{ color: "white", fontWeight: "800", fontSize: size * 0.36 }}>{initialsFromName(user.name)}</Text>
-    </View>
-  );
-}
+import UserAvatar from "../../../../components/UserAvatar";
 
 export default function TripCompanionsScreen() {
   const navigation = useNavigation<any>();
@@ -78,7 +61,7 @@ export default function TripCompanionsScreen() {
             <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
               {owner && (
                 <View style={rowStyle(members.length > 0)}>
-                  <Avatar user={owner} />
+                  <UserAvatar user={owner} size={40} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
                       {owner.id === me?.id ? `${owner.name} (tú)` : owner.name}
@@ -94,7 +77,7 @@ export default function TripCompanionsScreen() {
                   activeOpacity={isOwner ? 0.7 : 1}
                   style={rowStyle(idx !== members.length - 1)}
                 >
-                  <Avatar user={member} />
+                  <UserAvatar user={member} size={40} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
                       {member.id === me?.id ? `${member.name} (tú)` : member.name}
@@ -119,7 +102,7 @@ export default function TripCompanionsScreen() {
               <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" }}>
                 {candidates.map((candidate, idx) => (
                   <View key={candidate.id} style={rowStyle(idx !== candidates.length - 1)}>
-                    <Avatar user={candidate} />
+                    <UserAvatar user={candidate} size={40} />
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{candidate.name}</Text>
                     </View>
