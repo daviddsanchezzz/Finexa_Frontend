@@ -3,6 +3,28 @@ import { Platform } from "react-native";
 import api, { plainApi } from "../api/api";
 import { storage } from "../utils/storage";
 import { clearNetWorthCache } from "../utils/netWorthCache";
+import { GOOGLE_NONCE_STORAGE_KEY } from "../hooks/useGoogleAuth";
+
+// Decodifica (sin verificar firma, eso ya lo hace el backend) el payload de
+// un JWT para leer el claim `nonce` y comprobar que este id_token responde a
+// un flujo de OAuth iniciado por este mismo navegador, no a uno pegado a
+// mano en la URL (login CSRF).
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 type User = {
   id: number;
@@ -46,12 +68,21 @@ useEffect(() => {
           // Limpia el hash cuanto antes: evita reprocesarlo y no lo deja
           // visible en la barra de direcciones.
           window.history.replaceState(null, "", window.location.pathname + window.location.search);
-          try {
-            await loginWithGoogle(idToken);
-            return;
-          } catch {
-            // Si falla, sigue con el flujo normal (token guardado / login manual).
+
+          const expectedNonce = sessionStorage.getItem(GOOGLE_NONCE_STORAGE_KEY);
+          sessionStorage.removeItem(GOOGLE_NONCE_STORAGE_KEY);
+          const payload = decodeJwtPayload(idToken);
+
+          if (expectedNonce && payload?.nonce === expectedNonce) {
+            try {
+              await loginWithGoogle(idToken);
+              return;
+            } catch {
+              // Si falla, sigue con el flujo normal (token guardado / login manual).
+            }
           }
+          // Si no hay nonce esperado o no coincide, se ignora el id_token:
+          // no proviene de un flujo de Google iniciado por este navegador.
         }
       }
 

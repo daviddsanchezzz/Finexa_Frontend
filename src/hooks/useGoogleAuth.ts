@@ -21,6 +21,16 @@ function getGoogleClientId(): string | undefined {
   return GOOGLE_CLIENT_ID_WEB;
 }
 
+function randomToken(): string {
+  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+
+// Clave en sessionStorage para el nonce pendiente (solo web). Se guarda antes
+// de redirigir a Google y se valida al volver, en AuthContext, para que un
+// id_token puesto a mano en la URL (ej. un enlace manipulado) no pueda
+// autenticar a nadie: solo un nonce generado por ESTE navegador es válido.
+export const GOOGLE_NONCE_STORAGE_KEY = "finexa_google_oauth_nonce";
+
 /**
  * Flujo "implicit" de Google (response_type=id_token) vía expo-auth-session.
  * El id_token resultante se verifica en el backend (POST /auth/google).
@@ -31,6 +41,7 @@ export function useGoogleAuthRequest() {
     () => AuthSession.makeRedirectUri({ scheme: "finexa" }),
     []
   );
+  const nonce = useMemo(() => randomToken(), []);
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
@@ -39,9 +50,7 @@ export function useGoogleAuthRequest() {
       redirectUri,
       responseType: AuthSession.ResponseType.IdToken,
       usePKCE: false, // PKCE no es válido para el flujo implícito (response_type=id_token)
-      extraParams: {
-        nonce: Math.random().toString(36).slice(2),
-      },
+      extraParams: { nonce },
     },
     GOOGLE_DISCOVERY
   );
@@ -54,6 +63,7 @@ export function useGoogleAuthRequest() {
   // arrancar la app.
   const prompt = async () => {
     if (Platform.OS === "web" && request?.url) {
+      sessionStorage.setItem(GOOGLE_NONCE_STORAGE_KEY, nonce);
       window.location.href = request.url;
       return;
     }

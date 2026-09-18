@@ -2,6 +2,17 @@ import "react-native-gesture-handler"; // ðŸ‘ˆ OBLIGATORIO, siempre primero
 
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, AppState, AppStateStatus, View, StyleSheet } from "react-native";
+import { enableScreens } from "react-native-screens";
+
+// En web, el shim de react-native-screens que anima las transiciones entre
+// pantallas de native-stack puede quedarse a medio camino si el contenido
+// cambia de tamaño justo durante la animación (p. ej. un hook que termina de
+// cargar y fuerza un re-render), dejando la pantalla sin responder a toques.
+// Desactivarlo en web hace que native-stack use su fallback en JS puro, sin
+// esa animación CSS frágil. En nativo (iOS/Android) no se toca.
+if (Platform.OS === "web") {
+  enableScreens(false);
+}
 import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { useTheme } from "./src/context/ThemeContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
