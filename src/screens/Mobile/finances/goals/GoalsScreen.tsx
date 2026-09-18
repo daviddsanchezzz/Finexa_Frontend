@@ -48,7 +48,7 @@ export default function GoalsScreen({ navigation, isPinnedModuleTab = false, isD
               </View>
             } />
             <StatsRow items={[
-              { key: 'target', label: 'OBJETIVO TOTAL', value: money(summary?.totalTarget ?? 0, summaryCurrency) },
+              { key: 'target', label: 'TOTAL', value: money(summary?.totalTarget ?? 0, summaryCurrency) },
               { key: 'remaining', label: 'FALTA', value: money(summary?.totalRemaining ?? 0, summaryCurrency) },
               { key: 'count', label: 'ACTIVOS', value: String(summary?.activeCount ?? 0) },
             ]} />
@@ -56,7 +56,7 @@ export default function GoalsScreen({ navigation, isPinnedModuleTab = false, isD
           <View style={{ marginTop: 12 }}>
             <SegmentedTabs<Filter> variant="underline" options={[{ key: 'active', label: 'Activos' }, { key: 'completed', label: 'Completados' }, { key: 'all', label: 'Todos' }]} value={filter} onChange={setFilter} />
           </View>
-          <ScrollView style={{ flex: 1, paddingHorizontal: 14 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 40, paddingHorizontal: 20 }}
             refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }} />}>
             {!visible.length && (
               <Text style={{ marginTop: 8, fontSize: 13, color: '#94A3B8', textAlign: 'center' }}>

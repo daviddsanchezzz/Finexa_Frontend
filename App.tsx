@@ -136,7 +136,7 @@ export default function App() {
     setMeta("apple-mobile-web-app-status-bar-style", "default");
     setMeta("apple-mobile-web-app-title", "Finexa");
     setMeta("theme-color", "#3B82F6");
-    setLink("apple-touch-icon", "/apple-touch-icon.png");
+    setLink("apple-touch-icon", "/apple-touch-icon-finexa.png");
     setLink("manifest", "/manifest.json");
 
     // Warm-up inmediato (no bloqueante)

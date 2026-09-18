@@ -193,6 +193,8 @@ export default function AddScreen({ navigation }: any) {
   const [saving, setSaving] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceInterval, setRecurrenceInterval] = useState("never");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [modalEditingItem, setModalEditingItem] = useState<any>(null);
   const [updateScopeModalVisible, setUpdateScopeModalVisible] = useState(false);
@@ -448,6 +450,7 @@ export default function AddScreen({ navigation }: any) {
       setRecurrenceInterval("never");
       setIsRecurring(false);
     }
+    setRecurrenceEndDate(sourceData.endDate ? new Date(sourceData.endDate) : null);
   }, [sourceData, wallets, categories, investmentAssets]);
 
   //---------------------------------------
@@ -540,9 +543,11 @@ export default function AddScreen({ navigation }: any) {
     if (recurrenceInterval !== "never") {
       payload.isRecurring = true;
       payload.recurrence = recurrenceInterval;
+      payload.endDate = recurrenceEndDate ? recurrenceEndDate.toISOString() : null;
     } else {
       payload.isRecurring = false;
       payload.recurrence = null;
+      payload.endDate = null;
     }
 
     try {
@@ -1130,6 +1135,83 @@ export default function AddScreen({ navigation }: any) {
                 })}
               </View>
             </View>
+
+            {isRecurring && (
+              <View style={{ marginTop: 14 }}>
+                <Text style={sectionLabelStyle}>Fecha fin (opcional)</Text>
+                <View style={{ position: "relative" }}>
+                  <TouchableOpacity
+                    onPress={() => setShowEndDatePicker(true)}
+                    activeOpacity={0.85}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      backgroundColor: "#FFFFFF",
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                      borderRadius: 14,
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Ionicons name="flag-outline" size={16} color="#64748B" />
+                      <Text style={{ fontSize: 14, color: recurrenceEndDate ? "#0F172A" : "#9CA3AF", fontWeight: "500" }}>
+                        {recurrenceEndDate
+                          ? recurrenceEndDate.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
+                          : "Indefinido"}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                  </TouchableOpacity>
+
+                  {Platform.OS === "web" && (
+                    // @ts-ignore — mismo truco que el campo de fecha principal: input
+                    // real invisible encima de la fila, para que el navegador abra
+                    // su propio selector con un tap genuino.
+                    <input
+                      type="date"
+                      value={recurrenceEndDate ? recurrenceEndDate.toISOString().slice(0, 10) : ""}
+                      onChange={(e: any) => {
+                        setRecurrenceEndDate(e.target.value ? new Date(`${e.target.value}T00:00:00`) : null);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: "100%",
+                        height: "100%",
+                        opacity: 0,
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    />
+                  )}
+                </View>
+
+                {Platform.OS !== "web" && (
+                  <CrossPlatformDateTimePicker
+                    isVisible={showEndDatePicker}
+                    mode="date"
+                    date={recurrenceEndDate ?? date}
+                    onConfirm={(d) => {
+                      setShowEndDatePicker(false);
+                      setRecurrenceEndDate(d);
+                    }}
+                    onCancel={() => setShowEndDatePicker(false)}
+                  />
+                )}
+
+                {recurrenceEndDate && (
+                  <TouchableOpacity onPress={() => setRecurrenceEndDate(null)} style={{ marginTop: 6, alignSelf: "flex-start" }}>
+                    <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>Quitar fecha fin</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </ScrollView>
 
           <EditCategoryModal

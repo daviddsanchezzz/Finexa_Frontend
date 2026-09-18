@@ -372,7 +372,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 14 }}
+            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
           {filteredBudgets.length === 0 ? (

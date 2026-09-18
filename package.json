@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "vercel-build": "expo export --platform web"
+    "vercel-build": "node scripts/generate-web-icons.cjs && expo export --platform web"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
@@ -60,6 +60,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@expo/image-utils": "^0.8.17",
     "@types/axios": "^0.9.36",
     "@types/react": "~19.1.0",
     "autoprefixer": "^10.4.22",

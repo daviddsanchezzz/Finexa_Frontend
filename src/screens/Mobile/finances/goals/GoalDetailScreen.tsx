@@ -85,7 +85,7 @@ export default function GoalDetailScreen({ route, navigation }: any) {
     <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}><AppHeader title={goal?.name ?? 'Objetivo'} showBack showProfile={false} showDatePicker={false} rightElement={goal ? <OverflowMenuButton title={goal.name} actions={actions} /> : undefined} /></View>
     {!goal ? query.isLoading ? <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}><GoalDetailScreenSkeleton /></ScrollView> : <View style={{ padding: 20 }}><Text>No se pudo cargar el objetivo.</Text><EditingActionRow label="Reintentar" onPress={() => { void query.refetch(); }} /></View> : <>
       <View style={{ paddingHorizontal: 20 }}>
-        <HeroBalanceCard label={goal.status === 'ARCHIVED' ? 'Ahorrado al archivar' : 'Ahorrado'} value={money(goal.currentAmount, goal.currency)} footer={
+        <HeroBalanceCard label={goal.status === 'ARCHIVED' ? 'Ahorrado al archivar' : 'Ahorrado'} value={money(goal.currentAmount, goal.currency)} style={{ marginBottom: 8 }} footer={
           <View style={{ width: '100%', marginTop: 10 }}><View style={{ height: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}><View style={{ height: '100%', width: `${goal.displayProgress}%`, backgroundColor: 'white' }} /></View><Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 6 }}>{percentage(goal.progressPercentage)} completado</Text></View>
         } />
         <StatsRow items={[{ key: 'target', label: 'OBJETIVO', value: money(goal.targetAmount, goal.currency) }, { key: 'remaining', label: 'FALTA', value: money(goal.remainingAmount, goal.currency) }]} />

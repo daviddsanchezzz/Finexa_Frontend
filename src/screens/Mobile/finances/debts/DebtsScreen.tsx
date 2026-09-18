@@ -196,7 +196,7 @@ export default function DebtsHomeScreen({ navigation, isPinnedModuleTab = false 
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 14, paddingTop: 14 }}
+            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 20, paddingTop: 14 }}
           >
             {filteredDebts.length === 0 ? (
               <Text className="text-center text-gray-400 mb-4 text-sm">

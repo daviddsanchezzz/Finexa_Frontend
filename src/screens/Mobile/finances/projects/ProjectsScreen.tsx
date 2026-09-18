@@ -88,7 +88,7 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
         <View style={{ flex: 1 }}>
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
             <HeroBalanceCard
-              label="MI BENEFICIO"
+              label="Mi beneficio"
               value={formatCurrency(totals.myProfit)}
               style={{ marginBottom: 8 }}
             />
@@ -156,9 +156,9 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                     style={{
                       backgroundColor: 'white',
                       borderRadius: 16,
-                      paddingHorizontal: 14,
-                      paddingVertical: 13,
-                      marginBottom: 10,
+                      paddingHorizontal: 16,
+                      paddingVertical: 16,
+                      marginBottom: 12,
                       shadowColor: '#000',
                       shadowOpacity: 0.03,
                       shadowRadius: 5,
@@ -167,7 +167,7 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text
-                        style={{ flex: 1, fontSize: 14.5, fontWeight: '600', color: '#0F172A' }}
+                        style={{ flex: 1, fontSize: 15, fontWeight: '600', color: '#0F172A' }}
                         numberOfLines={1}
                       >
                         {project.name}
@@ -179,7 +179,7 @@ export default function ProjectsScreen({ navigation, isPinnedModuleTab = false }
                       )}
                     </View>
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
                       <Text style={{ fontSize: 11.5, color: '#94A3B8', fontWeight: '500' }}>{statusText}</Text>
                       {hasActivity ? (
                         <Text style={{ fontSize: 11.5, color: '#94A3B8' }}>
