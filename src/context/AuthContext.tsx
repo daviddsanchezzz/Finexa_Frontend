@@ -15,6 +15,7 @@ type AuthContextType = {
   hydrated: boolean;
   checkingSession: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
   refreshUser: () => Promise<void>;
@@ -89,6 +90,17 @@ useEffect(() => {
     setUser(user);
   };
 
+  const loginWithGoogle = async (idToken: string) => {
+    const res = await api.post("/auth/google", { id_token: idToken });
+    const { access_token, refresh_token, user } = res.data;
+
+    await storage.setItem("access_token", access_token);
+    await storage.setItem("refresh_token", refresh_token);
+
+    api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+    setUser(user);
+  };
+
   const updateUser = (patch: Partial<User>) => {
     setUser((prev) => (prev ? { ...prev, ...patch } : prev));
   };
@@ -112,7 +124,7 @@ useEffect(() => {
   };
 
   const value = useMemo(
-    () => ({ user, hydrated, checkingSession, login, logout, updateUser, refreshUser }),
+    () => ({ user, hydrated, checkingSession, login, loginWithGoogle, logout, updateUser, refreshUser }),
     [user, hydrated, checkingSession]
   );
 

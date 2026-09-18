@@ -80,7 +80,8 @@ api.interceptors.response.use(
     const isAuthRoute =
       url.includes("/auth/login") ||
       url.includes("/auth/refresh") ||
-      url.includes("/auth/register");
+      url.includes("/auth/register") ||
+      url.includes("/auth/google");
 
     if (status === 401 && !originalRequest._retry && !isAuthRoute) {
       originalRequest._retry = true;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,16 +12,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/theme";
 import { useAuth } from "../../../context/AuthContext";
 import WalletIcon from "../../../components/WalletIcon";
+import { useGoogleAuthRequest } from "../../../hooks/useGoogleAuth";
 
 const GOOGLE_LOGO_URL = "https://unavatar.io/google.com";
-const APPLE_LOGO_URL = "https://unavatar.io/apple.com";
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState(""); // 👈 nuevo estado para mostrar errores
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
+  const { request, response, promptAsync } = useGoogleAuthRequest();
 
   const validateForm = () => {
     if (!email || !password) {
@@ -54,6 +56,39 @@ const handleLogin = async () => {
     setLoading(false);
   }
 };
+
+  useEffect(() => {
+    if (!response) return;
+
+    if (response.type === "success") {
+      const idToken = response.params?.id_token;
+      if (!idToken) {
+        setError("No se pudo completar el inicio de sesión con Google.");
+        return;
+      }
+
+      (async () => {
+        try {
+          setGoogleLoading(true);
+          setError("");
+          await loginWithGoogle(idToken);
+          navigation.replace("MainTabs");
+        } catch (e: any) {
+          console.error("❌ Error al iniciar sesión con Google:", e.response?.data || e.message);
+          setError(e.response?.data?.message || "No se pudo iniciar sesión con Google.");
+        } finally {
+          setGoogleLoading(false);
+        }
+      })();
+    } else if (response.type === "error") {
+      setError("No se pudo iniciar sesión con Google.");
+    }
+  }, [response]);
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    await promptAsync();
+  };
 
   return (
     <ScrollView
@@ -147,19 +182,22 @@ const handleLogin = async () => {
       {/* Línea divisoria */}
       <View className="my-8 h-[1px] bg-gray-200" />
 
-      {/* Botones sociales */}
-      <TouchableOpacity className="flex-row items-center justify-center border border-gray-300 rounded-2xl py-3 mb-4">
-        <WalletIcon emoji={GOOGLE_LOGO_URL} size={20} />
-        <Text className="ml-3 text-base text-gray-700 font-medium">
-          Iniciar sesión con Google
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity className="flex-row items-center justify-center border border-gray-300 rounded-2xl py-3">
-        <WalletIcon emoji={APPLE_LOGO_URL} size={22} />
-        <Text className="ml-3 text-base text-gray-700 font-medium">
-          Iniciar sesión con Apple
-        </Text>
+      {/* Botón social: Google */}
+      <TouchableOpacity
+        className="flex-row items-center justify-center border border-gray-300 rounded-2xl py-3"
+        disabled={!request || googleLoading}
+        onPress={handleGoogleLogin}
+      >
+        {googleLoading ? (
+          <ActivityIndicator color={colors.textSecondary} />
+        ) : (
+          <>
+            <WalletIcon emoji={GOOGLE_LOGO_URL} size={20} />
+            <Text className="ml-3 text-base text-gray-700 font-medium">
+              Iniciar sesión con Google
+            </Text>
+          </>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
