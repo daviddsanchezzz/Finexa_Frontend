@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Platform } from "react-native";
 import api, { plainApi } from "../api/api";
 import { storage } from "../utils/storage";
 import { clearNetWorthCache } from "../utils/netWorthCache";
@@ -34,6 +35,25 @@ useEffect(() => {
   const bootstrap = async () => {
     try {
       if (!cancelled) setCheckingSession(true);
+
+      // Vuelta del login con Google en web: tras el redirect de página
+      // completa, Google devuelve el id_token en el hash de la URL
+      // (#id_token=...&...). Se procesa aquí, al arrancar la app.
+      if (Platform.OS === "web" && typeof window !== "undefined" && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const idToken = hashParams.get("id_token");
+        if (idToken) {
+          // Limpia el hash cuanto antes: evita reprocesarlo y no lo deja
+          // visible en la barra de direcciones.
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          try {
+            await loginWithGoogle(idToken);
+            return;
+          } catch {
+            // Si falla, sigue con el flujo normal (token guardado / login manual).
+          }
+        }
+      }
 
       const refreshToken = await storage.getItem("refresh_token");
       if (!refreshToken) return;

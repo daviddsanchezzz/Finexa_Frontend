@@ -1,6 +1,6 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
 import LoginScreen from "../screens/Mobile/auth/LoginScreen";
@@ -517,8 +517,16 @@ export default function MobileNavigator() {
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ animation: Platform.OS === "web" ? "none" : "default" }}
+          />
+          <Stack.Screen
+            name="Register"
+            component={RegisterScreen}
+            options={{ animation: Platform.OS === "web" ? "none" : "default" }}
+          />
         </>
       )}
     </Stack.Navigator>

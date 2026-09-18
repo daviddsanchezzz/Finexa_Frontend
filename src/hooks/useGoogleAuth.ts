@@ -46,5 +46,19 @@ export function useGoogleAuthRequest() {
     GOOGLE_DISCOVERY
   );
 
-  return { request, response, promptAsync, isConfigured: Boolean(clientId) };
+  // En web, el mecanismo de popup + postMessage de expo-auth-session es poco
+  // fiable en navegadores móviles (Safari/Chrome iOS suelen navegar la propia
+  // pestaña en vez de abrir un popup real, perdiendo el contexto JS que
+  // esperaba la respuesta). Por eso en web hacemos una redirección de página
+  // completa; la vuelta (id_token en el hash) se procesa en AuthContext al
+  // arrancar la app.
+  const prompt = async () => {
+    if (Platform.OS === "web" && request?.url) {
+      window.location.href = request.url;
+      return;
+    }
+    await promptAsync();
+  };
+
+  return { request, response, promptAsync: prompt, isConfigured: Boolean(clientId) };
 }
