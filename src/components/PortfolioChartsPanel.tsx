@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { textStyles } from "../theme/typography";
 import { colors } from "../theme/theme";
 import { formatEuro } from "../utils/currency";
+import { simplePeriodReturn } from "../utils/investmentReturn";
 
 export type RangeKey = "1M" | "3M" | "6M" | "1Y" | "ALL";
 
@@ -655,15 +656,16 @@ export default function PortfolioChartsPanel({
   const last = safe[safe.length - 1];
   const lastProfit = last ? last.equity - last.netContributions : 0;
 
-  // TWR del rango: encadena retornos diarios neutralizados por flujos.
+  // Rentabilidad simple acumulada desde el inicio del rango:
+  // (equity - equity inicial - aportado desde entonces) / (equity inicial + aportado desde entonces).
   const perfSeries = useMemo(() => {
     if (safe.length === 0) return [];
-    let growthFactor = 1;
-    return safe.map((point, index) => {
-      if (index > 0 && point.dailyReturn != null && Number.isFinite(point.dailyReturn)) {
-        growthFactor *= 1 + point.dailyReturn;
-      }
-      return { date: point.date, value: (growthFactor - 1) * 100 };
+    const startEquity = safe[0].equity;
+    const startNc = safe[0].netContributions;
+    return safe.map((point) => {
+      const flowSince = point.netContributions - startNc;
+      const ratio = simplePeriodReturn(point.equity - startEquity - flowSince, startEquity, flowSince);
+      return { date: point.date, value: (ratio ?? 0) * 100 };
     });
   }, [safe]);
 

@@ -18,6 +18,7 @@ import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { textStyles, typography } from "../../../theme/typography";
 import { formatEuro } from "../../../utils/currency";
+import { simplePeriodReturn } from "../../../utils/investmentReturn";
 
 import PieChartComponent from "../../../components/PieChart";
 import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
@@ -458,7 +459,11 @@ const fetchSnapshots = async () => {
       endValue: Number(r.endValue ?? 0),
       cashflowNet: Number(r.cashflowNet ?? 0),
       profit: Number(r.profit ?? 0),
-      returnPct: r.returnPct == null ? null : Number(r.returnPct),
+      returnPct: simplePeriodReturn(
+        Number(r.profit ?? 0),
+        r.startValue == null ? null : Number(r.startValue),
+        Number(r.cashflowNet ?? 0),
+      ),
     }));
 
     // orden asc por monthStart para tabla
@@ -575,7 +580,7 @@ const fetchSnapshots = async () => {
         .filter(Boolean)
         .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
 
-    const returnPct = summary?.returnPct == null ? null : Number(summary.returnPct);
+    const returnPct = totalInvested ? totalPnL / totalInvested : null;
     return { totalInvested, totalCurrentValue, totalPnL, returnPct, lastGlobal };
   }, [summary]);
 
@@ -995,9 +1000,7 @@ const fetchSnapshots = async () => {
 
                       <Td flex={GRID.pct} align="right" px={px}>
                         <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: pnlColor }]}>
-                          {a.returnPct == null
-                            ? formatPct(a.pnl || 0, a.invested || 0)
-                            : `${(Number(a.returnPct) * 100).toFixed(2).replace(".", ",")}%`}
+                          {formatPct(a.pnl || 0, a.invested || 0)}
                         </Text>
                       </Td>
 

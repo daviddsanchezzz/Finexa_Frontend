@@ -39,6 +39,7 @@ import DonutPro, { DonutSlice } from "../../../../components/DonutPro";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { getInvestmentsDataVersion, subscribeInvestmentsInvalidation } from "../../../../utils/investmentsInvalidation";
 import { formatEuro } from "../../../../utils/currency";
+import { simplePeriodReturn } from "../../../../utils/investmentReturn";
 import { useUIStore } from "../../../../store/uiStore";
 import { findCryptoPresetBySymbol, getCryptoLogoUrl } from "../../../../constants/bankPresets";
 import WalletIcon from "../../../../components/WalletIcon";
@@ -398,7 +399,11 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
           endValue: Number(r.endValue ?? 0),
           cashflowNet: Number(r.cashflowNet ?? 0),
           profit: Number(r.profit ?? 0),
-          returnPct: r.returnPct == null ? null : Number(r.returnPct),
+          returnPct: simplePeriodReturn(
+            Number(r.profit ?? 0),
+            r.startValue == null ? null : Number(r.startValue),
+            Number(r.cashflowNet ?? 0),
+          ),
         }))
         .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
       setSnapshots(mapped);
@@ -420,7 +425,11 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
         endValue: Number(r.endValue ?? 0),
         cashflowNet: Number(r.cashflowNet ?? 0),
         profit: Number(r.profit ?? 0),
-        returnPct: r.returnPct == null ? null : Number(r.returnPct),
+        returnPct: simplePeriodReturn(
+          Number(r.profit ?? 0),
+          r.startValue == null ? null : Number(r.startValue),
+          Number(r.cashflowNet ?? 0),
+        ),
       });
     } catch {
       setCurrentMonthReturn(null);
@@ -599,9 +608,7 @@ const submitContribution = useCallback(() => {
     const totalInvested = summary?.totalInvested || 0;
     const totalCurrentValue = summary?.totalCurrentValue || 0;
     const totalPnL = summary?.totalPnL || 0;
-    const pct = summary?.returnPct != null
-      ? Number(summary.returnPct) * 100
-      : totalInvested ? (totalPnL / totalInvested) * 100 : 0;
+    const pct = totalInvested ? (totalPnL / totalInvested) * 100 : 0;
     const lastGlobal =
       (summary?.assets || [])
         .map((a) => a.lastValuationDate)
@@ -909,12 +916,7 @@ const submitContribution = useCallback(() => {
       const last = months[months.length - 1];
       const cashflowNet = months.reduce((s, r) => s + r.cashflowNet, 0);
       const profit = months.reduce((s, r) => s + r.profit, 0);
-      const validReturns = months
-        .map((month) => month.returnPct)
-        .filter((value): value is number => value != null && Number.isFinite(value));
-      const returnPct = validReturns.length
-        ? validReturns.reduce((factor, value) => factor * (1 + value), 1) - 1
-        : null;
+      const returnPct = simplePeriodReturn(profit, first?.startValue, cashflowNet);
       return {
         year: y,
         currency: first?.currency ?? "EUR",
@@ -1026,14 +1028,13 @@ const submitContribution = useCallback(() => {
     const startResult = Number(first?.result ?? (startEquity - Number(first?.netContributions || 0)));
     const gain = Number(last?.result ?? (lastEquity - lastNc)) - startResult;
 
-    // La API entrega el retorno diario neutralizado por flujos externos. El
-    // periodo y la curva acumulada se obtienen encadenando esos retornos.
-    let periodGrowthFactor = 1;
-    const returnValues = monthly.map((point, index) => {
-      if (index > 0 && point.dailyReturn != null && Number.isFinite(point.dailyReturn)) {
-        periodGrowthFactor *= 1 + point.dailyReturn;
-      }
-      return (periodGrowthFactor - 1) * 100;
+    // Rentabilidad simple acumulada desde el inicio del periodo:
+    // (equity - equity inicial - aportado desde entonces) / (equity inicial + aportado desde entonces).
+    const startNc = Number(first?.netContributions || 0);
+    const returnValues = monthly.map((point) => {
+      const flowSince = Number(point.netContributions || 0) - startNc;
+      const ratio = simplePeriodReturn(Number(point.equity || 0) - startEquity - flowSince, startEquity, flowSince);
+      return (ratio ?? 0) * 100;
     });
     const gainPct = returnValues[returnValues.length - 1] ?? 0;
     const returnRawMin = Math.min(0, ...returnValues);
@@ -1491,9 +1492,8 @@ const submitContribution = useCallback(() => {
             </View>
           ) : (
             visibleAssets.map((a) => {
-              const pctText = a.returnPct == null
-                ? formatPct(a.pnl || 0, a.invested || 0)
-                : `${(Number(a.returnPct) * 100).toFixed(2)}%`;
+
+                  const pctText = formatPct(a.pnl || 0, a.invested || 0);
               const badge = pnlBadge(a.pnl);
               const typeColor = assetTypeColor(a.type);
               const typeBg = assetTypeSoftBg(a.type);

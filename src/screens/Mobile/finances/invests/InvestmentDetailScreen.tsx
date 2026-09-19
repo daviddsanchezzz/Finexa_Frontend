@@ -28,6 +28,7 @@ import { appAlert } from "../../../../utils/appAlert";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line } from "react-native-svg";
 import { translateCountry, translateSector } from "../../../../utils/investmentLabels";
 import { formatEuro } from "../../../../utils/currency";
+import { simplePeriodReturn } from "../../../../utils/investmentReturn";
 import InvestmentOperationDetailsModal from "../../../../components/InvestmentOperationDetailsModal";
 import OverflowMenuButton from "../../../../components/OverflowMenuButton";
 import ChartTooltip from "../../../../components/ChartTooltip";
@@ -625,12 +626,12 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     }));
     const capitalPath = buildSparkPath(capitalMapped.map((point) => ({ x: point.x, y: point.y })));
 
-    let rangeGrowthFactor = 1;
+    // Rentabilidad simple acumulada desde el inicio del rango.
+    let flowSince = 0;
     const returnValues = pts.map((point, index) => {
-      if (index > 0 && point.dailyReturn != null && Number.isFinite(Number(point.dailyReturn))) {
-        rangeGrowthFactor *= 1 + Number(point.dailyReturn);
-      }
-      return (rangeGrowthFactor - 1) * 100;
+      if (index > 0) flowSince += Number(point.externalFlow || 0);
+      const ratio = simplePeriodReturn(values[index] - values[0] - flowSince, values[0], flowSince);
+      return (ratio ?? 0) * 100;
     });
     const returnMinV = Math.min(...returnValues);
     const returnMaxV = Math.max(...returnValues);
