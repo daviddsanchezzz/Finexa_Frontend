@@ -45,6 +45,26 @@ export function matchWalletByCard(
   return null;
 }
 
+export type CategorySuggestion = { categoryId: number; subcategoryId: number | null };
+
+// Pide al backend la categoría/subcategoría que siempre se ha usado para este
+// comercio (ver TransactionsService.suggestCategory). Nunca lanza ni bloquea:
+// si falla o tarda más de 1,5 s, devuelve null y el formulario se abre sin
+// categoría preseleccionada, como antes.
+export async function fetchCategorySuggestion(merchant: string): Promise<CategorySuggestion | null> {
+  const description = merchant.trim();
+  if (!description) return null;
+  try {
+    const request = api
+      .get('/transactions/suggest-category', { params: { description } })
+      .then((res) => (res.data && res.data.categoryId != null ? (res.data as CategorySuggestion) : null));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    return await Promise.race([request, timeout]);
+  } catch {
+    return null;
+  }
+}
+
 export function readQuickAddFromUrl(): { params: QuickAddParams; fromNotification: boolean } | null {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);

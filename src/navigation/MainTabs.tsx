@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import BottomNav from "../components/BottomTab";
 import { BottomTabLayoutContext } from './BottomTabLayoutContext';
-import { readQuickAddFromSession, clearQuickAddFromSession } from "../utils/quickAdd";
+import { readQuickAddFromSession, clearQuickAddFromSession, fetchCategorySuggestion } from "../utils/quickAdd";
 
 const Tab = createBottomTabNavigator();
 
@@ -12,7 +12,12 @@ export default function MainTabs({ navigation }: any) {
     const params = readQuickAddFromSession();
     if (!params) return;
     clearQuickAddFromSession();
-    const id = setTimeout(() => {
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      // Si este comercio siempre tuvo la misma categoría (y subcategoría), se
+      // preselecciona; si no hay historial o falla, el formulario va sin ella.
+      const suggestion = await fetchCategorySuggestion(params.merchant);
+      if (cancelled) return;
       navigation.navigate('Add', {
         prefillData: {
           type: 'expense',
@@ -22,10 +27,15 @@ export default function MainTabs({ navigation }: any) {
           cardName: params.cardName,
           quickAddId: params.qid,
           date: new Date().toISOString(),
+          categoryId: suggestion?.categoryId,
+          subcategoryId: suggestion?.subcategoryId ?? undefined,
         },
       });
     }, 300);
-    return () => clearTimeout(id);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [navigation]);
   return (
     <BottomTabLayoutContext.Provider value={bottomTabHeight}>

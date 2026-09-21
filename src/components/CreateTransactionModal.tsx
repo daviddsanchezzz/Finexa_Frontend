@@ -40,6 +40,8 @@ type Prefill = {
   description?: string;
   cardName?: string;
   quickAddId?: string;
+  categoryId?: number;
+  subcategoryId?: number;
 };
 
 type Props = {
@@ -333,6 +335,24 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     resetForm();
     fetchData();
   }, [visible, resetForm, fetchData]);
+
+  // Categoría/subcategoría sugeridas (historial del comercio, flujo Wallet):
+  // se aplican una vez cargadas las categorías, sin pisar una elección manual.
+  const appliedCategorySuggestion = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      appliedCategorySuggestion.current = false;
+      return;
+    }
+    if (appliedCategorySuggestion.current || !prefill?.categoryId || !categories.length) return;
+    const cat = categories.find((c) => c.id === prefill.categoryId);
+    appliedCategorySuggestion.current = true;
+    if (!cat) return;
+    setSelectedCategory(cat);
+    if (prefill.subcategoryId) {
+      setSelectedSub(cat.subcategories?.find((s: any) => s.id === prefill.subcategoryId) ?? null);
+    }
+  }, [visible, categories, prefill?.categoryId, prefill?.subcategoryId]);
 
   // Defaults: wallet(s)
   useEffect(() => {

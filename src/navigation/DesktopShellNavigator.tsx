@@ -25,7 +25,7 @@ import {
   CreateTxPrefill,
   EditTxData,
 } from "../context/CreateTxModalContext";
-import { readQuickAddFromSession, clearQuickAddFromSession } from "../utils/quickAdd";
+import { readQuickAddFromSession, clearQuickAddFromSession, fetchCategorySuggestion } from "../utils/quickAdd";
 
 import InitialsAvatar from "../components/InitialsAvatar";
 import TripDetailDesktopScreen from "../screens/Desktop/travel/TripDetailDesktopScreen";
@@ -123,10 +123,24 @@ function DesktopShellLayout({
     const params = readQuickAddFromSession();
     if (!params) return;
     clearQuickAddFromSession();
-    const id = setTimeout(() => {
-      openCreateTx({ amount: params.amount, currency: params.currency ?? undefined, description: params.merchant, cardName: params.cardName, quickAddId: params.qid });
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      const suggestion = await fetchCategorySuggestion(params.merchant);
+      if (cancelled) return;
+      openCreateTx({
+        amount: params.amount,
+        currency: params.currency ?? undefined,
+        description: params.merchant,
+        cardName: params.cardName,
+        quickAddId: params.qid,
+        categoryId: suggestion?.categoryId,
+        subcategoryId: suggestion?.subcategoryId ?? undefined,
+      });
     }, 300);
-    return () => clearTimeout(id);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [openCreateTx]);
 
   const closeCreateTx = useCallback(() => {

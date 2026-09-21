@@ -14,6 +14,8 @@ export type CreateTxPrefill = {
   description?: string;
   cardName?: string;
   quickAddId?: string;
+  categoryId?: number; // sugeridos por historial del comercio (flujo Wallet)
+  subcategoryId?: number;
 };
 
 /**
