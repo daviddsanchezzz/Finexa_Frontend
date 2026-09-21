@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../../theme/theme";
 import { COMMON_CURRENCIES } from "../../utils/exchangeRate";
+import CurrencyPickerModal from "../CurrencyPickerModal";
 import AppSwitch from "../AppSwitch";
 import WalletIcon from "../WalletIcon";
 import CrossPlatformDateTimePicker from "../CrossPlatformDateTimePicker";
@@ -245,54 +246,12 @@ export function FormCurrencyPicker({
   return (
     <>
       <FormSelect label="Divisa" value={displayValue} required={required} onPress={() => setVisible(true)} />
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
-        <Pressable
-          onPress={() => setVisible(false)}
-          style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.38)" }}
-        />
-        <View
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            maxHeight: "72%",
-            backgroundColor: "white",
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingBottom: 24,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
-            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>Seleccionar divisa</Text>
-            <TouchableOpacity onPress={() => setVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={22} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={COMMON_CURRENCIES}
-            keyExtractor={(currency) => currency.code}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const active = item.code === value;
-              return (
-                <TouchableOpacity
-                  onPress={() => {
-                    onChange(item.code);
-                    setVisible(false);
-                  }}
-                  activeOpacity={0.72}
-                  style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54 }}
-                >
-                  <Text style={{ width: 48, fontSize: 14, fontWeight: "800", color: colors.ink }}>{item.code}</Text>
-                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "600", color: "#64748B" }}>{item.label}</Text>
-                  {active ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
-                </TouchableOpacity>
-              );
-            }}
-          />
-        </View>
-      </Modal>
+      <CurrencyPickerModal
+        visible={visible}
+        value={value}
+        onSelect={onChange}
+        onClose={() => setVisible(false)}
+      />
     </>
   );
 }

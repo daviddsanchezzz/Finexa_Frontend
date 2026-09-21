@@ -10,7 +10,7 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyb
 import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
 import WalletIcon from "../../../components/WalletIcon";
 import { FormTextField } from "../../../components/creation";
+import CurrencyPickerModal, { currencySymbol } from "../../../components/CurrencyPickerModal";
 
 // Mismas categorías que la pestaña "Gastos" de un viaje (TripExpensesSection).
 const TRIP_EXPENSE_CATEGORIES = [
@@ -181,6 +182,10 @@ export default function AddScreen({ navigation }: any) {
   const [selectedSub, setSelectedSub] = useState<any>(null);
   const [tripExpenseCategory, setTripExpenseCategory] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  // Divisa mostrada junto al importe. Por ahora solo visual: detectada desde
+  // Wallet (?qa=1) o EUR por defecto; NO se guarda en la transacción.
+  const [currency, setCurrency] = useState<string>("EUR");
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
   const [calcVisible, setCalcVisible] = useState(false);
   const [calcExpression, setCalcExpression] = useState("");
   const [description, setDescription] = useState("");
@@ -439,6 +444,7 @@ export default function AddScreen({ navigation }: any) {
         : ""
     );
 
+    setCurrency(sourceData.currency || "EUR");
     setDescription(sourceData.description || "");
     setDate(sourceData.date ? new Date(sourceData.date) : new Date());
 
@@ -712,12 +718,15 @@ export default function AddScreen({ navigation }: any) {
                 >
                   {amount || "0,00"}
                 </Text>
-                <FontAwesome5
-                  name="euro-sign"
-                  size={22}
-                  color="#94A3B8"
-                  style={{ marginLeft: 6, marginBottom: 7 }}
-                />
+                <TouchableOpacity
+                  onPress={() => setCurrencyModalOpen(true)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{ marginLeft: 6, marginBottom: 6 }}
+                >
+                  <Text style={{ fontSize: 22, fontWeight: "700", color: "#94A3B8" }}>
+                    {currencySymbol(currency)}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
 
@@ -1283,6 +1292,13 @@ export default function AddScreen({ navigation }: any) {
           setUpdateScopeModalVisible(false);
           handleSubmit(scope);
         }}
+      />
+
+      <CurrencyPickerModal
+        visible={currencyModalOpen}
+        value={currency}
+        onSelect={setCurrency}
+        onClose={() => setCurrencyModalOpen(false)}
       />
     </SafeAreaView>
   );

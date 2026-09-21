@@ -124,7 +124,7 @@ function DesktopShellLayout({
     if (!params) return;
     clearQuickAddFromSession();
     const id = setTimeout(() => {
-      openCreateTx({ amount: params.amount, description: params.merchant, cardName: params.cardName, quickAddId: params.qid });
+      openCreateTx({ amount: params.amount, currency: params.currency ?? undefined, description: params.merchant, cardName: params.cardName, quickAddId: params.qid });
     }, 300);
     return () => clearTimeout(id);
   }, [openCreateTx]);

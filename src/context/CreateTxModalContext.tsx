@@ -10,6 +10,7 @@ export type CreateTxPrefill = {
   date?: string; // ISO
   assetId?: number;
   amount?: number;
+  currency?: string; // ISO 4217 detectada (solo para preseleccionar divisa en el form)
   description?: string;
   cardName?: string;
   quickAddId?: string;

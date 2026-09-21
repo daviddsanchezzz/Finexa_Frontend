@@ -1,8 +1,12 @@
 import api from "../api/api";
+import { parseWalletAmount } from "./walletAmount";
 
 const SESSION_KEY = 'finexa_quick_add';
 
-export type QuickAddParams = { amount: number; merchant: string; cardName?: string; qid: string; rawQuery?: string; token?: string };
+// currency: ISO 4217 detectada en el importe de Wallet, o null/undefined si no
+// se pudo determinar (p.ej. "$" es ambiguo: USD/CAD/AUD...). Solo se usa para
+// preseleccionar la divisa en el formulario; no se persiste en la transacción.
+export type QuickAddParams = { amount: number; currency?: string | null; merchant: string; cardName?: string; qid: string; rawQuery?: string; token?: string };
 
 function generateQid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -45,10 +49,16 @@ export function readQuickAddFromUrl(): { params: QuickAddParams; fromNotificatio
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   if (!params.get('qa')) return null;
-  const raw = (params.get('amount') ?? '').replace(/[^0-9.,]/g, '').replace(',', '.');
-  const amount = parseFloat(raw);
+  // URLSearchParams ya devuelve el valor decodificado ("0,20 €").
+  const parsed = parseWalletAmount(params.get('amount'));
   const merchant = params.get('merchant') ?? '';
-  if (!isFinite(amount) || amount <= 0) return null;
+  if (!parsed || parsed.amount <= 0) return null;
+  // Si el Atajo manda el código ISO explícito (&currency=CHF, propiedad
+  // "Código de divisa" de Wallet) tiene prioridad sobre el símbolo del importe:
+  // resuelve casos ambiguos como "$" o "¥".
+  const explicit = (params.get('currency') ?? '').trim().toUpperCase();
+  const currency = /^[A-Z]{3}$/.test(explicit) ? explicit : parsed.currency;
+  const { amount } = parsed;
   const cardName = params.get('card') ?? undefined;
   const nid = params.get('nid');
   const qid = nid || generateQid();
@@ -60,7 +70,7 @@ export function readQuickAddFromUrl(): { params: QuickAddParams; fromNotificatio
   // sirve para diagnosticar por qué a veces el comercio llega vacío: así
   // vemos exactamente qué mandó Apple, no lo que nosotros interpretamos.
   const rawQuery = window.location.search;
-  return { params: { amount, merchant, cardName, qid, rawQuery, token }, fromNotification: !!nid };
+  return { params: { amount, currency, merchant, cardName, qid, rawQuery, token }, fromNotification: !!nid };
 }
 
 // Crea (fire-and-forget) la notificación de "nuevo gasto" pendiente en el

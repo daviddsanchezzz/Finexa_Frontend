@@ -17,6 +17,7 @@ export default function MainTabs({ navigation }: any) {
         prefillData: {
           type: 'expense',
           amount: params.amount,
+          currency: params.currency ?? undefined,
           description: params.merchant,
           cardName: params.cardName,
           quickAddId: params.qid,

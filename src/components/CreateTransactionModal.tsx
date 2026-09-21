@@ -20,6 +20,7 @@ import { matchWalletByCard } from "../utils/quickAdd";
 import EditCategoryModal from "./EditCategoryModal";
 import CrossPlatformDateTimePicker from "./CrossPlatformDateTimePicker";
 import { isLogoUrl } from "../constants/bankPresets";
+import CurrencyPickerModal, { currencySymbol } from "./CurrencyPickerModal";
 
 // Los chips de cartera solo aceptan texto; si el "emoji" es en realidad la
 // URL de un logo de banco, se omite en vez de imprimir la URL como texto.
@@ -35,6 +36,7 @@ type Prefill = {
   date?: string; // ISO
   assetId?: number;
   amount?: number;
+  currency?: string;
   description?: string;
   cardName?: string;
   quickAddId?: string;
@@ -203,6 +205,9 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
   const [selectedInvestmentAsset, setSelectedInvestmentAsset] = useState<InvestmentAsset | null>(null);
 
   const [amount, setAmount] = useState("");
+  // Solo visual por ahora: detectada desde Wallet (?qa=1) o EUR; no se guarda.
+  const [currency, setCurrency] = useState<string>("EUR");
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
   const [description, setDescription] = useState("");
 
   const [date, setDate] = useState<Date>(new Date());
@@ -306,6 +311,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
   const resetForm = useCallback(() => {
     setType(prefill?.type ?? "expense");
     setAmount(prefill?.amount != null ? String(prefill.amount).replace('.', ',') : "");
+    setCurrency(prefill?.currency || "EUR");
     setDescription(prefill?.description ?? "");
     setDate(prefill?.date ? new Date(prefill.date) : new Date());
     setRecurrenceInterval("never");
@@ -517,6 +523,12 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <CurrencyPickerModal
+        visible={currencyModalOpen}
+        value={currency}
+        onSelect={setCurrency}
+        onClose={() => setCurrencyModalOpen(false)}
+      />
       <Pressable
         onPress={onClose}
         style={[
@@ -741,7 +753,13 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                       }}
                       blurOnSubmit={false}
                     />
-                    <Text style={{ fontSize: 26, fontWeight: "900", color: "#94A3B8", marginLeft: 6, paddingBottom: 10 }}>€</Text>
+                    <TouchableOpacity
+                      onPress={() => setCurrencyModalOpen(true)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={{ marginLeft: 6, paddingBottom: 10 }}
+                    >
+                      <Text style={{ fontSize: 26, fontWeight: "900", color: "#94A3B8" }}>{currencySymbol(currency)}</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
