@@ -31,6 +31,8 @@ type User = {
   name: string;
   email: string;
   avatar?: string;
+  // Moneda base para consolidar patrimonio/estadísticas. ISO 4217.
+  currency?: string;
 };
 
 type AuthContextType = {

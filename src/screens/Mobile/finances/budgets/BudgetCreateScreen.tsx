@@ -7,11 +7,13 @@ import { useRoute } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
 import { formatEuro } from "../../../../utils/currency";
+import { useAuth } from "../../../../context/AuthContext";
 import {
   CreationFlow,
   CreationStep,
   FormAccountPicker,
   FormCategoryPicker,
+  FormCurrencyPicker,
   FormDateField,
   FormError,
   FormMoneyField,
@@ -60,6 +62,7 @@ interface CategoryLimitDraft {
 export default function BudgetCreateScreen({ navigation }: any) {
   const route = useRoute();
   const { periodType } = (route.params as any) || {};
+  const { user } = useAuth();
 
 
   const [saving, setSaving] = useState(false);
@@ -74,6 +77,7 @@ export default function BudgetCreateScreen({ navigation }: any) {
     ["daily", "weekly", "monthly", "yearly"].includes(periodType) ? periodType : "monthly"
   );
   const [totalLimitText, setTotalLimitText] = useState("");
+  const [currency, setCurrency] = useState(user?.currency ?? "EUR");
 
   const [categoryLimits, setCategoryLimits] = useState<CategoryLimitDraft[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -117,6 +121,7 @@ export default function BudgetCreateScreen({ navigation }: any) {
         period,
         startDate: normalizeStartOfDay(startDate).toISOString(),
         totalLimit: totalLimitValue,
+        currency,
         categoryLimits: categoryLimits.map((c) => ({ categoryId: c.categoryId, limit: toNumberOrNull(c.limitText) || 0 })),
         walletIds,
         autoRenew,
@@ -160,9 +165,10 @@ export default function BudgetCreateScreen({ navigation }: any) {
             label="Límite total"
             value={totalLimitText}
             onChangeText={setTotalLimitText}
-            currency="€"
+            currency={currency === "EUR" ? "€" : currency}
             hint="Opcional. Define el máximo que quieres gastar en total durante este periodo."
           />
+          <FormCurrencyPicker value={currency} onChange={setCurrency} />
         </View>
       ),
     },
@@ -181,7 +187,7 @@ export default function BudgetCreateScreen({ navigation }: any) {
                   {c.name}
                 </Text>
                 <View style={{ width: 108 }}>
-                  <FormMoneyField label="" value={c.limitText} onChangeText={(t) => updateCategoryLimit(idx, t)} currency="€" />
+                  <FormMoneyField label="" value={c.limitText} onChangeText={(t) => updateCategoryLimit(idx, t)} currency={currency === "EUR" ? "€" : currency} />
                 </View>
                 <TouchableOpacity onPress={() => removeCategoryLimit(idx)} hitSlop={8} accessibilityLabel={`Eliminar límite de ${c.name}`}>
                   <Ionicons name="trash-outline" size={18} color={colors.error} />

@@ -20,10 +20,12 @@ import CrossPlatformDateTimePicker from "../../../../components/CrossPlatformDat
 import { CountrySelect } from "../../../../components/CountrySelect";
 import { appAlert } from "../../../../utils/appAlert";
 import { continentFromCountryCode } from "../../../../utils/countryContinent";
+import { useAuth } from "../../../../context/AuthContext";
 import {
   CreationFlow,
   EditingActionRow,
   EditingForm,
+  FormCurrencyPicker,
   FormMoneyField,
   FormSection,
   FormSegmentedControl,
@@ -1008,9 +1010,11 @@ export default function TripFormScreen({ route, navigation }: any) {
 const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: "#64748B" };
 
 function CreateTripWizard({ navigation }: { navigation: any }) {
+  const { user } = useAuth();
   const [stays, setStays]             = useState<StayDraft[]>([]);
   const [tripName, setTripName]       = useState("");
   const [budgetText, setBudgetText]     = useState("");
+  const [currency, setCurrency]       = useState(user?.currency ?? "EUR");
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving]             = useState(false);
@@ -1065,6 +1069,7 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
           endDate: s.endDate ? s.endDate.toISOString() : undefined,
         })),
         budget: budgetText.trim() ? parseMoney(budgetText) : null,
+        currency,
         coverImageUrl: coverImageUrl ?? undefined,
       });
       setCreatedTrip({ id: res.data.id, name: res.data.name });
@@ -1259,11 +1264,12 @@ function CreateTripWizard({ navigation }: { navigation: any }) {
                 />
                 <FormMoneyField
                   label="Presupuesto estimado"
-                  currency="€"
+                  currency={currency === "EUR" ? "€" : currency}
                   value={budgetText}
                   onChangeText={setBudgetText}
                   keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
                 />
+                <FormCurrencyPicker value={currency} onChange={setCurrency} />
               </FormSection>
             </View>
           ),
