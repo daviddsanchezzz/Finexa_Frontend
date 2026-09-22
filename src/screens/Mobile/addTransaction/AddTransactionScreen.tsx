@@ -516,6 +516,7 @@ export default function AddScreen({ navigation }: any) {
     const payload: any = {
       type,
       amount: parseFloat(amount.replace(",", ".")),
+      currency,
       description,
       date: date.toISOString(),
     };

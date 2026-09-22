@@ -449,6 +449,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     const payload: any = {
       type,
       amount: n,
+      currency,
       description: description?.trim() || "",
       date: date.toISOString(),
     };
