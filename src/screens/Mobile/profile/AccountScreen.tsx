@@ -23,6 +23,7 @@ import { useHomePreferences } from "../../../hooks/useHomePreferences";
 import { pickAndUploadAvatar } from "../../../utils/uploadTripCover";
 import { MyDocumentsContent } from "./MyDocumentsScreen";
 import { QuickAddSettingsContent } from "./QuickAddSettingsScreen";
+import CurrencyPickerModal, { currencySymbol } from "../../../components/CurrencyPickerModal";
 
 type AccountTab = "preferences" | "documents" | "nfc";
 
@@ -37,6 +38,8 @@ export default function AccountScreen() {
   const [saving, setSaving] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [tab, setTab] = useState<AccountTab>("preferences");
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [savingCurrency, setSavingCurrency] = useState(false);
 
   useEffect(() => {
     setName(user?.name || "");
@@ -61,6 +64,20 @@ export default function AccountScreen() {
   };
 
   const handleRemoveAvatar = () => setAvatar("");
+
+  const handleSelectCurrency = async (currency: string) => {
+    if (currency === (user?.currency ?? "EUR")) return;
+    setSavingCurrency(true);
+    try {
+      await api.patch("/users/me", { currency });
+      updateUser({ currency });
+      await refreshUser();
+    } catch {
+      Alert.alert("Error", "No se pudo cambiar la moneda principal. Inténtalo de nuevo.");
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     const nextName = name.trim();
@@ -219,7 +236,7 @@ export default function AccountScreen() {
                 />
               </View>
 
-              <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Rentabilidad de inversiones en Inicio</Text>
                   <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
@@ -235,6 +252,28 @@ export default function AccountScreen() {
                   />
                 )}
               </View>
+
+              <TouchableOpacity
+                onPress={() => setCurrencyModalVisible(true)}
+                disabled={savingCurrency}
+                activeOpacity={0.7}
+                style={{ padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Moneda principal</Text>
+                  <Text style={{ fontSize: 12, lineHeight: 18, color: colors.textSecondary, marginTop: 4 }}>
+                    Se usa para consolidar patrimonio y estadísticas. No convierte tus importes ya guardados.
+                  </Text>
+                </View>
+                {savingCurrency ? <ActivityIndicator color={colors.primary} /> : (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.textSecondary }}>
+                      {currencySymbol(user?.currency ?? "EUR")} {user?.currency ?? "EUR"}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
             {preferencesError ? <Text accessibilityRole="alert" style={{ color: colors.error, fontSize: 12, marginTop: 12 }}>No se pudo cargar o guardar la preferencia. Vuelve a intentarlo.</Text> : null}
           </View>
@@ -246,6 +285,12 @@ export default function AccountScreen() {
       </ScrollView>
 
       <ChangePasswordModal visible={passwordModalVisible} onClose={() => setPasswordModalVisible(false)} />
+      <CurrencyPickerModal
+        visible={currencyModalVisible}
+        value={user?.currency ?? "EUR"}
+        onSelect={handleSelectCurrency}
+        onClose={() => setCurrencyModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
