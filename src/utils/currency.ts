@@ -1,3 +1,30 @@
+import { COMMON_CURRENCIES } from "./exchangeRate";
+
+// Monedas que no usan decimales. Añadir una es una línea aquí.
+const ZERO_DECIMAL_CURRENCIES = new Set(["JPY"]);
+
+function currencySymbolFor(code: string): string {
+  return COMMON_CURRENCIES.find((c) => c.code === code)?.symbol ?? code;
+}
+
+// Formato de moneda genérico, para cualquier ISO 4217. Símbolo detrás del
+// número, con espacio ("1.234,50 €", nunca "€1.234,50"), igual que el resto
+// de la UI. Reutiliza el mismo agrupador manual que formatEuro (ver su
+// comentario: no usamos Intl.NumberFormat porque en Hermes/React Native su
+// soporte es parcial y el agrupador de miles no siempre se aplica en
+// dispositivo real). `locale` queda en la firma para uso futuro, pero hoy
+// solo se implementa el formato es-ES que ya usa toda la app.
+export function formatCurrency(amount: number, currency: string, locale = "es-ES"): string {
+  if (!Number.isFinite(amount)) amount = 0;
+  const decimals = ZERO_DECIMAL_CURRENCIES.has(currency) ? 0 : 2;
+  const abs = Math.abs(amount).toFixed(decimals);
+  const sign = amount < 0 && Number(abs) !== 0 ? "-" : "";
+  const [intPart, decPart] = abs.split(".");
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const number = decPart ? `${grouped},${decPart}` : grouped;
+  return `${sign}${number} ${currencySymbolFor(currency)}`;
+}
+
 // Formato de número monetario único para toda la app: separador de miles "."
 // y decimales ",", ej. 1234.5 -> "1.234,50".
 //
