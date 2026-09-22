@@ -1,3 +1,4 @@
+import { quickAddCurrency } from "../../../utils/quickAddCurrency";
 import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -61,13 +62,14 @@ export default function NotificationsScreen() {
     if (n.type === "friend_request") friendReq.handlePress(n);
     else if (n.type === "trip_invite") tripInv.handlePress(n);
     else if (n.type === "quick_transaction") {
-      const d = (n.data ?? {}) as { amount?: number; merchant?: string; cardName?: string; qid?: string };
+      const d = (n.data ?? {}) as { amount?: number; merchant?: string; cardName?: string; qid?: string; currency?: string; rawQuery?: string };
       navigation.navigate("MainTabs", {
         screen: "Add",
         params: {
           prefillData: {
             type: "expense",
             amount: d.amount,
+            currency: quickAddCurrency(d),
             description: d.merchant,
             cardName: d.cardName,
             quickAddId: d.qid,

@@ -106,6 +106,7 @@ export function sendQuickAddNotification(params: QuickAddParams): void {
   const path = params.token ? '/notifications/quick-transaction/via-token' : '/notifications/quick-transaction';
   api.post(path, {
     amount: params.amount,
+    currency: params.currency,
     merchant: params.merchant,
     cardName: params.cardName,
     qid: params.qid,

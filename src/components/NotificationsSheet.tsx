@@ -1,3 +1,4 @@
+import { quickAddCurrency } from "../utils/quickAddCurrency";
 import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import Modal from "react-native-modal";
@@ -65,7 +66,7 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
     if (n.type === "friend_request") friendReq.handlePress(n);
     else if (n.type === "trip_invite") tripInv.handlePress(n);
     else if (n.type === "quick_transaction") {
-      const d = (n.data ?? {}) as { amount?: number; merchant?: string; cardName?: string; qid?: string };
+      const d = (n.data ?? {}) as { amount?: number; merchant?: string; cardName?: string; qid?: string; currency?: string; rawQuery?: string };
       onClose();
       navigation.navigate("MainTabs", {
         screen: "Add",
@@ -73,6 +74,7 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
           prefillData: {
             type: "expense",
             amount: d.amount,
+            currency: quickAddCurrency(d),
             description: d.merchant,
             cardName: d.cardName,
             quickAddId: d.qid,
