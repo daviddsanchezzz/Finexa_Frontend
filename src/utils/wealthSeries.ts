@@ -7,6 +7,11 @@ export type TxType = "income" | "expense" | "transfer";
 export interface WealthTransaction {
   date: string;
   amount: number;
+  // Equivalente en la moneda base del usuario, ya calculado por el backend al
+  // crear la transacción (tipo histórico del día). Null/ausente cuando la
+  // transacción ya está en la moneda base — en ese caso `amount` es correcto
+  // tal cual. Nunca se convierte nada aquí, solo se elige el campo correcto.
+  baseAmount?: number | null;
   type: TxType;
   isRecurring?: boolean;
   active?: boolean;
@@ -121,8 +126,9 @@ export function computeWealthSeries(params: {
       perYearMonth[y] = { income: new Array(12).fill(0), expense: new Array(12).fill(0) };
     }
 
-    if (tx.type === "income") perYearMonth[y].income[m] += Math.abs(tx.amount);
-    if (tx.type === "expense") perYearMonth[y].expense[m] += Math.abs(tx.amount);
+    const amount = Math.abs(tx.baseAmount ?? tx.amount);
+    if (tx.type === "income") perYearMonth[y].income[m] += amount;
+    if (tx.type === "expense") perYearMonth[y].expense[m] += amount;
   }
 
   let minYear = currentYear;
