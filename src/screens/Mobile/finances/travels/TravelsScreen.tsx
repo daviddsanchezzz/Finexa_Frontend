@@ -23,7 +23,8 @@ import StatsRow from "../../../../components/StatsRow";
 import { TravelsScreenSkeleton } from "../../../../components/skeletons/TravelsScreenSkeleton";
 import UserAvatar from "../../../../components/UserAvatar";
 import { tripDateKey } from "../../../../utils/tripDates";
-import { formatEuro as formatEuroCore } from "../../../../utils/currency";
+import { formatCurrency } from "../../../../utils/currency";
+import { useAuth } from "../../../../context/AuthContext";
 import { continentFromCountryCode, type CountryContinent } from "../../../../utils/countryContinent";
 
 type TripStatus = "wishlist" | "planning" | "seen";
@@ -47,6 +48,8 @@ interface TripFromApi {
   endDate: string | null;
   status: TripStatus;
   cost: number;
+  currency?: string;
+  costInBase?: number;
   budget: number | null;
   continent: Continent | null;
   year: number | null;
@@ -262,9 +265,12 @@ function formatDateRange(startISO?: string | null, endISO?: string | null) {
   if (isValidISODate(startISO)) return new Date(startISO!).toLocaleDateString("es-ES", opts);
   return null;
 }
-function formatEuro(n: number) {
+// Formato compacto para importes de viaje: redondeado, sin decimales si son
+// ,00 — igual que el resto de la app, pero currency-aware (un viaje puede
+// estar en su propia divisa, distinta de la moneda base del usuario).
+function formatTripMoney(n: number, currency: string) {
   const v = Number.isFinite(n) ? n : 0;
-  return `${formatEuroCore(Math.round(v)).replace(/,00$/, "")} €`;
+  return formatCurrency(Math.round(v), currency).replace(/,00(?=\s)/, "");
 }
 function continentLabel(c?: string | null) {
   const v = (c || "").toLowerCase();
@@ -295,6 +301,8 @@ function tripDurationDays(t: TripUI) {
 
 /* ─── Screen ─── */
 export default function TripsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
+  const { user } = useAuth();
+  const baseCurrency = user?.currency ?? "EUR";
   const [boardMode, setBoardMode]           = useState<BoardMode>("status");
   const [q, setQ]                           = useState("");
   const [statusSelected, setStatusSelected] = useState<TripStatus>("planning");
@@ -413,7 +421,10 @@ export default function TripsHomeScreen({ navigation, isPinnedModuleTab = false 
 
   const heroStats = useMemo(() => {
     const seenTrips  = trips.filter(t => t.status === "seen");
-    const totalSpent = seenTrips.reduce((s, t) => s + (t.cost || 0), 0);
+    // Viajes de monedas distintas no se pueden sumar en crudo: costInBase ya
+    // viene convertido a la moneda base desde el backend (GET /trips). No se
+    // convierte nada aquí.
+    const totalSpent = seenTrips.reduce((s, t) => s + (t.costInBase ?? t.cost ?? 0), 0);
     const visited    = summary?.visitedCountries ?? uniqueCountryCount(seenTrips);
     const visitedPct = summary?.visitedPct ?? 0;
     return { totalSpent, totalTrips: trips.length, seenCount: seenTrips.length, visited, visitedPct };
@@ -535,7 +546,7 @@ export default function TripsHomeScreen({ navigation, isPinnedModuleTab = false 
         <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
           <HeroBalanceCard
             label="Gastado en viajes"
-            value={summaryLoading ? "—" : formatEuro(heroStats.totalSpent)}
+            value={summaryLoading ? "—" : formatTripMoney(heroStats.totalSpent, baseCurrency)}
             footer={
               <Text style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 4, textAlign: "center" }} numberOfLines={1}>
                 {summaryLoading
@@ -911,7 +922,7 @@ export default function TripsHomeScreen({ navigation, isPinnedModuleTab = false 
                         <View style={{ alignItems: "flex-end", gap: 4 }}>
                           {showCost && (
                             <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>
-                              {formatEuro(t.cost)}
+                              {formatTripMoney(t.cost, t.currency ?? "EUR")}
                             </Text>
                           )}
                           <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />

@@ -24,7 +24,7 @@ import { appAlert } from "../../../../utils/appAlert";
 import UserAvatar from "../../../../components/UserAvatar";
 import { TripDetailScreenSkeleton } from "../../../../components/skeletons/TripDetailScreenSkeleton";
 import OverflowMenuButton from "../../../../components/OverflowMenuButton";
-import { formatEuro as formatEuroCore } from "../../../../utils/currency";
+import { formatCurrency } from "../../../../utils/currency";
 import { pickAndUploadTripCover } from "../../../../utils/uploadTripCover";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
@@ -117,6 +117,7 @@ interface TripFromApi {
   tasks?: TripTask[];
   notes?: TripNote[];
   cost: number | null;
+  currency?: string;
   budget?: number | null;
   coverImageUrl?: string | null;
   countryStays?: CountryStayFromApi[] | null;
@@ -290,7 +291,9 @@ export default function TripDetailScreen({ route, navigation }: any) {
   const [exporting, setExporting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
-  const formatEuro = (n: number) => `${formatEuroCore(n)} €`;
+  // El importe de un viaje va en su propia moneda (Trip.currency), no
+  // necesariamente la moneda base del usuario.
+  const formatEuro = (n: number) => formatCurrency(n, trip?.currency ?? "EUR");
 
   const handleDeleteTrip = () => {
     if (!trip) return;
@@ -995,6 +998,7 @@ export default function TripDetailScreen({ route, navigation }: any) {
           {tab === "expenses" && (
             <TripExpensesSection
               tripId={trip.id}
+              currency={trip.currency ?? "EUR"}
               planItems={planItems as any}
               budget={trip.budget ?? null}
               transactions={tripTransactions}

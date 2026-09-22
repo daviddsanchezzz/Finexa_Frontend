@@ -8,7 +8,7 @@ import api from "../../../../../api/api";
 import { appAlert } from "../../../../../utils/appAlert";
 import TransactionsList from "../../../../../components/TransactionsList";
 import PlanItemDetailModal from "./PlanItemDetailModal";
-import { formatEuro as formatEuroCore } from "../../../../../utils/currency";
+import { formatEuro as formatEuroCore, formatCurrency } from "../../../../../utils/currency";
 
 // ✅ Si ya existen en tu proyecto, elimina estos enums y usa tus imports reales
 export enum BudgetCategoryType {
@@ -93,6 +93,11 @@ export interface TripTx {
 
 interface Props {
   tripId: number;
+  // Moneda del viaje (Trip.currency). Todos los importes de esta sección
+  // (gastado, presupuesto, por categoría, por item) se muestran en ella, no
+  // en la moneda base del usuario — es la misma en la que se calculan en el
+  // backend (ver TripsService.getTrips / sumPlanItemsCost).
+  currency?: string;
   planItems: TripPlanItem[];
   budget: number | null;
   transactions?: TripTx[];
@@ -112,9 +117,6 @@ const UI = {
   background: "#F6F8FC",
 };
 
-function formatEuro(n: number) {
-  return `${formatEuroCore(n)} €`;
-}
 
 function safeNumber(v: any) {
   const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : 0;
@@ -333,7 +335,7 @@ function ExpenseRow({
       </View>
 
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>{formatEuro(cost)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "900", color: UI.text }}>{formatCurrency(cost, item.currency || "EUR")}</Text>
         {!!item.currency && item.currency !== "EUR" && !!item.cost && (
           <Text style={{ fontSize: 10, fontWeight: "600", color: UI.muted2, marginTop: 1 }}>
             {formatEuroCore(Number(item.cost))} {item.currency}
@@ -346,6 +348,7 @@ function ExpenseRow({
 
 export default function TripExpensesSection({
   tripId,
+  currency = "EUR",
   planItems,
   budget,
   transactions = [],
@@ -355,6 +358,9 @@ export default function TripExpensesSection({
   onRefresh,
 }: Props) {
   const navigation = useNavigation<any>();
+  // Todos los importes de esta sección van en la moneda del viaje, no en la
+  // moneda base del usuario — igual que ya los calcula el backend.
+  const formatEuro = (n: number) => formatCurrency(n, currency);
   const [cat, setCat] = useState<DisplayCategoryKey | null>(null);
   const [subTab, setSubTab] = useState<"all" | "pending">("all");
   const [linkingItem, setLinkingItem] = useState<TripPlanItem | null>(null);
