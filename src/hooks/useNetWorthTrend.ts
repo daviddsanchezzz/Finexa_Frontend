@@ -20,6 +20,8 @@ export interface NetWorthWallet {
   name: string;
   emoji?: string | null;
   balance: number;
+  currency: string;
+  balanceInBase: number;
 }
 
 export interface NetWorthTrend {
@@ -89,16 +91,16 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
     staleTime: 1000 * 60,
   });
 
-  const walletsQuery = useQuery({
-    queryKey: ["netWorthWallets", txVersion],
-    queryFn: async () => (await api.get("/wallets")).data as NetWorthWallet[],
+  const netWorthQuery = useQuery({
+    queryKey: ["netWorthCurrent", txVersion],
+    queryFn: async () => (await api.get("/dashboard/net-worth")).data as { total: number; currency: string; wallets: NetWorthWallet[] },
     staleTime: 1000 * 30,
   });
 
-  const isLoading = seriesQuery.isLoading || walletsQuery.isLoading;
+  const isLoading = seriesQuery.isLoading || netWorthQuery.isLoading;
 
   return useMemo(() => {
-    if (!seriesQuery.data || !walletsQuery.data) {
+    if (!seriesQuery.data || !netWorthQuery.data) {
       return { isLoading, current: 0, wallets: [], periodDelta: 0, periodSavings: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [], monthsByYear: {}, globalSummaryList: [] };
     }
 
@@ -118,8 +120,9 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       currentMonth,
     });
 
-    // Patrimonio actual real = suma del balance de todas las carteras ahora mismo.
-    const current = walletsQuery.data.reduce((sum, w) => sum + Number(w.balance || 0), 0);
+    // Patrimonio actual real, ya convertido a la moneda base del usuario por
+    // el backend (GET /dashboard/net-worth) — no se convierte nada aquí.
+    const current = netWorthQuery.data.total;
 
     // Neto (ingresos - gastos) de las transacciones desde una fecha hasta hoy,
     // para reconstruir hacia atrás el patrimonio cuando no hay un "cierre"
@@ -165,6 +168,6 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       .map((p) => ({ label: p.label, value: p.finalAmount }));
     sparkline.push({ label: "Hoy", value: current });
 
-    return { isLoading, current, wallets: walletsQuery.data, periodDelta, periodSavings, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
-  }, [seriesQuery.data, walletsQuery.data, isLoading, filterType]);
+    return { isLoading, current, wallets: netWorthQuery.data.wallets, periodDelta, periodSavings, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
+  }, [seriesQuery.data, netWorthQuery.data, isLoading, filterType]);
 }
