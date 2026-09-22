@@ -154,7 +154,7 @@ function defaultProfitForm(): ProfitForm {
   };
 }
 
-export default function ProjectDetailScreen({ route, navigation }: any) {
+export default function ProjectDetailScreen({ route, navigation, onEditTransaction }: any) {
   const projectId: number | undefined = route?.params?.projectId;
 
   const projectQuery = useQuery({
@@ -1276,7 +1276,10 @@ export default function ProjectDetailScreen({ route, navigation }: any) {
                   onPress={() => {
                     const tx = project.transactions.find((t) => t.id === selectedMovement.id);
                     setSelectedMovement(null);
-                    if (tx) navigation.navigate('Add', { editData: tx });
+                    if (tx) {
+                      if (onEditTransaction) onEditTransaction(tx);
+                      else navigation.navigate('Add', { editData: tx });
+                    }
                   }}
                   className="flex-row items-center px-2 py-3 border-b border-slate-100"
                 >

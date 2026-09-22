@@ -5,6 +5,9 @@ module.exports = {
     './App.{js,jsx,ts,tsx}',
     './index.js',
     './src/**/*.{js,jsx,ts,tsx}',
+    // Datos SVG del mapa (~1 MB), sin clases de Tailwind. Sus cadenas largas
+    // bloquean el extractor de clases y retrasan el arranque de Metro.
+    '!./src/assets/worldMapPaths.ts',
   ],
   theme: {
     extend: {

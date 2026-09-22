@@ -1,12 +1,10 @@
 // src/navigation/DesktopShellNavigator.tsx
-import React, { useMemo, useCallback, useState, useEffect } from "react";
-import { View, Text, ScrollView, Image, Pressable, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useState, useEffect } from "react";
+import { View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { CommonActions } from "@react-navigation/native";
 
 import { useAuth } from "../context/AuthContext";
-import { textStyles } from "../theme/typography";
 
 import DashboardScreen from "../screens/Desktop/dashboard/DashboardScreen";
 import RegisterScreen from "../screens/Desktop/register/RegisterScreen";
@@ -24,11 +22,18 @@ import {
   CreateTxModalProvider,
   CreateTxPrefill,
   EditTxData,
+  useCreateTxModal,
 } from "../context/CreateTxModalContext";
 import { readQuickAddFromSession, clearQuickAddFromSession, fetchCategorySuggestion } from "../utils/quickAdd";
 
-import InitialsAvatar from "../components/InitialsAvatar";
+import DesktopSidebar from "../components/DesktopSidebar";
 import TripDetailDesktopScreen from "../screens/Desktop/travel/TripDetailDesktopScreen";
+
+import ProjectsScreen from "../screens/Mobile/finances/projects/ProjectsScreen";
+import ProjectFormScreen from "../screens/Mobile/finances/projects/ProjectFormScreen";
+import ProjectDetailScreen from "../screens/Mobile/finances/projects/ProjectDetailScreen";
+import ProjectManualEntryFormScreen from "../screens/Mobile/finances/projects/ProjectManualEntryFormScreen";
+import type { ProjectDetail, ProjectManualEntry, ProjectPartner } from "../types/project";
 
 type DesktopRouteKey =
   | "dashboard"
@@ -39,6 +44,7 @@ type DesktopRouteKey =
   | "debts"
   | "goals"
   | "investments"
+  | "Projects"
   | "reports"
   | "settings";
 
@@ -55,45 +61,20 @@ export type DesktopStackParamList = {
   GoalAllocations: { goalId: number };
   GoalManualEntryForm: { goalId: number; entryId?: number };
   investments: undefined;
+  Projects: undefined;
+  ProjectForm: { editProject?: ProjectDetail } | undefined;
+  ProjectDetail: { projectId: number; openTxSelector?: boolean };
+  ProjectManualEntryForm: { projectId: number; partners?: ProjectPartner[]; editEntry?: ProjectManualEntry };
   reports: undefined;
   settings: undefined;
   TripDetailDesktop: { tripId: number }; // ✅ AÑADIR
   DesktopInvestmentDetail: { assetId: number };
 };
 
-type NavItem = {
-  key: DesktopRouteKey;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-};
-
-type PressableStateWeb = { pressed: boolean; hovered?: boolean; focused?: boolean };
-
 const Stack = createNativeStackNavigator<DesktopStackParamList>();
 const EmptyScreen = () => <View style={{ flex: 1, backgroundColor: "#F3F7FC" }} />;
 
-/** UI constants (más “black” como la referencia) */
-const UI = {
-  bg: "#F3F7FC",
-  surface: "#FFFFFF",
-  border: "#E5ECF5",
-
-  // “negro” pro
-  text: "#0B1220",
-  muted: "#6B7280",
-  muted2: "#9CA3AF",
-
-  // tu primario (se usa en activo)
-  primary: "#2563EB",
-
-  // estados
-  hover: "rgba(37,99,235,0.08)",
-  activeBg: "rgba(37,99,235,0.14)",
-
-  radius: 14,
-  itemH: 44,
-  padX: 12,
-};
+const UI = { bg: "#F3F7FC" };
 
 function DesktopShellLayout({
   children,
@@ -106,8 +87,6 @@ function DesktopShellLayout({
 }) {
   const { user, logout } = useAuth();
 
-  const [collapsed, setCollapsed] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const [isCreateTxOpen, setIsCreateTxOpen] = useState(false);
   const [createTxPrefill, setCreateTxPrefill] = useState<CreateTxPrefill | undefined>(undefined);
@@ -160,24 +139,8 @@ function DesktopShellLayout({
     setIsCreateTxOpen(true);
   }, []);
 
-  // ✅ LISTA PLANA (sin secciones)
-  const items: NavItem[] = useMemo(
-    () => [
-      { key: "dashboard", label: "Dashboard", icon: "grid-outline" },
-      { key: "registre", label: "Registros", icon: "file-tray-full-outline" },
-      { key: "investments", label: "Inversiones", icon: "trending-up-outline" },
-      { key: "budgets", label: "Presupuestos", icon: "pie-chart-outline" },
-      { key: "debts", label: "Deudas", icon: "receipt-outline" },
-      { key: "goals", label: "Objetivos", icon: "flag-outline" },
-      { key: "travels", label: "Viajes", icon: "airplane-outline" },
-      { key: "reports", label: "Reportes", icon: "document-text-outline" },
-    ],
-    []
-  );
-
   const go = useCallback(
     (key: DesktopRouteKey) => {
-      setProfileMenuOpen(false);
       navigation.dispatch(CommonActions.navigate({ name: key }));
     },
     [navigation]
@@ -185,316 +148,22 @@ function DesktopShellLayout({
 
   const handleLogout = useCallback(async () => {
     try {
-      setProfileMenuOpen(false);
       await logout();
     } catch (e) {
       console.error("Error al cerrar sesión", e);
     }
   }, [logout]);
 
-  /** Ghost icon button (sin borde permanente) */
-  const GhostIconButton = ({
-    icon,
-    onPress,
-    show,
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    onPress: () => void;
-    show?: boolean;
-  }) => {
-    if (show === false) return null;
-
-    return (
-      <Pressable
-        onPress={onPress}
-        style={(s: PressableStateWeb) => ({
-          width: 34,
-          height: 34,
-          borderRadius: 10,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: s.hovered ? UI.hover : "transparent",
-        })}
-      >
-        <Ionicons name={icon} size={18} color={UI.text} />
-      </Pressable>
-    );
-  };
-
-  const NavRow = ({ item, isActive }: { item: NavItem; isActive: boolean }) => {
-    const [hover, setHover] = useState(false);
-
-    // ✅ estilo “negro” como referencia:
-    // - texto e icono casi negro incluso no activo
-    // - activo: bg suave + un pelín más oscuro
-    const bg = isActive ? UI.activeBg : hover ? UI.hover : "transparent";
-    const fg = UI.text;
-    const ic = UI.text;
-
-    return (
-      <Pressable
-        onPress={() => go(item.key)}
-        onHoverIn={() => setHover(true)}
-        onHoverOut={() => setHover(false)}
-        style={{
-          height: UI.itemH,
-          borderRadius: UI.radius,
-          paddingHorizontal: UI.padX,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: collapsed ? "center" : "flex-start",
-          backgroundColor: bg,
-        }}
-      >
-        <Ionicons name={item.icon} size={23} color={ic} />
-
-        {!collapsed && (
-          <Text
-            style={[
-              textStyles.body,
-              {
-                marginLeft: 14,
-                fontSize: 16,
-                fontWeight: "600",
-                color: fg,
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {item.label}
-          </Text>
-        )}
-      </Pressable>
-    );
-  };
-
-  const FooterRow = ({
-    label,
-    icon,
-    active,
-    onPress,
-  }: {
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    active: boolean;
-    onPress: () => void;
-  }) => {
-    const [hover, setHover] = useState(false);
-
-    const bg = active ? UI.activeBg : hover ? UI.hover : "transparent";
-    const fg = UI.text;
-    const ic = UI.text;
-
-    return (
-      <Pressable
-        onPress={onPress}
-        onHoverIn={() => setHover(true)}
-        onHoverOut={() => setHover(false)}
-        style={{
-          height: UI.itemH,
-          borderRadius: UI.radius,
-          paddingHorizontal: UI.padX,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: collapsed ? "center" : "flex-start",
-          backgroundColor: bg,
-        }}
-      >
-        <Ionicons name={icon} size={18} color={ic} />
-
-        {!collapsed && (
-          <Text
-            style={[textStyles.body, { marginLeft: 10, fontSize: 13, fontWeight: "600", color: fg }]}
-            numberOfLines={1}
-          >
-            {label}
-          </Text>
-        )}
-      </Pressable>
-    );
-  };
-
   return (
     <CreateTxModalProvider value={{ openCreateTx, openEditTx, closeCreateTx }}>
       <View style={{ flex: 1, flexDirection: "row", backgroundColor: UI.bg }}>
-        {/* ===== Sidebar ===== */}
-        <View
-          style={{
-            width: collapsed ? 72 : 256,
-            backgroundColor: UI.surface,
-            borderRightWidth: 1,
-            borderRightColor: UI.border,
-            paddingHorizontal: 12,
-            paddingTop: 14,
-            paddingBottom: 14,
-            shadowColor: "#0B1220",
-            shadowOpacity: 0.04,
-            shadowRadius: 18,
-            shadowOffset: { width: 6, height: 0 },
-          }}
-        >
-          {/* Header: logo + actions */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 10,
-              gap: 6,
-            }}
-          >
-            {/* Logo */}
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Image
-                source={require("../../assets/finex_logo.png")}
-                style={{ width: 28, height: 28, resizeMode: "contain" }}
-              />
-            </View>
-
-            {/* spacer */}
-            <View style={{ flex: 1 }} />
-
-            {/* Collapse */}
-            <GhostIconButton
-              icon={collapsed ? "chevron-forward" : "chevron-back"}
-              onPress={() => {
-                setProfileMenuOpen(false);
-                setCollapsed((v) => !v);
-              }}
-            />
-
-            {/* Plus (solo abierto) */}
-            {!collapsed && <GhostIconButton icon="add" onPress={() => openCreateTx()} />}
-          </View>
-
-          {/* Menu */}
-<ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 12 }}>
-  <View style={{ gap: 12 }}>
-    {items.map((item) => (
-      <NavRow
-        key={item.key}
-        item={item}
-        isActive={routeKey === item.key}
-      />
-    ))}
-  </View>
-</ScrollView>
-
-          {/* Footer */}
-          <View style={{ borderTopWidth: 1, borderTopColor: UI.border, paddingTop: 10, gap: 6 }}>
-            <FooterRow
-              label="Ajustes"
-              icon="settings-outline"
-              active={routeKey === "settings"}
-              onPress={() => go("settings")}
-            />
-
-            {/* Profile row + dropdown */}
-            <View style={{ position: "relative" }}>
-              <Pressable
-                onPress={() => {
-                  if (!collapsed) setProfileMenuOpen((v) => !v);
-                }}
-                style={(s: PressableStateWeb) => ({
-                  height: 52,
-                  borderRadius: UI.radius,
-                  paddingHorizontal: UI.padX,
-              backgroundColor: s.hovered ? UI.hover : "transparent",
-              borderWidth: 1,
-              borderColor: s.hovered ? "rgba(37,99,235,0.18)" : "transparent",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-            })}
-              >
-                <InitialsAvatar name={user?.name} email={user?.email} size={32} />
-
-                {!collapsed && (
-                  <>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[textStyles.body, { fontSize: 13, fontWeight: "600", color: UI.text }]}
-                        numberOfLines={1}
-                      >
-                        {user?.name ?? "Mi cuenta"}
-                      </Text>
-
-                      <Text style={[textStyles.caption, { fontSize: 11, color: UI.muted }]} numberOfLines={1}>
-                        {user?.email ?? ""}
-                      </Text>
-                    </View>
-
-                    <Ionicons
-                      name={profileMenuOpen ? "chevron-up" : "chevron-down"}
-                      size={16}
-                      color={UI.muted2}
-                    />
-                  </>
-                )}
-              </Pressable>
-
-              {/* Dropdown */}
-              {!collapsed && profileMenuOpen && (
-                <>
-                  {/* overlay cerrar (web) */}
-                  {Platform.OS === "web" && (
-                    <Pressable
-                      onPress={() => setProfileMenuOpen(false)}
-                      style={{
-                        position: "fixed" as any,
-                        inset: 0,
-                        backgroundColor: "transparent",
-                        zIndex: 999,
-                      }}
-                    />
-                  )}
-
-                  <View
-                    style={{
-                      position: "absolute",
-                      bottom: 58,
-                      left: 0,
-                      right: 0,
-                      backgroundColor: UI.surface,
-                      borderRadius: UI.radius,
-                      borderWidth: 1,
-                      borderColor: UI.border,
-                      shadowColor: "#000",
-                      shadowOpacity: 0.12,
-                      shadowRadius: 18,
-                      shadowOffset: { width: 0, height: 12 },
-                      overflow: "hidden",
-                      zIndex: 1000,
-                    }}
-                  >
-                    <Pressable
-                      onPress={handleLogout}
-                      style={(s: PressableStateWeb) => ({
-                        height: 44,
-                        paddingHorizontal: 12,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 10,
-                        backgroundColor: s.hovered ? UI.hover : UI.surface,
-                      })}
-                    >
-                      <Ionicons name="log-out-outline" size={18} color={UI.text} />
-                      <Text style={[textStyles.body, { fontSize: 13, fontWeight: "600", color: UI.text }]}>
-                        Cerrar sesión
-                      </Text>
-                    </Pressable>
-                  </View>
-                </>
-              )}
-            </View>
-          </View>
-        </View>
+        <DesktopSidebar
+          activeRoute={routeKey}
+          user={user}
+          onNavigate={(key) => go(key as DesktopRouteKey)}
+          onCreate={() => openCreateTx()}
+          onLogout={handleLogout}
+        />
 
         {/* ===== Main ===== */}
         <View style={{ flex: 1 }}>{children}</View>
@@ -520,6 +189,7 @@ function withDesktopShell(Component: React.ComponentType<any>) {
         ? "investments"
         : name === "TripsDetailDesktop"
         ? "travels"
+        : name.startsWith("Project") ? "Projects"
         : name.startsWith("Goal") ? "goals"
         : (name as DesktopRouteKey);
 
@@ -530,6 +200,12 @@ function withDesktopShell(Component: React.ComponentType<any>) {
     );
   };
 }
+
+const DesktopProjectsScreen = (props: any) => <ProjectsScreen {...props} isPinnedModuleTab />;
+const DesktopProjectDetailScreen = (props: any) => {
+  const { openEditTx } = useCreateTxModal();
+  return <ProjectDetailScreen {...props} onEditTransaction={openEditTx} />;
+};
 
 const DesktopGoalsScreen = (props: any) => <GoalsScreen {...props} isDesktop />;
 
@@ -550,6 +226,10 @@ export default function DesktopShellNavigator() {
       <Stack.Screen name="investments" component={withDesktopShell(DesktopInvestmentsScreen)} />
       <Stack.Screen name="DesktopInvestmentDetail" component={withDesktopShell(DesktopInvestmentDetailScreen)} />
       <Stack.Screen name="TripDetailDesktop" component={withDesktopShell(TripDetailDesktopScreen)} />
+      <Stack.Screen name="Projects" component={withDesktopShell(DesktopProjectsScreen)} />
+      <Stack.Screen name="ProjectForm" component={withDesktopShell(ProjectFormScreen)} />
+      <Stack.Screen name="ProjectDetail" component={withDesktopShell(DesktopProjectDetailScreen)} />
+      <Stack.Screen name="ProjectManualEntryForm" component={withDesktopShell(ProjectManualEntryFormScreen)} />
       <Stack.Screen name="reports" component={withDesktopShell(EmptyScreen)} />
       <Stack.Screen name="settings" component={withDesktopShell(EmptyScreen)} />
     </Stack.Navigator>
