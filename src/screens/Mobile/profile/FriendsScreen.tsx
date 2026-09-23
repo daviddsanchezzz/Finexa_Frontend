@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import AppHeader from "../../../components/AppHeader";
 import { appAlert } from "../../../utils/appAlert";
 import { useFriends, FriendUser, FriendRequest } from "../../../hooks/useFriends";
@@ -37,6 +37,7 @@ function Avatar({ user, size = 44 }: { user: FriendUser; size?: number }) {
 }
 
 export default function FriendsScreen() {
+  const { colors } = useTheme();
   const {
     friends,
     incomingRequests,
@@ -91,7 +92,7 @@ export default function FriendsScreen() {
             style={{
               fontSize: 12,
               fontWeight: "700",
-              color: "#9CA3AF",
+              color: colors.textMuted,
               textTransform: "uppercase",
               letterSpacing: 0.6,
               marginBottom: 8,
@@ -103,31 +104,31 @@ export default function FriendsScreen() {
             style={{
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: "white",
+              backgroundColor: colors.surface,
               borderRadius: 14,
               borderWidth: 1,
-              borderColor: "#E5E7EB",
+              borderColor: colors.border,
               paddingLeft: 14,
               paddingRight: 6,
             }}
           >
-            <Ionicons name="mail-outline" size={18} color="#9CA3AF" />
+            <Ionicons name="mail-outline" size={18} color={colors.textMuted} />
             <TextInput
               value={email}
               onChangeText={setEmail}
               placeholder="Nombre, email o usuario"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               keyboardType="email-address"
               onSubmitEditing={handleAdd}
-              style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 10, fontSize: 14, color: "#0F172A" }}
+              style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 10, fontSize: 14, color: colors.text }}
             />
             <TouchableOpacity
               onPress={handleAdd}
               disabled={isSendingRequest || !email.trim()}
               activeOpacity={0.8}
               style={{
-                backgroundColor: email.trim() ? colors.primary : "#E5E7EB",
+                backgroundColor: email.trim() ? colors.primary : colors.card,
                 paddingVertical: 9,
                 paddingHorizontal: 16,
                 borderRadius: 10,
@@ -136,7 +137,7 @@ export default function FriendsScreen() {
               {isSendingRequest ? (
                 <ActivityIndicator size={14} color="white" />
               ) : (
-                <Text style={{ color: email.trim() ? "white" : "#9CA3AF", fontWeight: "700", fontSize: 13 }}>
+                <Text style={{ color: email.trim() ? "white" : colors.textMuted, fontWeight: "700", fontSize: 13 }}>
                   Añadir
                 </Text>
               )}
@@ -159,7 +160,7 @@ export default function FriendsScreen() {
                     <View
                       key={req.id}
                       style={{
-                        backgroundColor: "white",
+                        backgroundColor: colors.surface,
                         borderRadius: 16,
                         borderWidth: 1,
                         borderColor: colors.border,
@@ -170,8 +171,8 @@ export default function FriendsScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                         <Avatar user={req.user} />
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{req.user.name}</Text>
-                          <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>quiere ser tu amigo</Text>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{req.user.name}</Text>
+                          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>quiere ser tu amigo</Text>
                         </View>
                       </View>
                       <View style={{ flexDirection: "row", gap: 8 }}>
@@ -185,9 +186,9 @@ export default function FriendsScreen() {
                         <TouchableOpacity
                           onPress={() => rejectRequest(req.id)}
                           activeOpacity={0.85}
-                          style={{ flex: 1, backgroundColor: "#F3F4F6", paddingVertical: 9, borderRadius: 10, alignItems: "center" }}
+                          style={{ flex: 1, backgroundColor: colors.card, paddingVertical: 9, borderRadius: 10, alignItems: "center" }}
                         >
-                          <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 13 }}>Rechazar</Text>
+                          <Text style={{ color: colors.textSecondary, fontWeight: "700", fontSize: 13 }}>Rechazar</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -206,7 +207,7 @@ export default function FriendsScreen() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        backgroundColor: "white",
+                        backgroundColor: colors.surface,
                         borderRadius: 16,
                         borderWidth: 1,
                         borderColor: colors.border,
@@ -216,8 +217,8 @@ export default function FriendsScreen() {
                     >
                       <Avatar user={req.user} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{req.user.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>Pendiente</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{req.user.name}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Pendiente</Text>
                       </View>
                       <TouchableOpacity onPress={() => cancelRequest(req.id)} activeOpacity={0.7} style={{ padding: 6 }}>
                         <Text style={{ color: "#EF4444", fontWeight: "700", fontSize: 13 }}>Cancelar</Text>
@@ -233,7 +234,7 @@ export default function FriendsScreen() {
               {friends.length === 0 ? (
                 <View
                   style={{
-                    backgroundColor: "white",
+                    backgroundColor: colors.surface,
                     borderRadius: 16,
                     borderWidth: 1,
                     borderColor: colors.border,
@@ -241,13 +242,13 @@ export default function FriendsScreen() {
                     alignItems: "center",
                   }}
                 >
-                  <Ionicons name="people-outline" size={28} color="#CBD5E1" />
-                  <Text style={{ color: "#94A3B8", fontSize: 13, marginTop: 8, textAlign: "center" }}>
+                  <Ionicons name="people-outline" size={28} color={colors.textMuted} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: "center" }}>
                     Aún no tienes amigos. Añade a alguien por su email para empezar.
                   </Text>
                 </View>
               ) : (
-                <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
                   {friends.map((friend, idx) => (
                     <TouchableOpacity
                       key={friend.id}
@@ -259,15 +260,15 @@ export default function FriendsScreen() {
                         padding: 14,
                         gap: 12,
                         borderBottomWidth: idx !== friends.length - 1 ? 1 : 0,
-                        borderBottomColor: "#F3F4F6",
+                        borderBottomColor: colors.border,
                       }}
                     >
                       <Avatar user={friend} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>{friend.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>{friend.email}</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{friend.name}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{friend.email}</Text>
                       </View>
-                      <Ionicons name="ellipsis-vertical" size={16} color="#CBD5E1" />
+                      <Ionicons name="ellipsis-vertical" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -281,12 +282,13 @@ export default function FriendsScreen() {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
   return (
     <Text
       style={{
         fontSize: 12,
         fontWeight: "700",
-        color: "#9CA3AF",
+        color: colors.textMuted,
         textTransform: "uppercase",
         letterSpacing: 0.6,
         marginBottom: 8,

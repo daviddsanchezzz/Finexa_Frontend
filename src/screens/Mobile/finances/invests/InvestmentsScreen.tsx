@@ -303,7 +303,7 @@ function opTypeIcon(t: InvestmentOperationType): keyof typeof Ionicons.glyphMap 
 }
 
 export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
-  const { isDark, colors: t } = useTheme();
+  const { colors: t } = useTheme();
   const showToast = useUIStore((s) => s.showToast);
   const [summary, setSummary] = useState<SummaryFromApi | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1251,28 +1251,28 @@ const submitContribution = useCallback(() => {
               flex: 1,
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: "#F3F4F6",
+              backgroundColor: t.card,
               borderRadius: 13,
               paddingHorizontal: 12,
               height: 38,
             }}
           >
-            <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+            <Ionicons name="search-outline" size={16} color={t.textMuted} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Buscar inversiones"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={t.textMuted}
               style={
                 Platform.OS === "web"
-                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: "#111827", outlineStyle: "none", outlineWidth: 0 } as any)
-                  : { flex: 1, marginLeft: 6, fontSize: 13, color: "#111827" }
+                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: t.text, outlineStyle: "none", outlineWidth: 0 } as any)
+                  : { flex: 1, marginLeft: 6, fontSize: 13, color: t.text }
               }
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                <Ionicons name="close-circle" size={16} color={t.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -1284,19 +1284,19 @@ const submitContribution = useCallback(() => {
               width: 38,
               height: 38,
               borderRadius: 13,
-              backgroundColor: "#F3F4F6",
+              backgroundColor: t.card,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons name="options-outline" size={18} color="#4B5563" />
+            <Ionicons name="options-outline" size={18} color={t.textSecondary} />
             {activeFilterCount > 0 && (
               <View
                 style={{
                   position: "absolute", top: -3, right: -3,
                   minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3,
                   backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
-                  borderWidth: 1.5, borderColor: "white",
+                  borderWidth: 1.5, borderColor: t.background,
                 }}
               >
                 <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>{activeFilterCount}</Text>
@@ -1314,8 +1314,8 @@ const submitContribution = useCallback(() => {
           <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center" }}>
             <Ionicons name="cloud-offline-outline" size={30} color="#DC2626" />
           </View>
-          <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>Error al cargar</Text>
-          <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", textAlign: "center" }}>
+          <Text style={{ fontSize: 15, fontWeight: "800", color: t.text }}>Error al cargar</Text>
+          <Text style={{ fontSize: 13, color: t.textMuted, fontWeight: "600", textAlign: "center" }}>
             No se pudieron cargar las inversiones. Comprueba tu conexión.
           </Text>
           <TouchableOpacity
@@ -1334,7 +1334,7 @@ const submitContribution = useCallback(() => {
             opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
             transform: [{ scale: pullAnim.interpolate({ inputRange: [0, PULL_MAX], outputRange: [0.5, 1], extrapolate: "clamp" }) }],
           }}>
-            <View style={{ backgroundColor: "white", borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
+            <View style={{ backgroundColor: t.surface, borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
           </Animated.View>
@@ -1392,9 +1392,9 @@ const submitContribution = useCallback(() => {
                 style={{
                   height: 48,
                   borderRadius: 15,
-                  backgroundColor: "white",
+                  backgroundColor: t.surface,
                   borderWidth: 1,
-                  borderColor: "#E5E7EB",
+                  borderColor: t.border,
                   paddingHorizontal: 10,
                   flexDirection: "row",
                   alignItems: "center",
@@ -1406,21 +1406,21 @@ const submitContribution = useCallback(() => {
                 }}
               >
                 <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 3 }}>
-                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.35 }}>VALOR ACTUAL</Text>
-                  <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.75} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: t.textMuted, letterSpacing: 0.35 }}>VALOR ACTUAL</Text>
+                  <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.75} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: t.text, fontVariant: ["tabular-nums"] }}>
                     {formatMoney(hero.totalCurrentValue, currency)}
                   </Text>
                 </View>
-                <View style={{ width: 1, height: 25, backgroundColor: "#E5E7EB" }} />
+                <View style={{ width: 1, height: 25, backgroundColor: t.border }} />
                 <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 3 }}>
-                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.35 }}>RESULTADO</Text>
+                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: t.textMuted, letterSpacing: 0.35 }}>RESULTADO</Text>
                   <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.72} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: hero.totalPnL >= 0 ? colors.success : colors.danger, fontVariant: ["tabular-nums"] }}>
                     {hero.totalPnL >= 0 ? "+" : "−"}{formatMoney(Math.abs(hero.totalPnL), currency)}
                   </Text>
                 </View>
-                <View style={{ width: 1, height: 25, backgroundColor: "#E5E7EB" }} />
+                <View style={{ width: 1, height: 25, backgroundColor: t.border }} />
                 <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 3 }}>
-                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.35 }}>RENTABILIDAD</Text>
+                  <Text style={{ fontSize: 8.5, lineHeight: 11, fontWeight: "800", color: t.textMuted, letterSpacing: 0.35 }}>RENTABILIDAD</Text>
                   <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.75} style={{ fontSize: 12, lineHeight: 17, fontWeight: "900", color: hero.pct >= 0 ? colors.success : colors.danger, fontVariant: ["tabular-nums"] }}>
                     {compactReturn}
                   </Text>
@@ -1430,7 +1430,7 @@ const submitContribution = useCallback(() => {
           )}
 
           {/* -- Tabs -- */}
-          <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginTop: 12 }}>
+          <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: t.border, marginTop: 12 }}>
             {TABS.map(({ key, label }) => {
               const active = mainTab === key;
               return (
@@ -1445,7 +1445,7 @@ const submitContribution = useCallback(() => {
                     borderBottomColor: active ? colors.primary : "transparent",
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : "#94A3B8" }}>
+                  <Text style={{ fontSize: 13, fontWeight: active ? "800" : "600", color: active ? colors.primary : t.textMuted }}>
                     {label}
                   </Text>
                 </TouchableOpacity>
@@ -1473,20 +1473,20 @@ const submitContribution = useCallback(() => {
               <View
                 style={{
                   width: 64, height: 64, borderRadius: 24,
-                  backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
+                  backgroundColor: t.card, alignItems: "center", justifyContent: "center",
                 }}
               >
-                <Ionicons name="stats-chart" size={30} color="#94A3B8" />
+                <Ionicons name="stats-chart" size={30} color={t.textMuted} />
               </View>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}>Sin activos aún</Text>
-              <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600", textAlign: "center" }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: t.text }}>Sin activos aún</Text>
+              <Text style={{ fontSize: 13, color: t.textMuted, fontWeight: "600", textAlign: "center" }}>
                 Crea tu primer activo para empezar a seguir tu cartera.
               </Text>
             </View>
           ) : visibleAssets.length === 0 ? (
             <View style={{ alignItems: "center", paddingVertical: 32 }}>
-              <Ionicons name="search-outline" size={26} color="#CBD5E1" />
-              <Text style={{ color: "#94A3B8", fontSize: 13, marginTop: 8, textAlign: "center" }}>
+              <Ionicons name="search-outline" size={26} color={t.border} />
+              <Text style={{ color: t.textMuted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
                 {searchQuery.trim() ? `Sin resultados para "${searchQuery.trim()}"` : "Sin activos con este filtro."}
               </Text>
             </View>
@@ -1549,7 +1549,7 @@ const submitContribution = useCallback(() => {
                             {typeLabel(a.type)}
                           </Text>
                         </View>
-                        <Text style={{ fontSize: 11, color: "#94A3B8", fontWeight: "600" }}>
+                        <Text style={{ fontSize: 11, color: t.textMuted, fontWeight: "600" }}>
                           {formatMoney(a.currentValue || 0, currency)}
                         </Text>
                       </View>
@@ -1560,13 +1560,13 @@ const submitContribution = useCallback(() => {
                         {pctText}
                       </Text>
                       {allocPct != null && (
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#CBD5E1", marginTop: 2 }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: t.border, marginTop: 2 }}>
                           {(allocPct * 100).toFixed(1)}% cartera
                         </Text>
                       )}
                     </View>
 
-                    <Ionicons name="chevron-forward" size={14} color="#CBD5E1" style={{ marginLeft: 6 }} />
+                    <Ionicons name="chevron-forward" size={14} color={t.border} style={{ marginLeft: 6 }} />
                   </View>
                 </TouchableOpacity>
               );
@@ -1580,8 +1580,8 @@ const submitContribution = useCallback(() => {
             activeOpacity={0.7}
             style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 6 }}
           >
-            <Ionicons name={showArchived ? "chevron-up-outline" : "archive-outline"} size={14} color="#94A3B8" />
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "#94A3B8" }}>
+            <Ionicons name={showArchived ? "chevron-up-outline" : "archive-outline"} size={14} color={t.textMuted} />
+            <Text style={{ fontSize: 12, fontWeight: "700", color: t.textMuted }}>
               {showArchived ? "Ocultar archivadas" : `Ver archivadas (${archivedAssets.length})`}
             </Text>
           </TouchableOpacity>
@@ -1596,7 +1596,7 @@ const submitContribution = useCallback(() => {
                 activeOpacity={0.8}
                 onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
                 style={{
-                  backgroundColor: isDark ? t.surface : "#F8FAFC",
+                  backgroundColor: t.card,
                   borderRadius: 18,
                   paddingVertical: 10,
                   paddingHorizontal: 14,
@@ -1611,15 +1611,15 @@ const submitContribution = useCallback(() => {
                 <View
                   style={{
                     width: 36, height: 36, borderRadius: 12,
-                    backgroundColor: "#E2E8F0",
+                    backgroundColor: t.border,
                     alignItems: "center", justifyContent: "center",
                     marginRight: 12,
                   }}
                 >
-                  <Ionicons name="archive-outline" size={16} color="#94A3B8" />
+                  <Ionicons name="archive-outline" size={16} color={t.textMuted} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#64748B" }} numberOfLines={1}>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: t.textSecondary }} numberOfLines={1}>
                     {a.abbreviation?.trim() || a.name}
                   </Text>
                   <Text style={{ fontSize: 10, fontWeight: "600", color: "#CBD5E1", marginTop: 2 }}>
@@ -2346,20 +2346,20 @@ const submitContribution = useCallback(() => {
           };
 
           return (
-            <View style={{ marginHorizontal: 20, marginTop: 2, marginBottom: 12, backgroundColor: "white", borderRadius: 22, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+            <View style={{ marginHorizontal: 20, marginTop: 2, marginBottom: 12, backgroundColor: t.surface, borderRadius: 22, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
               {/* Unidad de toda la matriz */}
               <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: 10, paddingTop: 8, paddingBottom: 7 }}>
-                <View style={{ flexDirection: "row", backgroundColor: "#F1F5F9", borderRadius: 12, padding: 3 }}>
+                <View style={{ flexDirection: "row", backgroundColor: t.card, borderRadius: 12, padding: 3 }}>
                   {([{ key: "pct", label: "%" }, { key: "eur", label: "€" }] as const).map((m) => (
                     <TouchableOpacity
                       key={m.key}
                       onPress={() => setRentTableMetric(m.key)}
                       style={{
                         width: 38, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center",
-                        backgroundColor: rentTableMetric === m.key ? "white" : "transparent",
+                        backgroundColor: rentTableMetric === m.key ? t.surface : "transparent",
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "900", color: rentTableMetric === m.key ? colors.primary : "#94A3B8" }}>
+                      <Text style={{ fontSize: 12, fontWeight: "900", color: rentTableMetric === m.key ? colors.primary : t.textMuted }}>
                         {m.label}
                       </Text>
                     </TouchableOpacity>
@@ -2368,17 +2368,17 @@ const submitContribution = useCallback(() => {
               </View>
 
               {/* La columna de meses queda fuera del scroll: permanece fija. */}
-              <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
-                <View style={{ width: rowLabelW, zIndex: 2, backgroundColor: "white", borderRightWidth: 1, borderRightColor: "#E5E7EB" }}>
-                  <View style={{ height: headerH, justifyContent: "center", paddingLeft: 14, backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.4 }}>MES</Text>
+              <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: t.border }}>
+                <View style={{ width: rowLabelW, zIndex: 2, backgroundColor: t.surface, borderRightWidth: 1, borderRightColor: t.border }}>
+                  <View style={{ height: headerH, justifyContent: "center", paddingLeft: 14, backgroundColor: t.card, borderBottomWidth: 1, borderBottomColor: t.border }}>
+                    <Text style={{ fontSize: 10.5, fontWeight: "800", color: t.textMuted, letterSpacing: 0.4 }}>MES</Text>
                   </View>
                   <TouchableOpacity
                     activeOpacity={0.65}
                     onPress={openAllAnnualDetails}
-                    style={{ height: totalH, justifyContent: "center", paddingLeft: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}
+                    style={{ height: totalH, justifyContent: "center", paddingLeft: 14, borderBottomWidth: 1, borderBottomColor: t.border }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>Total año</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: t.text }}>Total año</Text>
                   </TouchableOpacity>
                   {monthNames.map((label, monthIndex) => (
                     <TouchableOpacity
@@ -2390,24 +2390,24 @@ const submitContribution = useCallback(() => {
                           .filter((entry): entry is { year: number; row: MonthlyRentRow } => entry.row != null);
                         if (entries.length) setMonthPopup({ label, entries });
                       }}
-                      style={{ height: monthH, justifyContent: "center", paddingLeft: 14, borderBottomWidth: monthIndex < 11 ? 1 : 0, borderBottomColor: "#F1F5F9" }}
+                      style={{ height: monthH, justifyContent: "center", paddingLeft: 14, borderBottomWidth: monthIndex < 11 ? 1 : 0, borderBottomColor: t.border }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "600", color: "#475569" }}>{label}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: t.textSecondary }}>{label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} style={{ flex: 1 }}>
                   <View style={{ minWidth: "100%" }}>
-                    <View style={{ height: headerH, flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+                    <View style={{ height: headerH, flexDirection: "row", alignItems: "center", backgroundColor: t.card, borderBottomWidth: 1, borderBottomColor: t.border }}>
                       {years.map((year) => (
-                        <Text key={`year-header-${year}`} style={{ width: colW, paddingRight: 14, fontSize: 10.5, fontWeight: "800", color: "#94A3B8", letterSpacing: 0.4, textAlign: "right" }}>
+                        <Text key={`year-header-${year}`} style={{ width: colW, paddingRight: 14, fontSize: 10.5, fontWeight: "800", color: t.textMuted, letterSpacing: 0.4, textAlign: "right" }}>
                           {year}
                         </Text>
                       ))}
                     </View>
 
-                    <View style={{ height: totalH, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+                    <View style={{ height: totalH, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: t.border }}>
                       {years.map((y) => {
                         const yr = rentYearRows.find((r) => r.year === y);
                         const value = rentTableMetric === "pct" ? (yr?.returnPct ?? null) : (yr?.profit ?? null);
@@ -2430,7 +2430,7 @@ const submitContribution = useCallback(() => {
                                 <Text style={{ fontSize: 13, fontWeight: "900", color }}>{formatCell(value, rentTableMetric, ccy)}</Text>
                               </View>
                             ) : (
-                              <Text style={{ fontSize: 12, fontWeight: "700", color: "#CBD5E1" }}>—</Text>
+                              <Text style={{ fontSize: 12, fontWeight: "700", color: t.border }}>—</Text>
                             )}
                           </TouchableOpacity>
                         );
@@ -2439,7 +2439,7 @@ const submitContribution = useCallback(() => {
 
                     {monthNames.map((mLabel, mIdx) => {
                       return (
-                        <View key={`month-row-${mIdx}`} style={{ height: monthH, flexDirection: "row", alignItems: "center", borderBottomWidth: mIdx < 11 ? 1 : 0, borderBottomColor: "#F1F5F9" }}>
+                        <View key={`month-row-${mIdx}`} style={{ height: monthH, flexDirection: "row", alignItems: "center", borderBottomWidth: mIdx < 11 ? 1 : 0, borderBottomColor: t.border }}>
                           {years.map((y) => {
                             const row = monthCellByYear.get(y)?.get(mIdx) ?? null;
                             const value = rentTableMetric === "pct" ? (row?.returnPct ?? null) : (row?.profit ?? null);
@@ -2455,7 +2455,7 @@ const submitContribution = useCallback(() => {
                                 onPress={() => row && setMonthPopup({ label: mLabel, entries: [{ year: y, row }] })}
                                 style={{ width: colW, height: monthH, paddingRight: 14, alignItems: "flex-end", justifyContent: "center" }}
                               >
-                                <Text style={{ fontSize: 12, fontWeight: "800", color: hasData ? color : "#CBD5E1", opacity: isCurrent ? 0.65 : 1 }}>
+                                <Text style={{ fontSize: 12, fontWeight: "800", color: hasData ? color : t.border, opacity: isCurrent ? 0.65 : 1 }}>
                                   {formatCell(value, rentTableMetric, ccy)}{isCurrent ? " •" : ""}
                                 </Text>
                               </TouchableOpacity>
@@ -2474,17 +2474,17 @@ const submitContribution = useCallback(() => {
         <View style={{ paddingHorizontal: 20, marginTop: 6, marginBottom: 8 }}>
           <View
             style={{
-              backgroundColor: "white",
+              backgroundColor: t.surface,
               borderRadius: 20,
               padding: 16,
               borderWidth: 1,
-              borderColor: "#E5E7EB",
+              borderColor: t.border,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A", marginBottom: 4 }}>
+            <Text style={{ fontSize: 14, fontWeight: "900", color: t.text, marginBottom: 4 }}>
               Reconstruir snapshot
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 12 }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: t.textSecondary, marginBottom: 12 }}>
               Selecciona el mes y vuelve a calcular el snapshot mensual desde el front.
             </Text>
 
@@ -2503,17 +2503,17 @@ const submitContribution = useCallback(() => {
                       alignItems: "center",
                       justifyContent: "center",
                       borderWidth: 1,
-                      borderColor: active ? colors.primary : "#E5E7EB",
-                      backgroundColor: active ? "#EEF2FF" : "#F8FAFC",
+                      borderColor: active ? colors.primary : t.border,
+                      backgroundColor: active ? `${colors.primary}1F` : t.card,
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: active ? colors.primary : "#475569" }}>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: active ? colors.primary : t.textSecondary }}>
                       {option.label}
                     </Text>
                   </TouchableOpacity>
                 );
               }) : (
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8" }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: t.textMuted }}>
                   No hay snapshots disponibles para seleccionar.
                 </Text>
               )}
@@ -2529,7 +2529,7 @@ const submitContribution = useCallback(() => {
                 borderRadius: 12,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: rebuildSnapshotLoading ? "#CBD5E1" : colors.primary,
+                backgroundColor: rebuildSnapshotLoading ? t.border : colors.primary,
                 opacity: rebuildSnapshotLoading ? 0.75 : 1,
               }}
             >
@@ -2566,17 +2566,17 @@ const submitContribution = useCallback(() => {
             {allOperationsLoading ? (
               <View style={{ alignItems: "center", paddingTop: 40 }}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={{ color: "#94A3B8", marginTop: 10, fontSize: 13, fontWeight: "600" }}>Cargando operaciones...</Text>
+                <Text style={{ color: t.textMuted, marginTop: 10, fontSize: 13, fontWeight: "600" }}>Cargando operaciones...</Text>
               </View>
             ) : filteredOperations.length === 0 ? (
               <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
-                <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
-                  <Ionicons name="swap-horizontal-outline" size={30} color="#94A3B8" />
+                <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: t.card, alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="swap-horizontal-outline" size={30} color={t.textMuted} />
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: t.text }}>
                   {allOperations.length === 0 ? "Sin operaciones" : "Sin operaciones de este tipo"}
                 </Text>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#94A3B8", textAlign: "center" }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: t.textMuted, textAlign: "center" }}>
                   {allOperations.length === 0
                     ? "Añade una operación desde el menú de tres puntos."
                     : "Prueba con otro filtro para ver más movimientos."}
@@ -2586,15 +2586,15 @@ const submitContribution = useCallback(() => {
               <View style={{ gap: 16 }}>
                 {operationsByMonth.map(([monthKey, { label, ops }]) => (
                   <View key={monthKey}>
-                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B", letterSpacing: 0.4, marginBottom: 8, marginLeft: 2 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "900", color: t.textSecondary, letterSpacing: 0.4, marginBottom: 8, marginLeft: 2 }}>
                       {label.toUpperCase()}
                     </Text>
                     <View
                       style={{
-                        backgroundColor: "white",
+                        backgroundColor: t.surface,
                         borderRadius: 20,
                         borderWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: t.border,
                         overflow: "hidden",
                       }}
                     >
@@ -2617,7 +2617,7 @@ const submitContribution = useCallback(() => {
                               paddingVertical: 12,
                               paddingHorizontal: 14,
                               borderBottomWidth: idx < ops.length - 1 ? 1 : 0,
-                              borderBottomColor: "#F1F5F9",
+                              borderBottomColor: t.border,
                               gap: 12,
                             }}
                           >
@@ -2625,17 +2625,17 @@ const submitContribution = useCallback(() => {
                               <Ionicons name={opTypeIcon(op.type)} size={17} color={color} />
                             </View>
                             <View style={{ flex: 1, gap: 2 }}>
-                              <Text style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>
+                              <Text style={{ fontSize: 13, fontWeight: "800", color: t.text }} numberOfLines={1}>
                                 {assetName}
                               </Text>
-                              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B" }}>
+                              <Text style={{ fontSize: 11, fontWeight: "600", color: t.textSecondary }}>
                                 {opLabel(op.type)} · {dateStr}
                               </Text>
                             </View>
-                            <Text style={{ fontSize: 13.5, fontWeight: "900", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+                            <Text style={{ fontSize: 13.5, fontWeight: "900", color: t.text, fontVariant: ["tabular-nums"] }}>
                               {formatMoney(Math.abs(Number(op.amount || 0)), asset?.currency ?? "EUR")}
                             </Text>
-                            <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                            <Ionicons name="chevron-forward" size={14} color={t.border} />
                           </TouchableOpacity>
                         );
                       })}
@@ -2676,11 +2676,11 @@ const submitContribution = useCallback(() => {
           onPress={() => setMonthPopup(null)}
         >
           <TouchableOpacity activeOpacity={1} style={{ width: "100%" }} onPress={() => {}}>
-            <View style={{ backgroundColor: "white", borderRadius: 24, padding: 20, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } }}>
+            <View style={{ backgroundColor: t.surface, borderRadius: 24, padding: 20, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } }}>
 
               {/* Header */}
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                <Text style={{ fontSize: 17, fontWeight: "900", color: "#0F172A" }}>
+                <Text style={{ fontSize: 17, fontWeight: "900", color: t.text }}>
                   {monthPopup?.label}
                   {monthPopup?.entries.length === 1 ? ` · ${monthPopup.entries[0].year}` : ""}
                   {!monthPopup?.isAnnual && monthPopup?.entries.length === 1 && currentMonthReturn && monthPopup.entries[0].row.monthStart === currentMonthReturn.monthStart
@@ -2688,9 +2688,9 @@ const submitContribution = useCallback(() => {
                 </Text>
                 <TouchableOpacity
                   onPress={() => setMonthPopup(null)}
-                  style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+                  style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: t.card, alignItems: "center", justifyContent: "center" }}
                 >
-                  <Ionicons name="close" size={14} color="#64748B" />
+                  <Ionicons name="close" size={14} color={t.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -2705,21 +2705,21 @@ const submitContribution = useCallback(() => {
                   v == null || !Number.isFinite(v) ? "-"
                     : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(2).replace(".", ",")} %`;
                 const tone = (v: number | null) =>
-                  v == null || !Number.isFinite(v) ? "#94A3B8"
+                  v == null || !Number.isFinite(v) ? t.textMuted
                     : v >= 0 ? "#14B8A6" : "#FB7185";
 
                 return (
                   <View key={year}>
                     {(monthPopup?.entries.length ?? 0) > 1 && (
-                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#64748B", marginBottom: 8, marginTop: idx > 0 ? 14 : 0 }}>
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: t.textSecondary, marginBottom: 8, marginTop: idx > 0 ? 14 : 0 }}>
                         {year}
                         {!monthPopup?.isAnnual && currentMonthReturn && row.monthStart === currentMonthReturn.monthStart ? " (en curso)" : ""}
                       </Text>
                     )}
 
                     {([
-                      { label: "Inicio",        value: neutral(row.startValue),   color: "#0F172A" },
-                      { label: "Final",          value: neutral(row.endValue),     color: "#0F172A" },
+                      { label: "Inicio",        value: neutral(row.startValue),   color: t.text },
+                      { label: "Final",          value: neutral(row.endValue),     color: t.text },
                       { label: "Cashflow",       value: signed(row.cashflowNet),   color: tone(row.cashflowNet) },
                       { label: "Rentabilidad %", value: pct(row.returnPct),        color: tone(row.returnPct) },
                       { label: "Rentabilidad €", value: signed(row.profit),        color: tone(row.profit) },
@@ -2732,10 +2732,10 @@ const submitContribution = useCallback(() => {
                           alignItems: "center",
                           paddingVertical: 11,
                           borderBottomWidth: i < arr.length - 1 ? 1 : 0,
-                          borderBottomColor: "#F1F5F9",
+                          borderBottomColor: t.border,
                         }}
                       >
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#475569" }}>{label}</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: t.textSecondary }}>{label}</Text>
                         <Text style={{ fontSize: 14, fontWeight: "800", color }}>{value}</Text>
                       </View>
                     ))}
@@ -2758,15 +2758,15 @@ const submitContribution = useCallback(() => {
           activeOpacity={1}
           onPress={() => setRebalanceModalOpen(false)}
         >
-          <View style={{ backgroundColor: "white", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }}>
+          <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, fontWeight: "900", color: "#0F172A" }}>Plan de balanceo</Text>
-              <TouchableOpacity onPress={() => setRebalanceModalOpen(false)} style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name="close" size={16} color="#64748B" />
+              <Text style={{ fontSize: 16, fontWeight: "900", color: t.text }}>Plan de balanceo</Text>
+              <TouchableOpacity onPress={() => setRebalanceModalOpen(false)} style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: t.card, alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="close" size={16} color={t.textSecondary} />
               </TouchableOpacity>
             </View>
             {!(rebalancePlan?.sells?.length) && !(rebalancePlan?.buys?.length) ? (
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>Tu cartera ya esta muy cerca del objetivo.</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: t.textSecondary }}>Tu cartera ya esta muy cerca del objetivo.</Text>
             ) : (
               (() => {
                 const sells = [...(rebalancePlan?.sells || [])].map((x) => ({ ...x, remaining: Number(x.amount || 0) }));
@@ -2798,17 +2798,17 @@ const submitContribution = useCallback(() => {
                         key={`move-${idx}`}
                         style={{
                           borderWidth: 1,
-                          borderColor: "#E5E7EB",
+                          borderColor: t.border,
                           borderRadius: 14,
                           paddingHorizontal: 12,
                           paddingVertical: 10,
-                          backgroundColor: "#F8FAFC",
+                          backgroundColor: t.card,
                         }}
                       >
-                        <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: "800", color: t.textSecondary, marginBottom: 4 }}>
                           Mover
                         </Text>
-                        <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
+                        <Text style={{ fontSize: 13, fontWeight: "900", color: t.text }}>
                           {m.from} → {m.to}
                         </Text>
                         <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary, marginTop: 3 }}>
@@ -2835,32 +2835,33 @@ const submitContribution = useCallback(() => {
           activeOpacity={1}
           onPress={() => setContributionInputOpen(false)}
         >
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: 320, backgroundColor: "white", borderRadius: 20, padding: 16 }}>
-            <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A", marginBottom: 10 }}>Plan de aportación</Text>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 8 }}>Cantidad a aportar</Text>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: 320, backgroundColor: t.surface, borderRadius: 20, padding: 16 }}>
+            <Text style={{ fontSize: 15, fontWeight: "900", color: t.text, marginBottom: 10 }}>Plan de aportación</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: t.textSecondary, marginBottom: 8 }}>Cantidad a aportar</Text>
             <TextInput
               value={contributionAmountText}
               onChangeText={setContributionAmountText}
               keyboardType="decimal-pad"
               placeholder="Ej: 500"
+              placeholderTextColor={t.textMuted}
               style={{
                 height: 40,
                 borderWidth: 1,
-                borderColor: "#E5E7EB",
+                borderColor: t.border,
                 borderRadius: 10,
                 paddingHorizontal: 10,
                 fontSize: 13,
                 fontWeight: "800",
-                color: "#0F172A",
+                color: t.text,
               }}
             />
             <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
               <TouchableOpacity
                 onPress={() => setContributionInputOpen(false)}
                 activeOpacity={0.85}
-                style={{ flex: 1, height: 40, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" }}
+                style={{ flex: 1, height: 40, borderRadius: 10, backgroundColor: t.card, alignItems: "center", justifyContent: "center" }}
               >
-                <Text style={{ fontSize: 12, fontWeight: "900", color: "#64748B" }}>Cancelar</Text>
+                <Text style={{ fontSize: 12, fontWeight: "900", color: t.textSecondary }}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={submitContribution}
@@ -2885,12 +2886,12 @@ const submitContribution = useCallback(() => {
           activeOpacity={1}
           onPress={() => setContributionResultOpen(false)}
         >
-          <View style={{ backgroundColor: "white", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }}>
-            <Text style={{ fontSize: 15, fontWeight: "900", color: "#0F172A", marginBottom: 8 }}>
+          <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }}>
+            <Text style={{ fontSize: 15, fontWeight: "900", color: t.text, marginBottom: 8 }}>
               Plan de aportacion {contributionPlan ? `(${formatMoney(contributionPlan.amount, currency)})` : ""}
             </Text>
             {!(contributionPlan?.rows?.length) ? (
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>No hay propuesta para ese importe.</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: t.textSecondary }}>No hay propuesta para ese importe.</Text>
             ) : (
               <View style={{ gap: 8 }}>
                 {contributionPlan.rows.map((x, i) => (
@@ -2898,15 +2899,15 @@ const submitContribution = useCallback(() => {
                     key={`contrib-plan-${i}`}
                     style={{
                       borderWidth: 1,
-                      borderColor: "#E5E7EB",
+                      borderColor: t.border,
                       borderRadius: 14,
                       paddingHorizontal: 12,
                       paddingVertical: 10,
-                      backgroundColor: "#F8FAFC",
+                      backgroundColor: t.card,
                     }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", marginBottom: 4 }}>Aportar a</Text>
-                    <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }}>{x.assetName}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: t.textSecondary, marginBottom: 4 }}>Aportar a</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: t.text }}>{x.assetName}</Text>
                     <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary, marginTop: 3 }}>
                       {formatMoney(Number(x.amount || 0), currency)}
                     </Text>

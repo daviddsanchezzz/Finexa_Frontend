@@ -31,10 +31,10 @@ const darkVars = vars({
   "--color-purple":         "#A78BFA",
   "--color-background":     "#0F172A",
   "--color-text":           "#F1F5F9",
-  "--color-text-secondary": "#94A3B8",
+  "--color-text-secondary": "#CBD5E1",
   "--color-border":         "#334155",
   "--color-surface":        "#1E293B",
-  "--color-card":           "#1E293B",
+  "--color-card":           "#263348",
   "--color-error":          "#F87171",
 });
 
@@ -57,8 +57,8 @@ export const darkColors = {
   surface: "#1E293B",
   card: "#263348",
   text: "#F1F5F9",
-  textSecondary: "#94A3B8",
-  textMuted: "#64748B",
+  textSecondary: "#CBD5E1",
+  textMuted: "#94A3B8",
   border: "#334155",
   error: "#F87171",
 };

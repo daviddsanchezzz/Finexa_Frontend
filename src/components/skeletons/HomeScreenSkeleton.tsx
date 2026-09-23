@@ -1,8 +1,10 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 function TransactionRow() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
@@ -10,7 +12,7 @@ function TransactionRow() {
         alignItems: 'center',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: colors.border,
       }}
     >
       <SkeletonBox width={40} height={40} borderRadius={14} style={{ marginRight: 12 }} />

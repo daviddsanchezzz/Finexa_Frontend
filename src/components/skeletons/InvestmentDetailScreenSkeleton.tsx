@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { SkeletonBox } from "./SkeletonBox";
+import { useTheme } from "../../context/ThemeContext";
 
 const BLUE_SKELETON = "rgba(255,255,255,0.25)";
 
@@ -14,12 +15,13 @@ function StatSkeleton() {
 }
 
 function InfoRowSkeleton() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
         paddingVertical: 13,
         borderBottomWidth: 1,
-        borderBottomColor: "#E8EDF4",
+        borderBottomColor: colors.border,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -31,6 +33,7 @@ function InfoRowSkeleton() {
 }
 
 export default function InvestmentDetailScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16 }}>
@@ -56,7 +59,7 @@ export default function InvestmentDetailScreenSkeleton() {
         </View>
       </View>
 
-      <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", paddingBottom: 11, paddingHorizontal: 14 }}>
+      <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 11, paddingHorizontal: 14 }}>
         {[52, 52, 68, 64].map((width, index) => (
           <View key={index} style={{ flex: 1, alignItems: "center" }}>
             <SkeletonBox width={width} height={10} borderRadius={4} />
@@ -68,7 +71,7 @@ export default function InvestmentDetailScreenSkeleton() {
         <SkeletonBox width={74} height={9} borderRadius={4} style={{ marginBottom: 13 }} />
         <View style={{ flexDirection: "row", marginBottom: 23 }}>
           {[0, 1, 2].map((index) => (
-            <View key={index} style={{ flex: 1, alignItems: "center", borderLeftWidth: index ? 1 : 0, borderLeftColor: "#E8EDF4" }}>
+            <View key={index} style={{ flex: 1, alignItems: "center", borderLeftWidth: index ? 1 : 0, borderLeftColor: colors.border }}>
               <SkeletonBox width={68} height={15} borderRadius={5} />
               <SkeletonBox width={76} height={9} borderRadius={4} style={{ marginTop: 6 }} />
             </View>

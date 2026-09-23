@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import AppHeader from "../../../components/AppHeader";
 import AddButton from "../../../components/AddButton";
 import IconCircleButton from "../../../components/IconCircleButton";
@@ -49,6 +49,7 @@ const moveItem = <T,>(arr: T[], fromIndex: number, toIndex: number): T[] => {
 };
 
 export default function CategoriesScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedType, setSelectedType] = useState<"expense" | "income">("expense");
   const [modalVisible, setModalVisible] = useState(false);
@@ -269,7 +270,7 @@ export default function CategoriesScreen({ navigation }: any) {
                 <IconCircleButton icon="reorder-three" onPress={() => setReorderMode(true)} />
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <IconCircleButton icon="close" onPress={handleCancelReorder} disabled={savingOrder} color="#9CA3AF" />
+                  <IconCircleButton icon="close" onPress={handleCancelReorder} disabled={savingOrder} color={colors.textMuted} />
                   {savingOrder ? (
                     <View style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
                       <ActivityIndicator size="small" color={colors.primary} />
@@ -309,7 +310,7 @@ export default function CategoriesScreen({ navigation }: any) {
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
         ) : filteredCategories.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-10">No hay categorías aún.</Text>
+          <Text className="text-center text-textSecondary mt-10">No hay categorías aún.</Text>
         ) : (
           filteredCategories.map((cat, index) => {
             const expanded = expandedId === cat.id;
@@ -317,8 +318,9 @@ export default function CategoriesScreen({ navigation }: any) {
             return (
               <View
                 key={cat.id}
-                className="bg-white rounded-2xl mb-3 px-4 py-3"
+                className="rounded-2xl mb-3 px-4 py-3"
                 style={{
+                  backgroundColor: colors.surface,
                   borderWidth: 1,
                   borderColor: colors.border,
                 }}
@@ -354,7 +356,7 @@ export default function CategoriesScreen({ navigation }: any) {
                           disabled={index === 0}
                           style={{ opacity: index === 0 ? 0.3 : 1, paddingVertical: 2 }}
                         >
-                          <Ionicons name="arrow-up-outline" size={18} color="#6b7280" />
+                          <Ionicons name="arrow-up-outline" size={18} color={colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => moveDown(index)}
@@ -365,7 +367,7 @@ export default function CategoriesScreen({ navigation }: any) {
                             paddingVertical: 2,
                           }}
                         >
-                          <Ionicons name="arrow-down-outline" size={18} color="#6b7280" />
+                          <Ionicons name="arrow-down-outline" size={18} color={colors.textSecondary} />
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -377,7 +379,7 @@ export default function CategoriesScreen({ navigation }: any) {
                         <Ionicons
                           name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
                           size={21}
-                          color="#9CA3AF"
+                          color={colors.textMuted}
                         />
                       </TouchableOpacity>
                     )}
@@ -392,27 +394,27 @@ export default function CategoriesScreen({ navigation }: any) {
                   const showArchived = showArchivedForCat.has(cat.id);
 
                   return (
-                    <View className="mt-3 border-t border-gray-100 pt-3">
+                    <View className="mt-3 border-t pt-3" style={{ borderColor: colors.border }}>
                       {isSubReorder ? (
                         <>
                           {activeSubs.map((sub, idx) => (
                             <View key={sub.id} className="flex-row items-center py-2">
                               <Text className="text-[20px] mr-3">{sub.emoji}</Text>
-                              <Text className="text-[15px] text-gray-700 flex-1">{sub.name}</Text>
+                              <Text className="text-[15px] text-textSecondary flex-1">{sub.name}</Text>
                               <View style={{ flexDirection: "column", marginRight: 4 }}>
                                 <TouchableOpacity
                                   onPress={() => moveSubUp(cat.id, idx)}
                                   disabled={idx === 0}
                                   style={{ opacity: idx === 0 ? 0.3 : 1, paddingVertical: 2 }}
                                 >
-                                  <Ionicons name="arrow-up-outline" size={16} color="#6b7280" />
+                                  <Ionicons name="arrow-up-outline" size={16} color={colors.textSecondary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                   onPress={() => moveSubDown(cat.id, idx)}
                                   disabled={idx === activeSubs.length - 1}
                                   style={{ opacity: idx === activeSubs.length - 1 ? 0.3 : 1, paddingVertical: 2 }}
                                 >
-                                  <Ionicons name="arrow-down-outline" size={16} color="#6b7280" />
+                                  <Ionicons name="arrow-down-outline" size={16} color={colors.textSecondary} />
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -420,9 +422,10 @@ export default function CategoriesScreen({ navigation }: any) {
                           <View className="flex-row justify-end mt-3" style={{ gap: 8 }}>
                             <TouchableOpacity
                               onPress={() => { setSubReorderCatId(null); fetchCategories(); }}
-                              className="rounded-full p-2 bg-gray-100"
+                              className="rounded-full p-2"
+                              style={{ backgroundColor: colors.card }}
                             >
-                              <Ionicons name="close-outline" size={20} color="#9CA3AF" />
+                              <Ionicons name="close-outline" size={20} color={colors.textMuted} />
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => handleSaveSubOrder(cat.id)}
@@ -448,14 +451,14 @@ export default function CategoriesScreen({ navigation }: any) {
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                               >
                                 <Text className="text-[20px] mr-4">{sub.emoji}</Text>
-                                <Text className="text-[16px] text-gray-700">{sub.name}</Text>
+                                <Text className="text-[16px] text-textSecondary">{sub.name}</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
                                 onPress={() => handleArchiveSub(cat.id, sub.id)}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 style={{ padding: 4 }}
                               >
-                                <Ionicons name="archive-outline" size={17} color="#D1D5DB" />
+                                <Ionicons name="archive-outline" size={17} color={colors.border} />
                               </TouchableOpacity>
                             </View>
                           ))}
@@ -470,10 +473,10 @@ export default function CategoriesScreen({ navigation }: any) {
                                 <Ionicons
                                   name={showArchived ? "chevron-up-outline" : "chevron-down-outline"}
                                   size={14}
-                                  color="#9CA3AF"
+                                  color={colors.textMuted}
                                   style={{ marginRight: 4 }}
                                 />
-                                <Text className="text-[12px] text-gray-400">
+                                <Text className="text-[12px] text-textSecondary">
                                   {inactiveSubs.length} archivada{inactiveSubs.length !== 1 ? "s" : ""}
                                 </Text>
                               </TouchableOpacity>
@@ -481,14 +484,14 @@ export default function CategoriesScreen({ navigation }: any) {
                                 <View key={sub.id} className="flex-row items-center justify-between py-1.5">
                                   <View className="flex-row items-center flex-1">
                                     <Text className="text-[18px] mr-4" style={{ opacity: 0.4 }}>{sub.emoji}</Text>
-                                    <Text className="text-[15px] text-gray-400">{sub.name}</Text>
+                                    <Text className="text-[15px] text-textSecondary">{sub.name}</Text>
                                   </View>
                                   <TouchableOpacity
                                     onPress={() => handleRestoreSub(cat.id, sub.id)}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                     style={{ padding: 4 }}
                                   >
-                                    <Ionicons name="arrow-undo-outline" size={17} color="#9CA3AF" />
+                                    <Ionicons name="arrow-undo-outline" size={17} color={colors.textMuted} />
                                   </TouchableOpacity>
                                 </View>
                               ))}
@@ -511,7 +514,7 @@ export default function CategoriesScreen({ navigation }: any) {
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                 style={{ padding: 4 }}
                               >
-                                <Ionicons name="reorder-three-outline" size={20} color="#9CA3AF" />
+                                <Ionicons name="reorder-three-outline" size={20} color={colors.textMuted} />
                               </TouchableOpacity>
                             )}
                           </View>

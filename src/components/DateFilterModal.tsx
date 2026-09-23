@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Platform, Alert } from "react-native";
 import Modal from "react-native-modal";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 
 interface DateFilterModalProps {
   visible: boolean;
@@ -22,6 +22,7 @@ export default function DateFilterModal({
   showTotalRange = true,
   showDayRange = false,
 }: DateFilterModalProps) {
+  const { colors, isDark } = useTheme();
   const today = new Date();
 
   const [dayDate, setDayDate] = useState(new Date(today));
@@ -218,9 +219,10 @@ export default function DateFilterModal({
 
   const getBlockStyle = (type: "day" | "month" | "week" | "year" | "all") => {
     const active = activeFilter === type;
-    return `rounded-xl px-4 py-3 mb-2 border ${
-      active ? "bg-primary/10 border-primary" : "bg-gray-50 border-transparent"
-    }`;
+    return {
+      className: `rounded-xl px-4 py-3 mb-2 border ${active ? "bg-primary/10 border-primary" : "border-transparent"}`,
+      style: active ? undefined : { backgroundColor: colors.card },
+    };
   };
 
   /* ---------------------- UI ------------------- */
@@ -233,7 +235,7 @@ export default function DateFilterModal({
       style={{ justifyContent: "flex-end", margin: 0 }}
       avoidKeyboard
     >
-      <View className="bg-white rounded-t-3xl p-5 pb-8 max-h-[80%]">
+      <View className="rounded-t-3xl p-5 pb-8 max-h-[80%]" style={{ backgroundColor: colors.surface }}>
 
         {/* HEADER */}
         <View className="flex-row justify-between items-center mb-4">
@@ -272,16 +274,16 @@ export default function DateFilterModal({
 
             {/* CERRAR */}
             <TouchableOpacity onPress={onClose}>
-              <Text className="text-[14px] text-gray-500 font-medium">Cerrar</Text>
+              <Text className="text-[14px] text-textSecondary font-medium">Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text className="text-[13px] text-gray-400 mb-2">Rangos rápidos</Text>
+        <Text className="text-[13px] text-textSecondary mb-2">Rangos rápidos</Text>
 
         {/* --------- DAY --------- */}
         {showDayRange && (
-          <View className={getBlockStyle("day")}>
+          <View className={getBlockStyle("day").className} style={getBlockStyle("day").style}>
             <View className="flex-row justify-between items-center">
               <TouchableOpacity
                 onPress={() => changeDay("prev")}
@@ -321,7 +323,7 @@ export default function DateFilterModal({
         )}
 
         {/* --------- WEEK --------- */}
-        <View className={getBlockStyle("week")}>
+        <View className={getBlockStyle("week").className} style={getBlockStyle("week").style}>
           <View className="flex-row justify-between items-center">
             <TouchableOpacity
               onPress={() => changeWeek("prev")}
@@ -356,7 +358,7 @@ export default function DateFilterModal({
         </View>
 
         {/* --------- MONTH --------- */}
-        <View className={getBlockStyle("month")}>
+        <View className={getBlockStyle("month").className} style={getBlockStyle("month").style}>
           <View className="flex-row justify-between items-center">
             <TouchableOpacity
               onPress={() => changeMonth("prev")}
@@ -395,7 +397,7 @@ export default function DateFilterModal({
         </View>
 
         {/* --------- YEAR --------- */}
-        <View className={getBlockStyle("year")}>
+        <View className={getBlockStyle("year").className} style={getBlockStyle("year").style}>
           <View className="flex-row justify-between items-center">
             <TouchableOpacity
               onPress={() => changeYear("prev")}
@@ -434,7 +436,8 @@ export default function DateFilterModal({
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => emitRange("all", undefined, true)}
-            className={getBlockStyle("all")}
+            className={getBlockStyle("all").className}
+            style={getBlockStyle("all").style}
           >
             <View className="items-center">
               <Text
@@ -451,16 +454,17 @@ export default function DateFilterModal({
         {/* CUSTOM RANGE */}
         {showCustomRange && (
           <>
-            <Text className="text-[13px] text-gray-400 mb-2 mt-3">
+            <Text className="text-[13px] text-textSecondary mb-2 mt-3">
               Rango personalizado
             </Text>
 
             <View className="flex-row justify-between mb-2">
               <TouchableOpacity
                 onPress={() => openPicker("from")}
-                className="flex-1 bg-gray-50 rounded-xl px-4 py-3 mr-2"
+                className="flex-1 rounded-xl px-4 py-3 mr-2"
+                style={{ backgroundColor: colors.card }}
               >
-                <Text className="text-[14px] text-gray-500">Desde</Text>
+                <Text className="text-[14px] text-textSecondary">Desde</Text>
                 <Text className="text-[15px] text-text font-semibold mt-1">
                   {tempFrom ? tempFrom.toLocaleDateString() : "Seleccionar"}
                 </Text>
@@ -468,9 +472,10 @@ export default function DateFilterModal({
 
               <TouchableOpacity
                 onPress={() => openPicker("to")}
-                className="flex-1 bg-gray-50 rounded-xl px-4 py-3 ml-2"
+                className="flex-1 rounded-xl px-4 py-3 ml-2"
+                style={{ backgroundColor: colors.card }}
               >
-                <Text className="text-[14px] text-gray-500">Hasta</Text>
+                <Text className="text-[14px] text-textSecondary">Hasta</Text>
                 <Text className="text-[15px] text-text font-semibold mt-1">
                   {tempTo ? tempTo.toLocaleDateString() : "Seleccionar"}
                 </Text>
@@ -478,12 +483,12 @@ export default function DateFilterModal({
             </View>
 
             {showPicker && (
-              <View className="bg-white rounded-xl mt-2 pb-2">
+              <View className="rounded-xl mt-2 pb-2" style={{ backgroundColor: colors.card }}>
                 <DateTimePicker
                   value={pickerDraft}
                   mode="date"
                   display={Platform.OS === "ios" ? "spinner" : "default"}
-                  themeVariant="light"
+                  themeVariant={isDark ? "dark" : "light"}
                   onChange={(e, selected) => {
                     if (selected) setPickerDraft(selected);
                   }}
@@ -504,9 +509,8 @@ export default function DateFilterModal({
             <TouchableOpacity
               disabled={!tempFrom || !tempTo}
               onPress={handleApplyCustom}
-              className={`mt-3 py-3 rounded-xl items-center ${
-                tempFrom && tempTo ? "bg-primary" : "bg-gray-300"
-              }`}
+              className={`mt-3 py-3 rounded-xl items-center ${tempFrom && tempTo ? "bg-primary" : ""}`}
+              style={!(tempFrom && tempTo) ? { backgroundColor: colors.border } : undefined}
             >
               <Text className="text-white font-semibold text-[15px]">
                 Aplicar rango

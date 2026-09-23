@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../../context/AuthContext";
-import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import { useFriends } from "../../../hooks/useFriends";
 import { useNotificationsFeed } from "../../../hooks/useNotificationsFeed";
 import IconCircleButton from "../../../components/IconCircleButton";
@@ -11,6 +11,7 @@ import UserAvatar from "../../../components/UserAvatar";
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
+  const { colors, isDark } = useTheme();
   const { friends } = useFriends();
   const { unreadCount } = useNotificationsFeed();
   const sections = [
@@ -50,14 +51,14 @@ export default function ProfileScreen({ navigation }: any) {
           size={36}
           iconSize={22}
           color={colors.text}
-          backgroundColor="white"
+          backgroundColor={colors.surface}
           style={{
             position: "absolute",
             top: 18,
             left: 20,
             zIndex: 10,
             borderWidth: 1,
-            borderColor: "#E5E7EB",
+            borderColor: colors.border,
           }}
         />
 
@@ -66,7 +67,7 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
 
         <Text className="text-xl font-bold text-text">{user?.name || "Usuario"}</Text>
-        <Text className="text-gray-500 text-[14px] mt-1">{user?.email || "@usuario"}</Text>
+        <Text className="text-textSecondary text-[14px] mt-1">{user?.email || "@usuario"}</Text>
       </View>
 
       {/* Zona scrolleable */}
@@ -81,38 +82,37 @@ export default function ProfileScreen({ navigation }: any) {
           <TouchableOpacity
             onPress={() => navigation.navigate("Wallets")}
             activeOpacity={0.8}
-            className="flex-1 bg-white rounded-2xl p-4 border border-[#E5E7EB] mr-3"
+            className="flex-1 bg-surface rounded-2xl p-4 border border-border mr-3"
           >
             <Ionicons name="wallet-outline" size={26} color={colors.primary} />
             <Text className="text-text font-semibold mt-2 text-[15px]">Carteras</Text>
-            <Text className="text-gray-400 text-[12px] mt-0.5">Gestiona tus carteras</Text>
+            <Text className="text-textSecondary text-[12px] mt-0.5">Gestiona tus carteras</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Categories")}
             activeOpacity={0.8}
-            className="flex-1 bg-white rounded-2xl p-4 border border-[#E5E7EB] ml-3"
+            className="flex-1 bg-surface rounded-2xl p-4 border border-border ml-3"
           >
             <Ionicons name="color-palette-outline" size={26} color={colors.primary} />
             <Text className="text-text font-semibold mt-2 text-[15px]">Categorías</Text>
-            <Text className="text-gray-400 text-[12px] mt-0.5">Organiza tus categorías</Text>
+            <Text className="text-textSecondary text-[12px] mt-0.5">Organiza tus categorías</Text>
           </TouchableOpacity>
         </View>
 
         {sections.map((section) => (
           <View key={section.title} className="mx-6 mb-4">
-            <Text className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider px-1 mb-2">
+            <Text className="text-[12px] font-semibold text-textSecondary uppercase tracking-wider px-1 mb-2">
               {section.title}
             </Text>
-            <View className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden">
+            <View className="bg-surface rounded-2xl border border-border overflow-hidden">
               {section.items.map((item, idx) => (
                 <TouchableOpacity
                   key={item.label}
                   activeOpacity={0.7}
                   onPress={() => item.navigate && navigation.navigate(item.navigate as never)}
-                  className={`flex-row justify-between items-center px-6 py-4 ${
-                    idx !== section.items.length - 1 ? "border-b border-gray-100" : ""
-                  }`}
+                  className="flex-row justify-between items-center px-6 py-4"
+                  style={idx !== section.items.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined}
                 >
                   <View className="flex-row items-center">
                     <Ionicons
@@ -125,7 +125,7 @@ export default function ProfileScreen({ navigation }: any) {
                   </View>
                   <View className="flex-row items-center">
                     {"count" in item && !!item.count && (
-                      <Text className="text-gray-400 text-[14px] mr-2">{item.count}</Text>
+                      <Text className="text-textSecondary text-[14px] mr-2">{item.count}</Text>
                     )}
                     {"badge" in item && !!item.badge && (
                       <View
@@ -145,7 +145,7 @@ export default function ProfileScreen({ navigation }: any) {
                         </Text>
                       </View>
                     )}
-                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                   </View>
                 </TouchableOpacity>
               ))}
@@ -157,9 +157,13 @@ export default function ProfileScreen({ navigation }: any) {
         <TouchableOpacity
           onPress={logout}
           activeOpacity={0.8}
-          className="mx-6 mt-8 bg-red-50 border border-red-100 py-3 rounded-2xl items-center"
+          className="mx-6 mt-8 py-3 rounded-2xl items-center border"
+          style={{
+            backgroundColor: isDark ? "rgba(248,113,113,0.12)" : "#FEF2F2",
+            borderColor: isDark ? "rgba(248,113,113,0.35)" : "#FEE2E2",
+          }}
         >
-          <Text className="text-red-600 font-semibold text-[16px]">Cerrar sesión</Text>
+          <Text className="font-semibold text-[16px]" style={{ color: colors.error }}>Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

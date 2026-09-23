@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import AppHeader from "../../../components/AppHeader";
 import {
   getNotificationPermissionStatus,
@@ -26,6 +26,7 @@ import {
 type PermissionState = "granted" | "denied" | "undetermined";
 
 export default function NotificationSettingsScreen(_: any) {
+  const { colors, isDark } = useTheme();
   const [permissionStatus, setPermissionStatus] = useState<PermissionState>("undetermined");
   const [isRegistered, setIsRegistered] = useState(false);
   const [registering, setRegistering] = useState(false);
@@ -135,18 +136,18 @@ export default function NotificationSettingsScreen(_: any) {
         {showPermissionBanner && permissionStatus === "denied" && (
           <View
             style={{
-              backgroundColor: "#FFF7ED",
+              backgroundColor: isDark ? "rgba(234,88,12,0.14)" : "#FFF7ED",
               borderRadius: 16,
               padding: 16,
               flexDirection: "row",
               alignItems: "center",
               marginBottom: 20,
               borderWidth: 1,
-              borderColor: "#FED7AA",
+              borderColor: isDark ? "rgba(234,88,12,0.35)" : "#FED7AA",
             }}
           >
-            <Ionicons name="warning-outline" size={20} color="#EA580C" style={{ marginRight: 10 }} />
-            <Text style={{ fontSize: 13, color: "#9A3412", flex: 1, lineHeight: 18 }}>
+            <Ionicons name="warning-outline" size={20} color={isDark ? "#FB923C" : "#EA580C"} style={{ marginRight: 10 }} />
+            <Text style={{ fontSize: 13, color: isDark ? "#FDBA74" : "#9A3412", flex: 1, lineHeight: 18 }}>
               Las notificaciones están bloqueadas en los ajustes del sistema. Ve a{" "}
               <Text style={{ fontWeight: "700" }}>Ajustes → Finexa → Notificaciones</Text> y actívalas.
             </Text>
@@ -157,14 +158,14 @@ export default function NotificationSettingsScreen(_: any) {
         {isWeb && (
           <View
             style={{
-              backgroundColor: "#EFF6FF",
+              backgroundColor: isDark ? "rgba(37,99,235,0.14)" : "#EFF6FF",
               borderRadius: 16,
               padding: 14,
               flexDirection: "row",
               alignItems: "flex-start",
               marginBottom: 20,
               borderWidth: 1,
-              borderColor: "#BFDBFE",
+              borderColor: isDark ? "rgba(37,99,235,0.35)" : "#BFDBFE",
             }}
           >
             <Ionicons
@@ -173,7 +174,7 @@ export default function NotificationSettingsScreen(_: any) {
               color={colors.primary}
               style={{ marginRight: 10, marginTop: 1 }}
             />
-            <Text style={{ fontSize: 13, color: "#1D4ED8", flex: 1, lineHeight: 18 }}>
+            <Text style={{ fontSize: 13, color: isDark ? "#93C5FD" : "#1D4ED8", flex: 1, lineHeight: 18 }}>
               En iOS debes abrir la app desde el icono del{" "}
               <Text style={{ fontWeight: "700" }}>Home Screen</Text> (no desde Safari) para recibir push.
               En Chrome/Android funciona directamente.
@@ -187,7 +188,7 @@ export default function NotificationSettingsScreen(_: any) {
           activeOpacity={0.8}
           disabled={registering}
           style={{
-            backgroundColor: deviceReady ? "#F0FDF4" : colors.primary,
+            backgroundColor: deviceReady ? (isDark ? "rgba(22,163,74,0.14)" : "#F0FDF4") : colors.primary,
             borderRadius: 16,
             paddingVertical: 14,
             paddingHorizontal: 18,
@@ -195,7 +196,7 @@ export default function NotificationSettingsScreen(_: any) {
             alignItems: "center",
             marginBottom: 24,
             borderWidth: 1,
-            borderColor: deviceReady ? "#BBF7D0" : colors.primary,
+            borderColor: deviceReady ? (isDark ? "rgba(22,163,74,0.35)" : "#BBF7D0") : colors.primary,
           }}
         >
           {registering ? (
@@ -217,7 +218,7 @@ export default function NotificationSettingsScreen(_: any) {
               style={{
                 fontSize: 14,
                 fontWeight: "700",
-                color: deviceReady ? "#15803D" : "white",
+                color: deviceReady ? (isDark ? "#4ADE80" : "#15803D") : "white",
               }}
             >
               {permissionGranted
@@ -245,7 +246,7 @@ export default function NotificationSettingsScreen(_: any) {
           style={{
             fontSize: 12,
             fontWeight: "600",
-            color: "#9CA3AF",
+            color: colors.textMuted,
             textTransform: "uppercase",
             letterSpacing: 0.8,
             marginBottom: 10,
@@ -256,10 +257,10 @@ export default function NotificationSettingsScreen(_: any) {
 
         <View
           style={{
-            backgroundColor: "white",
+            backgroundColor: colors.surface,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: "#F3F4F6",
+            borderColor: colors.border,
             overflow: "hidden",
             marginBottom: 24,
           }}
@@ -295,7 +296,7 @@ export default function NotificationSettingsScreen(_: any) {
 
         <View
           style={{
-            backgroundColor: "#F9FAFB",
+            backgroundColor: colors.card,
             borderRadius: 14,
             padding: 14,
             flexDirection: "row",
@@ -305,10 +306,10 @@ export default function NotificationSettingsScreen(_: any) {
           <Ionicons
             name="shield-checkmark-outline"
             size={18}
-            color="#9CA3AF"
+            color={colors.textMuted}
             style={{ marginRight: 10, marginTop: 1 }}
           />
-          <Text style={{ fontSize: 12, color: "#6B7280", flex: 1, lineHeight: 18 }}>
+          <Text style={{ fontSize: 12, color: colors.textSecondary, flex: 1, lineHeight: 18 }}>
             Solo te enviaremos notificaciones relacionadas con tu actividad financiera. Puedes
             cambiar estas preferencias en cualquier momento.
           </Text>
@@ -341,6 +342,7 @@ function NotificationRow({
   onToggle,
   isLast,
 }: NotificationRowProps) {
+  const { colors } = useTheme();
   return (
     <View
       style={{
@@ -349,7 +351,7 @@ function NotificationRow({
         paddingHorizontal: 16,
         paddingVertical: 14,
         borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: "#F3F4F6",
+        borderBottomColor: colors.border,
       }}
     >
       <View
@@ -367,8 +369,8 @@ function NotificationRow({
       </View>
 
       <View style={{ flex: 1, marginRight: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2, lineHeight: 16 }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 }}>
           {description}
         </Text>
       </View>

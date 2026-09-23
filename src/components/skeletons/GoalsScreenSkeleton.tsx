@@ -1,9 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
-import { colors, radii } from '../../theme/theme';
+import { radii } from '../../theme/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { SkeletonBox } from './SkeletonBox';
 
 function GoalSummarySkeleton({ detail = false }: { detail?: boolean }) {
+  const { colors } = useTheme();
   const white = { backgroundColor: 'rgba(255,255,255,0.25)' };
   return (
     <>
@@ -35,12 +37,13 @@ function GoalSummarySkeleton({ detail = false }: { detail?: boolean }) {
 }
 
 export function GoalsScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View accessibilityLabel="Cargando objetivos" accessibilityState={{ busy: true }}>
       <GoalSummarySkeleton />
       <View style={{ paddingHorizontal: 14, paddingTop: 14, gap: 12 }}>
         {[0, 1, 2].map((index) => (
-          <View key={index} style={{ backgroundColor: colors.white, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12 }}>
+          <View key={index} style={{ backgroundColor: colors.surface, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <SkeletonBox width={24} height={24} borderRadius={6} />
               <View style={{ flex: 1 }}><SkeletonBox width="80%" height={14} borderRadius={4} /></View>
@@ -59,11 +62,12 @@ export function GoalsScreenSkeleton() {
 }
 
 export function GoalDetailScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View accessibilityLabel="Cargando objetivo" accessibilityState={{ busy: true }}>
       <GoalSummarySkeleton detail />
       <View style={{ paddingHorizontal: 20, paddingTop: 14, gap: 16 }}>
-        <View style={{ backgroundColor: colors.white, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 16 }}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 16 }}>
           <SkeletonBox width="85%" height={13} borderRadius={4} />
           {[0, 1, 2].map((index) => (
             <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -72,7 +76,7 @@ export function GoalDetailScreenSkeleton() {
             </View>
           ))}
         </View>
-        <View style={{ backgroundColor: colors.white, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 14 }}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: 16, gap: 14 }}>
           <SkeletonBox width={130} height={11} borderRadius={4} />
           {[0, 1].map((index) => (
             <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

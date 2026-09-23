@@ -11,16 +11,13 @@ import {
 import Modal from "react-native-modal";
 import WheelColorPicker from "react-native-wheel-color-picker";
 import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 import ModalHeader from "./ModalHeader";
 import { FormTextField, FormSegmentedControl } from "./creation";
 
 const screenHeight = Dimensions.get("window").height;
-
-// Mismo estilo que la etiqueta de FormTextField ("Nombre", "Emoji"...) para
-// que "Información básica" y "Color" se vean idénticos.
-const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: "#64748B", marginBottom: 5 };
 
 interface EditCategoryModalProps {
   visible: boolean;
@@ -44,6 +41,8 @@ export default function EditCategoryModal({
   editingItem,
 }: EditCategoryModalProps) {
   const { user } = useAuth();
+  const { colors: t } = useTheme();
+  const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: t.textSecondary, marginBottom: 5 };
 
   const [emoji, setEmoji] = useState("💸");
   const [name, setName] = useState("");
@@ -242,7 +241,7 @@ export default function EditCategoryModal({
     >
       <View
         style={{
-          backgroundColor: "white",
+          backgroundColor: t.surface,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           paddingHorizontal: 20,
@@ -335,7 +334,7 @@ export default function EditCategoryModal({
                       height: 44,
                       borderRadius: 14,
                       borderWidth: 1,
-                      borderColor: "#E2E8F0",
+                      borderColor: t.border,
                     }}
                   />
                   <TouchableOpacity
@@ -350,12 +349,12 @@ export default function EditCategoryModal({
                       paddingHorizontal: 16,
                       borderRadius: 14,
                       borderWidth: 1,
-                      borderColor: "#E2E8F0",
+                      borderColor: t.border,
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.ink }}>Elegir color</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: t.text }}>Elegir color</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -392,17 +391,17 @@ export default function EditCategoryModal({
       >
         <View
           style={{
-            backgroundColor: "#fff",
+            backgroundColor: t.surface,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             padding: 20,
             height: screenHeight * 0.6,
           }}
         >
-          <Text style={{ fontSize: 15, fontWeight: "700", color: colors.ink, marginBottom: 4 }}>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: t.text, marginBottom: 4 }}>
             Elige un color
           </Text>
-          <Text style={{ fontSize: 11, color: "#94A3B8", marginBottom: 16 }}>
+          <Text style={{ fontSize: 11, color: t.textMuted, marginBottom: 16 }}>
             Arrastra por la rueda de color y ajusta la luminosidad.
           </Text>
 
@@ -422,7 +421,7 @@ export default function EditCategoryModal({
               onPress={() => setShowColorPicker(false)}
               style={{ paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}
             >
-              <Text style={{ fontSize: 13, color: "#94A3B8" }}>Cancelar</Text>
+              <Text style={{ fontSize: 13, color: t.textMuted }}>Cancelar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -430,7 +429,7 @@ export default function EditCategoryModal({
                 setColor(tempColor);
                 setShowColorPicker(false);
               }}
-              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.primary }}
+              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: t.primary }}
             >
               <Text style={{ fontSize: 13, color: "white", fontWeight: "700" }}>
                 Usar este color

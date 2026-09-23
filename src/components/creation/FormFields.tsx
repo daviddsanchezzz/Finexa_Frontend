@@ -12,7 +12,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii } from "../../theme/theme";
+import { radii } from "../../theme/theme";
+import { useTheme } from "../../context/ThemeContext";
 import { COMMON_CURRENCIES } from "../../utils/exchangeRate";
 import CurrencyPickerModal from "../CurrencyPickerModal";
 import AppSwitch from "../AppSwitch";
@@ -30,13 +31,14 @@ export function FormSection({
   description?: string;
   children: ReactNode;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={{ gap: 12 }}>
       {title ? (
         <View style={{ marginBottom: -4 }}>
-          <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.45, color: "#64748B" }}>{title}</Text>
+          <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.45, color: colors.textSecondary }}>{title}</Text>
           {description ? (
-            <Text style={{ fontSize: 12, lineHeight: 17, color: "#94A3B8", marginTop: 3 }}>{description}</Text>
+            <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textMuted, marginTop: 3 }}>{description}</Text>
           ) : null}
         </View>
       ) : null}
@@ -46,6 +48,7 @@ export function FormSection({
 }
 
 export function FormError({ message }: { message?: string | null }) {
+  const { colors } = useTheme();
   if (!message) return null;
   return <Text style={{ fontSize: 11.5, lineHeight: 16, fontWeight: "600", color: colors.error, marginTop: 6 }}>{message}</Text>;
 }
@@ -78,6 +81,7 @@ export function FormTextField({
   onBlur,
   ...inputProps
 }: FormTextFieldProps) {
+  const { colors } = useTheme();
   const [touched, setTouched] = useState(false);
   const [focused, setFocused] = useState(false);
   const visibleError = error && (touched || showError) ? error : null;
@@ -85,7 +89,7 @@ export function FormTextField({
   return (
     <View>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 5 }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary }}>
           {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
         </Text>
       </View>
@@ -95,14 +99,14 @@ export function FormTextField({
           flexDirection: "row",
           alignItems: multiline ? "flex-start" : "center",
           borderWidth: 1,
-          borderColor: visibleError ? "#FCA5A5" : focused ? colors.primary : "#E2E8F0",
+          borderColor: visibleError ? "#FCA5A5" : focused ? colors.primary : colors.border,
           borderRadius: radii.input,
-          backgroundColor: "white",
+          backgroundColor: colors.surface,
           paddingHorizontal: 12,
           paddingVertical: multiline ? 10 : 0,
         }}
       >
-        {icon ? <Ionicons name={icon} size={18} color={focused ? colors.primary : "#94A3B8"} style={{ marginRight: 10, marginTop: multiline ? 2 : 0 }} /> : null}
+        {icon ? <Ionicons name={icon} size={18} color={focused ? colors.primary : colors.textMuted} style={{ marginRight: 10, marginTop: multiline ? 2 : 0 }} /> : null}
         <TextInput
           {...inputProps}
           value={value}
@@ -117,7 +121,7 @@ export function FormTextField({
             setTouched(true);
             onBlur?.(event);
           }}
-          placeholderTextColor="#A3ADBC"
+          placeholderTextColor={colors.textMuted}
           style={{
             flex: 1,
             minHeight: multiline ? 66 : 42,
@@ -125,12 +129,12 @@ export function FormTextField({
             textAlignVertical: multiline ? "top" : "center",
             fontSize: 15,
             fontWeight: "600",
-            color: colors.ink,
+            color: colors.text,
           }}
         />
-        {suffix ? <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: "700", color: "#64748B" }}>{suffix}</Text> : null}
+        {suffix ? <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: "700", color: colors.textSecondary }}>{suffix}</Text> : null}
       </View>
-      {hint && !visibleError ? <Text style={{ fontSize: 11.5, lineHeight: 16, color: "#94A3B8", marginTop: 6 }}>{hint}</Text> : null}
+      {hint && !visibleError ? <Text style={{ fontSize: 11.5, lineHeight: 16, color: colors.textMuted, marginTop: 6 }}>{hint}</Text> : null}
       <FormError message={visibleError} />
     </View>
   );
@@ -162,9 +166,10 @@ export function FormEmojiField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { colors } = useTheme();
   return (
     <View>
-      <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 5 }}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={(text) => onChange(text.slice(0, 2))}
@@ -173,9 +178,9 @@ export function FormEmojiField({
           width: 52,
           height: 44,
           borderWidth: 1,
-          borderColor: "#E2E8F0",
+          borderColor: colors.border,
           borderRadius: radii.input,
-          backgroundColor: "white",
+          backgroundColor: colors.surface,
           textAlign: "center",
           fontSize: 24,
         }}
@@ -197,10 +202,11 @@ export function FormSelect({
   required?: boolean;
   error?: string | null;
 }) {
+  const { colors } = useTheme();
   return (
     <View>
       {label ? (
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", marginBottom: 5 }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 5 }}>
           {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
         </Text>
       ) : null}
@@ -216,14 +222,14 @@ export function FormSelect({
           paddingHorizontal: 12,
           borderRadius: radii.input,
           borderWidth: 1,
-          borderColor: error ? "#FCA5A5" : "#E2E8F0",
-          backgroundColor: "white",
+          borderColor: error ? "#FCA5A5" : colors.border,
+          backgroundColor: colors.surface,
           flexDirection: "row",
           alignItems: "center",
         }}
       >
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: colors.ink }}>{value}</Text>
-        <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: colors.text }}>{value}</Text>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       </TouchableOpacity>
       <FormError message={error} />
     </View>
@@ -271,19 +277,20 @@ export function FormSegmentedControl<T extends string>({
   required?: boolean;
   onClear?: () => void;
 }) {
+  const { colors } = useTheme();
   return (
     <View>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B" }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary }}>
           {label}{required ? <Text style={{ color: colors.error }}> *</Text> : null}
         </Text>
         {value && onClear ? (
           <TouchableOpacity onPress={onClear} hitSlop={8}>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8" }}>Quitar</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textMuted }}>Quitar</Text>
           </TouchableOpacity>
         ) : null}
       </View>
-      <View style={{ flexDirection: "row", padding: 3, borderRadius: radii.input, backgroundColor: "#E9EDF3" }}>
+      <View style={{ flexDirection: "row", padding: 3, borderRadius: radii.input, backgroundColor: colors.card }}>
         {options.map((option) => {
           const selected = option.value === value;
           return (
@@ -297,10 +304,10 @@ export function FormSegmentedControl<T extends string>({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 11,
-                backgroundColor: selected ? "white" : "transparent",
+                backgroundColor: selected ? colors.surface : "transparent",
               }}
             >
-              <Text style={{ fontSize: 12.5, fontWeight: selected ? "800" : "600", color: selected ? colors.ink : "#64748B" }}>
+              <Text style={{ fontSize: 12.5, fontWeight: selected ? "800" : "600", color: selected ? colors.text : colors.textSecondary }}>
                 {option.label}
               </Text>
             </TouchableOpacity>
@@ -322,6 +329,7 @@ export function FormOptionCard({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -331,15 +339,15 @@ export function FormOptionCard({
         paddingHorizontal: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: selected ? colors.primary : "#E2E8F0",
-        backgroundColor: selected ? "#EEF3FF" : "white",
+        borderColor: selected ? colors.primary : colors.border,
+        backgroundColor: selected ? `${colors.primary}1A` : colors.surface,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      {icon ? <Ionicons name={icon} size={16} color={selected ? colors.primary : "#64748B"} /> : null}
-      <Text style={{ marginLeft: icon ? 6 : 0, fontSize: 12.5, fontWeight: "700", color: selected ? colors.primary : "#475569" }}>
+      {icon ? <Ionicons name={icon} size={16} color={selected ? colors.primary : colors.textSecondary} /> : null}
+      <Text style={{ marginLeft: icon ? 6 : 0, fontSize: 12.5, fontWeight: "700", color: selected ? colors.primary : colors.textSecondary }}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -359,12 +367,13 @@ export function FormToggle({
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.ink }}>{label}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{label}</Text>
         {description ? (
-          <Text style={{ fontSize: 12, lineHeight: 17, color: "#94A3B8", marginTop: 4 }}>{description}</Text>
+          <Text style={{ fontSize: 12, lineHeight: 17, color: colors.textMuted, marginTop: 4 }}>{description}</Text>
         ) : null}
       </View>
       <AppSwitch accessibilityLabel={label} value={value} onValueChange={onValueChange} disabled={disabled} />
@@ -420,6 +429,7 @@ export function FormCategoryPicker({
   onSelect: (category: { id: number; name: string; emoji?: string | null }) => void;
   onClose: () => void;
 }) {
+  const { colors } = useTheme();
   const available = categories.filter((c) => !excludeIds.includes(c.id));
 
   return (
@@ -432,20 +442,20 @@ export function FormCategoryPicker({
           right: 0,
           bottom: 0,
           maxHeight: "72%",
-          backgroundColor: "white",
+          backgroundColor: colors.surface,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           paddingBottom: 24,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>{title}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.text }}>{title}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={10}>
-            <Ionicons name="close" size={22} color="#64748B" />
+            <Ionicons name="close" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
         {available.length === 0 ? (
-          <Text style={{ padding: 24, fontSize: 13, color: "#94A3B8", textAlign: "center" }}>
+          <Text style={{ padding: 24, fontSize: 13, color: colors.textMuted, textAlign: "center" }}>
             No quedan categorías disponibles.
           </Text>
         ) : (
@@ -460,7 +470,7 @@ export function FormCategoryPicker({
                 style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
               >
                 <Text style={{ fontSize: 20 }}>{item.emoji || "💸"}</Text>
-                <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>{item.name}</Text>
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.text }}>{item.name}</Text>
               </TouchableOpacity>
             )}
           />
@@ -486,6 +496,7 @@ export function FormWalletPicker({
   onChange: (id: number) => void;
   required?: boolean;
 }) {
+  const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
   const displayValue = wallets.find((w) => w.id === selectedId)?.name || "Selecciona una cuenta";
 
@@ -501,16 +512,16 @@ export function FormWalletPicker({
             right: 0,
             bottom: 0,
             maxHeight: "72%",
-            backgroundColor: "white",
+            backgroundColor: colors.surface,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             paddingBottom: 24,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
-            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>Cuentas</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.text }}>Cuentas</Text>
             <TouchableOpacity onPress={() => setVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={22} color="#64748B" />
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -527,7 +538,7 @@ export function FormWalletPicker({
                   style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
                 >
                   <WalletIcon emoji={w.emoji} size={18} />
-                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>{w.name}</Text>
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.text }}>{w.name}</Text>
                   {active ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
                 </TouchableOpacity>
               );
@@ -552,6 +563,7 @@ export function FormAccountPicker({
   selectedIds: number[];
   onChange: (ids: number[]) => void;
 }) {
+  const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
 
   const displayValue =
@@ -578,16 +590,16 @@ export function FormAccountPicker({
             right: 0,
             bottom: 0,
             maxHeight: "72%",
-            backgroundColor: "white",
+            backgroundColor: colors.surface,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             paddingBottom: 24,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
-            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.ink }}>Carteras</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ flex: 1, fontSize: 18, fontWeight: "900", color: colors.text }}>Carteras</Text>
             <TouchableOpacity onPress={() => setVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={22} color="#64748B" />
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -596,8 +608,8 @@ export function FormAccountPicker({
               activeOpacity={0.72}
               style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
             >
-              <Ionicons name="apps-outline" size={18} color={colors.ink} />
-              <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>Todas las carteras</Text>
+              <Ionicons name="apps-outline" size={18} color={colors.text} />
+              <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.text }}>Todas las carteras</Text>
               {selectedIds.length === 0 ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
             </TouchableOpacity>
             {wallets.map((w) => {
@@ -610,7 +622,7 @@ export function FormAccountPicker({
                   style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, minHeight: 54, gap: 12 }}
                 >
                   <WalletIcon emoji={w.emoji} size={18} />
-                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.ink }}>{w.name}</Text>
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: colors.text }}>{w.name}</Text>
                   {active ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
                 </TouchableOpacity>
               );

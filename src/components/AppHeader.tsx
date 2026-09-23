@@ -2,7 +2,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -42,6 +42,7 @@ export default function AppHeader({
 }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
+  const { colors } = useTheme();
 
   const formattedLabel = dateLabel
     ? dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)
@@ -81,7 +82,7 @@ export default function AppHeader({
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor: "#F3F4F6",
+                  backgroundColor: colors.card,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
@@ -101,13 +102,13 @@ export default function AppHeader({
               width: 36,
               height: 36,
               borderRadius: 18,
-              backgroundColor: "#F3F4F6",
+              backgroundColor: colors.card,
               alignItems: "center",
               justifyContent: "center",
               marginRight: 6,
             }}
           >
-            <Ionicons name="notifications-outline" size={21} color="#0F172A" />
+            <Ionicons name="notifications-outline" size={21} color={colors.text} />
             {unreadNotificationsCount > 0 && (
               <View
                 style={{
@@ -122,7 +123,7 @@ export default function AppHeader({
                   alignItems: "center",
                   justifyContent: "center",
                   borderWidth: 1.5,
-                  borderColor: "white",
+                  borderColor: colors.background,
                 }}
               >
                 <Text style={{ color: "white", fontSize: 9, fontWeight: "800" }}>
@@ -155,7 +156,8 @@ export default function AppHeader({
         <TouchableOpacity
           onPress={onOpenDateModal}
           activeOpacity={0.75}
-          className="flex-row items-center bg-gray-100 px-3 py-1.5 rounded-full"
+          className="flex-row items-center px-3 py-1.5 rounded-full"
+          style={{ backgroundColor: colors.card }}
         >
           <Ionicons name="calendar-outline" size={18} color={colors.text} />
           <Text className="ml-1.5 text-[15px] text-text font-semibold capitalize">

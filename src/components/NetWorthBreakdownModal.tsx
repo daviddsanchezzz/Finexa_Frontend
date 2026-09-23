@@ -2,7 +2,8 @@ import React from "react";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "../theme/theme";
+import { colors as staticColors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { formatEuro } from "../utils/currency";
 import IconCircleButton from "./IconCircleButton";
 
@@ -36,7 +37,8 @@ function BreakdownRow({
   caption: string;
   value: number;
 }) {
-  const valueColor = Math.abs(value) < 0.005 ? "#64748B" : value >= 0 ? colors.success : colors.danger;
+  const { colors: t } = useTheme();
+  const valueColor = Math.abs(value) < 0.005 ? t.textMuted : value >= 0 ? staticColors.success : staticColors.danger;
 
   return (
     <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 11 }}>
@@ -44,8 +46,8 @@ function BreakdownRow({
         <Ionicons name={icon} size={17} color={iconColor} />
       </View>
       <View style={{ flex: 1, paddingRight: 10 }}>
-        <Text style={{ fontSize: 13.5, fontWeight: "700", color: "#0F172A" }}>{label}</Text>
-        <Text style={{ fontSize: 11, color: "#94A3B8", marginTop: 1 }}>{caption}</Text>
+        <Text style={{ fontSize: 13.5, fontWeight: "700", color: t.text }}>{label}</Text>
+        <Text style={{ fontSize: 11, color: t.textMuted, marginTop: 1 }}>{caption}</Text>
       </View>
       <Text style={{ fontSize: 14, fontWeight: "800", color: valueColor, fontVariant: ["tabular-nums"] }}>
         {signedMoney(value)}
@@ -65,6 +67,7 @@ export default function NetWorthBreakdownModal({
   investmentResult,
   adjustments,
 }: Props) {
+  const { colors: t } = useTheme();
   const insets = useSafeAreaInsets();
   const initial = current - periodDelta;
 
@@ -78,7 +81,7 @@ export default function NetWorthBreakdownModal({
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
           <View
             style={{
-              backgroundColor: "white",
+              backgroundColor: t.surface,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               paddingHorizontal: 20,
@@ -88,18 +91,18 @@ export default function NetWorthBreakdownModal({
           >
             <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ fontSize: 19, fontWeight: "800", color: "#0F172A" }}>Variación del patrimonio</Text>
-                <Text style={{ fontSize: 12.5, color: "#64748B", marginTop: 3 }}>
+                <Text style={{ fontSize: 19, fontWeight: "800", color: t.text }}>Variación del patrimonio</Text>
+                <Text style={{ fontSize: 12.5, color: t.textSecondary, marginTop: 3 }}>
                   Así se compone el cambio {periodLabel}.
                 </Text>
               </View>
               <IconCircleButton icon="close" onPress={onClose} size={30} iconSize={16} />
             </View>
 
-            <View style={{ alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 16, paddingVertical: 12, marginBottom: 6 }}>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.6 }}>CAMBIO TOTAL</Text>
+            <View style={{ alignItems: "center", backgroundColor: t.card, borderRadius: 16, paddingVertical: 12, marginBottom: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: t.textMuted, letterSpacing: 0.6 }}>CAMBIO TOTAL</Text>
               <Text
-                style={{ fontSize: 24, fontWeight: "900", color: periodDelta >= 0 ? colors.success : colors.danger, marginTop: 2, fontVariant: ["tabular-nums"] }}
+                style={{ fontSize: 24, fontWeight: "900", color: periodDelta >= 0 ? staticColors.success : staticColors.danger, marginTop: 2, fontVariant: ["tabular-nums"] }}
               >
                 {signedMoney(periodDelta)}
               </Text>
@@ -107,7 +110,7 @@ export default function NetWorthBreakdownModal({
 
             <BreakdownRow
               icon="wallet-outline"
-              iconColor={colors.primary}
+              iconColor={t.primary}
               iconBackground="#EEF2FF"
               label="Ahorro del periodo"
               caption="Ingresos menos gastos"
@@ -130,21 +133,21 @@ export default function NetWorthBreakdownModal({
               value={adjustments}
             />
 
-            <View style={{ borderTopWidth: 1, borderTopColor: "#E2E8F0", marginTop: 3, paddingTop: 12, gap: 8 }}>
+            <View style={{ borderTopWidth: 1, borderTopColor: t.border, marginTop: 3, paddingTop: 12, gap: 8 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 12.5, color: "#64748B" }}>Patrimonio inicial</Text>
-                <Text style={{ fontSize: 13, fontWeight: "700", color: "#334155", fontVariant: ["tabular-nums"] }}>{formatEuro(initial)} €</Text>
+                <Text style={{ fontSize: 12.5, color: t.textSecondary }}>Patrimonio inicial</Text>
+                <Text style={{ fontSize: 13, fontWeight: "700", color: t.text, fontVariant: ["tabular-nums"] }}>{formatEuro(initial)} €</Text>
               </View>
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 12.5, color: "#64748B" }}>Patrimonio actual</Text>
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A", fontVariant: ["tabular-nums"] }}>{formatEuro(current)} €</Text>
+                <Text style={{ fontSize: 12.5, color: t.textSecondary }}>Patrimonio actual</Text>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: t.text, fontVariant: ["tabular-nums"] }}>{formatEuro(current)} €</Text>
               </View>
             </View>
 
             <TouchableOpacity
               onPress={onOpenDetails}
               activeOpacity={0.8}
-              style={{ marginTop: 18, height: 44, borderRadius: 13, backgroundColor: colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}
+              style={{ marginTop: 18, height: 44, borderRadius: 13, backgroundColor: t.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}
             >
               <Text style={{ color: "white", fontSize: 13.5, fontWeight: "700" }}>Ver evolución completa</Text>
               <Ionicons name="arrow-forward" size={15} color="white" />

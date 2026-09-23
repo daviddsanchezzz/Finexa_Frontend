@@ -16,7 +16,6 @@ import SkeletonBox from "../../../components/SkeletonBox";
 import SegmentedTabs from "../../../components/SegmentedTabs";
 import HeroBalanceCard from "../../../components/HeroBalanceCard";
 import WalletIcon from "../../../components/WalletIcon";
-import { colors } from "../../../theme/theme";
 import { useTheme } from "../../../context/ThemeContext";
 import { formatEuro } from "../../../utils/currency";
 import { getTransactionsDataVersion } from "../../../utils/transactionsInvalidation";
@@ -144,7 +143,7 @@ function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = fa
           <Ionicons name={k.icon as any} size={16} color={k.color} />
         </View>
 
-        <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: "#111827" }}>
+        <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: t.text }}>
           {k.label}
         </Text>
 
@@ -164,20 +163,20 @@ function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = fa
           </View>
         )}
 
-        <Text style={{ fontSize: 15, fontWeight: "800", color: isNeg ? "#EF4444" : "#111827", marginRight: 8 }}>
+        <Text style={{ fontSize: 15, fontWeight: "800", color: isNeg ? "#EF4444" : t.text, marginRight: 8 }}>
           {fmt(total)}
         </Text>
 
         <Ionicons
           name={open ? "chevron-up" : "chevron-down"}
           size={16}
-          color="#9CA3AF"
+          color={t.textMuted}
         />
       </TouchableOpacity>
 
       {/* Rows */}
       {open && children && (
-        <View style={{ borderTopWidth: 1, borderTopColor: "#F3F4F6" }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: t.border }}>
           {children}
         </View>
       )}
@@ -186,6 +185,7 @@ function Section({ kindKey, total, children, badge, badgeColor, defaultOpen = fa
 }
 
 function Row({ emoji, name, amount, amountColor, allocatedAmount = 0, currency = 'EUR', onPress }: { emoji?: string; name: string; amount: number; amountColor?: string; allocatedAmount?: number; currency?: string; onPress?: () => void }) {
+  const { colors: t } = useTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -196,7 +196,7 @@ function Row({ emoji, name, amount, amountColor, allocatedAmount = 0, currency =
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: "#F9FAFB",
+        borderBottomColor: t.border,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -207,20 +207,21 @@ function Row({ emoji, name, amount, amountColor, allocatedAmount = 0, currency =
         ) : (
           <View style={{ width: 24, marginRight: 8 }} />
         )}
-        <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>{name}</Text>
-        <Text style={{ fontSize: 13, fontWeight: "600", color: amountColor || "#111827" }}>
+        <Text style={{ flex: 1, fontSize: 13, color: t.textSecondary }}>{name}</Text>
+        <Text style={{ fontSize: 13, fontWeight: "600", color: amountColor || t.text }}>
           {fmt(amount)}
         </Text>
       </View>
-      {allocatedAmount > 0 && <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 4, marginLeft: 32 }}>🎯 {money(allocatedAmount, currency)} destinados a objetivos</Text>}
+      {allocatedAmount > 0 && <Text style={{ fontSize: 11, color: t.textMuted, marginTop: 4, marginLeft: 32 }}>🎯 {money(allocatedAmount, currency)} destinados a objetivos</Text>}
     </TouchableOpacity>
   );
 }
 
 function EmptyRow({ label }: { label: string }) {
+  const { colors: t } = useTheme();
   return (
     <View style={{ padding: 16, alignItems: "center" }}>
-      <Text style={{ fontSize: 13, color: "#9CA3AF" }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: t.textMuted }}>{label}</Text>
     </View>
   );
 }
@@ -258,10 +259,10 @@ function WalletRow({ wallet, allocatedAmount = 0, onPress }: { wallet: WalletIte
         >
           <WalletIcon emoji={wallet.emoji} size={16} />
         </View>
-        <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#111827" }} numberOfLines={1}>
+        <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: t.text }} numberOfLines={1}>
           {wallet.name}
         </Text>
-        <Text style={{ fontSize: 14, fontWeight: "800", color: "#111827" }}>
+        <Text style={{ fontSize: 14, fontWeight: "800", color: t.text }}>
           {fmt(wallet.balance)}
         </Text>
       </View>
@@ -297,20 +298,21 @@ function BreakdownRow({
   highlighted?: boolean;
   onPress: () => void;
 }) {
+  const { colors: t } = useTheme();
   return (
-    <View style={{ borderBottomWidth: 1, borderBottomColor: "#F1F5F9", backgroundColor: highlighted ? "rgba(0,60,197,0.04)" : "transparent" }}>
+    <View style={{ borderBottomWidth: 1, borderBottomColor: t.border, backgroundColor: highlighted ? `${t.primary}0A` : "transparent" }}>
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
         style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, opacity: finished ? 1 : 0.55 }}
       >
-        <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
+        <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "700", color: t.text }} numberOfLines={1}>
           {label}
         </Text>
-        <Text style={{ flex: 1.15, fontSize: 12, textAlign: "center", color: "#374151" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        <Text style={{ flex: 1.15, fontSize: 12, textAlign: "center", color: t.textSecondary }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {finished ? fmtNum(income) : "–"}
         </Text>
-        <Text style={{ flex: 1.15, fontSize: 12, textAlign: "center", color: "#374151" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        <Text style={{ flex: 1.15, fontSize: 12, textAlign: "center", color: t.textSecondary }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {finished ? fmtNum(expense) : "–"}
         </Text>
         <View style={{ flex: 1.3, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
@@ -318,7 +320,7 @@ function BreakdownRow({
             style={{
               fontSize: 12,
               fontWeight: "700",
-              color: !finished ? "#9CA3AF" : saving >= 0 ? "#16A34A" : "#DC2626",
+              color: !finished ? t.textMuted : saving >= 0 ? "#16A34A" : "#DC2626",
             }}
             numberOfLines={1}
             adjustsFontSizeToFit
@@ -326,28 +328,28 @@ function BreakdownRow({
           >
             {finished ? fmtNum(saving, true) : "–"}
           </Text>
-          {finished && <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={13} color="#9CA3AF" />}
+          {finished && <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={13} color={t.textMuted} />}
         </View>
       </TouchableOpacity>
 
       {expanded && finished && (
         <View style={{ flexDirection: "row", justifyContent: "space-between", paddingBottom: 12, paddingHorizontal: 2 }}>
           <View>
-            <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>Rentabilidad</Text>
+            <Text style={{ fontSize: 11, color: t.textMuted, fontWeight: "600" }}>Rentabilidad</Text>
             <Text
               style={{
                 fontSize: 13,
                 fontWeight: "700",
                 marginTop: 1,
-                color: investment == null ? "#9CA3AF" : investment >= 0 ? "#16A34A" : "#DC2626",
+                color: investment == null ? t.textMuted : investment >= 0 ? "#16A34A" : "#DC2626",
               }}
             >
               {investment != null ? fmt(investment) : "—"}
             </Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={{ fontSize: 11, color: "#9CA3AF", fontWeight: "600" }}>Patrimonio Neto Final</Text>
-            <Text style={{ fontSize: 13, fontWeight: "800", marginTop: 1, color: "#0F172A" }}>{fmt(finalAmount)}</Text>
+            <Text style={{ fontSize: 11, color: t.textMuted, fontWeight: "600" }}>Patrimonio Neto Final</Text>
+            <Text style={{ fontSize: 13, fontWeight: "800", marginTop: 1, color: t.text }}>{fmt(finalAmount)}</Text>
           </View>
         </View>
       )}
@@ -357,10 +359,11 @@ function BreakdownRow({
 
 // ── Card de variación (Este mes / Este año) ────────────
 function StatCard({ label, delta, pct }: { label: string; delta: number; pct: number }) {
+  const { colors: t } = useTheme();
   const positive = delta >= 0;
   return (
-    <View style={{ flex: 1, backgroundColor: "white", borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", padding: 10 }}>
-      <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "600", marginBottom: 4 }}>{label}</Text>
+    <View style={{ flex: 1, backgroundColor: t.surface, borderRadius: 14, borderWidth: 1, borderColor: t.border, padding: 10 }}>
+      <Text style={{ fontSize: 12, color: t.textSecondary, fontWeight: "600", marginBottom: 4 }}>{label}</Text>
       <Text style={{ fontSize: 15, fontWeight: "800", color: positive ? "#16A34A" : "#DC2626" }}>
         {positive ? "+" : "−"}{fmt(Math.abs(delta))}
       </Text>
@@ -396,14 +399,15 @@ function shortEuro(n: number) {
 
 // ── Gráfica de evolución (solo cierres mensuales reales + "Hoy") ──
 function EvolutionChart({ points }: { points: { label: string; value: number }[] }) {
+  const { colors: t } = useTheme();
   const [width, setWidth] = useState(0);
   const H = 140;
   const padY = 12;
 
   if (points.length < 2) {
     return (
-      <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 18, alignItems: "center", marginBottom: 12 }}>
-        <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center" }}>
+      <View style={{ backgroundColor: t.surface, borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 18, alignItems: "center", marginBottom: 12 }}>
+        <Text style={{ color: t.textMuted, fontSize: 13, textAlign: "center" }}>
           No hay suficiente histórico todavía para este rango.
         </Text>
       </View>
@@ -434,22 +438,22 @@ function EvolutionChart({ points }: { points: { label: string; value: number }[]
   const labelIdxs = Array.from({ length: maxLabels }, (_, i) => Math.round(i * labelStep));
 
   return (
-    <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 12, marginBottom: 12 }}>
+    <View style={{ backgroundColor: t.surface, borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 12, marginBottom: 12 }}>
       <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 4 }}>
-        <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{fmt(values[values.length - 1])}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "800", color: t.text }}>{fmt(values[values.length - 1])}</Text>
       </View>
 
       <View style={{ flexDirection: "row" }}>
         <View style={{ justifyContent: "space-between", marginRight: 6, height: H, paddingVertical: padY }}>
-          <Text style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600" }}>{shortEuro(maxV)}</Text>
-          <Text style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600" }}>{shortEuro(minV)}</Text>
+          <Text style={{ fontSize: 10, color: t.textMuted, fontWeight: "600" }}>{shortEuro(maxV)}</Text>
+          <Text style={{ fontSize: 10, color: t.textMuted, fontWeight: "600" }}>{shortEuro(minV)}</Text>
         </View>
         <View style={{ flex: 1 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {width > 0 && (
             <Svg width={width} height={H}>
-              <Path d={areaPath} fill={colors.primary} opacity={0.12} />
-              <Path d={linePath} stroke={colors.primary} strokeWidth={2.5} fill="none" />
-              <Circle cx={last.x} cy={last.y} r={4} fill={colors.primary} />
+              <Path d={areaPath} fill={t.primary} opacity={0.12} />
+              <Path d={linePath} stroke={t.primary} strokeWidth={2.5} fill="none" />
+              <Circle cx={last.x} cy={last.y} r={4} fill={t.primary} />
             </Svg>
           )}
         </View>
@@ -457,7 +461,7 @@ function EvolutionChart({ points }: { points: { label: string; value: number }[]
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8, paddingLeft: 46 }}>
         {labelIdxs.map((i) => (
-          <Text key={i} style={{ fontSize: 10, color: "#94A3B8", fontWeight: "600" }}>
+          <Text key={i} style={{ fontSize: 10, color: t.textMuted, fontWeight: "600" }}>
             {points[i].label}
           </Text>
         ))}
@@ -784,7 +788,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
               >
                 {viewBy === "cartera" ? (
                   <>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
                       Carteras — {fmt(walletsTotal)}
                     </Text>
 
@@ -797,7 +801,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                   </>
                 ) : (
                   <>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
                       Activos — {fmt(totalAssets)}
                     </Text>
 
@@ -843,7 +847,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                       )}
                     </Section>
 
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
                       Pasivos — {fmt(totalLiabilities)}
                     </Text>
 
@@ -885,10 +889,10 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                         paddingHorizontal: 12,
                         paddingVertical: 6,
                         borderRadius: 999,
-                        backgroundColor: active ? "#DBEAFE" : "#F1F5F9",
+                        backgroundColor: active ? `${t.primary}26` : t.card,
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: active ? colors.primary : "#6B7280" }}>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: active ? t.primary : t.textSecondary }}>
                         {r.label}
                       </Text>
                     </TouchableOpacity>
@@ -904,15 +908,15 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
               </View>
 
               {/* ── Resumen {año} ── */}
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginTop: 20, marginBottom: 8 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: t.text, marginTop: 20, marginBottom: 8 }}>
                 Resumen {selectedTableYear}
               </Text>
-              <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12 }}>
-                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
-                  <Text style={{ flex: 0.9, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Mes</Text>
-                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
-                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
-                  <Text style={{ flex: 1.3, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
+              <View style={{ backgroundColor: t.surface, borderRadius: 16, borderWidth: 1, borderColor: t.border, paddingHorizontal: 12 }}>
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: t.border }}>
+                  <Text style={{ flex: 0.9, fontSize: 11, fontWeight: "700", color: t.textMuted }}>Mes</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: t.textMuted, textAlign: "center" }}>Ingresos</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: t.textMuted, textAlign: "center" }}>Gastos</Text>
+                  <Text style={{ flex: 1.3, fontSize: 11, fontWeight: "700", color: t.textMuted, textAlign: "right" }}>Ahorro</Text>
                 </View>
 
                 {yearSummaryList.map((m, i) => {
@@ -934,9 +938,9 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                 })}
 
                 <View style={{ flexDirection: "row", paddingVertical: 10 }}>
-                  <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>TOTAL</Text>
-                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalYearIncome)}</Text>
-                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalYearExpense)}</Text>
+                  <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "800", color: t.text }} numberOfLines={1}>TOTAL</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: t.text }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalYearIncome)}</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: t.text }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalYearExpense)}</Text>
                   <Text
                     style={{
                       flex: 1.3,
@@ -955,15 +959,15 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
               </View>
 
               {/* ── Resumen global ── */}
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#0F172A", marginTop: 20, marginBottom: 8 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: t.text, marginTop: 20, marginBottom: 8 }}>
                 Resumen global
               </Text>
-              <View style={{ backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 12 }}>
-                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
-                  <Text style={{ flex: 0.9, fontSize: 11, fontWeight: "700", color: "#9CA3AF" }}>Año</Text>
-                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Ingresos</Text>
-                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "center" }}>Gastos</Text>
-                  <Text style={{ flex: 1.3, fontSize: 11, fontWeight: "700", color: "#9CA3AF", textAlign: "right" }}>Ahorro</Text>
+              <View style={{ backgroundColor: t.surface, borderRadius: 16, borderWidth: 1, borderColor: t.border, paddingHorizontal: 12 }}>
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: t.border }}>
+                  <Text style={{ flex: 0.9, fontSize: 11, fontWeight: "700", color: t.textMuted }}>Año</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: t.textMuted, textAlign: "center" }}>Ingresos</Text>
+                  <Text style={{ flex: 1.15, fontSize: 11, fontWeight: "700", color: t.textMuted, textAlign: "center" }}>Gastos</Text>
+                  <Text style={{ flex: 1.3, fontSize: 11, fontWeight: "700", color: t.textMuted, textAlign: "right" }}>Ahorro</Text>
                 </View>
 
                 {globalSummaryList.map((y) => {
@@ -992,9 +996,9 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                 })}
 
                 <View style={{ flexDirection: "row", paddingVertical: 10 }}>
-                  <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "800", color: "#0F172A" }} numberOfLines={1}>TOTAL</Text>
-                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalGlobalIncome)}</Text>
-                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: "#0F172A" }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalGlobalExpense)}</Text>
+                  <Text style={{ flex: 0.9, fontSize: 13, fontWeight: "800", color: t.text }} numberOfLines={1}>TOTAL</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: t.text }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalGlobalIncome)}</Text>
+                  <Text style={{ flex: 1.15, fontSize: 12, fontWeight: "800", textAlign: "center", color: t.text }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{fmtNum(totalGlobalExpense)}</Text>
                   <Text
                     style={{
                       flex: 1.3,
@@ -1016,13 +1020,13 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
               <TouchableOpacity
                 onPress={() => navigation.navigate("EditMonth", { mode: "select" })}
                 activeOpacity={0.85}
-                style={{ marginTop: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "white" }}
+                style={{ marginTop: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}
               >
-                <Text style={{ textAlign: "center", fontSize: 13, fontWeight: "700", color: "#334155" }}>
+                <Text style={{ textAlign: "center", fontSize: 13, fontWeight: "700", color: t.textSecondary }}>
                   Añadir año / mes manual
                 </Text>
               </TouchableOpacity>
-              <Text style={{ textAlign: "center", color: "#9CA3AF", marginTop: 6, fontSize: 11 }}>
+              <Text style={{ textAlign: "center", color: t.textMuted, marginTop: 6, fontSize: 11 }}>
                 Úsalo para un registro manual en cualquier mes.
               </Text>
             </ScrollView>

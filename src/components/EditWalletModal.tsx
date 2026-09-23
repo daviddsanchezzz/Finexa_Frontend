@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 import { invalidateGoals } from "../hooks/useGoalsQuery";
@@ -22,10 +22,6 @@ import ModalHeader from "./ModalHeader";
 import { FormTextField, FormMoneyField, FormOptionCard, FormCurrencyPicker } from "./creation";
 
 const screenHeight = Dimensions.get("window").height;
-
-// Mismo estilo que la etiqueta de FormTextField/FormSelect ("Nombre", "Divisa"...)
-// para que "Tipo de cartera", "Banco" e "Información básica" se vean idénticos.
-const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: "#64748B", marginBottom: 5 };
 
 type WalletKind = "cash" | "savings" | "investment";
 
@@ -63,6 +59,8 @@ export default function EditWalletModal({
   editingWallet,
 }: EditWalletModalProps) {
   const { user } = useAuth();
+  const { colors: t } = useTheme();
+  const sectionLabelStyle = { fontSize: 12, fontWeight: "700" as const, color: t.textSecondary, marginBottom: 5 };
 
   const [emoji, setEmoji] = useState("💰");
   const [name, setName] = useState("");
@@ -187,7 +185,7 @@ export default function EditWalletModal({
     >
       <View
         style={{
-          backgroundColor: "white",
+          backgroundColor: t.surface,
           borderTopLeftRadius: 28,
           borderTopRightRadius: 28,
           paddingHorizontal: 20,
@@ -330,11 +328,11 @@ export default function EditWalletModal({
                           width: 58,
                           height: 44,
                           borderWidth: 1,
-                          borderColor: "#E2E8F0",
+                          borderColor: t.border,
                           borderRadius: 14,
                           alignItems: "center",
                           justifyContent: "center",
-                          backgroundColor: "white",
+                          backgroundColor: t.surface,
                         }}
                       >
                         <WalletIcon emoji={emoji} size={24} />

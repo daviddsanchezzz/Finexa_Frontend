@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 const BLUE_SKELETON = 'rgba(255,255,255,0.25)';
 
@@ -14,10 +15,11 @@ function StatSkeleton() {
 }
 
 function ProjectCardSkeleton() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: 'white',
+        backgroundColor: colors.surface,
         borderRadius: 18,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -41,6 +43,7 @@ function ProjectCardSkeleton() {
 }
 
 export function ProjectsScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View>
       <View
@@ -62,7 +65,7 @@ export function ProjectsScreenSkeleton() {
         <StatSkeleton />
       </View>
 
-      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 11, marginBottom: 16 }}>
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 11, marginBottom: 16 }}>
         {[60, 50, 56].map((width, index) => (
           <View key={index} style={{ flex: 1, alignItems: 'center' }}>
             <SkeletonBox width={width} height={10} borderRadius={4} />

@@ -1,11 +1,12 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { usePinnedFinanceModule } from "../hooks/usePinnedFinanceModule";
 import { MODULES, DEFAULT_PINNED_MODULE_KEY } from "../screens/Mobile/finances/financeModulesConfig";
 
 export default function BottomNav({ state, descriptors, navigation, onHeightChange }: any) {
+  const { colors } = useTheme();
   const { pinnedKey } = usePinnedFinanceModule();
   const pinnedModule =
     MODULES.find((m) => m.key === pinnedKey) ??
@@ -20,14 +21,15 @@ export default function BottomNav({ state, descriptors, navigation, onHeightChan
   return (
     <View
       onLayout={(event) => onHeightChange?.(event.nativeEvent.layout.height)}
-      className="flex-row justify-between items-center bg-white px-6 py-3.5"
+      className="flex-row justify-between items-center px-6 py-3.5"
       style={{
         position: "absolute",
         bottom: 0,
         left: 0,
         right: 0,
+        backgroundColor: colors.surface,
         borderTopWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: colors.border,
         paddingBottom: 25,
       }}
     >
@@ -91,7 +93,7 @@ export default function BottomNav({ state, descriptors, navigation, onHeightChan
               <Ionicons
                 name={iconName}
                 size={29}
-                color={isFocused ? colors.primary : "#b6b6b6"}
+                color={isFocused ? colors.primary : colors.textMuted}
               />
             )}
           </TouchableOpacity>

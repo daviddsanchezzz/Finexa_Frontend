@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import api from "../../../api/api";
 import AppHeader from "../../../components/AppHeader";
 import AddButton from "../../../components/AddButton";
@@ -53,6 +53,7 @@ const moveItem = <T,>(arr: T[], fromIndex: number, toIndex: number): T[] => {
 };
 
 export default function WalletsScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -143,7 +144,7 @@ export default function WalletsScreen({ navigation }: any) {
                 <IconCircleButton icon="reorder-three" onPress={() => setReorderMode(true)} />
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <IconCircleButton icon="close" onPress={handleCancelReorder} disabled={savingOrder} color="#9CA3AF" />
+                  <IconCircleButton icon="close" onPress={handleCancelReorder} disabled={savingOrder} color={colors.textMuted} />
                   {savingOrder ? (
                     <View style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
                       <ActivityIndicator size="small" color={colors.primary} />
@@ -171,15 +172,16 @@ export default function WalletsScreen({ navigation }: any) {
             style={{ marginTop: 50 }}
           />
         ) : wallets.length === 0 ? (
-          <Text className="text-center text-gray-400 mt-10">
+          <Text className="text-center text-textSecondary mt-10">
             No tienes ninguna cartera aún.
           </Text>
         ) : (
           wallets.map((wallet, index) => (
             <View
               key={wallet.id}
-              className="bg-white rounded-2xl mb-3 px-4 py-3 flex-row justify-between items-center"
+              className="rounded-2xl mb-3 px-4 py-3 flex-row justify-between items-center"
               style={{
+                backgroundColor: colors.surface,
                 borderWidth: 1,
                 borderColor: colors.border,
               }}
@@ -205,7 +207,7 @@ export default function WalletsScreen({ navigation }: any) {
                   <Text className="text-[16px] font-semibold text-text">
                     {wallet.name}
                   </Text>
-                  <Text style={{ fontSize: 11, color: KIND_STYLE[wallet.kind]?.color ?? "#9CA3AF", fontWeight: "600", marginTop: 1 }}>
+                  <Text style={{ fontSize: 11, color: KIND_STYLE[wallet.kind]?.color ?? colors.textMuted, fontWeight: "600", marginTop: 1 }}>
                     {KIND_STYLE[wallet.kind]?.label ?? wallet.kind}
                   </Text>
                 </View>
@@ -224,7 +226,7 @@ export default function WalletsScreen({ navigation }: any) {
                       disabled={index === 0}
                       style={{ opacity: index === 0 ? 0.3 : 1, paddingVertical: 2 }}
                     >
-                      <Ionicons name="arrow-up-outline" size={18} color="#6b7280" />
+                      <Ionicons name="arrow-up-outline" size={18} color={colors.textSecondary} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveDown(index)}
@@ -234,7 +236,7 @@ export default function WalletsScreen({ navigation }: any) {
                         paddingVertical: 2,
                       }}
                     >
-                      <Ionicons name="arrow-down-outline" size={18} color="#6b7280" />
+                      <Ionicons name="arrow-down-outline" size={18} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
                 )}

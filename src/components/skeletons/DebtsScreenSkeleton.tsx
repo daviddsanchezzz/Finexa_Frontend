@@ -1,17 +1,19 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 function DebtCard() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: 'white',
+        backgroundColor: colors.surface,
         borderRadius: 18,
         padding: 14,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
@@ -31,6 +33,7 @@ function DebtCard() {
 }
 
 export function DebtsScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View style={{ paddingHorizontal: 20 }}>
       {/* Summary card (primary blue) */}
@@ -72,9 +75,9 @@ export function DebtsScreenSkeleton() {
             flex: 1,
             borderRadius: 18,
             padding: 12,
-            backgroundColor: 'white',
+            backgroundColor: colors.surface,
             borderWidth: 1,
-            borderColor: '#E5E7EB',
+            borderColor: colors.border,
             gap: 6,
           }}
         >
@@ -86,9 +89,9 @@ export function DebtsScreenSkeleton() {
             flex: 1,
             borderRadius: 18,
             padding: 12,
-            backgroundColor: 'white',
+            backgroundColor: colors.surface,
             borderWidth: 1,
-            borderColor: '#E5E7EB',
+            borderColor: colors.border,
             gap: 6,
           }}
         >

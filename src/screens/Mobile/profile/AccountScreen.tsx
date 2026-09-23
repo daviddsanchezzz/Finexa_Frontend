@@ -150,7 +150,7 @@ export default function AccountScreen() {
 
           <View style={{ flex: 1 }}>
             <Text className="text-[15px] font-bold text-text" numberOfLines={1}>{name.trim() || "Usuario"}</Text>
-            <Text className="text-gray-500 text-[12px] mt-0.5" numberOfLines={1}>{user?.email || "-"}</Text>
+            <Text className="text-textSecondary text-[12px] mt-0.5" numberOfLines={1}>{user?.email || "-"}</Text>
             {avatar ? (
               <TouchableOpacity onPress={handleRemoveAvatar} activeOpacity={0.7} style={{ marginTop: 4, alignSelf: "flex-start" }}>
                 <Text style={{ color: colors.error, fontSize: 11, fontWeight: "700" }}>Quitar foto</Text>
@@ -296,13 +296,14 @@ export default function AccountScreen() {
 }
 
 function Field({ label, ...props }: any) {
+  const { colors } = useTheme();
   return (
     <View className="mb-3">
-      <Text className="text-[12px] text-gray-400 mb-1">{label}</Text>
+      <Text className="text-[12px] text-textSecondary mb-1">{label}</Text>
       <TextInput
         {...props}
-        className="border border-gray-200 rounded-xl px-3 py-3 text-[15px] text-text"
-        placeholderTextColor="#9CA3AF"
+        className="border border-border rounded-xl px-3 py-3 text-[15px] text-text"
+        placeholderTextColor={colors.textMuted}
       />
     </View>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 const BLUE_SKELETON = 'rgba(255,255,255,0.25)';
 
@@ -14,8 +15,9 @@ function StatSkeleton() {
 }
 
 function InfoRowSkeleton() {
+  const { colors } = useTheme();
   return (
-    <View style={{ paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#E8EDF4' }}>
+    <View style={{ paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <SkeletonBox width={90} height={10} borderRadius={4} />
         <SkeletonBox width={80} height={12} borderRadius={5} style={{ marginLeft: 'auto' }} />
@@ -25,6 +27,7 @@ function InfoRowSkeleton() {
 }
 
 export function ProjectDetailScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 20 }}>
@@ -48,7 +51,7 @@ export function ProjectDetailScreenSkeleton() {
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 11, paddingHorizontal: 20 }}>
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 11, paddingHorizontal: 20 }}>
         {[70, 90, 56].map((width, index) => (
           <View key={index} style={{ flex: 1, alignItems: 'center' }}>
             <SkeletonBox width={width} height={10} borderRadius={4} />

@@ -15,6 +15,7 @@ import HeroBalanceCard from "../../../../components/HeroBalanceCard";
 import StatsRow from "../../../../components/StatsRow";
 import DateFilterModal from "../../../../components/DateFilterModal";
 import { colors } from "../../../../theme/theme";
+import { useTheme } from "../../../../context/ThemeContext";
 import BudgetGoalCard from "../../../../components/BudgetGoalCard";
 import api from "../../../../api/api";
 import { formatEuro as formatEuroBase } from "../../../../utils/currency";
@@ -136,6 +137,7 @@ function InsightRow({
   subtitle: string;
   onPress?: () => void;
 }) {
+  const { colors: t } = useTheme();
   const Wrapper: any = onPress ? TouchableOpacity : View;
   return (
     <Wrapper onPress={onPress} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 12 }}>
@@ -143,10 +145,10 @@ function InsightRow({
         <Ionicons name={icon} size={15} color={color} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13.5, fontWeight: "600", color: "#0F172A" }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: "#8A8F98", marginTop: 2 }}>{subtitle}</Text>
+        <Text style={{ fontSize: 13.5, fontWeight: "600", color: t.text }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{subtitle}</Text>
       </View>
-      {onPress ? <Ionicons name="chevron-forward" size={14} color="#D1D5DB" /> : null}
+      {onPress ? <Ionicons name="chevron-forward" size={14} color={t.border} /> : null}
     </Wrapper>
   );
 }
@@ -252,6 +254,7 @@ const getPeriodLabel = (period: PeriodType) => {
 };
 
 export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
+  const { colors: t } = useTheme();
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [refDate, setRefDate] = useState<Date>(() => new Date());
   const [dateLabel, setDateLabel] = useState<string>(() => defaultLabelForPeriod("monthly", new Date()));
@@ -376,7 +379,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
           {filteredBudgets.length === 0 ? (
-            <Text className="text-center text-gray-400 mt-16 text-sm">
+            <Text className="text-center text-textSecondary mt-16 text-sm">
               No tienes presupuestos para este periodo.
             </Text>
           ) : (
@@ -450,7 +453,7 @@ export default function BudgetsHomeScreen({ navigation, isPinnedModuleTab = fals
                 const assigned = b.categoryLimits.reduce((s, cl) => s + cl.limit, 0);
                 const unassigned = Math.max(b.effectiveTotalLimit - assigned, 0);
                 rows.push(
-                  <Text key={`${b.id}-unassigned`} style={{ fontSize: 11.5, fontWeight: "600", color: "#94A3B8", paddingHorizontal: 4, marginTop: -4, marginBottom: 8 }}>
+                  <Text key={`${b.id}-unassigned`} style={{ fontSize: 11.5, fontWeight: "600", color: t.textMuted, paddingHorizontal: 4, marginTop: -4, marginBottom: 8 }}>
                     {formatEuro(assigned)} asignados a categorías · {formatEuro(unassigned)} sin asignar
                   </Text>
                 );

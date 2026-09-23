@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Animated, Platform, Pressable, View } from "react-native";
 import { colors } from "../theme/theme";
 
@@ -11,7 +11,6 @@ type Props = {
 
 export default function AppSwitch({ value, onValueChange, disabled = false, accessibilityLabel }: Props) {
   const progress = useRef(new Animated.Value(value ? 1 : 0)).current;
-  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
     const animation = Animated.timing(progress, { toValue: value ? 1 : 0, duration: 140, useNativeDriver: true });
@@ -34,8 +33,6 @@ export default function AppSwitch({ value, onValueChange, disabled = false, acce
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={() => { if (!disabled) onValueChange(!value); }}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
       style={({ pressed }) => ({
         width: 52,
         minHeight: 44,
@@ -43,8 +40,6 @@ export default function AppSwitch({ value, onValueChange, disabled = false, acce
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 16,
-        borderWidth: 2,
-        borderColor: focused ? "#93B4FF" : "transparent",
         opacity: disabled ? 0.45 : pressed ? 0.8 : 1,
       })}
     >

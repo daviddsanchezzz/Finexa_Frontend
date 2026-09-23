@@ -8,6 +8,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function SkeletonBox({ width = '100%', height = 16, borderRadius = 8, style }: Props) {
+  const { isDark } = useTheme();
   const x = useSharedValue(-SCREEN_W);
 
   useEffect(() => {
@@ -36,13 +38,13 @@ export function SkeletonBox({ width = '100%', height = 16, borderRadius = 8, sty
   return (
     <View
       style={[
-        { width, height, borderRadius, backgroundColor: '#E8EAED', overflow: 'hidden' },
+        { width, height, borderRadius, backgroundColor: isDark ? '#334155' : '#E8EAED', overflow: 'hidden' },
         style,
       ]}
     >
       <Animated.View style={[StyleSheet.absoluteFill, animStyle]}>
         <LinearGradient
-          colors={['transparent', 'rgba(255,255,255,0.65)', 'transparent']}
+          colors={isDark ? ['transparent', 'rgba(255,255,255,0.16)', 'transparent'] : ['transparent', 'rgba(255,255,255,0.65)', 'transparent']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}

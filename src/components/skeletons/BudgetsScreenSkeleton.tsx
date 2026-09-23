@@ -1,17 +1,19 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 function BudgetCard() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: 'white',
+        backgroundColor: colors.surface,
         borderRadius: 18,
         padding: 16,
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         gap: 10,
       }}
     >

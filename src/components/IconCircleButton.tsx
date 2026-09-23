@@ -1,7 +1,7 @@
 import React from "react";
 import { TouchableOpacity, ViewStyle, StyleProp } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   icon: keyof typeof Ionicons.glyphMap;
@@ -21,24 +21,27 @@ interface Props {
 export default function IconCircleButton({
   icon,
   onPress,
-  color = colors.ink,
-  backgroundColor = colors.surfaceMuted,
+  color,
+  backgroundColor,
   size = 36,
   iconSize = 18,
   disabled = false,
   style,
 }: Props) {
+  const { colors } = useTheme();
+  const resolvedColor = color ?? colors.text;
+  const resolvedBackgroundColor = backgroundColor ?? colors.card;
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
       disabled={disabled}
       style={[
-        { width: size, height: size, borderRadius: size / 2, backgroundColor, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 },
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: resolvedBackgroundColor, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 },
         style,
       ]}
     >
-      <Ionicons name={icon} size={iconSize} color={color} />
+      <Ionicons name={icon} size={iconSize} color={resolvedColor} />
     </TouchableOpacity>
   );
 }

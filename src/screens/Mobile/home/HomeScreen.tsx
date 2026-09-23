@@ -18,12 +18,14 @@ import api from "../../../api/api";
 import DateFilterModal from "../../../components/DateFilterModal";
 import { HomeScreenSkeleton } from "../../../components/skeletons/HomeScreenSkeleton";
 import { exportTransactionsCsv } from "../../../utils/csvExport";
-import { colors } from "../../../theme/theme";
+import { colors as staticColors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 import NetWorthCompositionModal from "../../../components/NetWorthCompositionModal";
 import { useHomePreferences } from "../../../hooks/useHomePreferences";
 
 export default function HomeScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const { showInvestmentReturn, isLoading: preferencesLoading } = useHomePreferences();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,28 +240,28 @@ export default function HomeScreen({ navigation }: any) {
               flex: 1,
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: "#F3F4F6",
+              backgroundColor: colors.card,
               borderRadius: 13,
               paddingHorizontal: 12,
               height: 38,
             }}
           >
-            <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+            <Ionicons name="search-outline" size={16} color={colors.textMuted} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Buscar transacciones"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               style={
                 Platform.OS === "web"
-                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: "#111827", outlineStyle: "none", outlineWidth: 0 } as any)
-                  : { flex: 1, marginLeft: 6, fontSize: 13, color: "#111827" }
+                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: colors.text, outlineStyle: "none", outlineWidth: 0 } as any)
+                  : { flex: 1, marginLeft: 6, fontSize: 13, color: colors.text }
               }
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -271,12 +273,12 @@ export default function HomeScreen({ navigation }: any) {
               width: 38,
               height: 38,
               borderRadius: 13,
-              backgroundColor: "#F3F4F6",
+              backgroundColor: colors.card,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons name="options-outline" size={18} color="#4B5563" />
+            <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             {activeFilterCount > 0 && (
               <View
                 style={{
@@ -291,7 +293,7 @@ export default function HomeScreen({ navigation }: any) {
                   alignItems: "center",
                   justifyContent: "center",
                   borderWidth: 1.5,
-                  borderColor: "white",
+                  borderColor: colors.background,
                 }}
               >
                 <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>{activeFilterCount}</Text>
@@ -309,7 +311,7 @@ export default function HomeScreen({ navigation }: any) {
             opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
             transform: [{ scale: pullAnim.interpolate({ inputRange: [0, PULL_MAX], outputRange: [0.5, 1], extrapolate: "clamp" }) }],
           }}>
-            <View style={{ backgroundColor: "white", borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
           </Animated.View>
@@ -372,10 +374,10 @@ export default function HomeScreen({ navigation }: any) {
 
             {showInvestmentReturn && (
             <View className="items-center mb-2">
-              <Text className="text-gray-500 text-[11px] font-semibold">
+              <Text className="text-textSecondary text-[11px] font-semibold">
                 {balancePeriodLabel}
               </Text>
-              <Text className="text-[#0F172A] text-[18px] font-extrabold" style={{ marginTop: 1, fontVariant: ["tabular-nums"] }}>
+              <Text className="text-text text-[18px] font-extrabold" style={{ marginTop: 1, fontVariant: ["tabular-nums"] }}>
                 {formatEuro(totalBalance)} €
               </Text>
             </View>
@@ -384,18 +386,18 @@ export default function HomeScreen({ navigation }: any) {
             {/* Indicadores */}
             <StatsRow
               items={[
-                { key: "ingresos", label: "INGRESOS", value: `${formatEuro(totalIncome)} €`, color: colors.success },
-                { key: "gastos", label: "GASTOS", value: `${formatEuro(totalExpense)} €`, color: colors.danger },
+                { key: "ingresos", label: "INGRESOS", value: `${formatEuro(totalIncome)} €`, color: staticColors.success },
+                { key: "gastos", label: "GASTOS", value: `${formatEuro(totalExpense)} €`, color: staticColors.danger },
                 ...(!showInvestmentReturn ? [{
                   key: "balance",
                   label: "BALANCE",
                   value: `${formatEuro(totalBalance)} €`,
-                  color: "#0F172A",
+                  color: colors.text,
                 }] : hasInvestmentAssets ? [{
                   key: "rentabilidad",
                   label: "RENTABILIDAD",
                   value: `${totalInvestment >= 0 ? "+" : "−"}${formatEuro(Math.abs(totalInvestment))} €`,
-                  color: totalInvestment >= 0 ? colors.success : colors.danger,
+                  color: totalInvestment >= 0 ? staticColors.success : staticColors.danger,
                   onPress: () => setRentabilidadModalVisible(true),
                 }] : []),
               ]}
@@ -455,8 +457,8 @@ export default function HomeScreen({ navigation }: any) {
 
             {trimmedQuery && visibleTransactions.length === 0 && (
               <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                <Ionicons name="search-outline" size={26} color="#CBD5E1" />
-                <Text style={{ color: "#94A3B8", fontSize: 13, marginTop: 8 }}>
+                <Ionicons name="search-outline" size={26} color={colors.textMuted} />
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8 }}>
                   Sin resultados para "{searchQuery.trim()}"
                 </Text>
               </View>
@@ -472,15 +474,15 @@ export default function HomeScreen({ navigation }: any) {
                   paddingVertical: 10,
                   borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: "#F9FAFB",
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
                   marginTop: 8,
                   gap: 6,
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="download-outline" size={16} color="#6B7280" />
-                <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>
+                <Ionicons name="download-outline" size={16} color={colors.textSecondary} />
+                <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: "600" }}>
                   Exportar CSV
                 </Text>
               </TouchableOpacity>

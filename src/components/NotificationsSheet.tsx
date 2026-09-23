@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "rea
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { useNotificationsFeed, FeedNotification } from "../hooks/useNotificationsFeed";
 import { useFriendRequestFromNotification } from "../hooks/useFriendRequestFromNotification";
 import { useTripInviteFromNotification } from "../hooks/useTripInviteFromNotification";
@@ -55,6 +55,7 @@ interface Props {
 }
 
 export default function NotificationsSheet({ visible, onClose }: Props) {
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { notifications, isLoading, markRead, markAllRead } = useNotificationsFeed();
   const friendReq = useFriendRequestFromNotification();
@@ -97,7 +98,7 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
         backdropOpacity={0.4}
         style={{ justifyContent: "flex-end", margin: 0 }}
       >
-        <View className="bg-white rounded-t-3xl p-5 pb-8" style={{ maxHeight: "75%" }}>
+        <View className="rounded-t-3xl p-5 pb-8" style={{ maxHeight: "75%", backgroundColor: colors.surface }}>
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-[17px] font-semibold text-text">Notificaciones</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
@@ -115,7 +116,7 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
                 <Text style={{ fontSize: 14, fontWeight: "500", color: colors.primary }}>Ver todas</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close" size={20} color="#6B7280" />
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -124,8 +125,8 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
           ) : unread.length === 0 ? (
             <View style={{ alignItems: "center", paddingVertical: 32 }}>
-              <Ionicons name="notifications-outline" size={28} color="#CBD5E1" />
-              <Text style={{ color: "#94A3B8", fontSize: 13, marginTop: 8 }}>No tienes notificaciones nuevas</Text>
+              <Ionicons name="notifications-outline" size={28} color={colors.textMuted} />
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8 }}>No tienes notificaciones nuevas</Text>
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -156,8 +157,8 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
                       <Ionicons name={icon.name} size={19} color={icon.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: "800", color: "#0F172A" }}>{n.title}</Text>
-                      <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }} numberOfLines={2}>
+                      <Text style={{ fontSize: 14, fontWeight: "800", color: colors.text }}>{n.title}</Text>
+                      <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }} numberOfLines={2}>
                         {n.message} · {timeAgo(n.createdAt)}
                       </Text>
                     </View>
@@ -177,7 +178,7 @@ export default function NotificationsSheet({ visible, onClose }: Props) {
                         marginTop: 2,
                       }}
                     >
-                      <Ionicons name="close" size={16} color="#9CA3AF" />
+                      <Ionicons name="close" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );

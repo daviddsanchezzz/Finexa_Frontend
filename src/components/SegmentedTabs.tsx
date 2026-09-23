@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 
 // Selector de pestañas compartido — 3 variantes registradas:
 // - "light" (por defecto): pista gris con píldora blanca en el segmento
@@ -32,9 +32,11 @@ export default function SegmentedTabs<T extends string>({
   dense?: boolean;
   variant?: "light" | "solid" | "underline";
 }) {
+  const { colors } = useTheme();
+
   if (variant === "underline") {
     return (
-      <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+      <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.border }}>
         {options.map((opt) => {
           const active = opt.key === value;
           return (
@@ -52,7 +54,7 @@ export default function SegmentedTabs<T extends string>({
                 marginBottom: -1,
               }}
             >
-              <Text style={{ fontSize: dense ? 12.5 : 13.5, fontWeight: active ? "700" : "600", color: active ? colors.primary : "#94A3B8" }}>
+              <Text style={{ fontSize: dense ? 12.5 : 13.5, fontWeight: active ? "700" : "600", color: active ? colors.primary : colors.textMuted }}>
                 {opt.label}
               </Text>
             </TouchableOpacity>
@@ -62,10 +64,10 @@ export default function SegmentedTabs<T extends string>({
     );
   }
 
-  const trackBg = variant === "solid" ? "#F1F3F6" : "#E5E7EB";
-  const activeBg = variant === "solid" ? colors.primary : "white";
-  const activeText = variant === "solid" ? "white" : "#0F172A";
-  const inactiveText = variant === "solid" ? "#5B6472" : "#6B7280";
+  const trackBg = variant === "solid" ? colors.card : colors.border;
+  const activeBg = variant === "solid" ? colors.primary : colors.surface;
+  const activeText = variant === "solid" ? "white" : colors.text;
+  const inactiveText = variant === "solid" ? colors.textSecondary : colors.textSecondary;
 
   return (
     <View

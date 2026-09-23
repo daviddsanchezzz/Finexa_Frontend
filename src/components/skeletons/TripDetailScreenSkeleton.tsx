@@ -1,15 +1,17 @@
 import React from "react";
 import { SafeAreaView, View } from "react-native";
 import { SkeletonBox } from "./SkeletonBox";
+import { useTheme } from "../../context/ThemeContext";
 
 function SummaryCardSkeleton({ height = 120 }: { height?: number }) {
+  const { colors } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: "white",
+        backgroundColor: colors.surface,
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: colors.border,
         padding: 14,
         height,
       }}
@@ -36,8 +38,9 @@ function SummaryCardSkeleton({ height = 120 }: { height?: number }) {
 }
 
 export function TripDetailScreenSkeleton() {
+  const { colors } = useTheme();
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F8FC" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={{
           height: 220,
@@ -70,7 +73,7 @@ export function TripDetailScreenSkeleton() {
         </View>
       </View>
 
-      <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 18, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", justifyContent: "space-between" }}>
+      <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 18, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.border, justifyContent: "space-between" }}>
         <SkeletonBox width={60} height={14} borderRadius={6} />
         <SkeletonBox width={90} height={14} borderRadius={6} />
         <SkeletonBox width={52} height={14} borderRadius={6} />
@@ -82,10 +85,10 @@ export function TripDetailScreenSkeleton() {
           <SummaryCardSkeleton height={182} />
           <View
             style={{
-              backgroundColor: "white",
+              backgroundColor: colors.surface,
               borderRadius: 18,
               borderWidth: 1,
-              borderColor: "#E5E7EB",
+              borderColor: colors.border,
               padding: 14,
             }}
           >
@@ -97,10 +100,10 @@ export function TripDetailScreenSkeleton() {
           </View>
           <View
             style={{
-              backgroundColor: "white",
+              backgroundColor: colors.surface,
               borderRadius: 18,
               borderWidth: 1,
-              borderColor: "#E5E7EB",
+              borderColor: colors.border,
               padding: 14,
             }}
           >

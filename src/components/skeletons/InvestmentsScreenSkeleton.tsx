@@ -1,22 +1,24 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 const DONUT_SIZE = 148;
 
 function AssetRow() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
+        backgroundColor: colors.surface,
         borderRadius: 18,
         paddingVertical: 12,
         paddingHorizontal: 14,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: '#EEF2F7',
+        borderColor: colors.border,
       }}
     >
       <SkeletonBox width={40} height={40} borderRadius={14} style={{ marginRight: 12 }} />
@@ -34,13 +36,14 @@ function AssetRow() {
 }
 
 function SnapshotRow({ even }: { even: boolean }) {
+  const { colors } = useTheme();
   return (
     <View
       style={{
         flexDirection: 'row',
         paddingVertical: 12,
         paddingHorizontal: 10,
-        backgroundColor: even ? 'white' : '#FAFAFA',
+        backgroundColor: even ? colors.surface : colors.card,
         gap: 18,
       }}
     >
@@ -55,6 +58,7 @@ function SnapshotRow({ even }: { even: boolean }) {
 }
 
 export function InvestmentsScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View style={{ paddingHorizontal: 20 }}>
       {/* Hero card — mismo lenguaje visual que el Patrimonio neto de Inicio */}
@@ -84,7 +88,7 @@ export function InvestmentsScreenSkeleton() {
       </View>
 
       {/* Tabs: Cartera / Distribución / Rentabilidad / Operaciones */}
-      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginBottom: 14, paddingBottom: 11 }}>
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 14, paddingBottom: 11 }}>
         {[0, 1, 2, 3].map((i) => (
           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
             <SkeletonBox width={i === 0 ? 52 : 64} height={11} borderRadius={5} />
@@ -105,12 +109,12 @@ export function InvestmentsScreenSkeleton() {
 
       <View
         style={{
-          backgroundColor: 'white',
+          backgroundColor: colors.surface,
           borderRadius: 24,
           padding: 16,
           marginBottom: 10,
           borderWidth: 1,
-          borderColor: '#E5E7EB',
+          borderColor: colors.border,
           gap: 14,
         }}
       >
@@ -126,8 +130,8 @@ export function InvestmentsScreenSkeleton() {
               height: DONUT_SIZE,
               borderRadius: DONUT_SIZE / 2,
               borderWidth: 14,
-              borderColor: '#E8EAED',
-              backgroundColor: 'white',
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
             }}
           />
         </View>
@@ -138,10 +142,10 @@ export function InvestmentsScreenSkeleton() {
 
       <View
         style={{
-          backgroundColor: 'white',
+          backgroundColor: colors.surface,
           borderRadius: 24,
           borderWidth: 1,
-          borderColor: '#E5E7EB',
+          borderColor: colors.border,
           overflow: 'hidden',
           marginBottom: 10,
         }}
@@ -152,7 +156,7 @@ export function InvestmentsScreenSkeleton() {
             flexDirection: 'row',
             paddingVertical: 10,
             paddingHorizontal: 10,
-            backgroundColor: 'rgba(15,23,42,0.04)',
+            backgroundColor: colors.card,
             gap: 18,
           }}
         >

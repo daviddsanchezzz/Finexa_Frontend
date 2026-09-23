@@ -1,16 +1,18 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
+import { useTheme } from '../../context/ThemeContext';
 
 function KpiCardSkeleton() {
+  const { colors } = useTheme();
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: colors.surface,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#EEF0F3',
+        borderColor: colors.border,
         paddingVertical: 10,
         paddingHorizontal: 12,
         gap: 6,
@@ -24,6 +26,7 @@ function KpiCardSkeleton() {
 }
 
 function FinancialRowSkeleton({ first }: { first?: boolean }) {
+  const { colors } = useTheme();
   return (
     <View
       style={{
@@ -32,7 +35,7 @@ function FinancialRowSkeleton({ first }: { first?: boolean }) {
         alignItems: 'center',
         paddingVertical: 9,
         borderTopWidth: first ? 0 : 1,
-        borderTopColor: '#F4F5F7',
+        borderTopColor: colors.border,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -45,6 +48,7 @@ function FinancialRowSkeleton({ first }: { first?: boolean }) {
 }
 
 function InsightRowSkeleton({ first }: { first?: boolean }) {
+  const { colors } = useTheme();
   return (
     <View
       style={{
@@ -52,7 +56,7 @@ function InsightRowSkeleton({ first }: { first?: boolean }) {
         alignItems: 'center',
         paddingVertical: 10,
         borderTopWidth: first ? 0 : 1,
-        borderTopColor: '#F1F2F4',
+        borderTopColor: colors.border,
         gap: 12,
       }}
     >
@@ -69,6 +73,7 @@ function InsightRowSkeleton({ first }: { first?: boolean }) {
 // radios, paddings y proporciones que el layout real para que la carga no
 // dé una sensación de salto al llegar los datos.
 export function StatsScreenSkeleton() {
+  const { colors } = useTheme();
   return (
     <View style={{ paddingHorizontal: 20, gap: 20 }}>
       {/* Tabs Resumen/Gastos/Ingresos/Evolución */}
@@ -101,10 +106,10 @@ export function StatsScreenSkeleton() {
       {/* Card "Ingresos vs gastos" */}
       <View
         style={{
-          backgroundColor: 'white',
+          backgroundColor: colors.surface,
           borderRadius: 16,
           borderWidth: 1,
-          borderColor: '#EEF0F3',
+          borderColor: colors.border,
           padding: 14,
         }}
       >

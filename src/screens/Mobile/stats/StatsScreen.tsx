@@ -23,7 +23,7 @@ import StatsRow from "../../../components/StatsRow";
 import { StatsScreenSkeleton } from "../../../components/skeletons/StatsScreenSkeleton";
 
 import api from "../../../api/api";
-import { colors } from "../../../theme/theme";
+import { useTheme } from "../../../context/ThemeContext";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 import { formatEuro as formatEuroBase } from "../../../utils/currency";
 import { getComparison } from "../../../utils/comparison";
@@ -168,12 +168,13 @@ function fillMonthRange(buckets: MonthBucket[], fromYear: number, fromMonth: num
   return result;
 }
 
-// ── Card contenedora blanca — usar solo cuando agrupa información real ──
+// ── Card contenedora — usar solo cuando agrupa información real ──
 function Card({ children, style }: { children: React.ReactNode; style?: any }) {
+  const { colors } = useTheme();
   return (
     <View
       style={[
-        { backgroundColor: "white", borderRadius: 16, borderWidth: 1, borderColor: "#EEF0F3", padding: 14 },
+        { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 14 },
         style,
       ]}
     >
@@ -183,10 +184,11 @@ function Card({ children, style }: { children: React.ReactNode; style?: any }) {
 }
 
 function SectionTitle({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
+  const { colors } = useTheme();
   return (
     <View style={{ marginBottom: 11 }}>
-      <Text style={{ fontSize: 21, fontWeight: "700", color: "#0F172A" }}>{children}</Text>
-      {subtitle ? <Text style={{ fontSize: 13, color: "#8A8F98", marginTop: 3 }}>{subtitle}</Text> : null}
+      <Text style={{ fontSize: 21, fontWeight: "700", color: colors.text }}>{children}</Text>
+      {subtitle ? <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 3 }}>{subtitle}</Text> : null}
     </View>
   );
 }
@@ -194,25 +196,28 @@ function SectionTitle({ children, subtitle }: { children: React.ReactNode; subti
 // Cabecera de sección discreta (semibold) — un escalón por debajo del título
 // de página, para no acumular demasiados bloques en negrita a la vez.
 function SubHeader({ children }: { children: React.ReactNode }) {
-  return <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A", marginBottom: 4 }}>{children}</Text>;
+  const { colors } = useTheme();
+  return <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text, marginBottom: 4 }}>{children}</Text>;
 }
 
 // Fila financiera limpia (label + valor), usada en "Comparado con..." y
 // "Resumen del periodo" — un pequeño punto de color identifica la métrica en
 // vez de teñir la cantidad entera.
 function FinancialRow({ dot, label, value, first, valueColor }: { dot: string; label: string; value: string; first?: boolean; valueColor?: string }) {
+  const { colors } = useTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderTopWidth: first ? 0 : 1, borderTopColor: "#F4F5F7" }}>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderTopWidth: first ? 0 : 1, borderTopColor: colors.border }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
-        <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>{label}</Text>
+        <Text style={{ fontSize: 14.5, color: colors.textSecondary, fontWeight: "500" }}>{label}</Text>
       </View>
-      <Text style={{ fontSize: 15, fontWeight: "700", color: valueColor ?? "#0F172A", fontVariant: ["tabular-nums"] }}>{value}</Text>
+      <Text style={{ fontSize: 15, fontWeight: "700", color: valueColor ?? colors.text, fontVariant: ["tabular-nums"] }}>{value}</Text>
     </View>
   );
 }
 
 export default function StatsScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>("resumen");
   const [catView, setCatView] = useState<"barras" | "circular">("barras");
@@ -572,7 +577,7 @@ export default function StatsScreen({ navigation }: any) {
             opacity: pullAnim.interpolate({ inputRange: [0, 20, PULL_MAX], outputRange: [0, 0, 1], extrapolate: "clamp" }),
             transform: [{ scale: pullAnim.interpolate({ inputRange: [0, PULL_MAX], outputRange: [0.5, 1], extrapolate: "clamp" }) }],
           }}>
-            <View style={{ backgroundColor: "white", borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 8, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
           </Animated.View>
@@ -632,18 +637,18 @@ export default function StatsScreen({ navigation }: any) {
                 />
 
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 10, paddingHorizontal: 2 }}>
-                  <Text style={{ fontSize: 14.5, color: "#5B6472", fontWeight: "500" }}>Tasa de ahorro</Text>
-                  <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A", fontVariant: ["tabular-nums"] }}>{savingsRate.toFixed(1).replace(".", ",")} %</Text>
+                  <Text style={{ fontSize: 14.5, color: colors.textSecondary, fontWeight: "500" }}>Tasa de ahorro</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, fontVariant: ["tabular-nums"] }}>{savingsRate.toFixed(1).replace(".", ",")} %</Text>
                 </View>
-                <View style={{ height: 3, borderRadius: 2, backgroundColor: "#F1F2F4", marginTop: 8, overflow: "hidden" }}>
+                <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.border, marginTop: 8, overflow: "hidden" }}>
                   <View style={{ width: `${Math.max(0, Math.min(100, savingsRate))}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 2 }} />
                 </View>
               </View>
 
               <Card>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>Ingresos vs gastos</Text>
-                  <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>Ingresos vs gastos</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, fontWeight: "500" }}>{miniTrendCaption}</Text>
                 </View>
                 <GroupedBarChart
                   xLabels={miniTrendLabels}
@@ -693,10 +698,10 @@ export default function StatsScreen({ navigation }: any) {
                         <Ionicons name={ins.icon} size={15} color={ins.color} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13.5, fontWeight: "600", color: "#0F172A" }}>{ins.title}</Text>
-                        <Text style={{ fontSize: 12, color: "#8A8F98", marginTop: 2 }}>{ins.subtitle}</Text>
+                        <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.text }}>{ins.title}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{ins.subtitle}</Text>
                       </View>
-                      {ins.onPress ? <Ionicons name="chevron-forward" size={14} color="#D1D5DB" /> : null}
+                      {ins.onPress ? <Ionicons name="chevron-forward" size={14} color={colors.textMuted} /> : null}
                     </TouchableOpacity>
                   </View>
                 );
@@ -710,7 +715,7 @@ export default function StatsScreen({ navigation }: any) {
             const total = isExpense ? totalExpenses : totalIncomes;
             const prevTotal = isExpense ? prevTotalExpenses : prevTotalIncomes;
             const comparison = isExpense ? expenseComparison : incomeComparison;
-            const deltaColor = comparison.direction === "neutral" ? "#9CA3AF" : comparison.isPositiveForUser ? GREEN : RED;
+            const deltaColor = comparison.direction === "neutral" ? colors.textMuted : comparison.isPositiveForUser ? GREEN : RED;
             const pieData = isExpense ? expensePieData : incomePieData;
             const showAll = isExpense ? showAllExpense : showAllIncome;
             const setShowAll = isExpense ? setShowAllExpense : setShowAllIncome;
@@ -723,8 +728,8 @@ export default function StatsScreen({ navigation }: any) {
 
             const heroBlock = (
               <View key="hero">
-                <Text style={{ fontSize: 14, color: "#8A8F98", fontWeight: "500" }}>{isExpense ? "Gasto total" : "Ingresos totales"}</Text>
-                <Text style={{ fontSize: 30, fontWeight: "700", color: "#0F172A", marginTop: 3, fontVariant: ["tabular-nums"] }} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, fontWeight: "500" }}>{isExpense ? "Gasto total" : "Ingresos totales"}</Text>
+                <Text style={{ fontSize: 30, fontWeight: "700", color: colors.text, marginTop: 3, fontVariant: ["tabular-nums"] }} numberOfLines={1} adjustsFontSizeToFit>
                   {formatEuro(total)}
                 </Text>
                 {(prevTotal > 0 || comparison.isNew) && (
@@ -733,7 +738,7 @@ export default function StatsScreen({ navigation }: any) {
                       <Ionicons name={comparison.direction === "up" ? "arrow-up" : "arrow-down"} size={12} color={deltaColor} />
                     )}
                     <Text style={{ fontSize: 13, fontWeight: "600", color: deltaColor }}>{comparison.formattedPercentage}</Text>
-                    <Text style={{ fontSize: 13, color: "#8A8F98" }}>vs. {prevLabel.toLowerCase()}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>vs. {prevLabel.toLowerCase()}</Text>
                   </View>
                 )}
               </View>
@@ -752,36 +757,36 @@ export default function StatsScreen({ navigation }: any) {
                 </View>
 
                 {list.length === 0 ? (
-                  <Text style={{ color: "#8A8F98", fontSize: 13, textAlign: "center", paddingVertical: 12 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: "center", paddingVertical: 12 }}>
                     Sin {isExpense ? "gastos" : "ingresos"} en este periodo.
                   </Text>
                 ) : catView === "circular" ? (
-                  <Card style={{ alignItems: "center", borderColor: "#F2F3F5" }}>
+                  <Card style={{ alignItems: "center" }}>
                     <PieChartComponent size={132} innerRadius={44} mode={isExpense ? "expense" : "income"} data={pieData} incomes={totalIncomes} expenses={totalExpenses} />
                     <View style={{ width: "100%", marginTop: 14, gap: 9 }}>
                       {legendTop.map((c) => (
                         <View key={c.name} style={{ flexDirection: "row", alignItems: "center" }}>
                           <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.color, marginRight: 8 }} />
-                          <Text style={{ flex: 1, fontSize: 13.5, color: "#0F172A", fontWeight: "500" }} numberOfLines={1}>{c.name}</Text>
-                          <Text style={{ fontSize: 13.5, color: "#5B6472", fontWeight: "600" }}>
+                          <Text style={{ flex: 1, fontSize: 13.5, color: colors.text, fontWeight: "500" }} numberOfLines={1}>{c.name}</Text>
+                          <Text style={{ fontSize: 13.5, color: colors.textSecondary, fontWeight: "600" }}>
                             {(total > 0 ? (c.amount / total) * 100 : 0).toFixed(1).replace(".", ",")}%
                           </Text>
                         </View>
                       ))}
                       {restPct > 0.5 && list.length > 4 && (
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: "#E5E7EB", marginRight: 8 }} />
-                          <Text style={{ flex: 1, fontSize: 13.5, color: "#8A8F98", fontWeight: "500" }}>Resto</Text>
-                          <Text style={{ fontSize: 13.5, color: "#8A8F98", fontWeight: "600" }}>{restPct.toFixed(1).replace(".", ",")}%</Text>
+                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border, marginRight: 8 }} />
+                          <Text style={{ flex: 1, fontSize: 13.5, color: colors.textSecondary, fontWeight: "500" }}>Resto</Text>
+                          <Text style={{ fontSize: 13.5, color: colors.textSecondary, fontWeight: "600" }}>{restPct.toFixed(1).replace(".", ",")}%</Text>
                         </View>
                       )}
                     </View>
                   </Card>
                 ) : (
-                  <Card style={{ borderColor: "#F2F3F5" }}>
+                  <Card>
                     <CategoryBarList items={barItems} />
                     {list.length > 5 && (
-                      <TouchableOpacity onPress={() => setShowAll(!showAll)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 10, marginTop: 2, borderTopWidth: 1, borderTopColor: "#F1F2F4" }}>
+                      <TouchableOpacity onPress={() => setShowAll(!showAll)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 10, marginTop: 2, borderTopWidth: 1, borderTopColor: colors.border }}>
                         <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.primary }}>{showAll ? "Ver menos" : "Ver todas"}</Text>
                         <Ionicons name={showAll ? "chevron-up" : "chevron-forward"} size={15} color={colors.primary} />
                       </TouchableOpacity>
@@ -794,10 +799,10 @@ export default function StatsScreen({ navigation }: any) {
             const evolutionBlock = (
               <Card key="evolution">
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>
                     Evolución {isExpense ? "del gasto" : "de ingresos"}
                   </Text>
-                  <Text style={{ fontSize: 12, color: "#B0B4BA", fontWeight: "500" }}>{miniTrendCaption}</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, fontWeight: "500" }}>{miniTrendCaption}</Text>
                 </View>
                 <GroupedBarChart
                   xLabels={miniTrendLabels}

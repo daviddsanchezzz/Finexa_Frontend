@@ -3,7 +3,7 @@ import { Modal, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } 
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NetWorthWallet } from "../hooks/useNetWorthTrend";
-import { colors } from "../theme/theme";
+import { useTheme } from "../context/ThemeContext";
 import { formatEuro } from "../utils/currency";
 import IconCircleButton from "./IconCircleButton";
 import WalletIcon from "./WalletIcon";
@@ -17,6 +17,7 @@ interface Props {
 }
 
 export default function NetWorthCompositionModal({ visible, onClose, onOpenDetails, current, wallets }: Props) {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const sortedWallets = [...wallets].sort(
@@ -39,7 +40,7 @@ export default function NetWorthCompositionModal({ visible, onClose, onOpenDetai
           <View
             style={{
               flex: 1,
-              backgroundColor: "white",
+              backgroundColor: colors.surface,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               paddingHorizontal: 20,
@@ -49,15 +50,15 @@ export default function NetWorthCompositionModal({ visible, onClose, onOpenDetai
           >
             <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ fontSize: 19, fontWeight: "800", color: "#0F172A" }}>Composición del patrimonio</Text>
-                <Text style={{ fontSize: 12.5, color: "#64748B", marginTop: 3 }}>Así se compone tu patrimonio actual.</Text>
+                <Text style={{ fontSize: 19, fontWeight: "800", color: colors.text }}>Composición del patrimonio</Text>
+                <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 3 }}>Así se compone tu patrimonio actual.</Text>
               </View>
               <IconCircleButton icon="close" onPress={onClose} size={30} iconSize={16} />
             </View>
 
-            <View style={{ alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 16, paddingVertical: 12, marginBottom: 14 }}>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.6 }}>PATRIMONIO ACTUAL</Text>
-              <Text style={{ fontSize: 24, fontWeight: "900", color: "#0F172A", marginTop: 2, fontVariant: ["tabular-nums"] }}>
+            <View style={{ alignItems: "center", backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, marginBottom: 14 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 }}>PATRIMONIO ACTUAL</Text>
+              <Text style={{ fontSize: 24, fontWeight: "900", color: colors.text, marginTop: 2, fontVariant: ["tabular-nums"] }}>
                 {formatEuro(current)} €
               </Text>
             </View>
@@ -67,7 +68,7 @@ export default function NetWorthCompositionModal({ visible, onClose, onOpenDetai
               style={{ flex: 1 }}
             >
               {sortedWallets.length === 0 ? (
-                <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center", paddingVertical: 20 }}>No hay carteras creadas.</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: "center", paddingVertical: 20 }}>No hay carteras creadas.</Text>
               ) : (
                 sortedWallets.map((wallet, index) => (
                   <View
@@ -77,16 +78,16 @@ export default function NetWorthCompositionModal({ visible, onClose, onOpenDetai
                       alignItems: "center",
                       paddingVertical: 10,
                       borderBottomWidth: index === sortedWallets.length - 1 ? 0 : 1,
-                      borderBottomColor: "#EEF2F7",
+                      borderBottomColor: colors.border,
                     }}
                   >
-                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.card, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
                       <WalletIcon emoji={wallet.emoji ?? "💳"} size={17} />
                     </View>
-                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
+                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: "700", color: colors.text }} numberOfLines={1}>
                       {wallet.name}
                     </Text>
-                    <Text style={{ marginLeft: 12, fontSize: 14, fontWeight: "800", color: "#0F172A", fontVariant: ["tabular-nums"] }}>
+                    <Text style={{ marginLeft: 12, fontSize: 14, fontWeight: "800", color: colors.text, fontVariant: ["tabular-nums"] }}>
                       {formatEuro(Number(wallet.balance || 0))} €
                     </Text>
                   </View>
