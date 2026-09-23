@@ -376,6 +376,7 @@ export default function CreateTransactionModal({
   }, []);
 
   const resetForm = useCallback(() => {
+    console.log("[DEBUG resetForm] called", { prefillCategoryId: prefill?.categoryId });
     setType(prefill?.type ?? "expense");
     setAmount(
       prefill?.amount != null ? String(prefill.amount).replace(".", ",") : "",
@@ -409,6 +410,13 @@ export default function CreateTransactionModal({
   // se aplican una vez cargadas las categorías, sin pisar una elección manual.
   const appliedCategorySuggestion = useRef(false);
   useEffect(() => {
+    console.log("[DEBUG suggestion-effect] run", {
+      visible,
+      categoriesLen: categories.length,
+      prefillCategoryId: prefill?.categoryId,
+      prefillSubcategoryId: prefill?.subcategoryId,
+      appliedRef: appliedCategorySuggestion.current,
+    });
     if (!visible) {
       appliedCategorySuggestion.current = false;
       return;
@@ -420,6 +428,7 @@ export default function CreateTransactionModal({
     )
       return;
     const cat = categories.find((c) => c.id === prefill.categoryId);
+    console.log("[DEBUG suggestion-effect] match", { cat });
     appliedCategorySuggestion.current = true;
     if (!cat) return;
     setSelectedCategory(cat);
@@ -430,6 +439,10 @@ export default function CreateTransactionModal({
       );
     }
   }, [visible, categories, prefill?.categoryId, prefill?.subcategoryId]);
+
+  useEffect(() => {
+    console.log("[DEBUG selectedCategory changed]", selectedCategory?.id, selectedCategory?.name);
+  }, [selectedCategory]);
 
   // Defaults: wallet(s)
   useEffect(() => {
