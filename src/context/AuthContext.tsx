@@ -4,6 +4,7 @@ import api, { plainApi } from "../api/api";
 import { storage } from "../utils/storage";
 import { clearNetWorthCache } from "../utils/netWorthCache";
 import { GOOGLE_NONCE_STORAGE_KEY } from "../hooks/useGoogleAuth";
+import { readQuickAddFromSession } from "../utils/quickAdd";
 
 // Decodifica (sin verificar firma, eso ya lo hace el backend) el payload de
 // un JWT para leer el claim `nonce` y comprobar que este id_token responde a
@@ -41,6 +42,7 @@ type AuthContextType = {
   checkingSession: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithQuickAddToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
   refreshUser: () => Promise<void>;
@@ -89,7 +91,25 @@ useEffect(() => {
       }
 
       const refreshToken = await storage.getItem("refresh_token");
-      if (!refreshToken) return;
+      if (!refreshToken) {
+        // Sin sesión guardada en este navegador: si venimos del enlace del
+        // Atajo de iOS (?qa=1&...&token=...), ese token identifica al
+        // usuario y permite loguear sin pedir email/contraseña. Si no hay
+        // quick-add pendiente, o el token ya no es válido (regenerado desde
+        // Ajustes), seguimos con el flujo normal (pantalla de Login) — el
+        // quick-add prellenado, si lo hay, se conserva en sessionStorage y
+        // se aplicará igualmente tras el login manual.
+        const pendingQuickAdd = readQuickAddFromSession();
+        if (pendingQuickAdd?.token) {
+          try {
+            await loginWithQuickAddToken(pendingQuickAdd.token);
+            return;
+          } catch {
+            // token inválido: cae al flujo normal
+          }
+        }
+        return;
+      }
 
       const refreshRes = await plainApi.post("/auth/refresh", { refresh_token: refreshToken });
 
@@ -154,6 +174,17 @@ useEffect(() => {
     setUser(user);
   };
 
+  const loginWithQuickAddToken = async (token: string) => {
+    const res = await api.post("/auth/quick-add-token", { token });
+    const { access_token, refresh_token, user } = res.data;
+
+    await storage.setItem("access_token", access_token);
+    await storage.setItem("refresh_token", refresh_token);
+
+    api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+    setUser(user);
+  };
+
   const updateUser = (patch: Partial<User>) => {
     setUser((prev) => (prev ? { ...prev, ...patch } : prev));
   };
@@ -177,7 +208,7 @@ useEffect(() => {
   };
 
   const value = useMemo(
-    () => ({ user, hydrated, checkingSession, login, loginWithGoogle, logout, updateUser, refreshUser }),
+    () => ({ user, hydrated, checkingSession, login, loginWithGoogle, loginWithQuickAddToken, logout, updateUser, refreshUser }),
     [user, hydrated, checkingSession]
   );
 
