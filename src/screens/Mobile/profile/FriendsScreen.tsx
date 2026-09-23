@@ -15,26 +15,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import AppHeader from "../../../components/AppHeader";
 import { appAlert } from "../../../utils/appAlert";
 import { useFriends, FriendUser, FriendRequest } from "../../../hooks/useFriends";
-import { avatarColorForId, initialsFromName } from "../../../utils/avatarColor";
-
-function Avatar({ user, size = 44 }: { user: FriendUser; size?: number }) {
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: avatarColorForId(user.id),
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text style={{ color: "white", fontWeight: "800", fontSize: size * 0.36 }}>
-        {initialsFromName(user.name)}
-      </Text>
-    </View>
-  );
-}
+import UserAvatar from "../../../components/UserAvatar";
 
 export default function FriendsScreen() {
   const { colors } = useTheme();
@@ -169,7 +150,7 @@ export default function FriendsScreen() {
                       }}
                     >
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                        <Avatar user={req.user} />
+                        <UserAvatar user={req.user} size={44} />
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{req.user.name}</Text>
                           <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>quiere ser tu amigo</Text>
@@ -215,7 +196,7 @@ export default function FriendsScreen() {
                         gap: 12,
                       }}
                     >
-                      <Avatar user={req.user} />
+                      <UserAvatar user={req.user} size={44} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{req.user.name}</Text>
                         <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Pendiente</Text>
@@ -263,7 +244,7 @@ export default function FriendsScreen() {
                         borderBottomColor: colors.border,
                       }}
                     >
-                      <Avatar user={friend} />
+                      <UserAvatar user={friend} size={44} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{friend.name}</Text>
                         <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>{friend.email}</Text>

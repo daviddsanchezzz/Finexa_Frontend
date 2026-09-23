@@ -96,7 +96,7 @@ function formatMoney(n: number, currency = "EUR") {
   });
 }
 function formatPct(pnl: number, invested: number) {
-  if (!invested) return "0,00%";
+  if (!invested) return "N/D";
   return `${((pnl / invested) * 100).toFixed(2).replace(".", ",")}%`;
 }
 function parseISO(iso: string) {
@@ -882,7 +882,7 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
             value={loading ? "—" : formatPct(stats.pnl, stats.invested)}
             subtitle={<Text style={[textStyles.caption, { fontSize: fs(12), color: "#94A3B8" }]} numberOfLines={1}>Rentabilidad</Text>}
             icon="trending-up-outline"
-            tone={pnlTone(stats.pnl) as any}
+            tone={(stats.invested ? pnlTone(stats.pnl) : "neutral") as any}
             px={px}
             fs={fs}
           />

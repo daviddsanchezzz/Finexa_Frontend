@@ -165,7 +165,7 @@ const formatMoney = (n: number, currency = "EUR") => {
 };
 
 const formatPct = (pnl: number, invested: number) => {
-  if (!invested) return "0,00%";
+  if (!invested) return "N/D";
   return `${((pnl / invested) * 100).toFixed(2).replace(".", ",")}%`;
 };
 
@@ -822,8 +822,10 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
                 {
                   key: "rentabilidad",
                   label: "RENTABILIDAD",
-                  value: `${stats.pnl >= 0 ? "+" : ""}${formatPct(stats.pnl, stats.invested)}`,
-                  color: stats.pnl >= 0 ? colors.success : colors.danger,
+                  value: stats.invested
+                    ? `${stats.pnl >= 0 ? "+" : ""}${formatPct(stats.pnl, stats.invested)}`
+                    : formatPct(stats.pnl, stats.invested),
+                  color: stats.invested ? (stats.pnl >= 0 ? colors.success : colors.danger) : colors.textSecondary,
                 },
               ]}
             />

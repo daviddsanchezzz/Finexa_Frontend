@@ -200,7 +200,7 @@ function formatMoney(n: number, currency = "EUR") {
 }
 
 function formatPct(pnl: number, invested: number) {
-  if (!invested) return "0,00%";
+  if (!invested) return "N/D";
   return `${((pnl / invested) * 100).toFixed(2).replace(".", ",")}%`;
 }
 
@@ -999,7 +999,7 @@ const fetchSnapshots = async () => {
                       </Td>
 
                       <Td flex={GRID.pct} align="right" px={px}>
-                        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: pnlColor }]}>
+                        <Text style={[textStyles.number, { fontSize: fs(12), fontWeight: "700", color: a.invested ? pnlColor : "#64748B" }]}>
                           {formatPct(a.pnl || 0, a.invested || 0)}
                         </Text>
                       </Td>

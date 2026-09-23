@@ -181,7 +181,7 @@ const formatMoney = (n: number, currency = "EUR") => {
 };
 
 const formatPct = (pnl: number, invested: number) => {
-  if (!invested) return "0.00%";
+  if (!invested) return "N/D";
   return `${((pnl / invested) * 100).toFixed(2)}%`;
 };
 
@@ -1556,7 +1556,7 @@ const submitContribution = useCallback(() => {
                     </View>
 
                     <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
-                      <Text style={{ fontSize: 14, fontWeight: "800", color: badge.color }}>
+                      <Text style={{ fontSize: 14, fontWeight: "800", color: a.invested ? badge.color : t.textMuted }}>
                         {pctText}
                       </Text>
                       {allocPct != null && (
