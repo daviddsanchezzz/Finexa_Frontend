@@ -82,7 +82,10 @@ export default function ProfileScreen({ navigation }: any) {
           <TouchableOpacity
             onPress={() => navigation.navigate("Wallets")}
             activeOpacity={0.8}
-            className="flex-1 bg-surface rounded-2xl p-4 border border-border mr-3"
+            className="flex-1 bg-surface rounded-2xl p-4 mr-3"
+            style={isDark
+              ? { borderWidth: 1, borderColor: colors.border }
+              : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
           >
             <Ionicons name="wallet-outline" size={26} color={colors.primary} />
             <Text className="text-text font-semibold mt-2 text-[15px]">Carteras</Text>
@@ -92,7 +95,10 @@ export default function ProfileScreen({ navigation }: any) {
           <TouchableOpacity
             onPress={() => navigation.navigate("Categories")}
             activeOpacity={0.8}
-            className="flex-1 bg-surface rounded-2xl p-4 border border-border ml-3"
+            className="flex-1 bg-surface rounded-2xl p-4 ml-3"
+            style={isDark
+              ? { borderWidth: 1, borderColor: colors.border }
+              : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
           >
             <Ionicons name="color-palette-outline" size={26} color={colors.primary} />
             <Text className="text-text font-semibold mt-2 text-[15px]">Categorías</Text>
@@ -105,7 +111,12 @@ export default function ProfileScreen({ navigation }: any) {
             <Text className="text-[12px] font-semibold text-textSecondary uppercase tracking-wider px-1 mb-2">
               {section.title}
             </Text>
-            <View className="bg-surface rounded-2xl border border-border overflow-hidden">
+            <View
+              className="bg-surface rounded-2xl overflow-hidden"
+              style={isDark
+                ? { borderWidth: 1, borderColor: colors.border }
+                : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
+            >
               {section.items.map((item, idx) => (
                 <TouchableOpacity
                   key={item.label}
