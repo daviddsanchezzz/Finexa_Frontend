@@ -70,5 +70,5 @@ export function useInvestmentPeriodProfit(fromISO: string, toISO: string) {
     }, 0);
   }, [closedQuery.data, currentQuery.data, fromISO, toISO]);
 
-  return { profit, hasAssets, isLoading };
+  return { profit, hasAssets, isLoading, isError: closedQuery.isError || assetsQuery.isError };
 }

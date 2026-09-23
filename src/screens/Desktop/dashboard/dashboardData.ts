@@ -2,7 +2,8 @@ export type Period = { from: string; to: string; label: string; type: string };
 export type DashboardTx = {
   id: number; type: string; amount: number; date: string; isRecurring?: boolean;
   active?: boolean; excludeFromStats?: boolean; description?: string; note?: string;
-  walletId?: number; wallet?: { id: number; name: string };
+  baseAmount?: number | string | null; currency?: string;
+  walletId?: number; fromWalletId?: number; toWalletId?: number; wallet?: { id: number; name: string };
   category?: { id?: number; name: string; emoji?: string; color?: string } | null;
   subcategory?: { name: string } | null;
 };
@@ -43,8 +44,8 @@ export function inPeriod(rows: DashboardTx[], period: Period | null) {
 }
 
 export function summarize(rows: DashboardTx[]) {
-  const income = rows.filter(tx => tx.type === 'income').reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
-  const expense = rows.filter(tx => tx.type === 'expense').reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
+  const income = rows.filter(tx => tx.type === 'income').reduce((s, tx) => s + Math.abs(Number(tx.baseAmount ?? tx.amount) || 0), 0);
+  const expense = rows.filter(tx => tx.type === 'expense').reduce((s, tx) => s + Math.abs(Number(tx.baseAmount ?? tx.amount) || 0), 0);
   return { income, expense, savings: income - expense, rate: income > 0 ? (income - expense) / income * 100 : null };
 }
 
@@ -53,7 +54,7 @@ export function categories(rows: DashboardTx[], type: string) {
   rows.filter(tx => tx.type === type).forEach(tx => {
     const name = tx.category?.name || 'Sin categoría';
     const item = map.get(name) ?? { name, emoji: tx.category?.emoji || '•', color: tx.category?.color || '#8A9BBD', amount: 0, count: 0 };
-    item.amount += Math.abs(Number(tx.amount) || 0); item.count++; map.set(name, item);
+    item.amount += Math.abs(Number(tx.baseAmount ?? tx.amount) || 0); item.count++; map.set(name, item);
   });
   return [...map.values()].sort((a, b) => b.amount - a.amount);
 }

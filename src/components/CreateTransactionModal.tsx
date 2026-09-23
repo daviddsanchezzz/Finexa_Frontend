@@ -1,5 +1,11 @@
 // src/components/CreateTransactionModal.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   Text,
@@ -32,6 +38,8 @@ type Recurrence = "never" | "daily" | "weekly" | "monthly" | "yearly";
 
 type Prefill = {
   walletId?: number;
+  fromWalletId?: number;
+  toWalletId?: number;
   type?: TxType;
   date?: string; // ISO
   assetId?: number;
@@ -53,7 +61,13 @@ type Props = {
 };
 
 type Wallet = { id: number; name: string; emoji?: string; kind?: string };
-type Category = { id: number; name: string; emoji?: string; type: TxType; subcategories?: any[] };
+type Category = {
+  id: number;
+  name: string;
+  emoji?: string;
+  type: TxType;
+  subcategories?: any[];
+};
 type InvestmentAsset = { id: number; name: string };
 
 const isWeb = Platform.OS === "web";
@@ -86,7 +100,10 @@ function Chip({
 }) {
   const activeStyle = tint
     ? { backgroundColor: tint.bg, borderColor: tint.border }
-    : { backgroundColor: "rgba(59,130,246,0.10)", borderColor: "rgba(59,130,246,0.55)" };
+    : {
+        backgroundColor: "rgba(59,130,246,0.10)",
+        borderColor: "rgba(59,130,246,0.55)",
+      };
 
   return (
     <TouchableOpacity
@@ -109,14 +126,18 @@ function Chip({
       ]}
     >
       {leftIcon ? (
-        <Ionicons name={leftIcon} size={16} color={active ? tint?.icon ?? "#0F172A" : "#64748B"} />
+        <Ionicons
+          name={leftIcon}
+          size={16}
+          color={active ? (tint?.icon ?? "#0F172A") : "#64748B"}
+        />
       ) : null}
       <Text
         style={{
           marginLeft: leftIcon ? 8 : 0,
           fontSize: 12,
           fontWeight: "900",
-          color: active ? tint?.text ?? "#0F172A" : "#475569",
+          color: active ? (tint?.text ?? "#0F172A") : "#475569",
         }}
         numberOfLines={1}
       >
@@ -154,7 +175,9 @@ function Section({
           marginBottom: 10,
         }}
       >
-        <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>{title}</Text>
+        <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>
+          {title}
+        </Text>
         {right}
       </View>
       {children}
@@ -186,7 +209,35 @@ const parseDateTimeLocal = (v: string) => {
   return isNaN(dt.getTime()) ? null : dt;
 };
 
-export default function CreateTransactionModal({ visible, onClose, onSaved, prefill, editData }: Props) {
+export default function CreateTransactionModal({
+  visible,
+  onClose,
+  onSaved,
+  prefill: initialPrefill,
+  editData,
+}: Props) {
+  const prefill = useMemo<Prefill | undefined>(
+    () =>
+      editData
+        ? {
+            type: editData.type,
+            amount: Math.abs(Number(editData.amount)),
+            currency: editData.currency,
+            description: editData.description ?? editData.note ?? "",
+            date: editData.date,
+            walletId: editData.walletId ?? editData.wallet?.id,
+            fromWalletId: editData.fromWalletId ?? editData.fromWallet?.id,
+            toWalletId: editData.toWalletId ?? editData.toWallet?.id,
+            categoryId: editData.categoryId ?? editData.category?.id,
+            subcategoryId: editData.subcategoryId ?? editData.subcategory?.id,
+            assetId:
+              editData.investmentAssetId ??
+              editData.investmentAsset?.id ??
+              editData.asset?.id,
+          }
+        : initialPrefill,
+    [editData, initialPrefill],
+  );
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -195,16 +246,23 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
+  const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>(
+    [],
+  );
 
   const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
-  const [selectedWalletFrom, setSelectedWalletFrom] = useState<Wallet | null>(null);
+  const [selectedWalletFrom, setSelectedWalletFrom] = useState<Wallet | null>(
+    null,
+  );
   const [selectedWalletTo, setSelectedWalletTo] = useState<Wallet | null>(null);
 
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
   const [selectedSub, setSelectedSub] = useState<any>(null);
 
-  const [selectedInvestmentAsset, setSelectedInvestmentAsset] = useState<InvestmentAsset | null>(null);
+  const [selectedInvestmentAsset, setSelectedInvestmentAsset] =
+    useState<InvestmentAsset | null>(null);
 
   const [amount, setAmount] = useState("");
   // Solo visual por ahora: detectada desde Wallet (?qa=1) o EUR; no se guarda.
@@ -213,7 +271,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
   const [description, setDescription] = useState("");
 
   const [date, setDate] = useState<Date>(new Date());
-  const [recurrenceInterval, setRecurrenceInterval] = useState<Recurrence>("never");
+  const [recurrenceInterval, setRecurrenceInterval] =
+    useState<Recurrence>("never");
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [modalEditingItem, setModalEditingItem] = useState<any>(null);
@@ -262,12 +321,18 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
         icon: "#0F172A",
       },
     }),
-    []
+    [],
   );
 
-  const filteredCategories = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
+  const filteredCategories = useMemo(
+    () => categories.filter((c) => c.type === type),
+    [categories, type],
+  );
 
-  const normalizedQuery = useMemo(() => categoryQuery.trim().toLowerCase(), [categoryQuery]);
+  const normalizedQuery = useMemo(
+    () => categoryQuery.trim().toLowerCase(),
+    [categoryQuery],
+  );
 
   const searchedCategories = useMemo(() => {
     if (!normalizedQuery) return filteredCategories;
@@ -288,7 +353,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
       (selectedCategory?.subcategories || [])
         .filter((s: any) => s.active !== false)
         .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
-    [selectedCategory]
+    [selectedCategory],
   );
 
   const fetchData = useCallback(async () => {
@@ -312,11 +377,15 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
   const resetForm = useCallback(() => {
     setType(prefill?.type ?? "expense");
-    setAmount(prefill?.amount != null ? String(prefill.amount).replace('.', ',') : "");
+    setAmount(
+      prefill?.amount != null ? String(prefill.amount).replace(".", ",") : "",
+    );
     setCurrency(prefill?.currency || "EUR");
     setDescription(prefill?.description ?? "");
     setDate(prefill?.date ? new Date(prefill.date) : new Date());
-    setRecurrenceInterval("never");
+    setRecurrenceInterval(
+      editData?.isRecurring ? editData.recurrence || "never" : "never",
+    );
 
     setSelectedCategory(null);
     setSelectedSub(null);
@@ -328,7 +397,7 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
     setCategoryQuery("");
     setShowDatePicker(false);
-  }, [prefill]);
+  }, [prefill, editData]);
 
   useEffect(() => {
     if (!visible) return;
@@ -344,13 +413,21 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
       appliedCategorySuggestion.current = false;
       return;
     }
-    if (appliedCategorySuggestion.current || !prefill?.categoryId || !categories.length) return;
+    if (
+      appliedCategorySuggestion.current ||
+      !prefill?.categoryId ||
+      !categories.length
+    )
+      return;
     const cat = categories.find((c) => c.id === prefill.categoryId);
     appliedCategorySuggestion.current = true;
     if (!cat) return;
     setSelectedCategory(cat);
     if (prefill.subcategoryId) {
-      setSelectedSub(cat.subcategories?.find((s: any) => s.id === prefill.subcategoryId) ?? null);
+      setSelectedSub(
+        cat.subcategories?.find((s: any) => s.id === prefill.subcategoryId) ??
+          null,
+      );
     }
   }, [visible, categories, prefill?.categoryId, prefill?.subcategoryId]);
 
@@ -364,12 +441,25 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
       pre = wallets.find((w) => w.id === prefill.walletId) ?? null;
     } else if (prefill?.cardName) {
       const matchedId = matchWalletByCard(prefill.cardName, wallets);
-      if (matchedId != null) pre = wallets.find((w) => w.id === matchedId) ?? null;
+      if (matchedId != null)
+        pre = wallets.find((w) => w.id === matchedId) ?? null;
     }
 
     if (type === "transfer") {
-      if (!selectedWalletFrom) setSelectedWalletFrom(pre || wallets[0] || null);
-      if (!selectedWalletTo) setSelectedWalletTo(wallets[1] || wallets[0] || null);
+      if (!selectedWalletFrom)
+        setSelectedWalletFrom(
+          wallets.find((w) => w.id === prefill?.fromWalletId) ||
+            pre ||
+            wallets[0] ||
+            null,
+        );
+      if (!selectedWalletTo)
+        setSelectedWalletTo(
+          wallets.find((w) => w.id === prefill?.toWalletId) ||
+            wallets[1] ||
+            wallets[0] ||
+            null,
+        );
     } else {
       if (!selectedWallet) setSelectedWallet(pre || wallets[0] || null);
     }
@@ -388,7 +478,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     }
 
     if (prefill?.assetId && investmentAssets.length) {
-      const found = investmentAssets.find((a) => a.id === prefill.assetId) || null;
+      const found =
+        investmentAssets.find((a) => a.id === prefill.assetId) || null;
       if (found) {
         setSelectedInvestmentAsset(found);
         return;
@@ -398,7 +489,14 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     if (!selectedInvestmentAsset && investmentAssets.length) {
       setSelectedInvestmentAsset(investmentAssets[0]);
     }
-  }, [visible, type, selectedWalletTo, investmentAssets, prefill?.assetId, selectedInvestmentAsset]);
+  }, [
+    visible,
+    type,
+    selectedWalletTo,
+    investmentAssets,
+    prefill?.assetId,
+    selectedInvestmentAsset,
+  ]);
 
   const openCategoryModal = (isSub = false) => {
     setModalEditingItem({
@@ -417,7 +515,9 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
         const res = await api.get(`/categories/${savedItem.categoryId}`);
         const cat = res.data;
         setSelectedCategory(cat);
-        const newSub = cat?.subcategories?.find((s: any) => s.id === savedItem.id);
+        const newSub = cat?.subcategories?.find(
+          (s: any) => s.id === savedItem.id,
+        );
         if (newSub) setSelectedSub(newSub);
       }
       await fetchData();
@@ -427,20 +527,32 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
   };
 
   const canSave = useMemo(() => {
+    if (loading) return false;
     const n = moneyToNumber(amount);
     if (!amount || !Number.isFinite(n)) return false;
 
     if (type === "transfer") {
       if (!selectedWalletFrom || !selectedWalletTo) return false;
       if (selectedWalletFrom.id === selectedWalletTo.id) return false;
-      if (selectedWalletTo?.kind === "investment" && !selectedInvestmentAsset) return false;
+      if (selectedWalletTo?.kind === "investment" && !selectedInvestmentAsset)
+        return false;
       return true;
     }
 
     if (!selectedWallet) return false;
-    if (!selectedCategory) return false;
+    if (!selectedCategory && !editData) return false;
     return true;
-  }, [amount, type, selectedWallet, selectedCategory, selectedWalletFrom, selectedWalletTo, selectedInvestmentAsset]);
+  }, [
+    amount,
+    type,
+    selectedWallet,
+    selectedCategory,
+    selectedWalletFrom,
+    selectedWalletTo,
+    selectedInvestmentAsset,
+    editData,
+    loading,
+  ]);
 
   const handleSubmit = useCallback(async () => {
     const n = moneyToNumber(amount);
@@ -458,7 +570,10 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
       if (!selectedWalletFrom || !selectedWalletTo) return;
       payload.fromWalletId = selectedWalletFrom.id;
       payload.toWalletId = selectedWalletTo.id;
-      payload.investmentAssetId = selectedWalletTo?.kind === "investment" ? selectedInvestmentAsset?.id ?? null : null;
+      payload.investmentAssetId =
+        selectedWalletTo?.kind === "investment"
+          ? (selectedInvestmentAsset?.id ?? null)
+          : null;
     } else {
       if (!selectedWallet) return;
       payload.walletId = selectedWallet.id;
@@ -481,7 +596,9 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
     try {
       setSaving(true);
-      await api.post("/transactions", payload);
+      if (editData?.id)
+        await api.patch(`/transactions/${editData.id}`, payload);
+      else await api.post("/transactions", payload);
       markTransactionsDirty();
       if (resolvesQuickAdd) {
         queryClient.invalidateQueries({ queryKey: ["notificationsFeed"] });
@@ -495,6 +612,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
     }
   }, [
     amount,
+    editData,
+    currency,
     date,
     description,
     onClose,
@@ -537,13 +656,20 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
   const CATEGORY_ITEM_H = 44;
   const CATEGORY_ITEM_PAD = 6;
   const CATEGORY_VISIBLE_ROWS = 2;
-  const categoryGridMaxHeight = CATEGORY_VISIBLE_ROWS * (CATEGORY_ITEM_H + CATEGORY_ITEM_PAD * 2) + 2;
+  const categoryGridMaxHeight =
+    CATEGORY_VISIBLE_ROWS * (CATEGORY_ITEM_H + CATEGORY_ITEM_PAD * 2) + 2;
 
   // Opcional: mostrar "Recientes" encima cuando no hay búsqueda
   const showRecents = !normalizedQuery && recentCategories.length > 0;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
       <CurrencyPickerModal
         visible={currencyModalOpen}
         value={currency}
@@ -564,21 +690,21 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
         ]}
       >
         <Pressable
-  onPress={(e: any) => e?.stopPropagation?.()}
-  onStartShouldSetResponder={() => true}
+          onPress={(e: any) => e?.stopPropagation?.()}
+          onStartShouldSetResponder={() => true}
           style={[
             {
-              width: 900,
-              maxWidth: "100%",
-              maxHeight: "92%",
-              backgroundColor: "#F8FAFC",
-              borderRadius: 22,
+              width: isWeb ? 1040 : 900,
+              maxWidth: "96%",
+              maxHeight: "90%",
+              backgroundColor: "#F5F7FB",
+              borderRadius: 24,
               borderWidth: 1,
               borderColor: "rgba(15,23,42,0.12)",
               overflow: "hidden",
               shadowColor: "#000",
-              shadowOpacity: 0.15,
-              shadowRadius: 18,
+              shadowOpacity: 0.2,
+              shadowRadius: 28,
               shadowOffset: { width: 0, height: 10 },
               elevation: 20,
             },
@@ -588,11 +714,11 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
           {/* Header */}
           <View
             style={{
-              height: 56,
+              height: 68,
               backgroundColor: "white",
               borderBottomWidth: 1,
               borderBottomColor: "#E5E7EB",
-              paddingHorizontal: 14,
+              paddingHorizontal: 20,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
@@ -601,12 +727,10 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <View
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#E5E7EB",
-                  backgroundColor: "white",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 13,
+                  backgroundColor: "#EAF0FF",
                   alignItems: "center",
                   justifyContent: "center",
                   marginRight: 10,
@@ -614,7 +738,11 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
               >
                 <Ionicons name="add" size={18} color={colors.primary} />
               </View>
-              <Text style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}>Nueva transacción</Text>
+              <Text
+                style={{ fontSize: 14, fontWeight: "900", color: "#0F172A" }}
+              >
+                {editData ? "Editar transacción" : "Nueva transacción"}
+              </Text>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -624,12 +752,12 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                 activeOpacity={0.9}
                 style={[
                   {
-                    height: 40,
-                    paddingHorizontal: 14,
-                    borderRadius: 14,
+                    height: 38,
+                    paddingHorizontal: 16,
+                    borderRadius: 11,
                     borderWidth: 1,
-                    borderColor: !canSave ? "#E5E7EB" : "rgba(15,23,42,0.14)",
-                    backgroundColor: !canSave ? "#F1F5F9" : "white",
+                    borderColor: !canSave ? "#E5E7EB" : colors.primary,
+                    backgroundColor: !canSave ? "#E9EEF5" : colors.primary,
                     flexDirection: "row",
                     alignItems: "center",
                     marginRight: 10,
@@ -637,8 +765,21 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                   noOutline,
                 ]}
               >
-                {saving ? <ActivityIndicator /> : <Ionicons name="checkmark" size={18} color="#0F172A" />}
-                <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Guardar</Text>
+                {saving ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Ionicons name="checkmark" size={17} color="white" />
+                )}
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 12,
+                    fontWeight: "900",
+                    color: "white",
+                  }}
+                >
+                  Guardar
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -646,9 +787,9 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                 activeOpacity={0.9}
                 style={[
                   {
-                    width: 40,
-                    height: 40,
-                    borderRadius: 14,
+                    width: 38,
+                    height: 38,
+                    borderRadius: 11,
                     borderWidth: 1,
                     borderColor: "#E5E7EB",
                     backgroundColor: "white",
@@ -668,27 +809,52 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, paddingBottom: 18 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ padding: 20, paddingBottom: 22 }}
+            >
               {/* TOP: Tipo + Cantidad */}
               <View style={{ flexDirection: "row", alignItems: "stretch" }}>
                 <View
                   style={{
                     flex: 1,
                     backgroundColor: "white",
-                    borderRadius: 18,
+                    borderRadius: 16,
                     borderWidth: 1,
                     borderColor: "#E5E7EB",
-                    padding: 12,
-                    marginRight: 10,
-                    minWidth: 320,
+                    padding: 16,
+                    marginRight: 14,
+                    minWidth: 360,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", marginBottom: 10 }}>Tipo</Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "900",
+                      letterSpacing: 0.8,
+                      color: "#8290A5",
+                      marginBottom: 12,
+                    }}
+                  >
+                    TIPO DE MOVIMIENTO
+                  </Text>
                   <View style={{ flexDirection: "row" }}>
                     {[
-                      { label: "Gasto", value: "expense" as const, icon: "remove" as const },
-                      { label: "Ingreso", value: "income" as const, icon: "add" as const },
-                      { label: "Transfer", value: "transfer" as const, icon: "swap-horizontal" as const },
+                      {
+                        label: "Gasto",
+                        value: "expense" as const,
+                        icon: "remove" as const,
+                      },
+                      {
+                        label: "Ingreso",
+                        value: "income" as const,
+                        icon: "add" as const,
+                      },
+                      {
+                        label: "Transfer",
+                        value: "transfer" as const,
+                        icon: "swap-horizontal" as const,
+                      },
                     ].map((opt, idx) => {
                       const active = type === opt.value;
                       return (
@@ -701,7 +867,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                             setSelectedInvestmentAsset(null);
                             setCategoryQuery("");
 
-                            if (opt.value === "transfer") setSelectedWallet(null);
+                            if (opt.value === "transfer")
+                              setSelectedWallet(null);
                             else {
                               setSelectedWalletFrom(null);
                               setSelectedWalletTo(null);
@@ -711,11 +878,15 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                           style={[
                             {
                               flex: 1,
-                              height: 40,
-                              borderRadius: 14,
+                              height: 42,
+                              borderRadius: 11,
                               borderWidth: 1,
-                              borderColor: active ? tints[opt.value].border : "#E5E7EB",
-                              backgroundColor: active ? tints[opt.value].bg : "white",
+                              borderColor: active
+                                ? tints[opt.value].border
+                                : "#E5E7EB",
+                              backgroundColor: active
+                                ? tints[opt.value].bg
+                                : "white",
                               flexDirection: "row",
                               alignItems: "center",
                               justifyContent: "center",
@@ -724,7 +895,11 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                             noOutline,
                           ]}
                         >
-                          <Ionicons name={opt.icon} size={16} color={active ? "#0F172A" : "#64748B"} />
+                          <Ionicons
+                            name={opt.icon}
+                            size={16}
+                            color={active ? "#0F172A" : "#64748B"}
+                          />
                           <Text
                             style={{
                               marginLeft: 8,
@@ -743,28 +918,42 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
                 <View
                   style={{
-                    width: 320,
-                    backgroundColor: "white",
-                    borderRadius: 18,
-                    borderWidth: 1,
-                    borderColor: "#E5E7EB",
-                    padding: 12,
+                    width: 365,
+                    backgroundColor: "#2458E8",
+                    borderRadius: 16,
+                    padding: 16,
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8", alignSelf: "flex-start" }}>Cantidad</Text>
-                  <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 4 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "900",
+                      letterSpacing: 0.8,
+                      color: "#C9D7FF",
+                      alignSelf: "flex-start",
+                    }}
+                  >
+                    IMPORTE
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "flex-end",
+                      marginTop: 4,
+                    }}
+                  >
                     <TextInput
                       value={amount}
                       onChangeText={(t) => setAmount(t.replace(".", ","))}
                       placeholder="0,00"
-                      placeholderTextColor="#CBD5E1"
+                      placeholderTextColor="#BFD0FF"
                       inputMode="decimal"
                       style={{
-                        fontSize: 44,
+                        fontSize: 42,
                         fontWeight: "900",
-                        color: "#0F172A",
+                        color: "white",
                         textAlign: "center",
                         width: 170,
                         paddingVertical: 6,
@@ -779,7 +968,15 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       style={{ marginLeft: 6, paddingBottom: 10 }}
                     >
-                      <Text style={{ fontSize: 26, fontWeight: "900", color: "#94A3B8" }}>{currencySymbol(currency)}</Text>
+                      <Text
+                        style={{
+                          fontSize: 25,
+                          fontWeight: "900",
+                          color: "#C9D7FF",
+                        }}
+                      >
+                        {currencySymbol(currency)}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -789,21 +986,30 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
               {type === "transfer" ? (
                 <>
                   <Section title="Desde">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
                       <View style={{ flexDirection: "row" }}>
                         {wallets.map((w, idx) => {
                           const active = selectedWalletFrom?.id === w.id;
                           return (
-                            <View key={w.id} style={idx ? { marginLeft: 8 } : undefined}>
+                            <View
+                              key={w.id}
+                              style={idx ? { marginLeft: 8 } : undefined}
+                            >
                               <Chip
                                 label={walletChipLabel(w)}
                                 active={active}
                                 onPress={() => {
                                   setSelectedWalletFrom(w);
                                   if (selectedWalletTo?.id === w.id) {
-                                    const next = wallets.find((x) => x.id !== w.id) || null;
+                                    const next =
+                                      wallets.find((x) => x.id !== w.id) ||
+                                      null;
                                     setSelectedWalletTo(next);
-                                    if ((next as any)?.kind !== "investment") setSelectedInvestmentAsset(null);
+                                    if ((next as any)?.kind !== "investment")
+                                      setSelectedInvestmentAsset(null);
                                   }
                                 }}
                                 tint={tints.transfer}
@@ -816,13 +1022,19 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                   </Section>
 
                   <Section title="Hacia">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
                       <View style={{ flexDirection: "row" }}>
                         {wallets.map((w, idx) => {
                           const disabled = selectedWalletFrom?.id === w.id;
                           const active = selectedWalletTo?.id === w.id;
                           return (
-                            <View key={w.id} style={idx ? { marginLeft: 8 } : undefined}>
+                            <View
+                              key={w.id}
+                              style={idx ? { marginLeft: 8 } : undefined}
+                            >
                               <Chip
                                 label={walletChipLabel(w)}
                                 active={active}
@@ -830,7 +1042,8 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                                 onPress={() => {
                                   if (disabled) return;
                                   setSelectedWalletTo(w);
-                                  if (w.kind !== "investment") setSelectedInvestmentAsset(null);
+                                  if (w.kind !== "investment")
+                                    setSelectedInvestmentAsset(null);
                                 }}
                                 tint={tints.transfer}
                               />
@@ -843,13 +1056,24 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
                   {selectedWalletTo?.kind === "investment" ? (
                     <Section title="Inversión">
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                      >
                         <View style={{ flexDirection: "row" }}>
                           {investmentAssets.map((a, idx) => {
                             const active = selectedInvestmentAsset?.id === a.id;
                             return (
-                              <View key={a.id} style={idx ? { marginLeft: 8 } : undefined}>
-                                <Chip label={`📈 ${a.name}`} active={active} onPress={() => setSelectedInvestmentAsset(a)} tint={tints.transfer} />
+                              <View
+                                key={a.id}
+                                style={idx ? { marginLeft: 8 } : undefined}
+                              >
+                                <Chip
+                                  label={`📈 ${a.name}`}
+                                  active={active}
+                                  onPress={() => setSelectedInvestmentAsset(a)}
+                                  tint={tints.transfer}
+                                />
                               </View>
                             );
                           })}
@@ -861,13 +1085,23 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
               ) : (
                 <>
                   <Section title="Cartera">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
                       <View style={{ flexDirection: "row" }}>
                         {wallets.map((w, idx) => {
                           const active = selectedWallet?.id === w.id;
                           return (
-                            <View key={w.id} style={idx ? { marginLeft: 8 } : undefined}>
-                              <Chip label={walletChipLabel(w)} active={active} onPress={() => setSelectedWallet(w)} />
+                            <View
+                              key={w.id}
+                              style={idx ? { marginLeft: 8 } : undefined}
+                            >
+                              <Chip
+                                label={walletChipLabel(w)}
+                                active={active}
+                                onPress={() => setSelectedWallet(w)}
+                              />
                             </View>
                           );
                         })}
@@ -897,7 +1131,16 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                         ]}
                       >
                         <Ionicons name="add" size={16} color={colors.primary} />
-                        <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Crear</Text>
+                        <Text
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 12,
+                            fontWeight: "900",
+                            color: "#0F172A",
+                          }}
+                        >
+                          Crear
+                        </Text>
                       </TouchableOpacity>
                     }
                   >
@@ -920,22 +1163,44 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                         onChangeText={setCategoryQuery}
                         placeholder="Buscar categoría..."
                         placeholderTextColor="#94A3B8"
-                        style={{ marginLeft: 10, flex: 1, fontSize: 13, fontWeight: "800", color: "#0F172A" }}
+                        style={{
+                          marginLeft: 10,
+                          flex: 1,
+                          fontSize: 13,
+                          fontWeight: "800",
+                          color: "#0F172A",
+                        }}
                       />
                       {categoryQuery ? (
-                        <TouchableOpacity onPress={() => setCategoryQuery("")} style={[{ padding: 6 }, noOutline]} activeOpacity={0.9}>
-                          <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+                        <TouchableOpacity
+                          onPress={() => setCategoryQuery("")}
+                          style={[{ padding: 6 }, noOutline]}
+                          activeOpacity={0.9}
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={18}
+                            color="#CBD5E1"
+                          />
                         </TouchableOpacity>
                       ) : null}
                     </View>
 
                     {/* Grid (2 filas visibles = 6 categorías) */}
-                    <View style={{ marginTop: 10, maxHeight: categoryGridMaxHeight }}>
+                    <View
+                      style={{
+                        marginTop: 10,
+                        maxHeight: categoryGridMaxHeight,
+                      }}
+                    >
                       <ScrollView showsVerticalScrollIndicator>
-                        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                        <View
+                          style={{ flexDirection: "row", flexWrap: "wrap" }}
+                        >
                           {searchedCategories.map((c) => {
                             const active = selectedCategory?.id === c.id;
-                            const tint = type === "expense" ? tints.expense : tints.income;
+                            const tint =
+                              type === "expense" ? tints.expense : tints.income;
 
                             return (
                               <TouchableOpacity
@@ -955,14 +1220,23 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                                     height: CATEGORY_ITEM_H,
                                     borderRadius: 14,
                                     borderWidth: 1,
-                                    borderColor: active ? tint.border : "#E5E7EB",
+                                    borderColor: active
+                                      ? tint.border
+                                      : "#E5E7EB",
                                     backgroundColor: active ? tint.bg : "white",
                                     alignItems: "center",
                                     justifyContent: "center",
                                     paddingHorizontal: 10,
                                   }}
                                 >
-                                  <Text style={{ fontSize: 13, fontWeight: "900", color: "#0F172A" }} numberOfLines={1}>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: "900",
+                                      color: "#0F172A",
+                                    }}
+                                    numberOfLines={1}
+                                  >
                                     {(c.emoji || "🏷️") + " " + c.name}
                                   </Text>
                                 </View>
@@ -972,7 +1246,13 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
                           {!searchedCategories.length ? (
                             <View style={{ paddingVertical: 16 }}>
-                              <Text style={{ fontSize: 13, fontWeight: "800", color: "#94A3B8" }}>
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: "800",
+                                  color: "#94A3B8",
+                                }}
+                              >
                                 No hay resultados para “{categoryQuery}”.
                               </Text>
                             </View>
@@ -984,8 +1264,23 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                     {/* Subcategorías */}
                     {selectedCategory && subcategories.length > 0 ? (
                       <View style={{ marginTop: 12 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                          <Text style={{ fontSize: 12, fontWeight: "900", color: "#94A3B8" }}>Subcategoría (opcional)</Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 10,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: "900",
+                              color: "#94A3B8",
+                            }}
+                          >
+                            Subcategoría (opcional)
+                          </Text>
                           <TouchableOpacity
                             onPress={() => openCategoryModal(true)}
                             activeOpacity={0.9}
@@ -1003,18 +1298,38 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                               noOutline,
                             ]}
                           >
-                            <Ionicons name="add" size={16} color={colors.primary} />
-                            <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: "900", color: "#0F172A" }}>Crear</Text>
+                            <Ionicons
+                              name="add"
+                              size={16}
+                              color={colors.primary}
+                            />
+                            <Text
+                              style={{
+                                marginLeft: 6,
+                                fontSize: 12,
+                                fontWeight: "900",
+                                color: "#0F172A",
+                              }}
+                            >
+                              Crear
+                            </Text>
                           </TouchableOpacity>
                         </View>
 
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                        >
                           <View style={{ flexDirection: "row" }}>
                             <Chip
                               label="Sin sub"
                               active={!selectedSub}
                               onPress={() => setSelectedSub(null)}
-                              tint={type === "expense" ? tints.expense : tints.income}
+                              tint={
+                                type === "expense"
+                                  ? tints.expense
+                                  : tints.income
+                              }
                             />
                             {subcategories.map((s: any, idx: number) => {
                               const active = selectedSub?.id === s.id;
@@ -1024,7 +1339,11 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                                     label={`${s.emoji || "•"} ${s.name}`}
                                     active={active}
                                     onPress={() => setSelectedSub(s)}
-                                    tint={type === "expense" ? tints.expense : tints.income}
+                                    tint={
+                                      type === "expense"
+                                        ? tints.expense
+                                        : tints.income
+                                    }
                                   />
                                 </View>
                               );
@@ -1041,13 +1360,25 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
               <View style={{ flexDirection: "row", marginTop: 10 }}>
                 <View style={{ flex: 1, marginRight: 10 }}>
                   <Section title="Nota (opcional)">
-                    <View style={{ borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "white", padding: 10 }}>
+                    <View
+                      style={{
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
+                        backgroundColor: "white",
+                        padding: 10,
+                      }}
+                    >
                       <TextInput
                         value={description}
                         onChangeText={setDescription}
                         placeholder="Ej: cena con amigos"
                         placeholderTextColor="#94A3B8"
-                        style={{ fontSize: 13, fontWeight: "800", color: "#0F172A" }}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "800",
+                          color: "#0F172A",
+                        }}
                       />
                     </View>
                   </Section>
@@ -1055,7 +1386,13 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
 
                 <View style={{ width: 320 }}>
                   <Section title="Fecha">
-                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       <TouchableOpacity
                         onPress={openDatePicker}
                         activeOpacity={0.9}
@@ -1075,12 +1412,31 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                           noOutline,
                         ]}
                       >
-                        <Ionicons name="calendar-outline" size={16} color="#64748B" />
-                        <Text style={{ marginLeft: 8, fontSize: 13, fontWeight: "900", color: "#0F172A" }}>
-                          {formatShortDate(date)} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        <Ionicons
+                          name="calendar-outline"
+                          size={16}
+                          color="#64748B"
+                        />
+                        <Text
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 13,
+                            fontWeight: "900",
+                            color: "#0F172A",
+                          }}
+                        >
+                          {formatShortDate(date)}{" "}
+                          {date.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </Text>
                         <View style={{ flex: 1 }} />
-                        <Ionicons name="chevron-down" size={16} color="#94A3B8" />
+                        <Ionicons
+                          name="chevron-down"
+                          size={16}
+                          color="#94A3B8"
+                        />
                       </TouchableOpacity>
 
                       <Chip label="Ahora" onPress={() => setDate(new Date())} />
@@ -1093,7 +1449,9 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                         type="datetime-local"
                         value={toDateTimeLocalValue(date)}
                         onChange={(e) => {
-                          const next = parseDateTimeLocal((e.target as any).value);
+                          const next = parseDateTimeLocal(
+                            (e.target as any).value,
+                          );
                           if (next) setDate(next);
                         }}
                         tabIndex={-1}
@@ -1122,8 +1480,15 @@ export default function CreateTransactionModal({ visible, onClose, onSaved, pref
                       { label: "Mensual", value: "monthly" as const },
                       { label: "Anual", value: "yearly" as const },
                     ].map((opt, idx) => (
-                      <View key={opt.value} style={idx ? { marginLeft: 8 } : undefined}>
-                        <Chip label={opt.label} active={recurrenceInterval === opt.value} onPress={() => setRecurrenceInterval(opt.value)} />
+                      <View
+                        key={opt.value}
+                        style={idx ? { marginLeft: 8 } : undefined}
+                      >
+                        <Chip
+                          label={opt.label}
+                          active={recurrenceInterval === opt.value}
+                          onPress={() => setRecurrenceInterval(opt.value)}
+                        />
                       </View>
                     ))}
                   </View>

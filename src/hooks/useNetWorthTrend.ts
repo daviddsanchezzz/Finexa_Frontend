@@ -26,6 +26,7 @@ export interface NetWorthWallet {
 
 export interface NetWorthTrend {
   isLoading: boolean;
+  isError: boolean;
   // Patrimonio actual real: suma en vivo del balance de todas las carteras.
   current: number;
   // Carteras que forman exactamente el patrimonio actual mostrado.
@@ -98,10 +99,11 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
   });
 
   const isLoading = seriesQuery.isLoading || netWorthQuery.isLoading;
+  const isError = seriesQuery.isError || netWorthQuery.isError;
 
   return useMemo(() => {
     if (!seriesQuery.data || !netWorthQuery.data) {
-      return { isLoading, current: 0, wallets: [], periodDelta: 0, periodSavings: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [], monthsByYear: {}, globalSummaryList: [] };
+      return { isLoading, isError, current: 0, wallets: [], periodDelta: 0, periodSavings: 0, periodLabel: "", pctChange: 0, sparkline: [], series: [], monthsByYear: {}, globalSummaryList: [] };
     }
 
     const now = new Date();
@@ -168,6 +170,6 @@ export function useNetWorthTrend(filterType: NetWorthFilterType = "month"): NetW
       .map((p) => ({ label: p.label, value: p.finalAmount }));
     sparkline.push({ label: "Hoy", value: current });
 
-    return { isLoading, current, wallets: netWorthQuery.data.wallets, periodDelta, periodSavings, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
-  }, [seriesQuery.data, netWorthQuery.data, isLoading, filterType]);
+    return { isLoading, isError, current, wallets: netWorthQuery.data.wallets, periodDelta, periodSavings, periodLabel, pctChange, sparkline, series: wealthSeries, monthsByYear, globalSummaryList };
+  }, [seriesQuery.data, netWorthQuery.data, isLoading, isError, filterType]);
 }

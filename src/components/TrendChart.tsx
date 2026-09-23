@@ -14,6 +14,7 @@ export interface TrendSeries {
 }
 
 interface Props {
+  formatValue?: (value: number) => string;
   series: TrendSeries[]; // 1-3 series, mismo nº de valores que xLabels
   xLabels: string[];
   // Etiquetas completas para el tooltip (ej. "Septiembre 2026"); si se omite
@@ -35,7 +36,7 @@ function buildPath(points: { x: number; y: number }[]) {
 // ~6 labels del eje X, siempre repartidos. Tocar la leyenda muestra/oculta
 // esa serie. Tocar o arrastrar por el trazado selecciona un punto (con un
 // golpe háptico ligero por cada mes) y muestra un tooltip flotante.
-export default function TrendChart({ series, xLabels, tooltipLabels, height = 130 }: Props) {
+export default function TrendChart({ series, xLabels, tooltipLabels, height = 130, formatValue }: Props) {
   const [width, setWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
@@ -136,8 +137,8 @@ export default function TrendChart({ series, xLabels, tooltipLabels, height = 13
 
       <View style={{ flexDirection: "row" }}>
         <View style={{ justifyContent: "space-between", marginRight: 8, height, paddingVertical: padY }}>
-          <Text style={{ fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>{formatEuroInt(maxV)}</Text>
-          <Text style={{ fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>{formatEuroInt(minV)}</Text>
+          <Text style={{ fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>{(formatValue ?? formatEuroInt)(maxV)}</Text>
+          <Text style={{ fontSize: 9.5, color: "#C1C5CC", fontWeight: "500" }}>{(formatValue ?? formatEuroInt)(minV)}</Text>
         </View>
 
         <View style={{ flex: 1, position: "relative" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
@@ -196,7 +197,7 @@ export default function TrendChart({ series, xLabels, tooltipLabels, height = 13
                   title={labels[selectedIndex]}
                   style={{ position: "absolute", left: tooltipLeft, top: tooltipTop, zIndex: 20, elevation: 6 }}
                   pointerLeft={pointerLeft}
-                  rows={visibleSeries.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0 }))}
+                  rows={visibleSeries.map((s) => ({ label: s.label, color: s.color, value: s.values[selectedIndex] ?? 0, formattedValue: formatValue?.(s.values[selectedIndex] ?? 0) }))}
                 />
               )}
             </>

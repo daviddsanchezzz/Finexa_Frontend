@@ -12,6 +12,7 @@ interface PieItem {
 }
 
 interface PieChartProps {
+  formatValue?: (value: number) => string;
   data?: PieItem[];
   size?: number;
   innerRadius?: number;
@@ -21,6 +22,7 @@ interface PieChartProps {
 }
 
 export default function PieChartComponent({
+  formatValue,
   data = [],
   size = 170,
   innerRadius = 55,
@@ -91,7 +93,7 @@ export default function PieChartComponent({
       }));
   }
 
-  const formatEuro = (n: number) => `${formatEuroShared(n)} €`;
+  const formatEuro = formatValue ?? ((n: number) => `${formatEuroShared(n)} €`);
 
 
   // --------------------------------------------------

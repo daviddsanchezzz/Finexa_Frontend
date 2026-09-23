@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Platform, Alert } from "react-native";
 
@@ -19,9 +19,9 @@ function escapeCsv(val: string | number | null | undefined): string {
   return str;
 }
 
-function buildCsv(transactions: Transaction[]): string {
+function buildCsv(transactions: Transaction[], currency: string): string {
   const rows: string[] = [
-    ["Fecha", "Tipo", "Importe (€)", "Descripción", "Categoría", "Subcategoría"].join(","),
+    ["Fecha", "Tipo", `Importe (${currency})`, "Descripción", "Categoría", "Subcategoría"].join(","),
   ];
 
   for (const tx of transactions) {
@@ -39,10 +39,11 @@ function buildCsv(transactions: Transaction[]): string {
 
 export async function exportTransactionsCsv(
   transactions: Transaction[],
-  fileName = "spendly_transacciones"
+  fileName = "spendly_transacciones",
+  currency = "€"
 ): Promise<void> {
   if (Platform.OS === "web") {
-    const csv = buildCsv(transactions);
+    const csv = buildCsv(transactions, currency);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -54,7 +55,7 @@ export async function exportTransactionsCsv(
   }
 
   try {
-    const csv = buildCsv(transactions);
+    const csv = buildCsv(transactions, currency);
     const uri = `${FileSystem.cacheDirectory}${fileName}.csv`;
     await FileSystem.writeAsStringAsync(uri, "﻿" + csv, {
       encoding: FileSystem.EncodingType.UTF8,
