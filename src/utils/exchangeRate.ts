@@ -36,7 +36,10 @@ async function getRates(): Promise<Record<string, number>> {
  * Convert amount from sourceCurrency to EUR.
  * Returns null if conversion is not possible (unknown currency, network error).
  */
-export async function toEur(amount: number, sourceCurrency: string): Promise<number | null> {
+export async function toEur(
+  amount: number,
+  sourceCurrency: string,
+): Promise<number | null> {
   if (!sourceCurrency || sourceCurrency.toUpperCase() === "EUR") return amount;
   try {
     const rates = await getRates();
@@ -52,7 +55,10 @@ export async function toEur(amount: number, sourceCurrency: string): Promise<num
  * Convert amount from EUR to targetCurrency (inverse of toEur).
  * Returns null if conversion is not possible (unknown currency, network error).
  */
-export async function fromEur(amount: number, targetCurrency: string): Promise<number | null> {
+export async function fromEur(
+  amount: number,
+  targetCurrency: string,
+): Promise<number | null> {
   if (!targetCurrency || targetCurrency.toUpperCase() === "EUR") return amount;
   try {
     const rates = await getRates();
@@ -67,7 +73,10 @@ export async function fromEur(amount: number, targetCurrency: string): Promise<n
 /** Synchronously convert using cached rates — returns null if no cache available */
 let _cachedRates: Record<string, number> | null = null;
 
-export function toEurSync(amount: number, sourceCurrency: string): number | null {
+export function toEurSync(
+  amount: number,
+  sourceCurrency: string,
+): number | null {
   if (!sourceCurrency || sourceCurrency.toUpperCase() === "EUR") return amount;
   if (!_cachedRates) return null;
   const rate = _cachedRates[sourceCurrency.toUpperCase()];
@@ -83,23 +92,23 @@ export async function preloadRates(): Promise<void> {
 
 export const COMMON_CURRENCIES = [
   { code: "EUR", symbol: "€", label: "Euro" },
-  { code: "USD", symbol: "$", label: "Dólar" },
-  { code: "GBP", symbol: "£", label: "Libra" },
-  { code: "JPY", symbol: "¥", label: "Yen" },
+  { code: "USD", symbol: "$", label: "Dólar estadounidense" },
+  { code: "GBP", symbol: "£", label: "Libra británica" },
+  { code: "JPY", symbol: "¥", label: "Yen japonés" },
   { code: "CHF", symbol: "CHF", label: "Franco suizo" },
-  { code: "MXN", symbol: "$", label: "Peso mex." },
-  { code: "BRL", symbol: "R$", label: "Real" },
-  { code: "CAD", symbol: "CA$", label: "Dólar can." },
-  { code: "AUD", symbol: "A$", label: "Dólar aus." },
-  { code: "THB", symbol: "฿", label: "Baht" },
-  { code: "TRY", symbol: "₺", label: "Lira" },
-  { code: "MAD", symbol: "د.م.", label: "Dírham mar." },
+  { code: "MXN", symbol: "$", label: "Peso mexicano" },
+  { code: "BRL", symbol: "R$", label: "Real brasileño" },
+  { code: "CAD", symbol: "CA$", label: "Dólar canadiense" },
+  { code: "AUD", symbol: "A$", label: "Dólar australiano" },
+  { code: "THB", symbol: "฿", label: "Baht tailandés" },
+  { code: "TRY", symbol: "₺", label: "Lira turca" },
+  { code: "MAD", symbol: "د.م.", label: "Dírham marroquí" },
   { code: "CZK", symbol: "Kč", label: "Corona checa" },
-  { code: "PLN", symbol: "zł", label: "Esloti" },
+  { code: "PLN", symbol: "zł", label: "Esloti polaco" },
   { code: "SEK", symbol: "kr", label: "Corona sueca" },
   { code: "NOK", symbol: "kr", label: "Corona noruega" },
   { code: "DKK", symbol: "kr", label: "Corona danesa" },
-  { code: "HUF", symbol: "Ft", label: "Forinto" },
+  { code: "HUF", symbol: "Ft", label: "Florín húngaro" },
   { code: "RON", symbol: "lei", label: "Leu rumano" },
   { code: "BGN", symbol: "лв", label: "Lev búlgaro" },
 ];
