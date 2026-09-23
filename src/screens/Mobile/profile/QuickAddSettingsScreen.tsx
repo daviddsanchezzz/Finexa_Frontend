@@ -17,7 +17,7 @@ export function QuickAddSettingsContent() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const tokenParam = token ? `&token=${token}` : "";
-  const exampleUrl = `${BASE_URL}?qa=1&amount=IMPORTE&merchant=COMERCIO&card=TARJETA${tokenParam}`;
+  const exampleUrl = `${BASE_URL}?qa=1&amount=IMPORTE&merchant=COMERCIO&card=TARJETA&currency=DIVISA${tokenParam}`;
 
   const copy = async (key: string, value: string) => {
     await Clipboard.setStringAsync(value);
@@ -81,7 +81,10 @@ export function QuickAddSettingsContent() {
         Esto sirve para crear avisos de "nuevo gasto" automáticamente desde Shortcuts — por ejemplo, al acercar una
         tarjeta por NFC. Tu automatización abre esta URL (sustituyendo IMPORTE/COMERCIO/TARJETA por sus campos
         dinámicos); como ya lleva tu token, la app te identifica aunque no tengas sesión iniciada en el navegador que
-        la abre. Si crees que se ha filtrado, pulsa "Regenerar" y actualiza la URL guardada en tu automatización.
+        la abre. DIVISA es opcional: solo hace falta si el importe usa un símbolo ambiguo como "$" o "¥" (rellénalo con
+        la propiedad "Código de divisa" de la tarjeta en Wallet, p. ej. CHF); si el importe ya trae el símbolo del euro
+        u otro no ambiguo, puedes quitar ese parámetro. Si crees que se ha filtrado, pulsa "Regenerar" y actualiza la
+        URL guardada en tu automatización.
       </Text>
     </>
   );
