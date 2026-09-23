@@ -49,8 +49,12 @@ export type CategorySuggestion = { categoryId: number; subcategoryId: number | n
 
 // Pide al backend la categoría/subcategoría que siempre se ha usado para este
 // comercio (ver TransactionsService.suggestCategory). Nunca lanza ni bloquea:
-// si falla o tarda más de 1,5 s, devuelve null y el formulario se abre sin
-// categoría preseleccionada, como antes.
+// si falla o tarda más de 5 s, devuelve null y el formulario se abre sin
+// categoría preseleccionada, como antes. Este endpoint se llama justo
+// después del login silencioso del enlace de Shortcuts, junto a ~20
+// peticiones más (wallets, categories, trips...), así que puede tardar
+// más de 1-2s sin que haya nada roto — el timeout solo cubre el caso de
+// que el backend realmente se cuelgue.
 export async function fetchCategorySuggestion(merchant: string): Promise<CategorySuggestion | null> {
   const description = merchant.trim();
   if (!description) return null;
@@ -58,7 +62,7 @@ export async function fetchCategorySuggestion(merchant: string): Promise<Categor
     const request = api
       .get('/transactions/suggest-category', { params: { description } })
       .then((res) => (res.data && res.data.categoryId != null ? (res.data as CategorySuggestion) : null));
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
     return await Promise.race([request, timeout]);
   } catch {
     return null;
