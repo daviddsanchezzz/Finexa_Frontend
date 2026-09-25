@@ -657,14 +657,16 @@ export default function PortfolioChartsPanel({
   const lastProfit = last ? last.equity - last.netContributions : 0;
 
   // Rentabilidad simple acumulada desde el inicio del rango:
-  // (equity - equity inicial - aportado desde entonces) / (equity inicial + aportado desde entonces).
+  // (equity - equity inicial - aportado desde entonces) / (coste aportado al
+  // inicio + aportado desde entonces). Base = coste (netContributions), no
+  // valor de mercado, para coincidir con el criterio de rentabilidad total.
   const perfSeries = useMemo(() => {
     if (safe.length === 0) return [];
     const startEquity = safe[0].equity;
     const startNc = safe[0].netContributions;
     return safe.map((point) => {
       const flowSince = point.netContributions - startNc;
-      const ratio = simplePeriodReturn(point.equity - startEquity - flowSince, startEquity, flowSince);
+      const ratio = simplePeriodReturn(point.equity - startEquity - flowSince, startNc, flowSince);
       return { date: point.date, value: (ratio ?? 0) * 100 };
     });
   }, [safe]);

@@ -52,6 +52,7 @@ type PortfolioSnapshotRow = {
   monthStart: string;
   currency: string;
   startValue: number | null;
+  costBasisAtStart: number | null;
   endValue: number;
   cashflowNet: number;
   profit: number;
@@ -62,6 +63,7 @@ type MonthlyRentRow = {
   monthStart: string;
   currency: string;
   startValue: number | null;
+  costBasisAtStart: number | null;
   endValue: number | null;
   cashflowNet: number | null;
   profit: number | null;
@@ -391,19 +393,20 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
     try {
       const res = await api.get("/investments/snapshots");
       const rows = (res.data || []) as any[];
+      // returnPct y costBasisAtStart vienen ya calculados por el backend con
+      // el mismo criterio que la rentabilidad total (PnL / coste aportado),
+      // no se recalculan aquí para evitar que cada pantalla use una fórmula
+      // distinta.
       const mapped: PortfolioSnapshotRow[] = rows
         .map((r) => ({
           monthStart: String(r.monthStart),
           currency: String(r.currency || "EUR"),
           startValue: r.startValue == null ? null : Number(r.startValue),
+          costBasisAtStart: r.costBasisAtStart == null ? null : Number(r.costBasisAtStart),
           endValue: Number(r.endValue ?? 0),
           cashflowNet: Number(r.cashflowNet ?? 0),
           profit: Number(r.profit ?? 0),
-          returnPct: simplePeriodReturn(
-            Number(r.profit ?? 0),
-            r.startValue == null ? null : Number(r.startValue),
-            Number(r.cashflowNet ?? 0),
-          ),
+          returnPct: r.returnPct == null ? null : Number(r.returnPct),
         }))
         .sort((a, b) => new Date(b.monthStart).getTime() - new Date(a.monthStart).getTime());
       setSnapshots(mapped);
@@ -422,14 +425,11 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
         monthStart: String(r.monthStart),
         currency: String(r.currency || "EUR"),
         startValue: r.startValue == null ? null : Number(r.startValue),
+        costBasisAtStart: r.costBasisAtStart == null ? null : Number(r.costBasisAtStart),
         endValue: Number(r.endValue ?? 0),
         cashflowNet: Number(r.cashflowNet ?? 0),
         profit: Number(r.profit ?? 0),
-        returnPct: simplePeriodReturn(
-          Number(r.profit ?? 0),
-          r.startValue == null ? null : Number(r.startValue),
-          Number(r.cashflowNet ?? 0),
-        ),
+        returnPct: r.returnPct == null ? null : Number(r.returnPct),
       });
     } catch {
       setCurrentMonthReturn(null);
@@ -608,7 +608,10 @@ const submitContribution = useCallback(() => {
     const totalInvested = summary?.totalInvested || 0;
     const totalCurrentValue = summary?.totalCurrentValue || 0;
     const totalPnL = summary?.totalPnL || 0;
-    const pct = totalInvested ? (totalPnL / totalInvested) * 100 : 0;
+    // Rentabilidad calculada por el backend (PnL / dinero neto aportado):
+    // mismo criterio que usan la tabla mensual/anual y la gráfica, para que
+    // "total" y "por periodo" cuenten siempre la misma historia.
+    const pct = summary?.returnPct == null ? 0 : summary.returnPct * 100;
     const lastGlobal =
       (summary?.assets || [])
         .map((a) => a.lastValuationDate)
@@ -916,11 +919,15 @@ const submitContribution = useCallback(() => {
       const last = months[months.length - 1];
       const cashflowNet = months.reduce((s, r) => s + r.cashflowNet, 0);
       const profit = months.reduce((s, r) => s + r.profit, 0);
-      const returnPct = simplePeriodReturn(profit, first?.startValue, cashflowNet);
+      // Base = coste aportado hasta el inicio del año (no el valor de mercado):
+      // mismo criterio que la rentabilidad total, para que "Total año" y la
+      // tarjeta de Cartera nunca se desvíen entre sí.
+      const returnPct = simplePeriodReturn(profit, first?.costBasisAtStart, cashflowNet);
       return {
         year: y,
         currency: first?.currency ?? "EUR",
         startValue: first?.startValue ?? null,
+        costBasisAtStart: first?.costBasisAtStart ?? null,
         endValue: last?.endValue ?? 0,
         cashflowNet,
         profit,
@@ -1028,12 +1035,15 @@ const submitContribution = useCallback(() => {
     const startResult = Number(first?.result ?? (startEquity - Number(first?.netContributions || 0)));
     const gain = Number(last?.result ?? (lastEquity - lastNc)) - startResult;
 
-    // Rentabilidad simple acumulada desde el inicio del periodo:
-    // (equity - equity inicial - aportado desde entonces) / (equity inicial + aportado desde entonces).
+    // Rentabilidad simple acumulada desde el inicio del periodo visible:
+    // (equity - equity inicial - aportado desde entonces) / (coste aportado
+    // al inicio + aportado desde entonces). La base es el coste (netContributions),
+    // no el valor de mercado inicial, para coincidir con el criterio de
+    // rentabilidad total de la cartera.
     const startNc = Number(first?.netContributions || 0);
     const returnValues = monthly.map((point) => {
       const flowSince = Number(point.netContributions || 0) - startNc;
-      const ratio = simplePeriodReturn(Number(point.equity || 0) - startEquity - flowSince, startEquity, flowSince);
+      const ratio = simplePeriodReturn(Number(point.equity || 0) - startEquity - flowSince, startNc, flowSince);
       return (ratio ?? 0) * 100;
     });
     const gainPct = returnValues[returnValues.length - 1] ?? 0;
@@ -2331,6 +2341,7 @@ const submitContribution = useCallback(() => {
               monthStart: `${year}-01-01T00:00:00.000Z`,
               currency: row.currency,
               startValue: row.startValue,
+              costBasisAtStart: row.costBasisAtStart,
               endValue: row.endValue,
               cashflowNet: row.cashflowNet,
               profit: row.profit,

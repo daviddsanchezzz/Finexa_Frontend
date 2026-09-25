@@ -18,7 +18,6 @@ import api from "../../../api/api";
 import { colors } from "../../../theme/theme";
 import { textStyles, typography } from "../../../theme/typography";
 import { formatEuro } from "../../../utils/currency";
-import { simplePeriodReturn } from "../../../utils/investmentReturn";
 
 import PieChartComponent from "../../../components/PieChart";
 import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
@@ -94,6 +93,7 @@ type PortfolioSnapshotRow = {
   monthStart: string; // ISO
   currency: string;
   startValue: number | null;
+  costBasisAtStart: number | null;
   endValue: number;
   cashflowNet: number;
   profit: number;
@@ -451,19 +451,18 @@ const fetchSnapshots = async () => {
     );
 
     const rows = (res.data || []) as any[];
-    // asegúrate que el backend devuelve monthStart, startValue, endValue, cashflowNet, profit, returnPct, currency
+    // returnPct y costBasisAtStart vienen ya calculados por el backend con el
+    // mismo criterio que la rentabilidad total (PnL / coste aportado): no se
+    // recalculan aquí para que esta tabla y la tarjeta total nunca diverjan.
     const mapped: PortfolioSnapshotRow[] = rows.map((r) => ({
       monthStart: String(r.monthStart),
       currency: String(r.currency || "EUR"),
       startValue: r.startValue == null ? null : Number(r.startValue),
+      costBasisAtStart: r.costBasisAtStart == null ? null : Number(r.costBasisAtStart),
       endValue: Number(r.endValue ?? 0),
       cashflowNet: Number(r.cashflowNet ?? 0),
       profit: Number(r.profit ?? 0),
-      returnPct: simplePeriodReturn(
-        Number(r.profit ?? 0),
-        r.startValue == null ? null : Number(r.startValue),
-        Number(r.cashflowNet ?? 0),
-      ),
+      returnPct: r.returnPct == null ? null : Number(r.returnPct),
     }));
 
     // orden asc por monthStart para tabla
@@ -580,7 +579,9 @@ const fetchSnapshots = async () => {
         .filter(Boolean)
         .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
 
-    const returnPct = totalInvested ? totalPnL / totalInvested : null;
+    // Mismo criterio que la tabla mensual y la gráfica: PnL / coste aportado,
+    // calculado por el backend.
+    const returnPct = summary?.returnPct ?? null;
     return { totalInvested, totalCurrentValue, totalPnL, returnPct, lastGlobal };
   }, [summary]);
 

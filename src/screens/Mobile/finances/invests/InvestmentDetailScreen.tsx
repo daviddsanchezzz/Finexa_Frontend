@@ -626,11 +626,13 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
     }));
     const capitalPath = buildSparkPath(capitalMapped.map((point) => ({ x: point.x, y: point.y })));
 
-    // Rentabilidad simple acumulada desde el inicio del rango.
+    // Rentabilidad simple acumulada desde el inicio del rango. Base = coste
+    // aportado al inicio (capitalValues[0]), no el valor de mercado, para
+    // coincidir con el criterio de rentabilidad total de la cartera.
     let flowSince = 0;
     const returnValues = pts.map((point, index) => {
       if (index > 0) flowSince += Number(point.externalFlow || 0);
-      const ratio = simplePeriodReturn(values[index] - values[0] - flowSince, values[0], flowSince);
+      const ratio = simplePeriodReturn(values[index] - values[0] - flowSince, capitalValues[0], flowSince);
       return (ratio ?? 0) * 100;
     });
     const returnMinV = Math.min(...returnValues);
