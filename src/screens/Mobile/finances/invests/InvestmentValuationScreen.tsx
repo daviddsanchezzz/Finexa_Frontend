@@ -47,6 +47,13 @@ function toInputAmount(n: number): string {
   return formatEuro(n);
 }
 
+// Mismo orden de tipos que el resto de la sección de Inversiones.
+const ASSET_TYPE_ORDER: InvestmentAssetType[] = ["crypto", "stock", "etf", "fund", "custom", "cash"];
+const assetTypeRank = (type: InvestmentAssetType) => {
+  const idx = ASSET_TYPE_ORDER.indexOf(type);
+  return idx === -1 ? ASSET_TYPE_ORDER.length : idx;
+};
+
 export default function InvestmentValuationScreen({ navigation, route }: any) {
   const preselectedAssetId: number | undefined = route?.params?.assetId;
   const editingValuationId: number | undefined = route?.params?.editingValuationId;
@@ -145,7 +152,16 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
       });
 
       const res = assetsRes;
-      const list: Asset[] = Array.isArray(res.data) ? res.data : [];
+      const rawList: Asset[] = Array.isArray(res.data) ? res.data : [];
+      // Por tipo y, dentro de cada tipo, por la última valoración de mayor a
+      // menor (los activos sin valoración previa van al final de su tipo).
+      const list = [...rawList].sort((a, b) => {
+        const typeDiff = assetTypeRank(a.type) - assetTypeRank(b.type);
+        if (typeDiff !== 0) return typeDiff;
+        const valueA = latestByAsset.get(a.id)?.value ?? -Infinity;
+        const valueB = latestByAsset.get(b.id)?.value ?? -Infinity;
+        return valueB - valueA;
+      });
       setAssets(list);
 
       if (!isLockedToAsset) {
