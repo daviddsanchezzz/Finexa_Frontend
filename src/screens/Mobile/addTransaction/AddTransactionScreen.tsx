@@ -29,6 +29,7 @@ import NumericCalculatorKeyboard from "../../../components/NumericCalculatorKeyb
 import RecurringScopeModal, { RecurringScope } from "../../../components/RecurringScopeModal";
 import WalletIcon from "../../../components/WalletIcon";
 import { FormTextField } from "../../../components/creation";
+import { useUIStore } from "../../../store/uiStore";
 import CurrencyPickerModal, { currencySymbol } from "../../../components/CurrencyPickerModal";
 
 // Mismas categorías que la pestaña "Gastos" de un viaje (TripExpensesSection).
@@ -156,6 +157,7 @@ export default function AddScreen({ navigation }: any) {
   const { colors, isDark } = useTheme();
   const route = useRoute();
   const queryClient = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
   const editData = (route.params as any)?.editData || null;
   const prefillData = (route.params as any)?.prefillData || null;
   const isEditing = !!(editData && editData.id != null);
@@ -508,11 +510,18 @@ export default function AddScreen({ navigation }: any) {
         .get("/currency/rate", { params: { from: currency, to: activeWalletCurrency } })
         .then((res) => {
           const rate = Number(res.data?.rate);
-          if (Number.isFinite(rate)) setWalletAmountText(toAmountText(n * rate));
+          if (Number.isFinite(rate)) {
+            setWalletAmountText(toAmountText(n * rate));
+          } else {
+            throw new Error("rate inválida");
+          }
         })
         .catch(() => {
-          // Sin tipo de cambio en caché: dejamos el campo tal cual para que
-          // el usuario lo rellene a mano (p.ej. lo que le cobró el banco).
+          // Sin tipo de cambio disponible (ni en caché ni en vivo): no dejamos
+          // un número calculado con una divisa/tipo distinto sin que se note.
+          // Toast visible (nadie mira la consola) y el usuario lo rellena a mano.
+          setWalletAmountText("");
+          showToast("No se pudo obtener el tipo de cambio. Escribe tú el importe.", "error");
         })
         .finally(() => setRateLoading(false));
     }, 300);
@@ -819,9 +828,9 @@ export default function AddScreen({ navigation }: any) {
             {showDualAmount && (
               <View style={{ alignItems: "center", marginTop: -14, marginBottom: 26 }}>
                 <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textMuted, marginBottom: 2 }}>
-                  {rateLoading ? "Calculando…" : "En tu wallet"}
+                  {rateLoading ? "Calculando…" : "En tu cartera"}
                 </Text>
-                <View className="flex-row items-end justify-center">
+                <View className="flex-row items-end justify-center" style={{ alignSelf: "center" }}>
                   <TextInput
                     value={walletAmountText}
                     onChangeText={(t) => setWalletAmountText(t.replace(".", ","))}
@@ -834,9 +843,10 @@ export default function AddScreen({ navigation }: any) {
                       color: colors.text,
                       letterSpacing: -0.5,
                       fontVariant: ["tabular-nums"],
-                      textAlign: "right",
-                      width: 70,
+                      textAlign: "center",
+                      width: 56,
                       paddingVertical: 2,
+                      paddingHorizontal: 0,
                       borderWidth: 0,
                       backgroundColor: "transparent",
                       ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null),

@@ -27,6 +27,7 @@ import EditCategoryModal from "./EditCategoryModal";
 import CrossPlatformDateTimePicker from "./CrossPlatformDateTimePicker";
 import { isLogoUrl } from "../constants/bankPresets";
 import CurrencyPickerModal, { currencySymbol } from "./CurrencyPickerModal";
+import { useUIStore } from "../store/uiStore";
 
 // Los chips de cartera solo aceptan texto; si el "emoji" es en realidad la
 // URL de un logo de banco, se omite en vez de imprimir la URL como texto.
@@ -246,6 +247,7 @@ export default function CreateTransactionModal({
     [editData, initialPrefill],
   );
   const queryClient = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -551,11 +553,16 @@ export default function CreateTransactionModal({
           const rate = Number(res.data?.rate);
           if (Number.isFinite(rate)) {
             setWalletAmountText((n * rate).toFixed(2).replace(".", ","));
+          } else {
+            throw new Error("rate inválida");
           }
         })
         .catch(() => {
-          // Sin tipo de cambio en caché: dejamos el campo tal cual para que
-          // el usuario lo rellene a mano (p.ej. lo que le cobró el banco).
+          // Sin tipo de cambio disponible (ni en caché ni en vivo): no dejamos
+          // un número calculado con una divisa/tipo distinto sin que se note.
+          // Toast visible (nadie mira la consola) y el usuario lo rellena a mano.
+          setWalletAmountText("");
+          showToast("No se pudo obtener el tipo de cambio. Escribe tú el importe.", "error");
         })
         .finally(() => setRateLoading(false));
     }, 300);
@@ -1093,14 +1100,13 @@ export default function CreateTransactionModal({
                           color: "#C9D7FF",
                         }}
                       >
-                        {rateLoading
-                          ? "Calculando…"
-                          : `EN TU WALLET (${activeWalletCurrency})`}
+                        {rateLoading ? "Calculando…" : "En tu cartera"}
                       </Text>
                       <View
                         style={{
                           flexDirection: "row",
                           alignItems: "flex-end",
+                          alignSelf: "center",
                           marginTop: 2,
                         }}
                       >
@@ -1115,17 +1121,21 @@ export default function CreateTransactionModal({
                             fontWeight: "900",
                             color: "white",
                             textAlign: "center",
-                            width: 110,
+                            width: 60,
                             paddingVertical: 2,
+                            paddingHorizontal: 0,
+                            borderWidth: 0,
+                            backgroundColor: "transparent",
+                            ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null),
                           }}
                         />
                         <Text
                           style={{
-                            fontSize: 14,
+                            fontSize: 16,
                             fontWeight: "900",
-                            color: "#C9D7FF",
-                            marginLeft: 4,
-                            marginBottom: 3,
+                            color: "white",
+                            marginLeft: 3,
+                            marginBottom: 2,
                           }}
                         >
                           {currencySymbol(activeWalletCurrency || "EUR")}
