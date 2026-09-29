@@ -818,8 +818,8 @@ export default function AddScreen({ navigation }: any) {
                 de la calculadora: este campo se edita con el teclado normal. */}
             {showDualAmount && (
               <View style={{ alignItems: "center", marginTop: -14, marginBottom: 26 }}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textMuted, marginBottom: 2 }}>
-                  {rateLoading ? "Calculando…" : `EN TU WALLET (${activeWalletCurrency})`}
+                <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textMuted, marginBottom: 2 }}>
+                  {rateLoading ? "Calculando…" : "En tu wallet"}
                 </Text>
                 <View className="flex-row items-end justify-center">
                   <TextInput
@@ -834,12 +834,15 @@ export default function AddScreen({ navigation }: any) {
                       color: colors.text,
                       letterSpacing: -0.5,
                       fontVariant: ["tabular-nums"],
-                      textAlign: "center",
-                      minWidth: 90,
+                      textAlign: "right",
+                      width: 70,
                       paddingVertical: 2,
+                      borderWidth: 0,
+                      backgroundColor: "transparent",
+                      ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null),
                     }}
                   />
-                  <Text style={{ fontSize: 15, fontWeight: "700", color: colors.textMuted, marginLeft: 4, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 18, fontWeight: "700", color: colors.text, marginLeft: 3, marginBottom: 2 }}>
                     {currencySymbol(activeWalletCurrency || "EUR")}
                   </Text>
                 </View>
