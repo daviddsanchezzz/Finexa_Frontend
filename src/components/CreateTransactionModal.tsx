@@ -45,6 +45,10 @@ type Prefill = {
   assetId?: number;
   amount?: number;
   currency?: string;
+  // Importe+divisa tal como se introdujeron originalmente, cuando difieren de
+  // la divisa de la wallet (amount/currency van siempre en la de la wallet).
+  accountAmount?: number;
+  accountCurrency?: string;
   description?: string;
   cardName?: string;
   quickAddId?: string;
@@ -60,7 +64,7 @@ type Props = {
   editData?: any | null;
 };
 
-type Wallet = { id: number; name: string; emoji?: string; kind?: string };
+type Wallet = { id: number; name: string; emoji?: string; kind?: string; currency?: string };
 type Category = {
   id: number;
   name: string;
@@ -223,6 +227,9 @@ export default function CreateTransactionModal({
             type: editData.type,
             amount: Math.abs(Number(editData.amount)),
             currency: editData.currency,
+            accountAmount:
+              editData.accountAmount != null ? Math.abs(Number(editData.accountAmount)) : undefined,
+            accountCurrency: editData.accountCurrency ?? undefined,
             description: editData.description ?? editData.note ?? "",
             date: editData.date,
             walletId: editData.walletId ?? editData.wallet?.id,
@@ -265,9 +272,15 @@ export default function CreateTransactionModal({
     useState<InvestmentAsset | null>(null);
 
   const [amount, setAmount] = useState("");
-  // Solo visual por ahora: detectada desde Wallet (?qa=1) o EUR; no se guarda.
   const [currency, setCurrency] = useState<string>("EUR");
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
+  // Importe en la divisa de la wallet, solo cuando `currency` difiere de ella
+  // (p.ej. metiste USD sobre una wallet EUR). Se autocalcula a partir de
+  // `amount` vía tipo de cambio, pero es editable a mano (comisión del banco,
+  // cambio real distinto...). El que de verdad mueve el saldo es este valor,
+  // nunca `amount` cuando las divisas difieren.
+  const [walletAmountText, setWalletAmountText] = useState("");
+  const [rateLoading, setRateLoading] = useState(false);
   const [description, setDescription] = useState("");
 
   const [date, setDate] = useState<Date>(new Date());
@@ -377,10 +390,24 @@ export default function CreateTransactionModal({
 
   const resetForm = useCallback(() => {
     setType(prefill?.type ?? "expense");
+    // Si la transacción se guardó con divisa distinta a la wallet, el campo
+    // principal muestra el importe extranjero (accountAmount/accountCurrency)
+    // y el de la wallet muestra el amount/currency "real"; si no, es el caso
+    // normal de siempre (una sola divisa).
+    const hasForeignAmount = prefill?.accountAmount != null && !!prefill?.accountCurrency;
     setAmount(
-      prefill?.amount != null ? String(prefill.amount).replace(".", ",") : "",
+      hasForeignAmount
+        ? String(prefill!.accountAmount).replace(".", ",")
+        : prefill?.amount != null
+          ? String(prefill.amount).replace(".", ",")
+          : "",
     );
-    setCurrency(prefill?.currency || "EUR");
+    setCurrency(hasForeignAmount ? prefill!.accountCurrency! : prefill?.currency || "EUR");
+    setWalletAmountText(
+      hasForeignAmount && prefill?.amount != null
+        ? String(prefill.amount).replace(".", ",")
+        : "",
+    );
     setDescription(prefill?.description ?? "");
     setDate(prefill?.date ? new Date(prefill.date) : new Date());
     setRecurrenceInterval(
@@ -498,6 +525,45 @@ export default function CreateTransactionModal({
     selectedInvestmentAsset,
   ]);
 
+  // La wallet que realmente sufre el movimiento: en gasto/ingreso la única
+  // seleccionada, en transferencia la de origen (de la que sale el dinero).
+  const activeWalletCurrency =
+    type === "transfer" ? selectedWalletFrom?.currency : selectedWallet?.currency;
+  const showDualAmount = !!activeWalletCurrency && currency !== activeWalletCurrency;
+
+  // Autocalcula el importe en la divisa de la wallet cada vez que cambia el
+  // importe/divisa introducidos o la propia wallet — y solo eso: si el
+  // usuario edita a mano el campo de la wallet, no hay ningún otro efecto que
+  // dependa de walletAmountText, así que su edición nunca se sobrescribe sola.
+  useEffect(() => {
+    if (!showDualAmount) {
+      setWalletAmountText("");
+      return;
+    }
+    const n = moneyToNumber(amount);
+    if (!Number.isFinite(n)) return;
+
+    const timer = setTimeout(() => {
+      setRateLoading(true);
+      api
+        .get("/currency/rate", { params: { from: currency, to: activeWalletCurrency } })
+        .then((res) => {
+          const rate = Number(res.data?.rate);
+          if (Number.isFinite(rate)) {
+            setWalletAmountText((n * rate).toFixed(2).replace(".", ","));
+          }
+        })
+        .catch(() => {
+          // Sin tipo de cambio en caché: dejamos el campo tal cual para que
+          // el usuario lo rellene a mano (p.ej. lo que le cobró el banco).
+        })
+        .finally(() => setRateLoading(false));
+    }, 300);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, currency, activeWalletCurrency, showDualAmount]);
+
   const openCategoryModal = (isSub = false) => {
     setModalEditingItem({
       isSub,
@@ -531,6 +597,11 @@ export default function CreateTransactionModal({
     const n = moneyToNumber(amount);
     if (!amount || !Number.isFinite(n)) return false;
 
+    if (showDualAmount) {
+      const wn = moneyToNumber(walletAmountText);
+      if (!walletAmountText || !Number.isFinite(wn)) return false;
+    }
+
     if (type === "transfer") {
       if (!selectedWalletFrom || !selectedWalletTo) return false;
       if (selectedWalletFrom.id === selectedWalletTo.id) return false;
@@ -544,6 +615,8 @@ export default function CreateTransactionModal({
     return true;
   }, [
     amount,
+    showDualAmount,
+    walletAmountText,
     type,
     selectedWallet,
     selectedCategory,
@@ -558,13 +631,40 @@ export default function CreateTransactionModal({
     const n = moneyToNumber(amount);
     if (!Number.isFinite(n)) return;
 
+    // amount/currency del payload van SIEMPRE en la divisa de la wallet — es
+    // lo único que mueve el saldo. Si el usuario introdujo un importe en otra
+    // divisa, ese original se manda aparte en accountAmount/accountCurrency.
+    let finalAmount = n;
+    let finalCurrency = currency;
+    let accountAmount: number | undefined;
+    let accountCurrency: string | undefined;
+
+    if (showDualAmount) {
+      const walletN = moneyToNumber(walletAmountText);
+      if (!Number.isFinite(walletN)) return;
+      finalAmount = walletN;
+      finalCurrency = activeWalletCurrency!;
+      accountAmount = n;
+      accountCurrency = currency;
+    }
+
     const payload: any = {
       type,
-      amount: n,
-      currency,
+      amount: finalAmount,
+      currency: finalCurrency,
       description: description?.trim() || "",
       date: date.toISOString(),
     };
+
+    if (accountAmount != null) {
+      payload.accountAmount = accountAmount;
+      payload.accountCurrency = accountCurrency;
+    } else if (editData?.accountAmount != null) {
+      // Antes se guardó en otra divisa y ahora coincide con la wallet: limpia
+      // el rastro de la divisa extranjera para no dejar un dato obsoleto.
+      payload.accountAmount = null;
+      payload.accountCurrency = null;
+    }
 
     if (type === "transfer") {
       if (!selectedWalletFrom || !selectedWalletTo) return;
@@ -612,6 +712,9 @@ export default function CreateTransactionModal({
     }
   }, [
     amount,
+    showDualAmount,
+    walletAmountText,
+    activeWalletCurrency,
     editData,
     currency,
     date,
@@ -979,6 +1082,57 @@ export default function CreateTransactionModal({
                       </Text>
                     </TouchableOpacity>
                   </View>
+
+                  {showDualAmount && (
+                    <View style={{ marginTop: 10, alignItems: "center" }}>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: "800",
+                          letterSpacing: 0.4,
+                          color: "#C9D7FF",
+                        }}
+                      >
+                        {rateLoading
+                          ? "Calculando…"
+                          : `EN TU WALLET (${activeWalletCurrency})`}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "flex-end",
+                          marginTop: 2,
+                        }}
+                      >
+                        <TextInput
+                          value={walletAmountText}
+                          onChangeText={(t) => setWalletAmountText(t.replace(".", ","))}
+                          placeholder="0,00"
+                          placeholderTextColor="#8FA6E8"
+                          inputMode="decimal"
+                          style={{
+                            fontSize: 20,
+                            fontWeight: "900",
+                            color: "white",
+                            textAlign: "center",
+                            width: 110,
+                            paddingVertical: 2,
+                          }}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "900",
+                            color: "#C9D7FF",
+                            marginLeft: 4,
+                            marginBottom: 3,
+                          }}
+                        >
+                          {currencySymbol(activeWalletCurrency || "EUR")}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </View>
 
