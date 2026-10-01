@@ -58,6 +58,13 @@ export const MONTH_NAMES_ES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
+// Para espacios estrechos (fila de Evolución en mobile) donde el nombre
+// completo se trunca ("Septie...", "Noviem..."): mismo índice que MONTH_NAMES_ES.
+export const MONTH_NAMES_SHORT_ES = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
 export function formatMonthShort(y: number, m: number) {
   return new Date(y, m, 1).toLocaleDateString("es-ES", { month: "short", year: "2-digit" });
 }

@@ -21,6 +21,7 @@ import { formatEuro } from "../../../utils/currency";
 import { getTransactionsDataVersion } from "../../../utils/transactionsInvalidation";
 import { getNetWorthCache, setNetWorthCache } from "../../../utils/netWorthCache";
 import { useNetWorthTrend } from "../../../hooks/useNetWorthTrend";
+import { MONTH_NAMES_SHORT_ES } from "../../../utils/wealthSeries";
 import { useInvestmentPeriodProfit } from "../../../hooks/useInvestmentPeriodProfit";
 import NetWorthBreakdownModal from "../../../components/NetWorthBreakdownModal";
 import WalletGoalReservationsModal from "../../../components/WalletGoalReservationsModal";
@@ -924,7 +925,7 @@ export default function NetWorthScreen({ navigation, isPinnedModuleTab = false }
                   return (
                     <BreakdownRow
                       key={i}
-                      label={m.monthName}
+                      label={MONTH_NAMES_SHORT_ES[m.monthIndex]}
                       income={m.income}
                       expense={m.expense}
                       saving={m.saving}
