@@ -53,21 +53,28 @@ export default function CrossPlatformDateTimePicker({
     return newDate;
   };
 
-  // WEB: intentamos abrir el selector nativo del navegador de forma
-  // SÍNCRONA en cuanto el input se monta (useLayoutEffect, sin
-  // requestAnimationFrame de por medio) para que siga contando como parte
-  // del mismo gesto del usuario. Esto es solo una mejora (Chrome/Edge/Safari
-  // recientes lo abren al instante) — el input SIEMPRE queda visible y
-  // pulsable en la hoja de abajo, así que aunque showPicker() no exista o
-  // el navegador lo bloquee (algunas versiones de Safari en iPhone), el
-  // usuario siempre tiene una forma directa de abrirlo.
+  // WEB: intentamos abrir el selector nativo del navegador en cuanto el
+  // input se monta. OJO: si se llama a showPicker() en el MISMO tick que el
+  // montaje, en algunos navegadores (sobre todo Chrome en Android) el valor
+  // inicial del input todavía no está "asentado" y la primera fecha que
+  // confirma el usuario llega con e.target.value vacío — se descarta en
+  // handleChange y el usuario tiene que repetir el gesto una segunda vez
+  // para que "cuente". Un requestAnimationFrame de margen basta para que el
+  // navegador termine de pintar el input antes de abrir el picker, y sigue
+  // sintiéndose instantáneo. El input SIEMPRE queda visible y pulsable en la
+  // hoja de abajo, así que aunque showPicker() no exista o el navegador lo
+  // bloquee (algunas versiones de Safari en iPhone), el usuario siempre
+  // tiene una forma directa de abrirlo.
   useLayoutEffect(() => {
     if (Platform.OS !== "web" || !isVisible) return;
-    try {
-      webInputRef.current?.showPicker?.();
-    } catch {
-      // el input sigue montado y visible, se puede tocar directamente
-    }
+    const raf = requestAnimationFrame(() => {
+      try {
+        webInputRef.current?.showPicker?.();
+      } catch {
+        // el input sigue montado y visible, se puede tocar directamente
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [isVisible]);
 
   if (Platform.OS === "web") {
@@ -107,6 +114,7 @@ export default function CrossPlatformDateTimePicker({
               type={inputType}
               defaultValue={defaultValue}
               onChange={handleChange}
+              onInput={handleChange}
               style={{
                 width: "100%",
                 height: 44,
