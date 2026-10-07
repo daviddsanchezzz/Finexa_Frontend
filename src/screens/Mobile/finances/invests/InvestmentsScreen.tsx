@@ -352,6 +352,7 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
   // nuevo. rebuildRangeEnd === null significa "solo rebuildRangeStart".
   const [rebuildRangeStart, setRebuildRangeStart] = useState<string | null>(null);
   const [rebuildRangeEnd, setRebuildRangeEnd] = useState<string | null>(null);
+  const [rebuildCardOpen, setRebuildCardOpen] = useState(false);
 
   // Un grupo (año) por fila, meses ordenados Ene→Dic dentro de cada año, años
   // más recientes primero. Incluye todos los años desde el primer dato de la
@@ -2557,10 +2558,20 @@ const submitContribution = useCallback(() => {
               borderColor: t.border,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: "900", color: t.text, marginBottom: 4 }}>
-              Reconstruir snapshot
-            </Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: t.textSecondary, marginBottom: 14 }}>
+            <TouchableOpacity
+              onPress={() => setRebuildCardOpen((v) => !v)}
+              activeOpacity={0.75}
+              style={{ flexDirection: "row", alignItems: "center" }}
+            >
+              <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: t.textSecondary }}>
+                Reconstruir snapshot
+              </Text>
+              <Ionicons name={rebuildCardOpen ? "chevron-up" : "chevron-down"} size={18} color={t.textMuted} />
+            </TouchableOpacity>
+
+            {rebuildCardOpen ? (
+            <>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: t.textSecondary, marginTop: 10, marginBottom: 14 }}>
               Toca un mes para seleccionarlo y otro para cerrar un rango. Vuelve a tocar cualquiera para empezar de nuevo.
             </Text>
 
@@ -2645,6 +2656,8 @@ const submitContribution = useCallback(() => {
                 </Text>
               )}
             </TouchableOpacity>
+            </>
+            ) : null}
           </View>
         </View>
 
