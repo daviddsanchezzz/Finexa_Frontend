@@ -45,6 +45,7 @@ import { findCryptoPresetBySymbol, getCryptoLogoUrl } from "../../../../constant
 import WalletIcon from "../../../../components/WalletIcon";
 import InvestmentOperationDetailsModal from "../../../../components/InvestmentOperationDetailsModal";
 import ChartTooltip from "../../../../components/ChartTooltip";
+import { MONTH_NAMES_SHORT_ES } from "../../../../utils/wealthSeries";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
 
@@ -346,7 +347,70 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
   const [contributionResultOpen, setContributionResultOpen] = useState(false);
   const [contributionAmountText, setContributionAmountText] = useState("");
   const [rebuildSnapshotLoading, setRebuildSnapshotLoading] = useState(false);
-  const [selectedRebuildMonth, setSelectedRebuildMonth] = useState<string>("2026-05");
+  // Rango de reconstrucción: un solo tap selecciona un mes; un segundo tap
+  // (en otro mes) cierra el rango entre ambos; un tercer tap empieza de
+  // nuevo. rebuildRangeEnd === null significa "solo rebuildRangeStart".
+  const [rebuildRangeStart, setRebuildRangeStart] = useState<string | null>(null);
+  const [rebuildRangeEnd, setRebuildRangeEnd] = useState<string | null>(null);
+
+  // Un grupo (año) por fila, meses ordenados Ene→Dic dentro de cada año, años
+  // más recientes primero.
+  const rebuildMonthGroups = useMemo(() => {
+    const years = new Set<number>();
+    snapshots.forEach((snapshot) => years.add(new Date(snapshot.monthStart).getUTCFullYear()));
+    if (!years.size) years.add(new Date().getUTCFullYear());
+
+    return Array.from(years)
+      .sort((a, b) => b - a)
+      .map((year) => ({
+        year,
+        months: Array.from({ length: 12 }, (_, monthIndex) => ({
+          value: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
+          monthIndex,
+        })),
+      }));
+  }, [snapshots]);
+
+  const rebuildMonthValuesSorted = useMemo(
+    () => rebuildMonthGroups.flatMap((g) => g.months.map((m) => m.value)).sort(),
+    [rebuildMonthGroups]
+  );
+
+  const formatRebuildMonthLabel = useCallback((value: string) => {
+    const [y, m] = value.split("-").map(Number);
+    return `${MONTH_NAMES_SHORT_ES[(m || 1) - 1]} ${y}`;
+  }, []);
+
+  // Selecciona por defecto el mes más reciente disponible (equivalente a la
+  // selección de 1 mes de antes, pero calculada en vez de fija).
+  useEffect(() => {
+    if (rebuildRangeStart || !rebuildMonthValuesSorted.length) return;
+    setRebuildRangeStart(rebuildMonthValuesSorted[rebuildMonthValuesSorted.length - 1]);
+  }, [rebuildRangeStart, rebuildMonthValuesSorted]);
+
+  const rebuildRange = useMemo(() => {
+    if (!rebuildRangeStart) return null;
+    const endVal = rebuildRangeEnd ?? rebuildRangeStart;
+    const [from, to] = rebuildRangeStart <= endVal ? [rebuildRangeStart, endVal] : [endVal, rebuildRangeStart];
+    return { from, to };
+  }, [rebuildRangeStart, rebuildRangeEnd]);
+
+  const rebuildSelectedMonths = useMemo(() => {
+    if (!rebuildRange) return [] as string[];
+    return rebuildMonthValuesSorted.filter((v) => v >= rebuildRange.from && v <= rebuildRange.to);
+  }, [rebuildRange, rebuildMonthValuesSorted]);
+
+  const handleTapRebuildMonth = useCallback(
+    (value: string) => {
+      if (!rebuildRangeStart || rebuildRangeEnd) {
+        setRebuildRangeStart(value);
+        setRebuildRangeEnd(null);
+      } else if (value !== rebuildRangeStart) {
+        setRebuildRangeEnd(value);
+      }
+    },
+    [rebuildRangeStart, rebuildRangeEnd]
+  );
   const [rebalancePlan, setRebalancePlan] = useState<{
     sells: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
     buys: Array<{ assetId?: number; assetName: string; assetAbbreviation?: string | null; amount: number }>;
@@ -544,29 +608,47 @@ const runContribution = useCallback(async (amount: number) => {
   }, []);
 
   const rebuildMaySnapshot = useCallback(async () => {
-    const monthStart = selectedRebuildMonth ? `${selectedRebuildMonth}-01` : "2026-05-01";
+    const months = rebuildSelectedMonths;
+    if (!months.length) return;
     try {
       setRebuildSnapshotLoading(true);
-      await api.post(`/investments/snapshots/rebuild?monthStart=${encodeURIComponent(monthStart)}`);
-      showToast(`Snapshot de ${monthStart.slice(0, 7)} reconstruido.`, "success");
+      let okCount = 0;
+      for (const month of months) {
+        try {
+          await api.post(`/investments/snapshots/rebuild?monthStart=${encodeURIComponent(`${month}-01`)}`);
+          okCount += 1;
+        } catch {
+          // seguimos con el resto del rango aunque uno falle
+        }
+      }
+      if (okCount === months.length) {
+        showToast(
+          months.length === 1
+            ? `Snapshot de ${formatRebuildMonthLabel(months[0])} reconstruido.`
+            : `${okCount} snapshots reconstruidos.`,
+          "success"
+        );
+      } else {
+        showToast(`${okCount} de ${months.length} snapshots reconstruidos. Revisa los que fallaron.`, okCount > 0 ? "warning" : "error");
+      }
       await Promise.all([fetchSummary(), fetchSnapshots()]);
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || "No se pudo reconstruir el snapshot.";
-      showToast(String(msg), "error");
     } finally {
       setRebuildSnapshotLoading(false);
     }
-  }, [fetchSnapshots, fetchSummary, selectedRebuildMonth, showToast]);
+  }, [fetchSnapshots, fetchSummary, formatRebuildMonthLabel, rebuildSelectedMonths, showToast]);
 
   const confirmRebuildMay = useCallback(() => {
-    if (rebuildSnapshotLoading) return;
-    const monthLabel = selectedRebuildMonth || "2026-05";
+    if (rebuildSnapshotLoading || !rebuildRange) return;
+    const rangeLabel =
+      rebuildSelectedMonths.length === 1
+        ? formatRebuildMonthLabel(rebuildRange.from)
+        : `${formatRebuildMonthLabel(rebuildRange.from)} → ${formatRebuildMonthLabel(rebuildRange.to)} (${rebuildSelectedMonths.length} meses)`;
     const confirmed = Platform.OS === "web"
-      ? window.confirm(`Se recalculará el snapshot de ${monthLabel} para el usuario actual.`)
+      ? window.confirm(`Se recalculará el snapshot de ${rangeLabel} para el usuario actual.`)
       : true;
     if (!confirmed) return;
     rebuildMaySnapshot();
-  }, [rebuildMaySnapshot, rebuildSnapshotLoading, selectedRebuildMonth]);
+  }, [formatRebuildMonthLabel, rebuildMaySnapshot, rebuildRange, rebuildSelectedMonths, rebuildSnapshotLoading]);
 
 const submitContribution = useCallback(() => {
   const amount = Number((contributionAmountText || "").replace(",", "."));
@@ -935,28 +1017,6 @@ const submitContribution = useCallback(() => {
       };
     });
   }, [snapshotsForRent, rentYears]);
-
-  const rebuildMonthOptions = useMemo(() => {
-    const years = new Set<number>();
-    snapshots.forEach((snapshot) => years.add(new Date(snapshot.monthStart).getUTCFullYear()));
-    if (!years.size) years.add(new Date().getUTCFullYear());
-
-    const options: Array<{ value: string; label: string }> = [];
-    years.forEach((year) => {
-      for (let month = 0; month < 12; month += 1) {
-        const value = `${year}-${String(month + 1).padStart(2, "0")}`;
-        const date = new Date(`${value}-01T00:00:00.000Z`);
-        const label = date.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-        options.push({
-          value,
-          label: label.charAt(0).toUpperCase() + label.slice(1),
-        });
-      }
-    });
-    
-
-    return options.sort((a, b) => b.value.localeCompare(a.value));
-  }, [snapshots]);
 
   const performanceChart = useMemo(() => {
     const allPoints = [...timeline]
@@ -2495,44 +2555,70 @@ const submitContribution = useCallback(() => {
             <Text style={{ fontSize: 14, fontWeight: "900", color: t.text, marginBottom: 4 }}>
               Reconstruir snapshot
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: t.textSecondary, marginBottom: 12 }}>
-              Selecciona el mes y vuelve a calcular el snapshot mensual desde el front.
+            <Text style={{ fontSize: 12, fontWeight: "600", color: t.textSecondary, marginBottom: 14 }}>
+              Toca un mes para seleccionarlo y otro para cerrar un rango. Vuelve a tocar cualquiera para empezar de nuevo.
             </Text>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
-              {rebuildMonthOptions.length ? rebuildMonthOptions.map((option) => {
-                const active = selectedRebuildMonth === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => setSelectedRebuildMonth(option.value)}
-                    activeOpacity={0.8}
-                    style={{
-                      paddingHorizontal: 14,
-                      height: 34,
-                      borderRadius: 11,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 1,
-                      borderColor: active ? colors.primary : t.border,
-                      backgroundColor: active ? `${colors.primary}1F` : t.card,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: active ? colors.primary : t.textSecondary }}>
-                      {option.label}
+            {rebuildMonthGroups.length ? (
+              <View style={{ gap: 14 }}>
+                {rebuildMonthGroups.map((group) => (
+                  <View key={group.year}>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: t.textMuted, marginBottom: 8, letterSpacing: 0.3 }}>
+                      {group.year}
                     </Text>
-                  </TouchableOpacity>
-                );
-              }) : (
-                <Text style={{ fontSize: 12, fontWeight: "600", color: t.textMuted }}>
-                  No hay snapshots disponibles para seleccionar.
-                </Text>
-              )}
-            </ScrollView>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {group.months.map(({ value, monthIndex }) => {
+                        const isEndpoint = rebuildRange && (value === rebuildRange.from || value === rebuildRange.to);
+                        const isInRange = rebuildRange && value >= rebuildRange.from && value <= rebuildRange.to;
+                        return (
+                          <TouchableOpacity
+                            key={value}
+                            onPress={() => handleTapRebuildMonth(value)}
+                            activeOpacity={0.8}
+                            style={{
+                              width: "22%",
+                              height: 36,
+                              borderRadius: 10,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderWidth: 1,
+                              borderColor: isEndpoint ? colors.primary : isInRange ? `${colors.primary}55` : t.border,
+                              backgroundColor: isEndpoint ? colors.primary : isInRange ? `${colors.primary}1A` : t.card,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: "800",
+                                color: isEndpoint ? "white" : isInRange ? colors.primary : t.textSecondary,
+                              }}
+                            >
+                              {MONTH_NAMES_SHORT_ES[monthIndex]}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ fontSize: 12, fontWeight: "600", color: t.textMuted }}>
+                No hay snapshots disponibles para seleccionar.
+              </Text>
+            )}
+
+            {rebuildRange ? (
+              <Text style={{ fontSize: 12, fontWeight: "700", color: t.textSecondary, marginTop: 14, textAlign: "center" }}>
+                {rebuildSelectedMonths.length === 1
+                  ? `Se reconstruirá ${formatRebuildMonthLabel(rebuildRange.from)}`
+                  : `${formatRebuildMonthLabel(rebuildRange.from)} → ${formatRebuildMonthLabel(rebuildRange.to)} · ${rebuildSelectedMonths.length} meses`}
+              </Text>
+            ) : null}
 
             <TouchableOpacity
               onPress={confirmRebuildMay}
-              disabled={rebuildSnapshotLoading}
+              disabled={rebuildSnapshotLoading || !rebuildSelectedMonths.length}
               activeOpacity={0.85}
               style={{
                 marginTop: 14,
@@ -2540,7 +2626,7 @@ const submitContribution = useCallback(() => {
                 borderRadius: 12,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: rebuildSnapshotLoading ? t.border : colors.primary,
+                backgroundColor: rebuildSnapshotLoading || !rebuildSelectedMonths.length ? t.border : colors.primary,
                 opacity: rebuildSnapshotLoading ? 0.75 : 1,
               }}
             >
@@ -2548,7 +2634,9 @@ const submitContribution = useCallback(() => {
                 <ActivityIndicator size="small" color="white" />
               ) : (
                 <Text style={{ fontSize: 13, fontWeight: "900", color: "white" }}>
-                  Reconstruir snapshot
+                  {rebuildSelectedMonths.length > 1
+                    ? `Reconstruir ${rebuildSelectedMonths.length} snapshots`
+                    : "Reconstruir snapshot"}
                 </Text>
               )}
             </TouchableOpacity>
