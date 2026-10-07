@@ -24,6 +24,7 @@ import PortfolioChartsPanel from "../../../components/PortfolioChartsPanel";
 import DesktopInvestmentFormModal from "../../../components/DesktopInvestmentFormModal";
 import DesktopInvestmentOperationModal, { InvestmentAssetLite } from "../../../components/DesktopInvestmentOperationModal";
 import DesktopInvestmentValuationModal2, { ValuationAssetLite } from "../../../components/DesktopInvestmentValuationModal2";
+import DesktopInvestmentValuationImportModal from "../../../components/DesktopInvestmentValuationImportModal";
 import { KpiCard } from "../../../components/KpiCard";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom" | "cash";
@@ -430,6 +431,7 @@ export default function DesktopInvestmentsScreen({ navigation }: any) {
 
   const [opsOpen, setOpsOpen] = useState(false);
   const [valuationOpen, setValuationOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // ✅ Dentro de DesktopInvestmentsScreen component (arriba, con el resto de states)
 const [snapshots, setSnapshots] = useState<PortfolioSnapshotRow[]>([]);
@@ -480,6 +482,11 @@ const fetchSnapshots = async () => {
   const closeOps = useCallback(() => setOpsOpen(false), []);
   const openValuation = useCallback(() => setValuationOpen(true), []);
   const closeValuation = useCallback(() => setValuationOpen(false), []);
+  const openImport = useCallback(() => {
+    setValuationOpen(false);
+    setImportOpen(true);
+  }, []);
+  const closeImport = useCallback(() => setImportOpen(false), []);
 
   const openCreate = useCallback(() => {
     setEditingAssetId(undefined);
@@ -1081,6 +1088,14 @@ const fetchSnapshots = async () => {
         onSaved={fetchAll}
         assets={valuationAssets}
         currencyFallback={currency}
+        onImportExcel={openImport}
+      />
+
+      <DesktopInvestmentValuationImportModal
+        visible={importOpen}
+        onClose={closeImport}
+        onSaved={fetchAll}
+        assets={valuationAssets}
       />
     </View>
   );

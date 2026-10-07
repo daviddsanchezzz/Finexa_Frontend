@@ -36,6 +36,7 @@ type Props = {
   assets: ValuationAssetLite[];
   defaultAssetId?: number;
   currencyFallback?: string; // por si algún asset no trae currency
+  onImportExcel?: () => void;
 };
 
 const isWeb = Platform.OS === "web";
@@ -122,6 +123,7 @@ export default function DesktopInvestmentValuationModal2({
   assets,
   defaultAssetId,
   currencyFallback = "EUR",
+  onImportExcel,
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -344,6 +346,32 @@ export default function DesktopInvestmentValuationModal2({
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {onImportExcel ? (
+                <TouchableOpacity
+                  onPress={onImportExcel}
+                  activeOpacity={0.9}
+                  style={[
+                    {
+                      height: 40,
+                      paddingHorizontal: 12,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: "rgba(15,23,42,0.14)",
+                      backgroundColor: "white",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginRight: 10,
+                    },
+                    noOutline,
+                  ]}
+                >
+                  <Ionicons name="document-attach-outline" size={16} color={colors.primary} />
+                  <Text style={{ marginLeft: 8, fontSize: 12, fontWeight: "900", color: colors.primary }}>
+                    Importar Excel
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={!canSave || saving}

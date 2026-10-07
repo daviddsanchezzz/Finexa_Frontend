@@ -43,6 +43,7 @@ export type RootStackParamList = {
   Investments: undefined;
   InvestmentForm: undefined;
   InvestmentValuation: undefined;
+  InvestmentValuationImport: undefined;
   InvestmentDetail: undefined;
   Reports: undefined;
   ReportsPdfViewer: { path?: string; title?: string; base64?: string; fileName?: string } | undefined;
@@ -309,6 +310,13 @@ export default function MobileNavigator() {
             name="InvestmentValuation"
             getComponent={() =>
               require("../screens/Mobile/finances/invests/InvestmentValuationScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="InvestmentValuationImport"
+            getComponent={() =>
+              require("../screens/Mobile/finances/invests/InvestmentValuationImportScreen").default
             }
           />
 

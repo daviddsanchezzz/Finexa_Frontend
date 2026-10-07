@@ -1,6 +1,7 @@
 // src/screens/Investments/InvestmentValuationScreen.tsx
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, Alert } from "react-native";
+import { View, Text, Alert, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../../../../api/api";
 import { colors } from "../../../../theme/theme";
@@ -335,6 +336,26 @@ export default function InvestmentValuationScreen({ navigation, route }: any) {
             title="VALORACIONES"
             description="Introduce el valor total de cada activo para la fecha elegida. Deja en blanco los que no quieras actualizar."
           >
+            <TouchableOpacity
+              onPress={() => navigation.navigate("InvestmentValuationImport")}
+              activeOpacity={0.75}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                minHeight: 44,
+                borderRadius: 11,
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
+                marginBottom: 14,
+              }}
+            >
+              <Ionicons name="document-attach-outline" size={16} color={colors.primary} />
+              <Text style={{ fontSize: 13, fontWeight: "800", color: colors.primary }}>
+                Importar histórico desde Excel
+              </Text>
+            </TouchableOpacity>
             <View style={{ gap: 14 }}>
               {visibleAssets.map((a) => {
                 const raw = multiValues[a.id] ?? "";
