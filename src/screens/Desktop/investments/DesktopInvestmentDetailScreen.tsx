@@ -25,7 +25,7 @@ import { KpiCard } from "../../../components/KpiCard";
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
-type RangeKey = "1m" | "3m" | "6m" | "1y" | "all";
+type RangeKey = "1m" | "3m" | "6m" | "ytd" | "1y" | "all";
 
 interface AssetFromApi {
   id: number;
@@ -132,6 +132,14 @@ function rangeDays(k: RangeKey) {
     default:
       return null;
   }
+}
+// Mismo criterio que la pestaña Rentabilidad de la cartera: YTD = desde el 1
+// de enero del año en curso, no un número fijo de días.
+function rangeCutoffMs(k: RangeKey): number | null {
+  if (k === "all") return null;
+  if (k === "ytd") return new Date(new Date().getFullYear(), 0, 1).getTime();
+  const days = rangeDays(k);
+  return days ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
 }
 function pnlTone(pnl: number) {
   if (pnl > 0) return "success";
@@ -282,6 +290,7 @@ function SegmentedRange({
     { key: "1m", label: "1M" },
     { key: "3m", label: "3M" },
     { key: "6m", label: "6M" },
+    { key: "ytd", label: "YTD" },
     { key: "1y", label: "1Y" },
     { key: "all", label: "Todo" },
   ];
@@ -708,12 +717,8 @@ export default function DesktopInvestmentDetailScreen({ navigation }: any) {
 
   const filteredSeries = useMemo(() => {
     if (!sortedSeries.length) return [];
-    if (range === "all") return sortedSeries;
-
-    const days = rangeDays(range);
-    if (!days) return sortedSeries;
-
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const cutoff = rangeCutoffMs(range);
+    if (cutoff == null) return sortedSeries;
     const f = sortedSeries.filter((p) => parseISO(p.date) >= cutoff);
     return f.length >= 4 ? f : sortedSeries.slice(-8);
   }, [sortedSeries, range]);

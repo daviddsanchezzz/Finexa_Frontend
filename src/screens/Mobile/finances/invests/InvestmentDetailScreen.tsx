@@ -37,7 +37,7 @@ import InvestmentDetailScreenSkeleton from "../../../../components/skeletons/Inv
 
 type InvestmentAssetType = "crypto" | "etf" | "stock" | "fund" | "custom";
 type InvestmentRiskType = "variable_income" | "fixed_income" | "unknown";
-type RangeKey = "1m" | "3m" | "6m" | "1y" | "all";
+type RangeKey = "1m" | "3m" | "6m" | "ytd" | "1y" | "all";
 type InvestmentOperationType =
   | "buy"
   | "sell"
@@ -191,12 +191,22 @@ const rangeDays = (k: RangeKey) => {
 
 const rangeLabel = (k: RangeKey) => {
   switch (k) {
-    case "1m": return "1M";
-    case "3m": return "3M";
-    case "6m": return "6M";
-    case "1y": return "1A";
-    default:   return "Todo";
+    case "1m":  return "1M";
+    case "3m":  return "3M";
+    case "6m":  return "6M";
+    case "ytd": return "YTD";
+    case "1y":  return "1A";
+    default:    return "Todo";
   }
+};
+
+// Mismo criterio que la pestaña Rentabilidad de la cartera: YTD = desde el 1
+// de enero del año en curso, no un número fijo de días.
+const rangeCutoffMs = (k: RangeKey): number | null => {
+  if (k === "all") return null;
+  if (k === "ytd") return new Date(new Date().getFullYear(), 0, 1).getTime();
+  const days = rangeDays(k);
+  return days ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
 };
 
 const typeLabel = (t: InvestmentAssetType) => {
@@ -584,10 +594,8 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
 
   const filteredSeries = useMemo(() => {
     if (!sortedSeries.length) return [];
-    if (range === "all") return sortedSeries;
-    const days = rangeDays(range);
-    if (!days) return sortedSeries;
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const cutoff = rangeCutoffMs(range);
+    if (cutoff == null) return sortedSeries;
     const f = sortedSeries.filter((p) => parseISO(p.date) >= cutoff);
     return f.length >= 4 ? f : sortedSeries.slice(-8);
   }, [sortedSeries, range]);
@@ -871,7 +879,7 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
             }}
           >
             <View style={{ flexDirection: "row", gap: 3, backgroundColor: "#EEF1F5", borderRadius: 13, padding: 3 }}>
-              {(["1m", "3m", "6m", "1y", "all"] as RangeKey[]).map((k) => {
+              {(["1m", "3m", "6m", "ytd", "1y", "all"] as RangeKey[]).map((k) => {
                 const active = range === k;
                 return (
                   <TouchableOpacity
