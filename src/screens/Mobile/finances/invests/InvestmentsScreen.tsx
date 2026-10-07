@@ -354,11 +354,16 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
   const [rebuildRangeEnd, setRebuildRangeEnd] = useState<string | null>(null);
 
   // Un grupo (año) por fila, meses ordenados Ene→Dic dentro de cada año, años
-  // más recientes primero.
+  // más recientes primero. Incluye todos los años desde el primer dato de la
+  // cartera (timeline "all") hasta el actual, no solo los que ya tienen un
+  // snapshot guardado — así se pueden reconstruir años que nunca se cerraron.
   const rebuildMonthGroups = useMemo(() => {
     const years = new Set<number>();
     snapshots.forEach((snapshot) => years.add(new Date(snapshot.monthStart).getUTCFullYear()));
-    if (!years.size) years.add(new Date().getUTCFullYear());
+
+    const currentYear = new Date().getUTCFullYear();
+    const earliestYear = timeline.length ? new Date(timeline[0].date).getUTCFullYear() : currentYear;
+    for (let y = Math.min(earliestYear, currentYear); y <= currentYear; y += 1) years.add(y);
 
     return Array.from(years)
       .sort((a, b) => b - a)
@@ -369,7 +374,7 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
           monthIndex,
         })),
       }));
-  }, [snapshots]);
+  }, [snapshots, timeline]);
 
   const rebuildMonthValuesSorted = useMemo(
     () => rebuildMonthGroups.flatMap((g) => g.months.map((m) => m.value)).sort(),
