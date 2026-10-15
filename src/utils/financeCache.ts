@@ -1,6 +1,6 @@
 import { queryClient } from '../lib/queryClient';
 
-const MONEY_QUERIES = ['transactions', 'budgets', 'debts', 'debt', 'projects', 'project', 'trips', 'tripsSummary', 'goals', 'investments', 'netWorthWallets', 'netWorthTrendSeries'];
+const MONEY_QUERIES = ['transactions', 'budgets', 'debts', 'debt', 'projects', 'project', 'trips', 'tripsSummary', 'goals', 'investments', 'netWorthWallets', 'netWorthCurrent', 'netWorthTrendSeries'];
 
 export function financeMutationQueryKeys(method?: string, url?: string): string[] {
   if (!['post', 'put', 'patch', 'delete'].includes((method ?? '').toLowerCase())) return [];
@@ -8,11 +8,11 @@ export function financeMutationQueryKeys(method?: string, url?: string): string[
   const module = path.split('/').filter(Boolean)[0];
   switch (module) {
     case 'transactions': return MONEY_QUERIES;
-    case 'wallets': return ['netWorthWallets', 'netWorthTrendSeries', 'goals', 'investments', 'wallets'];
-    case 'investments': return ['investments', 'goals', 'transactions', 'budgets', 'netWorthWallets', 'netWorthTrendSeries'];
-    case 'debts': return ['debts', 'debt', 'transactions', 'budgets', 'goals', 'netWorthWallets', 'netWorthTrendSeries'];
-    case 'projects': return ['projects', 'project', 'transactions', 'budgets', 'goals', 'netWorthWallets', 'netWorthTrendSeries'];
-    case 'trips': return ['trips', 'trip', 'tripsSummary', 'tripsContinentsStats', 'transactions', 'budgets', 'goals', 'netWorthWallets', 'netWorthTrendSeries'];
+    case 'wallets': return ['netWorthWallets', 'netWorthCurrent', 'netWorthTrendSeries', 'goals', 'investments', 'wallets'];
+    case 'investments': return ['investments', 'goals', 'transactions', 'budgets', 'netWorthWallets', 'netWorthCurrent', 'netWorthTrendSeries'];
+    case 'debts': return ['debts', 'debt', 'transactions', 'budgets', 'goals', 'netWorthWallets', 'netWorthCurrent', 'netWorthTrendSeries'];
+    case 'projects': return ['projects', 'project', 'transactions', 'budgets', 'goals', 'netWorthWallets', 'netWorthCurrent', 'netWorthTrendSeries'];
+    case 'trips': return ['trips', 'trip', 'tripsSummary', 'tripsContinentsStats', 'transactions', 'budgets', 'goals', 'netWorthWallets', 'netWorthCurrent', 'netWorthTrendSeries'];
     case 'budgets': return ['budgets'];
     case 'goals': return ['goals'];
     default: return [];
