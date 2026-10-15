@@ -404,7 +404,7 @@ export default function HomeScreen({ navigation }: any) {
               ]}
             />
 
-            <View className="mt-3">
+            <View className="mt-2">
               <HealthScoreCard onPress={() => navigation.navigate("FinancialHealth")} />
             </View>
 
