@@ -24,6 +24,8 @@ import { toEur, COMMON_CURRENCIES } from "../../../../utils/exchangeRate";
 import { pickAndUploadAccommodationCover } from "../../../../utils/uploadTripCover";
 import { pickAndUploadTripAttachments, UploadedTripAttachment } from "../../../../utils/uploadTripAttachments";
 import { formatEuro } from "../../../../utils/currency";
+import { draftToFormPatch } from "../../../../utils/bookingDraft";
+import { pickAndExtractBooking } from "../../../../utils/extractBooking";
 import { VisitStop, VisitStopType, VISIT_STOP_TYPES } from "./components/TripPlanningSection";
 
 // ==================== TYPES ====================
@@ -602,6 +604,60 @@ export default function TripPlanFormScreen({
   const isPendingReclass = isEdit && !!(planItem as any)?.metadata?.pending;
   const [step, setStep] = useState<"pick" | "form">((isEdit && !isPendingReclass) || presetType ? "form" : "pick");
 
+  // ==================== LECTURA DE RESERVAS CON IA ====================
+  const [aiReading, setAiReading] = useState(false);
+  const [aiWarnings, setAiWarnings] = useState<string[] | null>(null);
+
+  const handleReadBooking = async () => {
+    try {
+      setAiReading(true);
+      const draft = await pickAndExtractBooking(tripId);
+      if (!draft) return; // selector cancelado
+      const p = draftToFormPatch(draft);
+      if (!p) {
+        Alert.alert("No se pudo leer", "No parece una reserva legible. Prueba con otra captura o rellénala a mano.");
+        return;
+      }
+      setMainTab(p.mainTab);
+      if (p.transportTab) setTransportTab(p.transportTab);
+      setIsReservation(p.isReservation);
+      setIsReservationTouched(true);
+      setPlanNotes(p.notes);
+      if (p.flight) {
+        setFlightAirline(p.flight.airline); setFlightNumber(p.flight.number); setFlightFrom(p.flight.from); setFlightTo(p.flight.to);
+        setFlightDep(p.flight.dep); setFlightArr(p.flight.arr); setFlightBookingRef(p.flight.bookingRef); setFlightSeat(p.flight.seat); setFlightGate(p.flight.gate);
+        setCostStr(p.costStr); setCurrency(p.currency);
+      }
+      if (p.transport) {
+        setCompany(p.transport.company); setFrom(p.transport.from); setTo(p.transport.to);
+        setDep(p.transport.dep); setArr(p.transport.arr); setBookingRef(p.transport.bookingRef);
+        setCostStr(p.costStr); setCurrency(p.currency);
+      }
+      if (p.accommodation) {
+        const a = p.accommodation;
+        setAccName(a.name); setAccAddress(a.address); setAccCity(a.city); setAccCountry(a.country);
+        setAccCheckInAt(a.checkIn); setAccCheckOutAt(a.checkOut); setAccGuestsStr(a.guests); setAccRoomsStr(a.rooms);
+        setAccBookingRef(a.bookingRef); setAccPhone(a.phone); setAccWebsite(a.website);
+        setAccCostStr(p.costStr); setAccCurrency(p.currency);
+      }
+      if (p.activity) {
+        setActType(TripPlanItemType.activity);
+        setActTitle(p.activity.title); setActLocation(p.activity.location); setActStartAt(p.activity.start); setActEndAt(p.activity.end);
+        setActCostStr(p.costStr); setActCurrency(p.currency);
+      }
+      if (p.expense) {
+        setExpTitle(p.expense.title); setExpAmountStr(p.costStr); setExpCurrency(p.currency);
+      }
+      setAiWarnings(p.warnings);
+      setStep("form");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message;
+      Alert.alert("No se pudo leer", typeof msg === "string" ? msg : "Error al leer la reserva con IA. Inténtalo de nuevo.");
+    } finally {
+      setAiReading(false);
+    }
+  };
+
   // ==================== SAVE HANDLERS ====================
 
   const handleSaveFlight = async () => {
@@ -997,6 +1053,26 @@ export default function TripPlanFormScreen({
               <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
             </Pressable>
           ))}
+
+          <Pressable
+            onPress={handleReadBooking}
+            disabled={aiReading}
+            style={({ pressed }) => ({
+              flexDirection: "row", alignItems: "center",
+              backgroundColor: pressed ? "#EEF2FF" : "#F5F7FF",
+              borderRadius: 16, borderWidth: 1, borderColor: "#C7D2FE",
+              padding: 14, gap: 12, opacity: aiReading ? 0.7 : 1,
+            })}
+          >
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#E0E7FF", alignItems: "center", justifyContent: "center" }}>
+              {aiReading ? <ActivityIndicator color={UI.primary} /> : <Text style={{ fontSize: 22 }}>✨</Text>}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: UI.text }}>{aiReading ? "Leyendo la reserva…" : "Desde captura o reserva"}</Text>
+              <Text style={{ fontSize: 12, color: UI.muted, marginTop: 1 }}>Sube una captura o PDF y la IA rellena los datos</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={UI.muted2} />
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -1029,6 +1105,17 @@ export default function TripPlanFormScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* AVISO DE LECTURA CON IA */}
+        {aiWarnings && (
+          <View style={{ backgroundColor: "#F5F7FF", borderWidth: 1, borderColor: "#C7D2FE", borderRadius: 14, padding: 12, marginBottom: 16 }}>
+            <Text style={{ fontSize: 13, fontWeight: "800", color: UI.text }}>✨ Datos leídos con IA</Text>
+            <Text style={{ fontSize: 12, color: UI.muted, marginTop: 2 }}>Revisa que todo sea correcto antes de guardar.</Text>
+            {aiWarnings.map((w, i) => (
+              <Text key={i} style={{ fontSize: 12, fontWeight: "700", color: "#B45309", marginTop: 6 }}>⚠️ {w}</Text>
+            ))}
+          </View>
+        )}
+
         {/* TRANSPORT */}
         {mainTab === "transport" && (
           <View>
