@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { radii } from "../../theme/theme";
@@ -83,6 +83,7 @@ function Chips<T extends string | number>({ options, value, onChange }: { option
 export default function FinancialProfileModal({ visible, onClose, profile }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const save = useUpdateFinancialProfile();
   const [form, setForm] = useState<ProfileFormState>(EMPTY_PROFILE_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFormState, string>>>({});
@@ -114,8 +115,10 @@ export default function FinancialProfileModal({ visible, onClose, profile }: Pro
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ maxHeight: "92%" }}>
-            <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 18, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
+          {/* Altura DEFINIDA (como NetWorthCompositionModal): sin ella el ScrollView crece hasta su contenido,
+              la hoja lo recorta y no se puede desplazar hasta los últimos campos ni el botón Guardar. */}
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ height: windowHeight * 0.9 }}>
+            <View style={{ flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 18, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
               <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={{ fontSize: 19, fontWeight: "800", color: colors.text }}>Ajusta a tu situación</Text>
@@ -126,7 +129,7 @@ export default function FinancialProfileModal({ visible, onClose, profile }: Pro
                 <IconCircleButton icon="close" onPress={onClose} size={30} iconSize={16} />
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
                 <Field label="Año de nacimiento" hint="Define tu horizonte de inversión." value={form.birthYear} onChangeText={(v) => set("birthYear", v)} placeholder="p. ej. 1998" error={errors.birthYear} />
 
                 <View style={{ marginBottom: 14 }}>
