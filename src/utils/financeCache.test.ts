@@ -70,3 +70,26 @@ describe('invalidateFinanceMutation', () => {
     unsubscribe();
   });
 });
+
+describe('salud financiera', () => {
+  it.each([
+    ['post', '/transactions'],
+    ['patch', '/wallets/3'],
+    ['post', '/investments/valuations'],
+    ['post', '/debts'],
+    ['post', '/projects'],
+    ['post', '/trips'],
+    ['patch', '/goals/4'],
+  ])('%s %s refresca el score', (method, url) => {
+    expect(financeMutationQueryKeys(method, url)).toContain('financialHealth');
+  });
+
+  it('no se invalida con lecturas ni con presupuestos', () => {
+    expect(financeMutationQueryKeys('get', '/transactions')).toEqual([]);
+    expect(financeMutationQueryKeys('post', '/budgets')).not.toContain('financialHealth');
+  });
+
+  it('guardar el perfil (PUT /financial-health/profile) no depende de este mecanismo: el hook invalida su propia clave', () => {
+    expect(financeMutationQueryKeys('put', '/financial-health/profile')).toEqual([]);
+  });
+});

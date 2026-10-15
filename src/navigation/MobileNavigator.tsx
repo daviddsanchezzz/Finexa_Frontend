@@ -55,6 +55,7 @@ export type RootStackParamList = {
   Friends: undefined;
   BiometricSetup: undefined;
   NetWorth: undefined;
+  FinancialHealth: undefined;
   FinancesSettings: undefined;
   MyDocuments: undefined;
   QuickAddSettings: undefined;
@@ -393,6 +394,13 @@ export default function MobileNavigator() {
             name="NetWorth"
             getComponent={() =>
               require("../screens/Mobile/finances/NetWorthScreen").default
+            }
+          />
+
+          <Stack.Screen
+            name="FinancialHealth"
+            getComponent={() =>
+              require("../screens/Mobile/finances/FinancialHealthScreen").default
             }
           />
 

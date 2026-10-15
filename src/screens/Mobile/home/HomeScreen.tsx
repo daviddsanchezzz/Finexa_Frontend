@@ -23,6 +23,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { getTransactionsDataVersion, subscribeTransactionsInvalidation } from "../../../utils/transactionsInvalidation";
 import NetWorthCompositionModal from "../../../components/NetWorthCompositionModal";
 import { useHomePreferences } from "../../../hooks/useHomePreferences";
+import HealthScoreCard from "../../../components/financialHealth/HealthScoreCard";
 
 export default function HomeScreen({ navigation }: any) {
   const { colors } = useTheme();
@@ -402,6 +403,10 @@ export default function HomeScreen({ navigation }: any) {
                 }] : []),
               ]}
             />
+
+            <View className="mt-3">
+              <HealthScoreCard onPress={() => navigation.navigate("FinancialHealth")} />
+            </View>
 
             {showMonthlyReportBanner && (
               <View className="mt-3">
