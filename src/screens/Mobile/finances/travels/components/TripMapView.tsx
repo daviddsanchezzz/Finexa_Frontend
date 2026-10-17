@@ -183,11 +183,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   var avgLat=ms.reduce(function(s,m){return s+m.lat},0)/ms.length;
   var avgLng=ms.reduce(function(s,m){return s+m.lng},0)/ms.length;
   var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([avgLat,avgLng],7);
-  // OpenStreetMap (CARTO exige ahora API key). La política de uso de OSM pide Referer y atribución visible.
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19,
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  // Mapa base claro de Esri (sin API key; CARTO ahora la exige). Base gris + capa de etiquetas encima,
+  // así los marcadores de colores destacan. Esri pide atribución visible.
+  var esri='https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+  L.tileLayer(esri+'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{
+    maxZoom:19,maxNativeZoom:16,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors'
   }).addTo(map);
+  L.tileLayer(esri+'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:16}).addTo(map);
   L.control.attribution({prefix:false,position:'bottomright'}).addTo(map);
   function pointKey(p){
     return p.lat.toFixed(4)+','+p.lng.toFixed(4);
@@ -270,8 +272,7 @@ function WebIframe({ html }: { html: string }) {
     if (!node) return;
     node.innerHTML = "";
 
-    // srcdoc (no blob:) para que las teselas de OpenStreetMap reciban el Referer de la página,
-    // que su política de uso exige; con blob: el navegador no envía ninguno.
+    // srcdoc (no blob:) para que las teselas reciban el Referer de la página; con blob: el navegador no envía ninguno.
     const iframe = document.createElement("iframe");
     iframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
     iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
@@ -294,7 +295,7 @@ function MapFrame({ html }: { html: string }) {
   }
   return (
     <NativeWebView
-      // baseUrl: sin él el WebView no envía Referer y OpenStreetMap bloquea las teselas.
+      // baseUrl: da al WebView un origen http(s) real (sin él las teselas pueden rechazarse por falta de Referer).
       source={{ html, baseUrl: MAP_REFERER }}
       style={{ flex: 1 }}
       scrollEnabled={false}
