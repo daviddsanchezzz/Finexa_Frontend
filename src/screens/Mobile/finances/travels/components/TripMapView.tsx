@@ -169,6 +169,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 .pu{padding:11px 14px}
 .pu-title{font-weight:800;font-size:13px;color:#0f172a;font-family:-apple-system,sans-serif;margin-bottom:5px}
 .pu-item{font-size:11px;color:#64748b;font-family:-apple-system,sans-serif;line-height:1.7;padding-left:2px}
+.leaflet-control-attribution{font-size:10px;background:rgba(255,255,255,0.8)}
 </style>
 </head>
 <body><div id="map"></div>
@@ -182,9 +183,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
   var avgLat=ms.reduce(function(s,m){return s+m.lat},0)/ms.length;
   var avgLng=ms.reduce(function(s,m){return s+m.lng},0)/ms.length;
   var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([avgLat,avgLng],7);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
-    maxZoom:19,subdomains:'abcd'
+  // OpenStreetMap (CARTO exige ahora API key). La política de uso de OSM pide Referer y atribución visible.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
+  L.control.attribution({prefix:false,position:'bottomright'}).addTo(map);
   function pointKey(p){
     return p.lat.toFixed(4)+','+p.lng.toFixed(4);
   }
@@ -260,38 +264,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f1f5f9}
 
 function WebIframe({ html }: { html: string }) {
   const containerRef = useRef<any>(null);
-  const blobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const node = containerRef.current as unknown as HTMLElement;
     if (!node) return;
-
-    // Revoke previous blob URL
-    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     node.innerHTML = "";
 
-    // blob: URL gives the iframe a real origin so external CDN scripts load
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    blobUrlRef.current = url;
-
+    // srcdoc (no blob:) para que las teselas de OpenStreetMap reciban el Referer de la página,
+    // que su política de uso exige; con blob: el navegador no envía ninguno.
     const iframe = document.createElement("iframe");
-    iframe.src = url;
     iframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
     iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+    iframe.srcdoc = html;
     node.appendChild(iframe);
 
     return () => {
       node.innerHTML = "";
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
     };
   }, [html]);
 
   return <View ref={containerRef} style={{ flex: 1 }} />;
 }
+
+const MAP_REFERER = process.env.EXPO_PUBLIC_WEB_URL || "https://finexa-frontend.vercel.app";
 
 function MapFrame({ html }: { html: string }) {
   if (Platform.OS === "web") {
@@ -299,7 +294,8 @@ function MapFrame({ html }: { html: string }) {
   }
   return (
     <NativeWebView
-      source={{ html }}
+      // baseUrl: sin él el WebView no envía Referer y OpenStreetMap bloquea las teselas.
+      source={{ html, baseUrl: MAP_REFERER }}
       style={{ flex: 1 }}
       scrollEnabled={false}
       originWhitelist={["*"]}
