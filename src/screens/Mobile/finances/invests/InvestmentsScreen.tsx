@@ -83,6 +83,8 @@ interface SummaryAssetFromApi {
   currency: string;
   invested: number;
   currentValue: number;
+  /** Valor en la moneda base del usuario (el backend convierte los activos en otra moneda). */
+  currentValueBase?: number;
   pnl: number;
   returnPct?: number | null;
   // Rentabilidad del mes natural en curso y del año en curso (sin contar aportaciones/retiradas).
@@ -762,7 +764,7 @@ const submitContribution = useCallback(() => {
   const assets = useMemo(() => {
     const list = summary?.assets || [];
     return [...list].sort((a, b) => {
-      const diff = (b.currentValue || 0) - (a.currentValue || 0);
+      const diff = (b.currentValueBase ?? b.currentValue ?? 0) - (a.currentValueBase ?? a.currentValue ?? 0);
       if (diff !== 0) return diff;
       return (a.name || "").localeCompare(b.name || "");
     });
@@ -783,12 +785,12 @@ const submitContribution = useCallback(() => {
 
   const allocation = useMemo(() => {
     const list = assets || [];
-    const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
+    const total = list.reduce((s, a) => s + (a.currentValueBase ?? a.currentValue ?? 0), 0);
     if (!total) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
 
     const base = list
       .map((a, idx) => {
-        const value = a.currentValue || 0;
+        const value = a.currentValueBase ?? a.currentValue ?? 0;
         const pct = value / total;
         const assetLabel = a.abbreviation?.trim() || a.name;
         return { id: a.id, label: assetLabel, value, pct, color: palette[idx % palette.length] };
@@ -813,7 +815,7 @@ const submitContribution = useCallback(() => {
   const totalWithoutCash = useMemo(
     () =>
       (assets || []).reduce(
-        (sum, a) => sum + (a.type === "cash" ? 0 : Number(a.currentValue || 0)),
+        (sum, a) => sum + (a.type === "cash" ? 0 : Number(a.currentValueBase ?? a.currentValue ?? 0)),
         0
       ),
     [assets]
@@ -821,7 +823,7 @@ const submitContribution = useCallback(() => {
 
   const allocationByType = useMemo(() => {
     const list = assets || [];
-    const total = list.reduce((s, a) => s + (a.currentValue || 0), 0);
+    const total = list.reduce((s, a) => s + (a.currentValueBase ?? a.currentValue ?? 0), 0);
     if (!total) return { total: 0, slices: [] as DonutSlice[], otherAssets: [] as DonutSlice[] };
 
     const typeColors: Record<string, string> = {
@@ -843,7 +845,7 @@ const submitContribution = useCallback(() => {
 
     const typeMap = new Map<string, number>();
     for (const a of list) {
-      typeMap.set(a.type, (typeMap.get(a.type) || 0) + (a.currentValue || 0));
+      typeMap.set(a.type, (typeMap.get(a.type) || 0) + (a.currentValueBase ?? a.currentValue ?? 0));
     }
 
     const slices: DonutSlice[] = Array.from(typeMap.entries())
@@ -1007,7 +1009,7 @@ const submitContribution = useCallback(() => {
     const total = allocation.total;
     if (!total) return new Map<number, number>();
     const m = new Map<number, number>();
-    for (const a of assets) m.set(a.id, (a.currentValue || 0) / total);
+    for (const a of assets) m.set(a.id, (a.currentValueBase ?? a.currentValue ?? 0) / total);
     return m;
   }, [assets, allocation.total]);
 
