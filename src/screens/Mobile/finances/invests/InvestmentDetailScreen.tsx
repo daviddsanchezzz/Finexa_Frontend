@@ -102,6 +102,9 @@ interface SeriesPoint {
 interface SummaryAsset {
   id: number;
   invested: number;
+  // Capital aportado y retirado en bruto (el summary solo da el neto en `invested`).
+  totalContributed?: number;
+  totalWithdrawn?: number;
   currentValue: number;
   pnl: number;
   averagePurchasePrice?: number | null;
@@ -394,6 +397,14 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
       ]);
       newAsset = aRes.data || null;
       newSummaryRow = (sRes.data?.assets || []).find((x: any) => Number(x.id) === Number(assetId)) || null;
+      // /summary solo incluye los activos vivos: uno archivado (p. ej. vendido del todo) pide su propio resumen.
+      if (!newSummaryRow) {
+        try {
+          newSummaryRow = (await api.get(`/investments/assets/${assetId}/summary`)).data || null;
+        } catch {
+          newSummaryRow = null;
+        }
+      }
       setAsset(newAsset);
       setSummaryRow(newSummaryRow);
     } catch {
@@ -574,7 +585,10 @@ export default function InvestmentDetailScreen({ navigation, route }: any) {
   };
 
   const stats = useMemo(() => {
-    const invested = summaryRow?.invested ?? (asset?.initialInvested ?? 0);
+    // Posición cerrada (vendida del todo): el aportado neto es ≤ 0, así que se muestra lo aportado en bruto
+    // para que el resultado y la rentabilidad tengan sentido (p. ej. 917,80 € aportados, +192,73 €, +21 %).
+    const closed = !!summaryRow && summaryRow.invested <= 1e-9 && (summaryRow.totalContributed ?? 0) > 0;
+    const invested = closed ? Number(summaryRow!.totalContributed) : summaryRow?.invested ?? (asset?.initialInvested ?? 0);
     const currentValue = summaryRow?.currentValue ?? invested;
     const pnl = summaryRow?.pnl ?? currentValue - invested;
     const meta = pnlMeta(pnl);
