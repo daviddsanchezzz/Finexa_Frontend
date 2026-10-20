@@ -32,7 +32,7 @@ import InvestmentsFiltersModal, {
   applyInvestmentFilters,
 } from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
-import { amountTone, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, isStaleValuation, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
+import { amountTone, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
 import { storage } from "../../../../utils/storage";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -1669,7 +1669,6 @@ const submitContribution = useCallback(() => {
                 kpi("TOTAL", a.pnl, totalReturn, "color"),
                 ...(hasDay ? [] : [{ label: "PESO", text: formatWeightPct(allocPct), tone: "flat" as const, style: "plain" as const }]),
               ];
-              const stale = isStaleValuation(a.lastValuationDate);
 
               return (
                 <TouchableOpacity
@@ -1714,7 +1713,7 @@ const submitContribution = useCallback(() => {
                       <Text style={{ fontSize: 11, fontWeight: "600", color: t.textMuted, marginTop: 1 }} numberOfLines={1}>
                         {typeLabel(a.type)}
                         {hasDay && allocPct != null ? ` · ${formatWeightPct(allocPct)}` : ""}
-                        {stale ? <Text style={{ color: "#A3AAB8" }}>{` · ${formatDayMonth(a.lastValuationDate)}`}</Text> : null}
+                        {a.lastValuationDate ? <Text style={{ color: "#A3AAB8" }}>{` · ${formatDayMonth(a.lastValuationDate)}`}</Text> : null}
                       </Text>
                     </View>
 
