@@ -1640,8 +1640,8 @@ const submitContribution = useCallback(() => {
               };
               const eur = returnMode === "eur";
               const kpis = [
-                { label: "MES", ...(eur ? eurKpi(a.monthProfit, a.monthReturnPct) : pctKpi(a.monthReturnPct)) },
-                { label: "AÑO", ...(eur ? eurKpi(a.ytdProfit, a.ytdReturnPct) : pctKpi(a.ytdReturnPct)) },
+                { label: "MENSUAL", ...(eur ? eurKpi(a.monthProfit, a.monthReturnPct) : pctKpi(a.monthReturnPct)) },
+                { label: "ANUAL", ...(eur ? eurKpi(a.ytdProfit, a.ytdReturnPct) : pctKpi(a.ytdReturnPct)) },
                 { label: "TOTAL", ...(eur ? eurKpi(a.pnl, totalReturn) : pctKpi(totalReturn)) },
                 { label: "PESO", text: formatWeightPct(allocPct), color: t.text },
               ];
