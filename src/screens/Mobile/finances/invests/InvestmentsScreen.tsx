@@ -32,6 +32,7 @@ import InvestmentsFiltersModal, {
   applyInvestmentFilters,
 } from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
+import { formatReturnPct, formatWeightPct, returnTone } from "../../../../utils/investmentReturnFormat";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
 import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/InvestmentsScreenSkeleton";
@@ -82,6 +83,9 @@ interface SummaryAssetFromApi {
   currentValue: number;
   pnl: number;
   returnPct?: number | null;
+  // Rentabilidad del mes natural en curso y del año en curso (sin contar aportaciones/retiradas).
+  monthReturnPct?: number | null;
+  ytdReturnPct?: number | null;
   lastValuationDate: string | null;
   description?: string | null;
 }
@@ -1569,12 +1573,21 @@ const submitContribution = useCallback(() => {
           ) : (
             visibleAssets.map((a) => {
 
-                  const pctText = formatPct(a.pnl || 0, a.invested || 0);
-              const badge = pnlBadge(a.pnl);
               const typeColor = assetTypeColor(a.type);
               const typeBg = assetTypeSoftBg(a.type);
               const allocPct = allocationMap.get(a.id);
               const cryptoPreset = a.type === "crypto" ? findCryptoPresetBySymbol(a.identificator) : undefined;
+              const totalReturn = a.returnPct ?? (a.invested > 1e-9 ? (a.pnl || 0) / a.invested : null);
+              const toneColor = (v: number | null | undefined) => {
+                const tone = returnTone(v);
+                return tone === "up" ? colors.success : tone === "down" ? colors.danger : t.textMuted;
+              };
+              const kpis = [
+                { label: "MES", text: formatReturnPct(a.monthReturnPct), color: toneColor(a.monthReturnPct) },
+                { label: "AÑO", text: formatReturnPct(a.ytdReturnPct), color: toneColor(a.ytdReturnPct) },
+                { label: "TOTAL", text: formatReturnPct(totalReturn), color: toneColor(totalReturn) },
+                { label: "PESO", text: formatWeightPct(allocPct), color: t.text },
+              ];
 
               return (
                 <TouchableOpacity
@@ -1583,10 +1596,11 @@ const submitContribution = useCallback(() => {
                   onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
                   style={{
                     backgroundColor: t.surface,
-                    borderRadius: 18,
-                    paddingVertical: 12,
+                    borderRadius: 20,
+                    paddingTop: 13,
+                    paddingBottom: 12,
                     paddingHorizontal: 14,
-                    marginBottom: 8,
+                    marginBottom: 10,
                     borderWidth: 1,
                     borderColor: t.border,
                   }}
@@ -1609,40 +1623,40 @@ const submitContribution = useCallback(() => {
 
                     <View style={{ flex: 1 }}>
                       <Text
-                        style={{ fontSize: 14, fontWeight: "700", color: t.text, lineHeight: 18 }}
+                        style={{ fontSize: 15, fontWeight: "800", color: t.text, lineHeight: 19 }}
                         numberOfLines={1}
                       >
                         {a.abbreviation?.trim() || a.name}
                       </Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
-                        <View
-                          style={{
-                            paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
-                            backgroundColor: typeBg,
-                          }}
-                        >
-                          <Text style={{ fontSize: 10, fontWeight: "800", color: typeColor }}>
-                            {typeLabel(a.type)}
-                          </Text>
+                      <View style={{ flexDirection: "row", marginTop: 3 }}>
+                        <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, backgroundColor: typeBg }}>
+                          <Text style={{ fontSize: 10.5, fontWeight: "800", color: typeColor }}>{typeLabel(a.type)}</Text>
                         </View>
-                        <Text style={{ fontSize: 11, color: t.textMuted, fontWeight: "600" }}>
-                          {formatMoney(a.currentValue || 0, currency)}
-                        </Text>
                       </View>
                     </View>
 
-                    <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
-                      <Text style={{ fontSize: 14, fontWeight: "800", color: a.invested ? badge.color : t.textMuted }}>
-                        {pctText}
-                      </Text>
-                      {allocPct != null && (
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: t.border, marginTop: 2 }}>
-                          {(allocPct * 100).toFixed(1)}% cartera
-                        </Text>
-                      )}
-                    </View>
+                    <Text style={{ fontSize: 16, fontWeight: "800", color: t.text, marginLeft: 8 }}>
+                      {formatMoney(a.currentValue || 0, currency)}
+                    </Text>
+                  </View>
 
-                    <Ionicons name="chevron-forward" size={14} color={t.border} style={{ marginLeft: 6 }} />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      marginTop: 11,
+                      paddingTop: 10,
+                      borderTopWidth: 1,
+                      borderTopColor: t.border,
+                    }}
+                  >
+                    {kpis.map((k) => (
+                      <View key={k.label} style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: t.textMuted, letterSpacing: 0.4 }}>{k.label}</Text>
+                        <Text style={{ fontSize: 13.5, fontWeight: "800", color: k.color, marginTop: 1 }} numberOfLines={1} adjustsFontSizeToFit>
+                          {k.text}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 </TouchableOpacity>
               );
