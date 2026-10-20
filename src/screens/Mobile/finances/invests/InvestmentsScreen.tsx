@@ -32,7 +32,7 @@ import InvestmentsFiltersModal, {
   applyInvestmentFilters,
 } from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
-import { amountTone, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
+import { amountTone, formatCompactSignedMoney, formatDayMonth, formatReturnPct, formatWeightPct, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
 import { storage } from "../../../../utils/storage";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -1659,7 +1659,7 @@ const submitContribution = useCallback(() => {
               const kpi = (label: string, profit: number | null | undefined, pct: number | null | undefined, style: Kpi["style"]): Kpi => {
                 if (!eur) return { label, text: formatReturnPct(pct), tone: returnTone(pct), style };
                 const has = pct != null && profit != null;
-                return { label, text: has ? formatSignedMoney(profit, assetCurrency) : "—", tone: has ? amountTone(profit) : "flat", style };
+                return { label, text: has ? formatCompactSignedMoney(profit, assetCurrency) : "—", tone: has ? amountTone(profit) : "flat", style };
               };
               const totalReturn = a.returnPct ?? (a.invested > 1e-9 ? (a.pnl || 0) / a.invested : null);
               const kpis: Kpi[] = [

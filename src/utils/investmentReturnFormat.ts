@@ -33,6 +33,14 @@ export function formatSignedMoney(value: number | null | undefined, currency = "
   return `${rounded > 0 ? "+" : "−"}${formatCurrency(Math.abs(rounded), currency)}`;
 }
 
+/** Como formatSignedMoney, pero desde 1.000 € sin céntimos (+10.199 €): cabe en columnas estrechas. */
+export function formatCompactSignedMoney(value: number | null | undefined, currency = "EUR"): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (currency !== "EUR" || Math.abs(value) < 1000) return formatSignedMoney(value, currency);
+  const int = Math.round(Math.abs(value)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${value > 0 ? "+" : "−"}${int} €`;
+}
+
 /** Color semántico de un importe (mismo criterio de redondeo que formatSignedMoney). */
 export function amountTone(value: number | null | undefined): ReturnTone {
   if (value == null || !Number.isFinite(value)) return "flat";
