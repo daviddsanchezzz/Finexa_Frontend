@@ -750,6 +750,8 @@ const submitContribution = useCallback(() => {
   }, [summary]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  // El buscador y los filtros van ocultos tras una lupa; se abren al pulsarla.
+  const [searchOpen, setSearchOpen] = useState(false);
   const [filters, setFilters] = useState<InvestmentFilters>(DEFAULT_INVESTMENT_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -1350,6 +1352,25 @@ const submitContribution = useCallback(() => {
           showDatePicker={false}
           showBack={!isPinnedModuleTab}
           rightElement={
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {mainTab === "cartera" && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (searchOpen) setSearchQuery("");
+                  setSearchOpen((v) => !v);
+                }}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={searchOpen ? "Cerrar buscador" : "Buscar y filtrar inversiones"}
+                style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: searchOpen ? t.surface : t.card, alignItems: "center", justifyContent: "center" }}
+              >
+                <Ionicons name={searchOpen ? "close" : "search-outline"} size={18} color={t.textSecondary} />
+                {/* Si hay filtros activos con el buscador cerrado, se avisa con un punto. */}
+                {!searchOpen && activeFilterCount > 0 && (
+                  <View style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: t.card }} />
+                )}
+              </TouchableOpacity>
+            )}
             <OverflowMenuButton
               title="Añadir"
               accessibilityLabel="Añadir inversión, valoración u operación"
@@ -1360,11 +1381,12 @@ const submitContribution = useCallback(() => {
                 { label: "Nueva operación", onPress: () => navigation.navigate("InvestmentOperation") },
               ]}
             />
+            </View>
           }
         />
 
         {/* Buscador y filtros solo afectan a la lista de Cartera. */}
-        {mainTab === "cartera" && (
+        {mainTab === "cartera" && searchOpen && (
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
             <View
               style={{
@@ -1379,6 +1401,7 @@ const submitContribution = useCallback(() => {
             >
               <Ionicons name="search-outline" size={16} color={t.textMuted} />
               <TextInput
+                autoFocus
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Buscar inversiones"
