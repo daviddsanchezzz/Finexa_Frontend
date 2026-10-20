@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, type ReactNode } from "react";
 import {
   Modal,
   StyleProp,
@@ -27,6 +27,8 @@ type Props = {
   buttonStyle?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   cancelLabel?: string;
+  /** Si se pasa, sustituye al botón de tres puntos: recibe `open` para abrir la hoja de acciones. */
+  renderTrigger?: (open: () => void) => ReactNode;
 };
 
 export default function OverflowMenuButton({
@@ -37,6 +39,7 @@ export default function OverflowMenuButton({
   buttonStyle,
   accessibilityLabel = "Más acciones",
   cancelLabel = "Cancelar",
+  renderTrigger,
 }: Props) {
   const [visible, setVisible] = useState(false);
   const insets = useSafeAreaInsets();
@@ -51,25 +54,29 @@ export default function OverflowMenuButton({
 
   return (
     <>
-      <TouchableOpacity
-        onPress={() => setVisible(true)}
-        activeOpacity={0.72}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
-        style={[
-          {
-            width: 34,
-            height: 34,
-            borderRadius: 17,
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          buttonStyle,
-        ]}
-      >
-        <Ionicons name="ellipsis-horizontal" size={iconSize} color={iconColor} />
-      </TouchableOpacity>
+      {renderTrigger ? (
+        renderTrigger(() => setVisible(true))
+      ) : (
+        <TouchableOpacity
+          onPress={() => setVisible(true)}
+          activeOpacity={0.72}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+          hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+          style={[
+            {
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              alignItems: "center",
+              justifyContent: "center",
+            },
+            buttonStyle,
+          ]}
+        >
+          <Ionicons name="ellipsis-horizontal" size={iconSize} color={iconColor} />
+        </TouchableOpacity>
+      )}
 
       <Modal
         visible={visible}
