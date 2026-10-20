@@ -1733,10 +1733,10 @@ const submitContribution = useCallback(() => {
                     }}
                   >
                     {kpis.map((k) => (
-                      <View key={k.label} style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 9.5, fontWeight: "700", color: t.textMuted, letterSpacing: 0.4 }}>{k.label}</Text>
+                      <View key={k.label} style={{ flex: 1, alignItems: "center" }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: "700", color: t.textMuted, letterSpacing: 0.4, textAlign: "center" }}>{k.label}</Text>
                         <Text
-                          style={{ fontSize: 13, fontWeight: "800", color: k.style === "color" ? toneColor(k.tone) : t.text, marginTop: 0 }}
+                          style={{ fontSize: 13, fontWeight: "800", color: k.style === "color" ? toneColor(k.tone) : t.text, marginTop: 0, textAlign: "center" }}
                           numberOfLines={1}
                           adjustsFontSizeToFit
                         >
