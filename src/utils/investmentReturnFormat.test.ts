@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { amountTone, formatReturnPct, formatSignedMoney, formatWeightPct, parseReturnMode, returnTone } from "./investmentReturnFormat";
+import { amountTone, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, isStaleValuation, parseReturnMode, previousBusinessDayKey, returnTone } from "./investmentReturnFormat";
 
 describe("formatReturnPct", () => {
   it("signo explícito y coma decimal", () => {
@@ -69,5 +69,35 @@ describe("amountTone y parseReturnMode", () => {
     expect(parseReturnMode("pct")).toBe("pct");
     expect(parseReturnMode(null)).toBe("pct");
     expect(parseReturnMode("raro")).toBe("pct");
+  });
+});
+
+describe("formatDayMonth", () => {
+  it("día y mes abreviado sin mover la fecha por zona horaria", () => {
+    expect(formatDayMonth("2026-10-14T00:00:00.000Z")).toBe("14 oct");
+    expect(formatDayMonth("2026-01-03")).toBe("3 ene");
+    expect(formatDayMonth(null)).toBe("");
+    expect(formatDayMonth("raro")).toBe("");
+  });
+});
+
+describe("isStaleValuation (día hábil anterior)", () => {
+  // 16 oct 2026 = viernes; 17 sábado; 18 domingo; 19 lunes; 20 martes.
+  const at = (day: number) => new Date(2026, 9, day, 10, 0);
+  it("entre semana espera el valor del día hábil anterior", () => {
+    expect(previousBusinessDayKey(at(16))).toBe("2026-10-15");
+    expect(isStaleValuation("2026-10-14T00:00:00.000Z", at(16))).toBe(true);
+    expect(isStaleValuation("2026-10-15T00:00:00.000Z", at(16))).toBe(false);
+    expect(isStaleValuation("2026-10-16T00:00:00.000Z", at(16))).toBe(false);
+  });
+  it("fin de semana y lunes esperan el viernes", () => {
+    for (const day of [17, 18, 19]) expect(previousBusinessDayKey(at(day))).toBe(day === 19 ? "2026-10-16" : "2026-10-16");
+    expect(isStaleValuation("2026-10-16T00:00:00.000Z", at(19))).toBe(false);
+    expect(isStaleValuation("2026-10-15T00:00:00.000Z", at(19))).toBe(true);
+    expect(isStaleValuation("2026-10-16T00:00:00.000Z", at(18))).toBe(false);
+  });
+  it("sin fecha no se marca", () => {
+    expect(isStaleValuation(null, at(16))).toBe(false);
+    expect(isStaleValuation("", at(16))).toBe(false);
   });
 });
