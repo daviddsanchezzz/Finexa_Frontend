@@ -1676,11 +1676,8 @@ const submitContribution = useCallback(() => {
                       >
                         {a.abbreviation?.trim() || a.name}
                       </Text>
-                      <View style={{ flexDirection: "row", marginTop: 2 }}>
-                        <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: typeBg }}>
-                          <Text style={{ fontSize: 10, fontWeight: "800", color: typeColor }}>{typeLabel(a.type)}</Text>
-                        </View>
-                      </View>
+                      {/* Tipo en texto discreto (sin pastilla de color): el icono ya lo distingue. */}
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: t.textMuted, marginTop: 1 }}>{typeLabel(a.type)}</Text>
                     </View>
 
                     <Text style={{ fontSize: 15, fontWeight: "800", color: t.text, marginLeft: 8 }}>
