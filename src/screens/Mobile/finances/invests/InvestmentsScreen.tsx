@@ -1300,8 +1300,8 @@ const submitContribution = useCallback(() => {
 
   const TABS = [
     { key: "cartera",      label: "Cartera" },
-    { key: "distribucion", label: "Distribución" },
     { key: "rentabilidad", label: "Rentabilidad" },
+    { key: "distribucion", label: "Distribución" },
     { key: "operaciones",  label: "Operaciones" },
   ] as const;
 
@@ -1370,65 +1370,68 @@ const submitContribution = useCallback(() => {
           }
         />
 
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
-          <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: t.card,
-              borderRadius: 13,
-              paddingHorizontal: 12,
-              height: 38,
-            }}
-          >
-            <Ionicons name="search-outline" size={16} color={t.textMuted} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Buscar inversiones"
-              placeholderTextColor={t.textMuted}
-              style={
-                Platform.OS === "web"
-                  ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: t.text, outlineStyle: "none", outlineWidth: 0 } as any)
-                  : { flex: 1, marginLeft: 6, fontSize: 13, color: t.text }
-              }
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={16} color={t.textMuted} />
-              </TouchableOpacity>
-            )}
-          </View>
+        {/* Buscador y filtros solo afectan a la lista de Cartera. */}
+        {mainTab === "cartera" && (
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
+            <View
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: t.card,
+                borderRadius: 13,
+                paddingHorizontal: 12,
+                height: 38,
+              }}
+            >
+              <Ionicons name="search-outline" size={16} color={t.textMuted} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Buscar inversiones"
+                placeholderTextColor={t.textMuted}
+                style={
+                  Platform.OS === "web"
+                    ? ({ flex: 1, marginLeft: 6, fontSize: 13, color: t.text, outlineStyle: "none", outlineWidth: 0 } as any)
+                    : { flex: 1, marginLeft: 6, fontSize: 13, color: t.text }
+                }
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={16} color={t.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
 
-          <TouchableOpacity
-            onPress={() => setFiltersOpen(true)}
-            activeOpacity={0.8}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 13,
-              backgroundColor: t.card,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name="options-outline" size={18} color={t.textSecondary} />
-            {activeFilterCount > 0 && (
-              <View
-                style={{
-                  position: "absolute", top: -3, right: -3,
-                  minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3,
-                  backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
-                  borderWidth: 1.5, borderColor: t.background,
-                }}
-              >
-                <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              onPress={() => setFiltersOpen(true)}
+              activeOpacity={0.8}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 13,
+                backgroundColor: t.card,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name="options-outline" size={18} color={t.textSecondary} />
+              {activeFilterCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute", top: -3, right: -3,
+                    minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3,
+                    backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
+                    borderWidth: 1.5, borderColor: t.background,
+                  }}
+                >
+                  <Text style={{ color: "white", fontSize: 9.5, fontWeight: "800" }}>{activeFilterCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* -- Loading / Error states -- */}
