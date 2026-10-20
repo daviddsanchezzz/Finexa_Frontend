@@ -47,3 +47,34 @@ export const RETURN_MODE_KEY = "investments_return_mode";
 export function parseReturnMode(raw: string | null | undefined): ReturnMode {
   return raw === "eur" ? "eur" : "pct";
 }
+
+const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** "2026-10-14T00:00:00.000Z" -> "14 oct" (la fecha tal cual está guardada, sin desplazarla por zona horaria). */
+export function formatDayMonth(iso: string | null | undefined): string {
+  const m = typeof iso === "string" ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;
+  if (!m) return "";
+  return `${Number(m[3])} ${MONTHS_ES[Number(m[2]) - 1] ?? ""}`.trim();
+}
+
+const dayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Día hábil anterior a `now` (sábados y domingos se saltan), como "YYYY-MM-DD" en hora local. */
+export function previousBusinessDayKey(now: Date): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  do d.setDate(d.getDate() - 1);
+  while (d.getDay() === 0 || d.getDay() === 6);
+  return dayKey(d);
+}
+
+/**
+ * ¿La última valoración va retrasada? Un fondo publica su valor liquidativo al día siguiente, así que lo
+ * esperado es tener el del día hábil anterior: si la última valoración es anterior a ese día, se avisa.
+ * Así un lunes con datos del viernes no se marca, y un dato de hace dos días hábiles sí.
+ */
+export function isStaleValuation(lastValuationIso: string | null | undefined, now: Date = new Date()): boolean {
+  const m = typeof lastValuationIso === "string" ? /^(\d{4}-\d{2}-\d{2})/.exec(lastValuationIso) : null;
+  if (!m) return false;
+  return m[1] < previousBusinessDayKey(now);
+}

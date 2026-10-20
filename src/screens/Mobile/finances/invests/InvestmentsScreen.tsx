@@ -32,7 +32,7 @@ import InvestmentsFiltersModal, {
   applyInvestmentFilters,
 } from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
-import { amountTone, formatReturnPct, formatSignedMoney, formatWeightPct, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
+import { amountTone, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, isStaleValuation, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
 import { storage } from "../../../../utils/storage";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -89,6 +89,9 @@ interface SummaryAssetFromApi {
   monthProfit?: number | null;
   ytdReturnPct?: number | null;
   ytdProfit?: number | null;
+  // Variación del último día valorado (hoy o ayer). null si no hay dato reciente.
+  dayReturnPct?: number | null;
+  dayProfit?: number | null;
   lastValuationDate: string | null;
   description?: string | null;
 }
@@ -1644,23 +1647,29 @@ const submitContribution = useCallback(() => {
               const typeBg = assetTypeSoftBg(a.type);
               const allocPct = allocationMap.get(a.id);
               const cryptoPreset = a.type === "crypto" ? findCryptoPresetBySymbol(a.identificator) : undefined;
-              const totalReturn = a.returnPct ?? (a.invested > 1e-9 ? (a.pnl || 0) / a.invested : null);
               const toneColor = (tone: "up" | "down" | "flat") =>
                 tone === "up" ? colors.success : tone === "down" ? colors.danger : t.textMuted;
               const assetCurrency = a.currency || currency;
-              const pctKpi = (v: number | null | undefined) => ({ text: formatReturnPct(v), color: toneColor(returnTone(v)) });
-              // En euros, "sin dato" (rentabilidad null) sigue siendo "—", no 0,00 €.
-              const eurKpi = (profit: number | null | undefined, pct: number | null | undefined) => {
-                const has = pct != null && profit != null;
-                return { text: has ? formatSignedMoney(profit, assetCurrency) : "—", color: toneColor(has ? amountTone(profit) : "flat") };
-              };
               const eur = returnMode === "eur";
-              const kpis = [
-                { label: "MENSUAL", ...(eur ? eurKpi(a.monthProfit, a.monthReturnPct) : pctKpi(a.monthReturnPct)) },
-                { label: "ANUAL", ...(eur ? eurKpi(a.ytdProfit, a.ytdReturnPct) : pctKpi(a.ytdReturnPct)) },
-                { label: "TOTAL", ...(eur ? eurKpi(a.pnl, totalReturn) : pctKpi(totalReturn)) },
-                { label: "PESO", text: formatWeightPct(allocPct), color: t.text },
+              // "Hoy" solo si hay dato; si no, la columna es el Peso.
+              const hasDay = a.dayReturnPct != null && Number.isFinite(a.dayReturnPct);
+              type Kpi = { label: string; text: string; tone: "up" | "down" | "flat"; style: "arrow" | "color" | "plain" };
+              // Hoy / Mensual / Anual: texto neutro con flecha de color; Total: solo el texto en color.
+              // En euros, "sin dato" (rentabilidad null) sigue siendo "—", no 0,00 €.
+              const kpi = (label: string, profit: number | null | undefined, pct: number | null | undefined, style: Kpi["style"]): Kpi => {
+                if (!eur) return { label, text: formatReturnPct(pct), tone: returnTone(pct), style };
+                const has = pct != null && profit != null;
+                return { label, text: has ? formatSignedMoney(profit, assetCurrency) : "—", tone: has ? amountTone(profit) : "flat", style };
+              };
+              const totalReturn = a.returnPct ?? (a.invested > 1e-9 ? (a.pnl || 0) / a.invested : null);
+              const kpis: Kpi[] = [
+                ...(hasDay ? [kpi("HOY", a.dayProfit, a.dayReturnPct, "arrow")] : []),
+                kpi("MENSUAL", a.monthProfit, a.monthReturnPct, "arrow"),
+                kpi("ANUAL", a.ytdProfit, a.ytdReturnPct, "arrow"),
+                kpi("TOTAL", a.pnl, totalReturn, "color"),
+                ...(hasDay ? [] : [{ label: "PESO", text: formatWeightPct(allocPct), tone: "flat" as const, style: "plain" as const }]),
               ];
+              const stale = isStaleValuation(a.lastValuationDate);
 
               return (
                 <TouchableOpacity
@@ -1702,7 +1711,11 @@ const submitContribution = useCallback(() => {
                         {a.abbreviation?.trim() || a.name}
                       </Text>
                       {/* Tipo en texto discreto (sin pastilla de color): el icono ya lo distingue. */}
-                      <Text style={{ fontSize: 11, fontWeight: "600", color: t.textMuted, marginTop: 1 }}>{typeLabel(a.type)}</Text>
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: t.textMuted, marginTop: 1 }} numberOfLines={1}>
+                        {typeLabel(a.type)}
+                        {hasDay && allocPct != null ? ` · ${formatWeightPct(allocPct)}` : ""}
+                        {stale ? <Text style={{ color: "#A3AAB8" }}>{` · ${formatDayMonth(a.lastValuationDate)}`}</Text> : null}
+                      </Text>
                     </View>
 
                     <Text style={{ fontSize: 15, fontWeight: "800", color: t.text, marginLeft: 8 }}>
@@ -1722,7 +1735,14 @@ const submitContribution = useCallback(() => {
                     {kpis.map((k) => (
                       <View key={k.label} style={{ flex: 1 }}>
                         <Text style={{ fontSize: 9.5, fontWeight: "700", color: t.textMuted, letterSpacing: 0.4 }}>{k.label}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: "800", color: k.color, marginTop: 0 }} numberOfLines={1} adjustsFontSizeToFit>
+                        <Text
+                          style={{ fontSize: 13, fontWeight: "800", color: k.style === "color" ? toneColor(k.tone) : t.text, marginTop: 0 }}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                        >
+                          {k.style === "arrow" && k.tone !== "flat" ? (
+                            <Text style={{ fontSize: 7.5, color: toneColor(k.tone) }}>{k.tone === "up" ? "▲\u2009" : "▼\u2009"}</Text>
+                          ) : null}
                           {k.text}
                         </Text>
                       </View>
