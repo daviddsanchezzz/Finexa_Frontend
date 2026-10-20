@@ -1446,12 +1446,13 @@ const submitContribution = useCallback(() => {
           {mainTab === "cartera" && (
             <View className="px-5">
               <HeroBalanceCard
+                compact
                 label="Valor actual total"
                 value={formatMoney(hero.totalCurrentValue, currency)}
-                style={{ marginBottom: 8 }}
+                style={{ marginBottom: 6 }}
                 footer={
                   hero.count > 0 ? (
-                    <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 6, textAlign: "center" }}>
+                    <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: "600", marginTop: 3, textAlign: "center" }}>
                       {hero.count} {hero.count === 1 ? "activo" : "activos"}
                       {hero.lastGlobal ? ` · Última actualización: ${formatShortDate(hero.lastGlobal)}` : ""}
                     </Text>
@@ -1460,6 +1461,7 @@ const submitContribution = useCallback(() => {
               />
 
               <StatsRow
+                compact
                 items={[
                   { key: "invertido", label: "INVERTIDO", value: formatMoney(hero.totalInvested, currency) },
                   {

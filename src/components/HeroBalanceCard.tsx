@@ -14,6 +14,8 @@ interface Props {
   topRight?: React.ReactNode;
   footer?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Versión más baja (menos relleno y cifra algo menor) para pantallas con mucho contenido debajo. */
+  compact?: boolean;
 }
 
 // Tarjeta "hero" de cifra grande — el mismo lenguaje visual que el Patrimonio
@@ -32,6 +34,7 @@ export default function HeroBalanceCard({
   topRight,
   footer,
   style,
+  compact = false,
 }: Props) {
   const centered = align === "center";
 
@@ -39,15 +42,15 @@ export default function HeroBalanceCard({
     <>
       {topRight && !centered && <View style={{ alignSelf: "flex-end", marginBottom: 6 }}>{topRight}</View>}
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>{label}</Text>
+        <Text style={{ fontSize: compact ? 11 : 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" }}>{label}</Text>
         {onPress && centered && <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.6)" style={{ marginLeft: 2 }} />}
       </View>
       <Text
         style={{
-          fontSize: 27,
+          fontSize: compact ? 24 : 27,
           fontWeight: "800",
           color: "white",
-          marginTop: 3,
+          marginTop: compact ? 1 : 3,
           fontVariant: ["tabular-nums"],
         }}
       >
@@ -60,7 +63,7 @@ export default function HeroBalanceCard({
   const containerStyle: ViewStyle = {
     borderRadius: radii.card,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: compact ? 8 : 12,
     alignItems: centered ? "center" : "flex-start",
   };
 
