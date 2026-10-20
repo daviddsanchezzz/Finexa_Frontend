@@ -33,6 +33,7 @@ import InvestmentsFiltersModal, {
 } from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
 import { amountTone, formatCompactSignedMoney, formatDayMonth, formatReturnPct, formatWeightPct, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
+import { formatCurrency } from "../../../../utils/currency";
 import { storage } from "../../../../utils/storage";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
@@ -1718,7 +1719,7 @@ const submitContribution = useCallback(() => {
                     </View>
 
                     <Text style={{ fontSize: 15, fontWeight: "800", color: t.text, marginLeft: 8 }}>
-                      {formatMoney(a.currentValue || 0, currency)}
+                      {formatCurrency(a.currentValue || 0, assetCurrency)}
                     </Text>
                   </View>
 
