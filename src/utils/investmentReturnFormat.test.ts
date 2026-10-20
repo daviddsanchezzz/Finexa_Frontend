@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { amountTone, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, isStaleValuation, parseReturnMode, previousBusinessDayKey, returnTone } from "./investmentReturnFormat";
+import { amountTone, formatCompactSignedMoney, formatDayMonth, formatReturnPct, formatSignedMoney, formatWeightPct, isStaleValuation, parseReturnMode, previousBusinessDayKey, returnTone } from "./investmentReturnFormat";
 
 describe("formatReturnPct", () => {
   it("signo explícito y coma decimal", () => {
@@ -99,5 +99,14 @@ describe("isStaleValuation (día hábil anterior)", () => {
   it("sin fecha no se marca", () => {
     expect(isStaleValuation(null, at(16))).toBe(false);
     expect(isStaleValuation("", at(16))).toBe(false);
+  });
+});
+
+describe("formatCompactSignedMoney", () => {
+  it("quita los centimos desde 1.000 euros", () => {
+    expect(formatCompactSignedMoney(10199.04)).toBe("+10.199 €");
+    expect(formatCompactSignedMoney(-1851.6)).toBe("−1.852 €");
+    expect(formatCompactSignedMoney(20.74)).toBe("+20,74 €");
+    expect(formatCompactSignedMoney(null)).toBe("—");
   });
 });
