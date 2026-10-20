@@ -1644,11 +1644,11 @@ const submitContribution = useCallback(() => {
                   onPress={() => navigation.navigate("InvestmentDetail", { assetId: a.id })}
                   style={{
                     backgroundColor: t.surface,
-                    borderRadius: 20,
-                    paddingTop: 13,
-                    paddingBottom: 12,
-                    paddingHorizontal: 14,
-                    marginBottom: 10,
+                    borderRadius: 18,
+                    paddingTop: 10,
+                    paddingBottom: 9,
+                    paddingHorizontal: 13,
+                    marginBottom: 8,
                     borderWidth: 1,
                     borderColor: t.border,
                   }}
@@ -1656,34 +1656,34 @@ const submitContribution = useCallback(() => {
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <View
                       style={{
-                        width: 40, height: 40, borderRadius: 14,
+                        width: 34, height: 34, borderRadius: 12,
                         backgroundColor: cryptoPreset ? "#F9FAFB" : typeBg,
                         alignItems: "center", justifyContent: "center",
-                        marginRight: 12,
+                        marginRight: 10,
                       }}
                     >
                       {cryptoPreset ? (
-                        <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={22} />
+                        <WalletIcon emoji={getCryptoLogoUrl(cryptoPreset.symbol)} size={20} />
                       ) : (
-                        <Ionicons name={assetTypeIcon(a.type)} size={18} color={typeColor} />
+                        <Ionicons name={assetTypeIcon(a.type)} size={16} color={typeColor} />
                       )}
                     </View>
 
                     <View style={{ flex: 1 }}>
                       <Text
-                        style={{ fontSize: 15, fontWeight: "800", color: t.text, lineHeight: 19 }}
+                        style={{ fontSize: 14.5, fontWeight: "800", color: t.text, lineHeight: 18 }}
                         numberOfLines={1}
                       >
                         {a.abbreviation?.trim() || a.name}
                       </Text>
-                      <View style={{ flexDirection: "row", marginTop: 3 }}>
-                        <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, backgroundColor: typeBg }}>
-                          <Text style={{ fontSize: 10.5, fontWeight: "800", color: typeColor }}>{typeLabel(a.type)}</Text>
+                      <View style={{ flexDirection: "row", marginTop: 2 }}>
+                        <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: typeBg }}>
+                          <Text style={{ fontSize: 10, fontWeight: "800", color: typeColor }}>{typeLabel(a.type)}</Text>
                         </View>
                       </View>
                     </View>
 
-                    <Text style={{ fontSize: 16, fontWeight: "800", color: t.text, marginLeft: 8 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "800", color: t.text, marginLeft: 8 }}>
                       {formatMoney(a.currentValue || 0, currency)}
                     </Text>
                   </View>
@@ -1691,16 +1691,16 @@ const submitContribution = useCallback(() => {
                   <View
                     style={{
                       flexDirection: "row",
-                      marginTop: 11,
-                      paddingTop: 10,
+                      marginTop: 8,
+                      paddingTop: 7,
                       borderTopWidth: 1,
                       borderTopColor: t.border,
                     }}
                   >
                     {kpis.map((k) => (
                       <View key={k.label} style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: t.textMuted, letterSpacing: 0.4 }}>{k.label}</Text>
-                        <Text style={{ fontSize: 13.5, fontWeight: "800", color: k.color, marginTop: 1 }} numberOfLines={1} adjustsFontSizeToFit>
+                        <Text style={{ fontSize: 9.5, fontWeight: "700", color: t.textMuted, letterSpacing: 0.4 }}>{k.label}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "800", color: k.color, marginTop: 0 }} numberOfLines={1} adjustsFontSizeToFit>
                           {k.text}
                         </Text>
                       </View>
