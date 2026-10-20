@@ -312,6 +312,37 @@ function opTypeIcon(t: InvestmentOperationType): keyof typeof Ionicons.glyphMap 
   }
 }
 
+// Fila "Mostrar rentabilidad en [ % | € ]": la misma en Cartera y en Rentabilidad.
+function ReturnModeRow({ mode, onChange, t }: { mode: ReturnMode; onChange: (m: ReturnMode) => void; t: any }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: t.textMuted }}>Mostrar rentabilidad en</Text>
+      <View style={{ flexDirection: "row", backgroundColor: t.card, borderRadius: 10, padding: 2 }}>
+        {([["pct", "%"], ["eur", "€"]] as [ReturnMode, string][]).map(([m, label]) => {
+          const on = mode === m;
+          return (
+            <TouchableOpacity
+              key={m}
+              activeOpacity={0.8}
+              onPress={() => onChange(m)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={m === "pct" ? "Ver rentabilidad en porcentaje" : "Ver rentabilidad en euros"}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 5, borderRadius: 8,
+                backgroundColor: on ? t.surface : "transparent",
+                ...(on ? { shadowColor: "#0F172A", shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 } : {}),
+              }}
+            >
+              <Text style={{ fontSize: 12.5, fontWeight: "800", color: on ? colors.primary : t.textMuted }}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = false }: any) {
   const { colors: t } = useTheme();
   const showToast = useUIStore((s) => s.showToast);
@@ -334,7 +365,6 @@ export default function InvestmentsHomeScreen({ navigation, isPinnedModuleTab = 
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [rentView, setRentView] = useState<"grafica" | "tabla">("tabla");
-  const [rentTableMetric, setRentTableMetric] = useState<"pct" | "eur">("pct");
   const [monthPopup, setMonthPopup] = useState<{
     label: string;
     entries: Array<{ year: number; row: MonthlyRentRow }>;
@@ -1197,6 +1227,8 @@ const submitContribution = useCallback(() => {
     setReturnModeState(mode);
     storage.setItem(RETURN_MODE_KEY, mode).catch(() => {});
   };
+  // La tabla de Rentabilidad usa la misma preferencia (% o €) que las tarjetas de Cartera.
+  const rentTableMetric = returnMode;
   const [distributionView, setDistributionView] = useState<"actual" | "objetivo">("actual");
   const rentAnim = useRef(new Animated.Value(1)).current;
 
@@ -1563,33 +1595,7 @@ const submitContribution = useCallback(() => {
         {mainTab === "cartera" && (
           <>
         <View className="px-5">
-          {assets.length > 0 && (
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: t.textMuted }}>Mostrar rentabilidad en</Text>
-              <View style={{ flexDirection: "row", backgroundColor: t.card, borderRadius: 10, padding: 2 }}>
-                {([["pct", "%"], ["eur", "€"]] as [ReturnMode, string][]).map(([mode, label]) => {
-                  const on = returnMode === mode;
-                  return (
-                    <TouchableOpacity
-                      key={mode}
-                      activeOpacity={0.8}
-                      onPress={() => setReturnMode(mode)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: on }}
-                      accessibilityLabel={mode === "pct" ? "Ver rentabilidad en porcentaje" : "Ver rentabilidad en euros"}
-                      style={{
-                        paddingHorizontal: 14, paddingVertical: 5, borderRadius: 8,
-                        backgroundColor: on ? t.surface : "transparent",
-                        ...(on ? { shadowColor: "#0F172A", shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 } : {}),
-                      }}
-                    >
-                      <Text style={{ fontSize: 12.5, fontWeight: "800", color: on ? colors.primary : t.textMuted }}>{label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
+          {assets.length > 0 && <ReturnModeRow mode={returnMode} onChange={setReturnMode} t={t} />}
           {assets.length === 0 ? (
             <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
               <View
@@ -2482,27 +2488,11 @@ const submitContribution = useCallback(() => {
           };
 
           return (
-            <View style={{ marginHorizontal: 20, marginTop: 2, marginBottom: 12, backgroundColor: t.surface, borderRadius: 22, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
-              {/* Unidad de toda la matriz */}
-              <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: 10, paddingTop: 8, paddingBottom: 7 }}>
-                <View style={{ flexDirection: "row", backgroundColor: t.card, borderRadius: 12, padding: 3 }}>
-                  {([{ key: "pct", label: "%" }, { key: "eur", label: "€" }] as const).map((m) => (
-                    <TouchableOpacity
-                      key={m.key}
-                      onPress={() => setRentTableMetric(m.key)}
-                      style={{
-                        width: 38, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center",
-                        backgroundColor: rentTableMetric === m.key ? t.surface : "transparent",
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: "900", color: rentTableMetric === m.key ? colors.primary : t.textMuted }}>
-                        {m.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
+            <>
+            <View style={{ marginHorizontal: 20, marginTop: 2 }}>
+              <ReturnModeRow mode={returnMode} onChange={setReturnMode} t={t} />
+            </View>
+            <View style={{ marginHorizontal: 20, marginTop: 0, marginBottom: 12, backgroundColor: t.surface, borderRadius: 22, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
               {/* La columna de meses queda fuera del scroll: permanece fija. */}
               <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: t.border }}>
                 <View style={{ width: rowLabelW, zIndex: 2, backgroundColor: t.surface, borderRightWidth: 1, borderRightColor: t.border }}>
@@ -2604,6 +2594,7 @@ const submitContribution = useCallback(() => {
                 </ScrollView>
               </View>
             </View>
+            </>
           );
         })()}
 
