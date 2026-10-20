@@ -1654,7 +1654,7 @@ const submitContribution = useCallback(() => {
               // "Hoy" solo si hay dato; si no, la columna es el Peso.
               const hasDay = a.dayReturnPct != null && Number.isFinite(a.dayReturnPct);
               type Kpi = { label: string; text: string; tone: "up" | "down" | "flat"; style: "arrow" | "color" | "plain" };
-              // Hoy / Mensual / Anual: texto neutro con flecha de color; Total: solo el texto en color.
+              // Hoy / Mensual / Anual: texto neutro (el signo ya indica la dirección); Total: solo el texto en color.
               // En euros, "sin dato" (rentabilidad null) sigue siendo "—", no 0,00 €.
               const kpi = (label: string, profit: number | null | undefined, pct: number | null | undefined, style: Kpi["style"]): Kpi => {
                 if (!eur) return { label, text: formatReturnPct(pct), tone: returnTone(pct), style };
@@ -1740,9 +1740,6 @@ const submitContribution = useCallback(() => {
                           numberOfLines={1}
                           adjustsFontSizeToFit
                         >
-                          {k.style === "arrow" && k.tone !== "flat" ? (
-                            <Text style={{ fontSize: 7.5, color: toneColor(k.tone) }}>{k.tone === "up" ? "▲\u2009" : "▼\u2009"}</Text>
-                          ) : null}
                           {k.text}
                         </Text>
                       </View>
