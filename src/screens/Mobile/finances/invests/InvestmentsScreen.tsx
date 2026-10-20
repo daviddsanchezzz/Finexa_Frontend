@@ -32,7 +32,8 @@ import InvestmentsFiltersModal, {
   applyInvestmentFilters,
 } from "../../../../components/InvestmentsFiltersModal";
 import { colors } from "../../../../theme/theme";
-import { formatReturnPct, formatWeightPct, returnTone } from "../../../../utils/investmentReturnFormat";
+import { amountTone, formatReturnPct, formatSignedMoney, formatWeightPct, parseReturnMode, RETURN_MODE_KEY, returnTone, type ReturnMode } from "../../../../utils/investmentReturnFormat";
+import { storage } from "../../../../utils/storage";
 import { useTheme } from "../../../../context/ThemeContext";
 import api from "../../../../api/api";
 import { InvestmentsScreenSkeleton } from "../../../../components/skeletons/InvestmentsScreenSkeleton";
@@ -85,7 +86,9 @@ interface SummaryAssetFromApi {
   returnPct?: number | null;
   // Rentabilidad del mes natural en curso y del año en curso (sin contar aportaciones/retiradas).
   monthReturnPct?: number | null;
+  monthProfit?: number | null;
   ytdReturnPct?: number | null;
+  ytdProfit?: number | null;
   lastValuationDate: string | null;
   description?: string | null;
 }
@@ -1184,6 +1187,16 @@ const submitContribution = useCallback(() => {
   const PULL_MAX = 65;
   const [fetchError, setFetchError] = useState(false);
   const [mainTab, setMainTab] = useState<"cartera" | "distribucion" | "rentabilidad" | "operaciones">("cartera");
+
+  // Mostrar la rentabilidad de las tarjetas en % o en € (se recuerda entre sesiones).
+  const [returnMode, setReturnModeState] = useState<ReturnMode>("pct");
+  useEffect(() => {
+    storage.getItem(RETURN_MODE_KEY).then((raw) => setReturnModeState(parseReturnMode(raw))).catch(() => {});
+  }, []);
+  const setReturnMode = (mode: ReturnMode) => {
+    setReturnModeState(mode);
+    storage.setItem(RETURN_MODE_KEY, mode).catch(() => {});
+  };
   const [distributionView, setDistributionView] = useState<"actual" | "objetivo">("actual");
   const rentAnim = useRef(new Animated.Value(1)).current;
 
@@ -1548,6 +1561,33 @@ const submitContribution = useCallback(() => {
         {mainTab === "cartera" && (
           <>
         <View className="px-5">
+          {assets.length > 0 && (
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: t.textMuted }}>Mostrar rentabilidad en</Text>
+              <View style={{ flexDirection: "row", backgroundColor: t.card, borderRadius: 10, padding: 2 }}>
+                {([["pct", "%"], ["eur", "€"]] as [ReturnMode, string][]).map(([mode, label]) => {
+                  const on = returnMode === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      activeOpacity={0.8}
+                      onPress={() => setReturnMode(mode)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={mode === "pct" ? "Ver rentabilidad en porcentaje" : "Ver rentabilidad en euros"}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 5, borderRadius: 8,
+                        backgroundColor: on ? t.surface : "transparent",
+                        ...(on ? { shadowColor: "#0F172A", shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 } : {}),
+                      }}
+                    >
+                      <Text style={{ fontSize: 12.5, fontWeight: "800", color: on ? colors.primary : t.textMuted }}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
           {assets.length === 0 ? (
             <View style={{ alignItems: "center", marginTop: 48, gap: 12 }}>
               <View
@@ -1578,14 +1618,20 @@ const submitContribution = useCallback(() => {
               const allocPct = allocationMap.get(a.id);
               const cryptoPreset = a.type === "crypto" ? findCryptoPresetBySymbol(a.identificator) : undefined;
               const totalReturn = a.returnPct ?? (a.invested > 1e-9 ? (a.pnl || 0) / a.invested : null);
-              const toneColor = (v: number | null | undefined) => {
-                const tone = returnTone(v);
-                return tone === "up" ? colors.success : tone === "down" ? colors.danger : t.textMuted;
+              const toneColor = (tone: "up" | "down" | "flat") =>
+                tone === "up" ? colors.success : tone === "down" ? colors.danger : t.textMuted;
+              const assetCurrency = a.currency || currency;
+              const pctKpi = (v: number | null | undefined) => ({ text: formatReturnPct(v), color: toneColor(returnTone(v)) });
+              // En euros, "sin dato" (rentabilidad null) sigue siendo "—", no 0,00 €.
+              const eurKpi = (profit: number | null | undefined, pct: number | null | undefined) => {
+                const has = pct != null && profit != null;
+                return { text: has ? formatSignedMoney(profit, assetCurrency) : "—", color: toneColor(has ? amountTone(profit) : "flat") };
               };
+              const eur = returnMode === "eur";
               const kpis = [
-                { label: "MES", text: formatReturnPct(a.monthReturnPct), color: toneColor(a.monthReturnPct) },
-                { label: "AÑO", text: formatReturnPct(a.ytdReturnPct), color: toneColor(a.ytdReturnPct) },
-                { label: "TOTAL", text: formatReturnPct(totalReturn), color: toneColor(totalReturn) },
+                { label: "MES", ...(eur ? eurKpi(a.monthProfit, a.monthReturnPct) : pctKpi(a.monthReturnPct)) },
+                { label: "AÑO", ...(eur ? eurKpi(a.ytdProfit, a.ytdReturnPct) : pctKpi(a.ytdReturnPct)) },
+                { label: "TOTAL", ...(eur ? eurKpi(a.pnl, totalReturn) : pctKpi(totalReturn)) },
                 { label: "PESO", text: formatWeightPct(allocPct), color: t.text },
               ];
 

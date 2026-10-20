@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatReturnPct, formatWeightPct, returnTone } from "./investmentReturnFormat";
+import { amountTone, formatReturnPct, formatSignedMoney, formatWeightPct, parseReturnMode, returnTone } from "./investmentReturnFormat";
 
 describe("formatReturnPct", () => {
   it("signo explícito y coma decimal", () => {
@@ -35,5 +35,39 @@ describe("formatWeightPct", () => {
     expect(formatWeightPct(0.599)).toBe("59,9 %");
     expect(formatWeightPct(0.045)).toBe("4,5 %");
     expect(formatWeightPct(null)).toBe("—");
+  });
+});
+
+describe("formatSignedMoney", () => {
+  it("signo explícito, coma decimal y miles con punto", () => {
+    expect(formatSignedMoney(72.2237)).toBe("+72,22 €");
+    expect(formatSignedMoney(-60.7)).toBe("−60,70 €");
+    expect(formatSignedMoney(1234.5)).toBe("+1.234,50 €");
+  });
+  it("cero (también tras redondear) y sin dato", () => {
+    expect(formatSignedMoney(0)).toBe("0,00 €");
+    expect(formatSignedMoney(0.004)).toBe("0,00 €");
+    expect(formatSignedMoney(-0.004)).toBe("0,00 €");
+    expect(formatSignedMoney(null)).toBe("—");
+    expect(formatSignedMoney(NaN)).toBe("—");
+  });
+  it("respeta la moneda del activo", () => {
+    expect(formatSignedMoney(10, "USD")).toContain("+10,00");
+    expect(formatSignedMoney(10, "USD")).not.toContain("€");
+  });
+});
+
+describe("amountTone y parseReturnMode", () => {
+  it("color por importe", () => {
+    expect(amountTone(0.01)).toBe("up");
+    expect(amountTone(-0.01)).toBe("down");
+    expect(amountTone(0.004)).toBe("flat");
+    expect(amountTone(null)).toBe("flat");
+  });
+  it("modo guardado: solo 'eur' activa euros; cualquier otra cosa es %", () => {
+    expect(parseReturnMode("eur")).toBe("eur");
+    expect(parseReturnMode("pct")).toBe("pct");
+    expect(parseReturnMode(null)).toBe("pct");
+    expect(parseReturnMode("raro")).toBe("pct");
   });
 });
