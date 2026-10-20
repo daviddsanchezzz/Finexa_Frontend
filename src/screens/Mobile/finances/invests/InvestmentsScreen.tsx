@@ -1350,23 +1350,16 @@ const submitContribution = useCallback(() => {
           showDatePicker={false}
           showBack={!isPinnedModuleTab}
           rightElement={
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <AddButton label="Añadir" onPress={() => navigation.navigate("InvestmentForm")} />
-              <OverflowMenuButton
-                title="Inversiones"
-                accessibilityLabel="Acciones de inversiones"
-                actions={[
-                  {
-                    label: "Nueva valoración",
-                    onPress: () => navigation.navigate("InvestmentValuation"),
-                  },
-                  {
-                    label: "Nueva operación",
-                    onPress: () => navigation.navigate("InvestmentOperation"),
-                  },
-                ]}
-              />
-            </View>
+            <OverflowMenuButton
+              title="Añadir"
+              accessibilityLabel="Añadir inversión, valoración u operación"
+              renderTrigger={(open) => <AddButton label="Añadir" onPress={open} />}
+              actions={[
+                { label: "Nueva inversión", onPress: () => navigation.navigate("InvestmentForm") },
+                { label: "Nueva valoración", onPress: () => navigation.navigate("InvestmentValuation") },
+                { label: "Nueva operación", onPress: () => navigation.navigate("InvestmentOperation") },
+              ]}
+            />
           }
         />
 
