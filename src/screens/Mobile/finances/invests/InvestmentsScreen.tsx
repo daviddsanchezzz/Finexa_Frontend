@@ -781,6 +781,8 @@ const submitContribution = useCallback(() => {
   }, [assets, searchQuery]);
 
   const visibleAssets = useMemo(() => applyInvestmentFilters(searchedAssets, filters), [searchedAssets, filters]);
+  // Columna HOY en todas las tarjetas si alguna tiene dato (las que no, muestran "—"): columnas siempre iguales.
+  const anyDay = useMemo(() => visibleAssets.some((x) => x.dayReturnPct != null && Number.isFinite(x.dayReturnPct)), [visibleAssets]);
   const activeFilterCount = countActiveInvestmentFilters(filters);
 
   const allocation = useMemo(() => {
@@ -1655,7 +1657,7 @@ const submitContribution = useCallback(() => {
               const assetCurrency = a.currency || currency;
               const eur = returnMode === "eur";
               // "Hoy" solo si hay dato; si no, la columna es el Peso.
-              const hasDay = a.dayReturnPct != null && Number.isFinite(a.dayReturnPct);
+              const hasDay = anyDay;
               type Kpi = { label: string; text: string; tone: "up" | "down" | "flat"; style: "arrow" | "color" | "plain" };
               // Hoy / Mensual / Anual: texto neutro (el signo ya indica la dirección); Total: solo el texto en color.
               // En euros, "sin dato" (rentabilidad null) sigue siendo "—", no 0,00 €.
@@ -1666,7 +1668,7 @@ const submitContribution = useCallback(() => {
               };
               const totalReturn = a.returnPct ?? (a.invested > 1e-9 ? (a.pnl || 0) / a.invested : null);
               const kpis: Kpi[] = [
-                ...(hasDay ? [kpi("HOY", a.dayProfit, a.dayReturnPct, "arrow")] : []),
+                ...(hasDay ? [kpi("HOY", a.dayProfit, a.dayReturnPct ?? null, "arrow")] : []),
                 kpi("MENSUAL", a.monthProfit, a.monthReturnPct, "arrow"),
                 kpi("ANUAL", a.ytdProfit, a.ytdReturnPct, "arrow"),
                 kpi("TOTAL", a.pnl, totalReturn, "color"),
